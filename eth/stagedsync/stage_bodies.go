@@ -212,6 +212,7 @@ Loop:
 						panic(fmt.Errorf("found gap in txn ids: %d - %d. blockNum=%d", id, nextID, blockNum))
 					}
 					i++
+					nextID = id
 
 					if i == 100 {
 						break
