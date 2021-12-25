@@ -2,6 +2,7 @@ package stagedsync
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"runtime"
 	"time"
@@ -21,6 +22,8 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/stages/headerdownload"
 	"github.com/ledgerwatch/log/v3"
 )
+
+const ASSERT = true
 
 type BodiesCfg struct {
 	db              kv.RwDB
@@ -189,6 +192,31 @@ Loop:
 			// Check existence before write - because WriteRawBody isn't idempotent (it allocates new sequence range for transactions on every call)
 			if err = rawdb.WriteRawBodyIfNotExists(tx, header.Hash(), blockHeight, rawBody); err != nil {
 				return fmt.Errorf("writing block body: %w", err)
+			}
+
+			if ASSERT {
+				c, _ := tx.Cursor(kv.EthTx)
+				var nextID uint64
+				i := 0
+				for k, _, err := c.Last(); k != nil; k, _, err = c.Prev() {
+					if err != nil {
+						panic(err)
+					}
+					if i == 0 {
+						nextID = binary.BigEndian.Uint64(k)
+						i++
+						continue
+					}
+					id := binary.BigEndian.Uint64(k)
+					if id != nextID-1 {
+						panic(fmt.Errorf("found gap in txn ids: %d - %d. blockNum=%d", id, nextID, blockNum))
+					}
+					i++
+
+					if i == 100 {
+						break
+					}
+				}
 			}
 
 			if blockHeight > bodyProgress {

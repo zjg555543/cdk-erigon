@@ -346,17 +346,6 @@ func WriteTransactions(db kv.RwTx, txs []types.Transaction, baseTxId uint64) err
 
 func WriteRawTransactions(db kv.StatelessRwTx, txs [][]byte, baseTxId uint64) error {
 	txIdKey := make([]byte, 8)
-	if baseTxId > 0 {
-		binary.BigEndian.PutUint64(txIdKey, baseTxId-1)
-		exists, err := db.Has(kv.EthTx, txIdKey)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return fmt.Errorf("no gaps allowed in tranactions table, inserting %d, but %d doesn't exists", baseTxId, baseTxId-1)
-		}
-	}
-
 	txId := baseTxId
 	for _, tx := range txs {
 		binary.BigEndian.PutUint64(txIdKey, txId)
