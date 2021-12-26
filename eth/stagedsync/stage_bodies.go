@@ -198,7 +198,7 @@ Loop:
 				c, _ := tx.Cursor(kv.EthTx)
 				var nextID uint64
 				i := 0
-				log.Info("start assert")
+				log.Info("start assert", "n", blockHeight)
 				for k, _, err := c.Last(); k != nil; k, _, err = c.Prev() {
 					if err != nil {
 						panic(err)
