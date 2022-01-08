@@ -195,13 +195,20 @@ Loop:
 			{
 				lastId, _ := tx.ReadSequence(kv.EthTx)
 				c, _ := tx.Cursor(kv.EthTx)
+				i := 0
 				for k, _, _ := c.Last(); k != nil; k, _, _ = c.Prev() {
 					id := binary.BigEndian.Uint64(k)
 					if lastId-1 != id {
 						panic(fmt.Errorf("jump: %d %d, at block %d\n", id, lastId, blockNum))
 					}
-					lastId = 1
+					lastId = id
+
+					i++
+					if i > 100 {
+						break
+					}
 				}
+				c.Close()
 			}
 			if blockHeight > bodyProgress {
 				bodyProgress = blockHeight
