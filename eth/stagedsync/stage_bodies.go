@@ -2,6 +2,7 @@ package stagedsync
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"runtime"
 	"time"
@@ -191,6 +192,17 @@ Loop:
 				return fmt.Errorf("writing block body: %w", err)
 			}
 
+			{
+				lastId, _ := tx.ReadSequence(kv.EthTx)
+				c, _ := tx.Cursor(kv.EthTx)
+				for k, _, _ := c.Last(); k != nil; k, _, _ = c.Prev() {
+					id := binary.BigEndian.Uint64(k)
+					if lastId-1 != id {
+						panic(fmt.Errorf("jump: %d %d, at block %d\n", id, lastId, blockNum))
+					}
+					lastId = 1
+				}
+			}
 			if blockHeight > bodyProgress {
 				bodyProgress = blockHeight
 				if err = s.Update(tx, blockHeight); err != nil {
