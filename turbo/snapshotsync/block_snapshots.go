@@ -577,7 +577,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, tmpFilePath string, fromBlock uint
 				sender = senders[j][:]
 			} else {
 				//sender = make([]byte, 20) // TODO: return error here
-				panic("not implemented")
+				panic("tx has no senders in DB")
 			}
 			_ = sender
 			valueBuf = valueBuf[:0]
