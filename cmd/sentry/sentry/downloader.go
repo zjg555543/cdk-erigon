@@ -586,6 +586,8 @@ func (cs *ControlServerImpl) newBlock66(ctx context.Context, inreq *proto_sentry
 func (cs *ControlServerImpl) blockBodies66(inreq *proto_sentry.InboundMessage, sentry direct.SentryClient) error {
 	var request eth.BlockRawBodiesPacket66
 	if err := rlp.DecodeBytes(inreq.Data, &request); err != nil {
+		fmt.Printf("%x\n", inreq.Data)
+		panic(1)
 		return fmt.Errorf("decode BlockBodiesPacket66: %w", err)
 	}
 	txs, uncles := request.BlockRawBodiesPacket.Unpack()
