@@ -10,7 +10,6 @@ import (
 	lg "github.com/anacrolix/log"
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
-	"github.com/anacrolix/torrent/peer_protocol"
 	"github.com/anacrolix/torrent/storage"
 	"github.com/c2h5oh/datasize"
 	"github.com/dustin/go-humanize"
@@ -66,7 +65,6 @@ func New(cfg *torrent.ClientConfig, progressStore storage.PieceCompletion) (*Cli
 
 func DefaultTorrentConfig() *torrent.ClientConfig {
 	torrentConfig := torrent.NewDefaultClientConfig()
-	torrentConfig.ListenPort = 0
 
 	// enable dht
 	torrentConfig.NoDHT = true
@@ -79,11 +77,11 @@ func DefaultTorrentConfig() *torrent.ClientConfig {
 	torrentConfig.NominalDialTimeout = 20 * time.Second // default: 20sec
 	torrentConfig.HandshakesTimeout = 8 * time.Second   // default: 4sec
 
-	torrentConfig.MinPeerExtensions.SetBit(peer_protocol.ExtensionBitFast, true)
-
 	torrentConfig.EstablishedConnsPerTorrent = 10 // default: 50
+	torrentConfig.HalfOpenConnsPerTorrent = 5     // default: 25
+	torrentConfig.TotalHalfOpenConns = 10         // default: 100
 	torrentConfig.TorrentPeersHighWater = 100     // default: 500
-	torrentConfig.TorrentPeersLowWater = 50       // default: 50
+	torrentConfig.TorrentPeersLowWater = 30       // default: 50
 
 	return torrentConfig
 }
