@@ -699,8 +699,7 @@ func DumpBodies(ctx context.Context, db kv.RoDB, filePath string, fromBlock uint
 			return false, err
 		}
 		if dataRLP == nil {
-			log.Warn("header missed", "block_num", blockNum, "hash", fmt.Sprintf("%x", v))
-			return true, nil
+			return false, fmt.Errorf("header misset %d %x", blockNum, v)
 		}
 
 		numBuf := make([]byte, binary.MaxVarintLen64)
