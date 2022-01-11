@@ -65,6 +65,7 @@ func New(cfg *torrent.ClientConfig, progressStore storage.PieceCompletion) (*Cli
 
 func DefaultTorrentConfig() *torrent.ClientConfig {
 	torrentConfig := torrent.NewDefaultClientConfig()
+	torrentConfig.ListenPort = 30403
 
 	// enable dht
 	torrentConfig.NoDHT = true
