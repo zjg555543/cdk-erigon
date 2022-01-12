@@ -307,7 +307,7 @@ func RecvMessage(
 
 		if err = handleInboundMessage(ctx, req, sentry); err != nil {
 			if rlp.IsDecodeError(err) {
-				log.Debug("[RecvMessage] Handling incoming message", "error", err)
+				log.Debug("[RecvMessage] Handling incoming message", "name", req.Id.String(), "error", err)
 				outreq := proto_sentry.PenalizePeerRequest{
 					PeerId:  req.PeerId,
 					Penalty: proto_sentry.PenaltyKind_Kick, // TODO: Extend penalty kinds
@@ -316,7 +316,7 @@ func RecvMessage(
 					log.Error("Could not send penalty", "err", err1)
 				}
 			} else {
-				log.Warn("[RecvMessage] Handling incoming message", "error", err)
+				log.Warn("[RecvMessage] Handling incoming message", "name", req.Id.String(), "error", err)
 			}
 		}
 
