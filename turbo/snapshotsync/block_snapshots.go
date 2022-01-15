@@ -566,6 +566,30 @@ func DumpTxs(ctx context.Context, db kv.RoDB, tmpFilePath string, fromBlock uint
 		if err := tx.ForAmount(kv.EthTx, numBuf[:8], body.TxAmount, func(tk, tv []byte) error {
 			id := binary.BigEndian.Uint64(tk)
 			if prevTxID != 0 && id != prevTxID+1 {
+				c, _ := tx.Cursor(kv.EthTx)
+				var nextID uint64
+				i := 0
+				for k, _, err := c.Seek(dbutils.EncodeBlockNumber(id + 10)); k != nil; k, _, err = c.Prev() {
+					if err != nil {
+						panic(err)
+					}
+					if i == 0 {
+						nextID = binary.BigEndian.Uint64(k)
+						i++
+						continue
+					}
+					id := binary.BigEndian.Uint64(k)
+					if id != nextID-1 {
+						panic(fmt.Errorf("found gap in txn ids: %d - %d. blockNum=%d", id, nextID, blockNum))
+					}
+					i++
+					nextID = id
+
+					if i == 1000 {
+						break
+					}
+				}
+
 				panic(fmt.Sprintf("no gaps in tx ids are allowed: block %d does jump from %d to %d", blockNum, prevTxID, id))
 			}
 			prevTxID = id
