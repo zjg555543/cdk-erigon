@@ -24,19 +24,21 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+	"github.com/ledgerwatch/log/v3"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/consensus/misc"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/state"
+	"github.com/ledgerwatch/erigon/core/systemcontracts"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/core/vm"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/rlp"
 	"github.com/ledgerwatch/erigon/turbo/trie"
-	"github.com/ledgerwatch/log/v3"
-	"golang.org/x/crypto/sha3"
 )
 
 type Prestate struct {
@@ -71,6 +73,7 @@ type stEnv struct {
 	BlockHashes map[math.HexOrDecimal64]common.Hash `json:"blockHashes,omitempty"`
 	Ommers      []ommer                             `json:"ommers,omitempty"`
 	BaseFee     *big.Int                            `json:"currentBaseFee,omitempty"`
+	Random      *common.Hash                        `json:"currentRandom,omitempty"`
 }
 
 type rejectedTx struct {
@@ -126,6 +129,15 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		txIndex     = 0
 	)
 	gaspool.AddGas(pre.Env.GasLimit)
+
+	difficulty := new(big.Int)
+	if pre.Env.Random == nil {
+		difficulty = pre.Env.Difficulty
+	} else {
+		// We are on POS hence difficulty opcode is now supplant with RANDOM
+		random := pre.Env.Random.Bytes()
+		difficulty.SetBytes(random)
+	}
 	vmContext := vm.BlockContext{
 		CanTransfer:     core.CanTransfer,
 		Transfer:        core.Transfer,
@@ -133,7 +145,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		BlockNumber:     pre.Env.Number,
 		ContractHasTEVM: func(common.Hash) (bool, error) { return false, nil },
 		Time:            pre.Env.Timestamp,
-		Difficulty:      pre.Env.Difficulty,
+		Difficulty:      difficulty,
 		GasLimit:        pre.Env.GasLimit,
 		GetHash:         getHash,
 	}
@@ -152,6 +164,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 		chainConfig.DAOForkBlock.Cmp(new(big.Int).SetUint64(pre.Env.Number)) == 0 {
 		misc.ApplyDAOHardFork(ibs)
 	}
+	systemcontracts.UpgradeBuildInSystemContract(chainConfig, new(big.Int).SetUint64(pre.Env.Number), ibs)
 
 	for i, txn := range txs {
 		msg, err := txn.AsMessage(*signer, pre.Env.BaseFee)

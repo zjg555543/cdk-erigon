@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ledgerwatch/erigon/core/systemcontracts"
+
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/consensus"
@@ -279,13 +281,14 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		if config.DAOForkSupport && config.DAOForkBlock != nil && config.DAOForkBlock.Cmp(b.header.Number) == 0 {
 			misc.ApplyDAOHardFork(ibs)
 		}
+		systemcontracts.UpgradeBuildInSystemContract(config, b.header.Number, ibs)
 		// Execute any user modifications to the block
 		if gen != nil {
 			gen(i, b)
 		}
 		if b.engine != nil {
 			// Finalize and seal the block
-			if _, _, err := b.engine.FinalizeAndAssemble(config, b.header, ibs, b.txs, b.uncles, b.receipts, nil, nil, nil, nil); err != nil {
+			if _, _, _, err := b.engine.FinalizeAndAssemble(config, b.header, ibs, b.txs, b.uncles, b.receipts, nil, nil, nil, nil); err != nil {
 				return nil, nil, fmt.Errorf("call to FinaliseAndAssemble: %w", err)
 			}
 			// Write state changes to db
@@ -413,7 +416,7 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.I
 			parent.UncleHash(),
 			parent.Seal(),
 		),
-		GasLimit: CalcGasLimit(parent.GasUsed(), parent.GasLimit(), parent.GasLimit(), parent.GasLimit()),
+		GasLimit: CalcGasLimit(parent.GasLimit(), parent.GasLimit()),
 		Number:   new(big.Int).Add(parent.Number(), common.Big1),
 		Time:     time,
 	}
@@ -422,6 +425,10 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.I
 	if chain.Config().IsLondon(header.Number.Uint64()) {
 		header.BaseFee = misc.CalcBaseFee(chain.Config(), parent.Header())
 		header.Eip1559 = true
+		if !chain.Config().IsLondon(parent.NumberU64()) {
+			parentGasLimit := parent.GasLimit() * params.ElasticityMultiplier
+			header.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)
+		}
 	}
 	header.WithSeal = chain.Config().IsHeaderWithSeal()
 
