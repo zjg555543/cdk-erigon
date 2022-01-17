@@ -564,7 +564,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 			tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(blockNum-10), 20, func(k, v []byte) error {
 				b := &types.BodyForStorage{}
 				rlp.Decode(bytes.NewReader(v), b)
-				fmt.Printf("alex: %d->%d\n", b.BaseTxId, b.BaseTxId+uint64(b.TxAmount))
+				fmt.Printf("alex: %d->%d, %d\n", b.BaseTxId, b.BaseTxId+uint64(b.TxAmount), binary.BigEndian.Uint64(k))
 				return nil
 			})
 			panic(fmt.Sprintf("alex: %d, %d, %d\n", prevTxID, body.BaseTxId, blockNum))
