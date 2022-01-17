@@ -516,6 +516,14 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 	}
 	defer f.Close()
 
+	db.View(context.Background(), func(tx kv.Tx) error {
+		return tx.ForAmount(kv.EthTx, dbutils.EncodeBlockNumber(37231200), 1000, func(k, v []byte) error {
+			id := binary.BigEndian.Uint64(k)
+			fmt.Printf("alex: %d\n", id)
+			return nil
+		})
+	})
+	panic(1)
 	var count, prevTxID uint64
 	numBuf := make([]byte, binary.MaxVarintLen64)
 	parseCtx := txpool.NewTxParseContext(*chainID)
