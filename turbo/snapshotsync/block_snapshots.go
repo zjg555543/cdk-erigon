@@ -611,6 +611,9 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		}); err != nil {
 			return false, err
 		}
+		if body.BaseTxId+uint64(body.TxAmount) != prevTxID {
+			panic(fmt.Sprintf("again: %d, %d, %d\n", body.BaseTxId+uint64(body.TxAmount), prevTxID, blockNum))
+		}
 		return true, nil
 	}); err != nil {
 		return 0, err
