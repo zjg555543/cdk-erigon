@@ -559,7 +559,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		if err := tx.ForAmount(kv.EthTx, numBuf[:8], body.TxAmount, func(tk, tv []byte) error {
 			id := binary.BigEndian.Uint64(tk)
 			if prevTxID != 0 && id != prevTxID+1 {
-				tx.ForAmount(kv.EthTx, dbutils.EncodeBlockNumber(body.BaseTxId), body.TxAmount+10, func(k, v []byte) error {
+				tx.ForAmount(kv.EthTx, dbutils.EncodeBlockNumber(body.BaseTxId-10), body.TxAmount+10, func(k, v []byte) error {
 					id := binary.BigEndian.Uint64(k)
 					fmt.Printf("alex: %d\n", id)
 					return nil
