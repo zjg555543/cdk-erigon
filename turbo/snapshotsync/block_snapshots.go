@@ -516,14 +516,6 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 	}
 	defer f.Close()
 
-	db.View(context.Background(), func(tx kv.Tx) error {
-		return tx.ForAmount(kv.EthTx, dbutils.EncodeBlockNumber(37231200), 1000, func(k, v []byte) error {
-			id := binary.BigEndian.Uint64(k)
-			fmt.Printf("alex: %d\n", id)
-			return nil
-		})
-	})
-	panic(1)
 	var count, prevTxID uint64
 	numBuf := make([]byte, binary.MaxVarintLen64)
 	parseCtx := txpool.NewTxParseContext(*chainID)
@@ -567,17 +559,11 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		if err := tx.ForAmount(kv.EthTx, numBuf[:8], body.TxAmount, func(tk, tv []byte) error {
 			id := binary.BigEndian.Uint64(tk)
 			if prevTxID != 0 && id != prevTxID+1 {
-				c, _ := tx.Cursor(kv.EthTx)
-				i := 0
-				for k, _, _ := c.Seek(dbutils.EncodeBlockNumber(body.BaseTxId)); k != nil; k, _, _ = c.Next() {
+				tx.ForAmount(kv.EthTx, dbutils.EncodeBlockNumber(body.BaseTxId), body.TxAmount+10, func(k, v []byte) error {
 					id := binary.BigEndian.Uint64(k)
 					fmt.Printf("alex: %d\n", id)
-					if id > body.BaseTxId+uint64(body.TxAmount) {
-						break
-					}
-					i++
-				}
-				c.Close()
+					return nil
+				})
 
 				panic(fmt.Sprintf("no gaps in tx ids are allowed: block %d does jump from %d to %d", blockNum, prevTxID, id))
 			}
