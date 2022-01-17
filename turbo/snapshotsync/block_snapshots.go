@@ -529,6 +529,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, tmpFilePath string, fromBlock uint
 
 	from := dbutils.EncodeBlockNumber(fromBlock)
 	var lastBody types.BodyForStorage
+	var sender [20]byte
 	if err := kv.BigChunks(db, kv.HeaderCanonical, from, func(tx kv.Tx, k, v []byte) (bool, error) {
 		blockNum := binary.BigEndian.Uint64(k)
 		if blockNum >= fromBlock+uint64(blocksAmount) {
@@ -563,20 +564,18 @@ func DumpTxs(ctx context.Context, db kv.RoDB, tmpFilePath string, fromBlock uint
 				panic(fmt.Sprintf("no gaps in tx ids are allowed: block %d does jump from %d to %d", blockNum, prevTxID, id))
 			}
 			prevTxID = id
-			if _, err := parseCtx.ParseTransaction(tv, 0, &slot, nil); err != nil {
+			if len(senders) > 0 {
+				parseCtx.WithSender(true)
+			}
+			if _, err := parseCtx.ParseTransaction(tv, 0, &slot, sender[:]); err != nil {
 				return err
 			}
-			var sender []byte
 			if len(senders) > 0 {
-				sender = senders[j][:]
-			} else {
-				//sender = make([]byte, 20) // TODO: return error here
-				panic("not implemented")
+				sender = senders[j]
 			}
-			_ = sender
 			valueBuf = valueBuf[:0]
 			valueBuf = append(valueBuf, slot.IdHash[:1]...)
-			valueBuf = append(valueBuf, sender...)
+			valueBuf = append(valueBuf, sender[:]...)
 			valueBuf = append(valueBuf, tv...)
 			if err := f.Append(valueBuf); err != nil {
 				return err
