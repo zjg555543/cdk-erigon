@@ -557,16 +557,18 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		}
 		j := 0
 		if prevTxID != 0 && body.BaseTxId != prevTxID+1 {
+			tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(body.BaseTxId-10), body.TxAmount+10, func(k, v []byte) error {
+				b := &types.BodyForStorage{}
+				rlp.Decode(bytes.NewReader(v), b)
+				fmt.Printf("alex: %d->%d\n", b.BaseTxId, b.BaseTxId+uint64(b.TxAmount))
+				return nil
+			})
+
 			panic(fmt.Sprintf("alex: %d, %d\n", prevTxID, body.BaseTxId))
 		}
 		if err := tx.ForAmount(kv.EthTx, numBuf[:8], body.TxAmount, func(tk, tv []byte) error {
 			id := binary.BigEndian.Uint64(tk)
 			if prevTxID != 0 && id != prevTxID+1 {
-				tx.ForAmount(kv.EthTx, dbutils.EncodeBlockNumber(body.BaseTxId-10), body.TxAmount+10, func(k, v []byte) error {
-					id := binary.BigEndian.Uint64(k)
-					fmt.Printf("alex: %d\n", id)
-					return nil
-				})
 
 				panic(fmt.Sprintf("no gaps in tx ids are allowed: block %d does jump from %d to %d", blockNum, prevTxID, id))
 			}
