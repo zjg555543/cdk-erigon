@@ -557,7 +557,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		}
 		j := 0
 		if prevTxID != 0 && body.BaseTxId != prevTxID+1 {
-			tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(blockNum-10), uint32(blockNum+10), func(k, v []byte) error {
+			tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(blockNum-10), 20, func(k, v []byte) error {
 				b := &types.BodyForStorage{}
 				rlp.Decode(bytes.NewReader(v), b)
 				fmt.Printf("alex: %d->%d\n", b.BaseTxId, b.BaseTxId+uint64(b.TxAmount))
