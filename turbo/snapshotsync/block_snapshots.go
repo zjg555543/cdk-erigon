@@ -556,7 +556,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 			firstTxID = body.BaseTxId
 		}
 		j := 0
-		if prevTxID != 0 && body.BaseTxId != prevTxID {
+		if prevTxID != 0 && body.BaseTxId != prevTxID+1 {
 			panic(fmt.Sprintf("alex: %d, %d\n", prevTxID, body.BaseTxId))
 		}
 		if err := tx.ForAmount(kv.EthTx, numBuf[:8], body.TxAmount, func(tk, tv []byte) error {
