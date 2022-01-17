@@ -556,7 +556,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 			firstTxID = body.BaseTxId
 		}
 		j := 0
-		if blockNum > 4729241 {
+		if blockNum > 4728059 {
 			fmt.Printf("a1: %d, %d,%d\n", blockNum, body.BaseTxId, body.TxAmount)
 		}
 		if prevTxID != 0 && body.BaseTxId != prevTxID+1 {
@@ -575,7 +575,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		}
 		if err := tx.ForAmount(kv.EthTx, numBuf[:8], body.TxAmount, func(tk, tv []byte) error {
 			id := binary.BigEndian.Uint64(tk)
-			if blockNum > 4729241 {
+			if blockNum > 4728059 {
 				fmt.Printf("a2: %d, %d, %d\n", blockNum, id, prevTxID)
 			}
 			if prevTxID != 0 && id != prevTxID+1 {
@@ -619,7 +619,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		}); err != nil {
 			return false, err
 		}
-		if blockNum > 4729241 {
+		if blockNum > 4728059 {
 			fmt.Printf("a3: %d,  %d\n", blockNum, prevTxID)
 		}
 		if body.BaseTxId+uint64(body.TxAmount) != prevTxID+1 {
