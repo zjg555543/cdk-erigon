@@ -557,6 +557,10 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		}
 		j := 0
 		if prevTxID != 0 && body.BaseTxId != prevTxID+1 {
+			tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(blockNum-10), 20, func(k, v []byte) error {
+				fmt.Printf("canonical: %x->%d\n", k, binary.BigEndian.Uint64(k))
+				return nil
+			})
 			tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(blockNum-10), 20, func(k, v []byte) error {
 				b := &types.BodyForStorage{}
 				rlp.Decode(bytes.NewReader(v), b)
