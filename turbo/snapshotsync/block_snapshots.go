@@ -556,6 +556,9 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 			firstTxID = body.BaseTxId
 		}
 		j := 0
+		if blockNum > 4729241 {
+			fmt.Printf("a1: %d, %d,%d\n", blockNum, body.BaseTxId, body.TxAmount)
+		}
 		if prevTxID != 0 && body.BaseTxId != prevTxID+1 {
 			tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(blockNum-10), 20, func(k, v []byte) error {
 				fmt.Printf("canonical: %x->%d\n", k, binary.BigEndian.Uint64(k))
@@ -572,10 +575,14 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 		}
 		if err := tx.ForAmount(kv.EthTx, numBuf[:8], body.TxAmount, func(tk, tv []byte) error {
 			id := binary.BigEndian.Uint64(tk)
+			if blockNum > 4729241 {
+				fmt.Printf("a2: %d, %d, %d\n", blockNum, id, prevTxID)
+			}
 			if prevTxID != 0 && id != prevTxID+1 {
 				panic(fmt.Sprintf("no gaps in tx ids are allowed: block %d does jump from %d to %d", blockNum, prevTxID, id))
 			}
 			prevTxID = id
+
 			if len(senders) > 0 {
 				parseCtx.WithSender(true)
 			}
@@ -607,9 +614,13 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, fromBl
 					"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys),
 				)
 			}
+
 			return nil
 		}); err != nil {
 			return false, err
+		}
+		if blockNum > 4729241 {
+			fmt.Printf("a3: %d,  %d\n", blockNum, prevTxID)
 		}
 		if body.BaseTxId+uint64(body.TxAmount) != prevTxID+1 {
 			panic(fmt.Sprintf("again: %d, %d, %d\n", body.BaseTxId+uint64(body.TxAmount), prevTxID, blockNum))
