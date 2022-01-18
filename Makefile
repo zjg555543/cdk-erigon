@@ -20,6 +20,7 @@ go-version:
 	fi
 
 docker:
+	if [ -d ".git" ]; then 	git submodule update --init --recursive --force; fi
 	DOCKER_BUILDKIT=1 docker build -t erigon:latest --build-arg git_commit='${GIT_COMMIT}' --build-arg git_branch='${GIT_BRANCH}' --build-arg git_tag='${GIT_TAG}' .
 
 xdg_data_home :=  ~/.local/share
@@ -39,7 +40,7 @@ geth: erigon
 erigon: go-version
 	@echo "Building Erigon"
 	rm -f $(GOBIN)/tg # Remove old binary to prevent confusion where users still use it because of the scripts
-	git submodule update --init --recursive --force
+	if [ -d ".git" ]; then 	git submodule update --init --recursive --force; fi
 	$(GOBUILD) -o $(GOBIN)/erigon ./cmd/erigon
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/erigon\" to launch Erigon."
