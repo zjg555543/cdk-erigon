@@ -5,6 +5,7 @@ RUN apk --no-cache add make gcc g++ linux-headers git bash ca-certificates libgc
 
 WORKDIR /app
 ADD . .
+ADD .git .git
 
 # expect that host run `git submodule update --init`
 RUN make erigon rpcdaemon integration sentry txpool downloader hack db-tools
