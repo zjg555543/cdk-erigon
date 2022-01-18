@@ -7,7 +7,7 @@ WORKDIR /app
 ADD . .
 ADD .git .git
 
-# expect that host run `git submodule update --init`
+# expect that host run `git submodule update --init --recursive --force`
 RUN make erigon rpcdaemon integration sentry txpool downloader hack db-tools
 
 FROM docker.io/library/alpine:3.14
