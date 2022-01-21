@@ -27,6 +27,7 @@ import (
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/spf13/cobra"
+	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
 var (
@@ -63,7 +64,9 @@ func Erigon2(genesis *core.Genesis, logger log.Logger) error {
 		<-sigs
 		interruptCh <- true
 	}()
-	historyDb, err := kv2.NewMDBX(logger).Path(path.Join(datadir, "chaindata")).Readonly().Open()
+	historyDb, err := kv2.NewMDBX(logger).Flags(func(u uint) uint {
+		return (u ^ mdbx.Durable) | mdbx.SafeNoSync
+	}).Path(path.Join(datadir, "chaindata")).Readonly().Open()
 	if err != nil {
 		return fmt.Errorf("opening chaindata as read only: %v", err)
 	}
