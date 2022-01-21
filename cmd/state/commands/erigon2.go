@@ -65,7 +65,7 @@ func Erigon2(genesis *core.Genesis, logger log.Logger) error {
 		interruptCh <- true
 	}()
 	historyDb, err := kv2.NewMDBX(logger).Flags(func(u uint) uint {
-		return (u ^ mdbx.Durable) | mdbx.SafeNoSync | mdbx.WriteMap
+		return u | mdbx.WriteMap
 	}).Path(path.Join(datadir, "chaindata")).Readonly().Open()
 	if err != nil {
 		return fmt.Errorf("opening chaindata as read only: %v", err)
