@@ -9,6 +9,7 @@ import (
 
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 
 	"github.com/RoaringBitmap/roaring"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -248,11 +249,20 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 	}
 	defer tx.Rollback()
 
+	for _, stage := range stages.AllStages {
+		progress, err := stages.GetStageProgress(tx, stage)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Printf("debug: stage %s %d\n", string(stage), progress)
+	}
+
 	blockNum, ok, err := api.txnLookup(ctx, tx, hash)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
+		fmt.Printf("debug: nil from txnLookup\n")
 		return nil, nil // not error, see https://github.com/ledgerwatch/erigon/issues/1645
 	}
 	block, err := api.blockByNumberWithSenders(tx, blockNum)
@@ -260,6 +270,7 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 		return nil, err
 	}
 	if block == nil {
+		fmt.Printf("debug: nil from blockByNumberWithSenders\n")
 		return nil, nil // not error, see https://github.com/ledgerwatch/erigon/issues/1645
 	}
 	var txnIndex uint64
@@ -272,6 +283,7 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 		}
 	}
 	if txn == nil {
+		fmt.Printf("debug: nil after for loop\n")
 		return nil, nil
 	}
 
@@ -286,6 +298,7 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 	if len(receipts) <= int(txnIndex) {
 		return nil, fmt.Errorf("block has less receipts than expected: %d <= %d, block: %d", len(receipts), int(txnIndex), blockNum)
 	}
+
 	return marshalReceipt(receipts[txnIndex], block.Transactions()[txnIndex], cc, block), nil
 }
 
