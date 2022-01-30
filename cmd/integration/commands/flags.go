@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 
 	"github.com/ledgerwatch/erigon/cmd/utils"
@@ -15,6 +17,7 @@ var (
 	block, pruneTo, unwind         uint64
 	unwindEvery                    uint64
 	batchSizeStr                   string
+	batchTimeThreshold             time.Duration
 	reset                          bool
 	bucket                         string
 	datadir, toChaindata           string

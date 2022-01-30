@@ -34,6 +34,8 @@ var DefaultFlags = []cli.Flag{
 	PruneTxIndexBeforeFlag,
 	PruneCallTracesBeforeFlag,
 	BatchSizeFlag,
+	utils.BatchSizeAdaptabilityTimeThresholdFlag,
+	utils.BatchSlashingSize,
 	BlockDownloaderWindowFlag,
 	DatabaseVerbosityFlag,
 	PrivateApiAddr,

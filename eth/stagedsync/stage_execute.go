@@ -232,6 +232,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		return err
 	}
 	var stoppedErr error
+	batchSize := cfg.batchSize
 Loop:
 	for blockNum := stageProgress + 1; blockNum <= to; blockNum++ {
 		if stoppedErr = libcommon.Stopped(quit); stoppedErr != nil {
@@ -270,7 +271,7 @@ Loop:
 		}
 		stageProgress = blockNum
 
-		updateProgress := batch.BatchSize() >= int(cfg.batchSize)
+		updateProgress := batch.BatchSize() >= int(batchSize)
 		if updateProgress {
 			if err = batch.Commit(); err != nil {
 				return err

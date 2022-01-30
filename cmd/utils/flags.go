@@ -396,7 +396,16 @@ var (
 		Name:  "rpc.allow-unprotected-txs",
 		Usage: "Allow for unprotected (non EIP155 signed) transactions to be submitted via RPC",
 	}
-
+	BatchSizeAdaptabilityTimeThresholdFlag = cli.DurationFlag{
+		Name:  "execution.timeThreshold",
+		Usage: "Set threshold for batch time commitment for slashing next batch size",
+		Value: ethconfig.Defaults.BatchTimeThreshold,
+	}
+	BatchSlashingSize = cli.StringFlag{
+		Name:  "execution.slashBatch",
+		Usage: "Set slashing amount for batch sizes",
+		Value: "64M",
+	}
 	// Network Settings
 	MaxPeersFlag = cli.IntFlag{
 		Name:  "maxpeers",
@@ -1297,6 +1306,10 @@ func SetEthConfig(ctx *cli.Context, nodeConfig *node.Config, cfg *ethconfig.Conf
 	setMiner(ctx, &cfg.Miner)
 	setWhitelist(ctx, cfg)
 
+	cfg.BatchTimeThreshold = ctx.GlobalDuration(BatchSizeAdaptabilityTimeThresholdFlag.Name)
+	if err := cfg.SlashingBatchSize.UnmarshalText([]byte(ctx.GlobalString(BatchSlashingSize.Name))); err != nil {
+		Fatalf("error parsing bytesize for slashing batch amount: %s", err.Error())
+	}
 	cfg.P2PEnabled = len(nodeConfig.P2P.SentryAddr) == 0
 	cfg.EnabledIssuance = ctx.GlobalIsSet(EnabledIssuance.Name)
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {

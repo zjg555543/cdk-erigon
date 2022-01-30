@@ -88,7 +88,8 @@ var Defaults = Config{
 
 	BodyDownloadTimeoutSeconds: 30,
 
-	ImportMode: false,
+	ImportMode:         false,
+	BatchTimeThreshold: 40 * time.Second,
 }
 
 func init() {
@@ -157,10 +158,11 @@ type Config struct {
 
 	P2PEnabled bool
 
-	Prune     prune.Mode
-	BatchSize datasize.ByteSize // Batch size for execution stage
-
-	ImportMode bool
+	Prune              prune.Mode
+	BatchSize          datasize.ByteSize // Inital and maximum Batch size for execution stage
+	BatchTimeThreshold time.Duration     // Time threshold after which we slash batch size
+	SlashingBatchSize  datasize.ByteSize // Amount of which batch size is slashed if time threshold is overcome. batch size minimum value is the slashing amount
+	ImportMode         bool
 
 	BadBlockHash common.Hash // hash of the block marked as bad
 
