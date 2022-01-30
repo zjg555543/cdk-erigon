@@ -284,7 +284,8 @@ Loop:
 				return err
 			}
 			// Check if time threshold was exceeded
-			if !batchTimer.Reset(cfg.timeThresholdPerBatch) {
+			select {
+			case <-batchTimer.C:
 				// Slash batch size
 				if batchSize-cfg.slashingBatchSize >= cfg.slashingBatchSize {
 					batchSize -= cfg.slashingBatchSize
@@ -292,7 +293,7 @@ Loop:
 				} else {
 					batchSize = cfg.slashingBatchSize
 				}
-			} else {
+			default:
 				// Increase batch size upwards
 				if batchSize+cfg.slashingBatchSize < cfg.batchSize {
 					batchSize += cfg.slashingBatchSize
@@ -301,6 +302,8 @@ Loop:
 					batchSize = cfg.batchSize
 				}
 			}
+			batchTimer.Stop()
+			batchTimer.Reset(cfg.timeThresholdPerBatch)
 			if !useExternalTx {
 				if err = s.Update(tx, stageProgress); err != nil {
 					return err
