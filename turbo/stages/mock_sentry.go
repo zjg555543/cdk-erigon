@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/holiman/uint256"
@@ -208,6 +209,8 @@ func MockWithEverything(t *testing.T, gspec *core.Genesis, key *ecdsa.PrivateKey
 	cfg := ethconfig.Defaults
 	cfg.StateStream = true
 	cfg.BatchSize = 1 * datasize.MB
+	cfg.BatchTimeThreshold = 1 * time.Hour
+	cfg.SlashingBatchSize = 1 * datasize.MB
 	cfg.BodyDownloadTimeoutSeconds = 10
 	cfg.TxPool.Disable = !withTxPool
 	cfg.TxPool.Journal = ""
@@ -314,6 +317,8 @@ func MockWithEverything(t *testing.T, gspec *core.Genesis, key *ecdsa.PrivateKey
 				cfg.StateStream,
 				mock.tmpdir,
 				blockReader,
+				cfg.BatchTimeThreshold,
+				cfg.SlashingBatchSize,
 			),
 			stagedsync.StageTranspileCfg(mock.DB, cfg.BatchSize, mock.ChainConfig),
 			stagedsync.StageHashStateCfg(mock.DB, mock.tmpdir),

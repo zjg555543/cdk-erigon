@@ -305,6 +305,8 @@ func NewStagedSync(
 			cfg.StateStream,
 			tmpdir,
 			blockReader,
+			cfg.BatchTimeThreshold,
+			cfg.SlashingBatchSize,
 		), stagedsync.StageTranspileCfg(
 			db,
 			cfg.BatchSize,

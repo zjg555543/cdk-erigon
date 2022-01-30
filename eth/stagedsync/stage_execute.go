@@ -45,17 +45,19 @@ type HasChangeSetWriter interface {
 type ChangeSetHook func(blockNum uint64, wr *state.ChangeSetWriter)
 
 type ExecuteBlockCfg struct {
-	db            kv.RwDB
-	batchSize     datasize.ByteSize
-	prune         prune.Mode
-	changeSetHook ChangeSetHook
-	chainConfig   *params.ChainConfig
-	engine        consensus.Engine
-	vmConfig      *vm.Config
-	tmpdir        string
-	stateStream   bool
-	accumulator   *shards.Accumulator
-	blockReader   interfaces.FullBlockReader
+	db                    kv.RwDB
+	batchSize             datasize.ByteSize
+	prune                 prune.Mode
+	changeSetHook         ChangeSetHook
+	chainConfig           *params.ChainConfig
+	engine                consensus.Engine
+	vmConfig              *vm.Config
+	tmpdir                string
+	stateStream           bool
+	accumulator           *shards.Accumulator
+	blockReader           interfaces.FullBlockReader
+	timeThresholdPerBatch time.Duration
+	slashingBatchSize     datasize.ByteSize
 }
 
 func StageExecuteBlocksCfg(
@@ -70,19 +72,23 @@ func StageExecuteBlocksCfg(
 	stateStream bool,
 	tmpdir string,
 	blockReader interfaces.FullBlockReader,
+	timeThresholdPerBatch time.Duration,
+	slashingBatchSize datasize.ByteSize,
 ) ExecuteBlockCfg {
 	return ExecuteBlockCfg{
-		db:            kv,
-		prune:         prune,
-		batchSize:     batchSize,
-		changeSetHook: changeSetHook,
-		chainConfig:   chainConfig,
-		engine:        engine,
-		vmConfig:      vmConfig,
-		tmpdir:        tmpdir,
-		accumulator:   accumulator,
-		stateStream:   stateStream,
-		blockReader:   blockReader,
+		db:                    kv,
+		prune:                 prune,
+		batchSize:             batchSize,
+		changeSetHook:         changeSetHook,
+		chainConfig:           chainConfig,
+		engine:                engine,
+		vmConfig:              vmConfig,
+		tmpdir:                tmpdir,
+		accumulator:           accumulator,
+		stateStream:           stateStream,
+		blockReader:           blockReader,
+		timeThresholdPerBatch: timeThresholdPerBatch,
+		slashingBatchSize:     slashingBatchSize,
 	}
 }
 
@@ -232,6 +238,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		return err
 	}
 	var stoppedErr error
+	batchTimer := time.NewTimer(cfg.timeThresholdPerBatch)
 	batchSize := cfg.batchSize
 Loop:
 	for blockNum := stageProgress + 1; blockNum <= to; blockNum++ {
@@ -275,6 +282,24 @@ Loop:
 		if updateProgress {
 			if err = batch.Commit(); err != nil {
 				return err
+			}
+			// Check if time threshold was exceeded
+			if !batchTimer.Reset(cfg.timeThresholdPerBatch) {
+				// Slash batch size
+				if batchSize-cfg.slashingBatchSize >= cfg.slashingBatchSize {
+					batchSize -= cfg.slashingBatchSize
+					log.Info("Adjusted Batch size", "batch", batchSize)
+				} else {
+					batchSize = cfg.slashingBatchSize
+				}
+			} else {
+				// Increase batch size upwards
+				if batchSize+cfg.slashingBatchSize < cfg.batchSize {
+					batchSize += cfg.slashingBatchSize
+					log.Info("Adjusted Batch size", "batch", batchSize)
+				} else {
+					batchSize = cfg.batchSize
+				}
 			}
 			if !useExternalTx {
 				if err = s.Update(tx, stageProgress); err != nil {
