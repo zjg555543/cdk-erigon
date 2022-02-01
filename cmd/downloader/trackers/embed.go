@@ -37,6 +37,7 @@ Loop:
 	}
 	return res
 }
+
 func first10(in []string) (res []string) {
 	for i, tracker := range in {
 		if i >= 10 {
