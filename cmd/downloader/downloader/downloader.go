@@ -72,11 +72,11 @@ func DefaultTorrentConfig() *torrent.ClientConfig {
 	torrentConfig.NominalDialTimeout = 20 * time.Second // default: 20sec
 	torrentConfig.HandshakesTimeout = 8 * time.Second   // default: 4sec
 
-	torrentConfig.EstablishedConnsPerTorrent = 10 // default: 50
-	torrentConfig.TorrentPeersHighWater = 10      // default: 500
+	torrentConfig.EstablishedConnsPerTorrent = 50 // default: 50
+	torrentConfig.TorrentPeersHighWater = 50      // default: 500
 	torrentConfig.TorrentPeersLowWater = 10       // default: 50
-	torrentConfig.HalfOpenConnsPerTorrent = 10    // default: 25
-	torrentConfig.TotalHalfOpenConns = 10         // default: 100
+	torrentConfig.HalfOpenConnsPerTorrent = 20    // default: 25
+	torrentConfig.TotalHalfOpenConns = 50         // default: 100
 
 	return torrentConfig
 }
