@@ -2,11 +2,9 @@ package downloader
 
 import (
 	stdlog "log"
-	"strings"
 
 	utp "github.com/anacrolix/go-libutp"
 	lg "github.com/anacrolix/log"
-	"github.com/ledgerwatch/log/v3"
 )
 
 func init() {
@@ -15,9 +13,7 @@ func init() {
 }
 
 func NewAdapterLogger() lg.Logger {
-	return lg.Logger{
-		LoggerImpl: lg.LoggerImpl(adapterLogger{}),
-	}
+	return lg.Default
 }
 
 var String2LogLevel = map[string]lg.Level{
@@ -29,6 +25,7 @@ var String2LogLevel = map[string]lg.Level{
 
 type adapterLogger struct{}
 
+/*
 func (b adapterLogger) Log(msg lg.Msg) {
 	lvl, ok := msg.GetLevel()
 	if !ok {
@@ -75,6 +72,7 @@ func (b adapterLogger) Log(msg lg.Msg) {
 		log.Warn("unknown log type", "msg", msg.String())
 	}
 }
+*/
 
 // NullWriter implements the io.Write interface but doesn't do anything.
 type NullWriter int
