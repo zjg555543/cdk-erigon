@@ -317,54 +317,138 @@ func (s *AllSnapshots) Blocks(blockNumber uint64) (snapshot *BlocksSnapshot, fou
 	return snapshot, false
 }
 
-func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tmpDir string) error {
+func totalCount(s *AllSnapshots, t SnapshotType) (uint64, error) {
+	var total uint64
+	for _, sn := range s.blocks {
+		f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, t))
+		d, err := compress.NewDecompressor(f)
+		if err != nil {
+			return 0, err
+		}
+		total += uint64(d.Count())
+		d.Close()
+	}
+	return total, nil
+}
+
+func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tmpDir string, workers int) error {
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
 
-	for _, sn := range s.blocks {
-		f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, Headers))
-		if err := HeadersHashIdx(ctx, f, sn.From, tmpDir, logEvery); err != nil {
-			return err
-		}
+	errs := make(chan error, 1)
+	defer close(errs)
+	total, err := totalCount(s, Headers)
+	if err != nil {
+		return err
 	}
 
+	wg := sync.WaitGroup{}
+	processed := &atomic.Uint64{}
 	for _, sn := range s.blocks {
-		f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, Bodies))
-		if err := BodiesIdx(ctx, f, sn.From, tmpDir, logEvery); err != nil {
+		wg.Add(1)
+		go func(sn *BlocksSnapshot) {
+			defer wg.Done()
+			f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, Headers))
+			if err := HeadersHashIdx(ctx, f, sn.From, tmpDir, processed); err != nil {
+				errs <- err
+			}
+		}(sn)
+	}
+	for processed.Load() < total {
+		select {
+		case err := <-errs:
 			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-logEvery.C:
+			log.Info("[Snapshots Indexing] HeadersHashIdx", "progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)))
+		default:
 		}
+	}
+	wg.Wait()
+
+	wg = sync.WaitGroup{}
+	processed = &atomic.Uint64{}
+	total, err = totalCount(s, Bodies)
+	if err != nil {
+		return err
+	}
+	for _, sn := range s.blocks {
+		wg.Add(1)
+		go func(sn *BlocksSnapshot) {
+			defer wg.Done()
+			f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, Bodies))
+			if err := BodiesIdx(ctx, f, sn.From, tmpDir, processed); err != nil {
+				errs <- err
+			}
+		}(sn)
+	}
+	for processed.Load() < total {
+		select {
+		case err := <-errs:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-logEvery.C:
+			log.Info("[Snapshots Indexing] BodyNumberIdx", "progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)))
+		default:
+		}
+	}
+	wg.Wait()
+
+	wg = sync.WaitGroup{}
+	processed = &atomic.Uint64{}
+	total, err = totalCount(s, Transactions)
+	if err != nil {
+		return err
 	}
 	// hack to read first block body - to get baseTxId from there
 	if err := s.ReopenSomeIndices(Headers, Bodies); err != nil {
 		return err
 	}
 	for _, sn := range s.blocks {
-		// build txs idx
-		gg := sn.Bodies.MakeGetter()
-		buf, _ := gg.Next(nil)
-		firstBody := &types.BodyForStorage{}
-		if err := rlp.DecodeBytes(buf, firstBody); err != nil {
-			return err
-		}
-
-		var expectedTxsAmount uint64
-		{
-			off := sn.BodyNumberIdx.Lookup2(sn.To - 1 - sn.From)
-			gg.Reset(off)
-
-			buf, _ = gg.Next(buf[:0])
-			lastBody := new(types.BodyForStorage)
-			err := rlp.DecodeBytes(buf, lastBody)
-			if err != nil {
-				return err
+		wg.Add(1)
+		go func(sn *BlocksSnapshot) {
+			defer wg.Done()
+			// build txs idx
+			gg := sn.Bodies.MakeGetter()
+			buf, _ := gg.Next(nil)
+			firstBody := &types.BodyForStorage{}
+			if err := rlp.DecodeBytes(buf, firstBody); err != nil {
+				errs <- err
 			}
-			expectedTxsAmount = lastBody.BaseTxId + uint64(lastBody.TxAmount) - firstBody.BaseTxId
-		}
-		f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, Transactions))
-		if err := TransactionsHashIdx(ctx, chainID, sn, firstBody.BaseTxId, sn.From, expectedTxsAmount, f, tmpDir, logEvery); err != nil {
+
+			var expectedTxsAmount uint64
+			{
+				off := sn.BodyNumberIdx.Lookup2(sn.To - 1 - sn.From)
+				gg.Reset(off)
+
+				buf, _ = gg.Next(buf[:0])
+				lastBody := new(types.BodyForStorage)
+				err := rlp.DecodeBytes(buf, lastBody)
+				if err != nil {
+					errs <- err
+				}
+				expectedTxsAmount = lastBody.BaseTxId + uint64(lastBody.TxAmount) - firstBody.BaseTxId
+			}
+			f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, Transactions))
+			if err := TransactionsHashIdx(ctx, chainID, sn, firstBody.BaseTxId, sn.From, expectedTxsAmount, f, tmpDir, processed); err != nil {
+				errs <- err
+			}
+		}(sn)
+	}
+	for processed.Load() < total {
+		select {
+		case err := <-errs:
 			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-logEvery.C:
+			log.Info("[Snapshots Indexing] TransactionsHashIdx", "progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)))
+		default:
 		}
 	}
+	wg.Wait()
 
 	return nil
 }
@@ -775,7 +859,7 @@ func DumpBodies(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string,
 	return nil
 }
 
-func TransactionsHashIdx(ctx context.Context, chainID uint256.Int, sn *BlocksSnapshot, firstTxID, firstBlockNum, expectedCount uint64, segmentFilePath, tmpDir string, logEvery *time.Ticker) error {
+func TransactionsHashIdx(ctx context.Context, chainID uint256.Int, sn *BlocksSnapshot, firstTxID, firstBlockNum, expectedCount uint64, segmentFilePath, tmpDir string, processed *atomic.Uint64) error {
 	dir, _ := filepath.Split(segmentFilePath)
 
 	parseCtx := txpool.NewTxParseContext(chainID)
@@ -831,6 +915,7 @@ RETRY:
 		}
 
 		if err := forEach(d, func(i, offset uint64, word []byte) error {
+			processed.Inc()
 			if _, err := parseCtx.ParseTransaction(word[1+20:], 0, &slot, sender[:], true /* hasEnvelope */); err != nil {
 				return err
 			}
@@ -851,14 +936,6 @@ RETRY:
 
 			if err := txnHash2BlockNumIdx.AddKey(slot.IdHash[:], blockNum); err != nil {
 				return err
-			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-logEvery.C:
-				log.Info("[Snapshots Indexing] TransactionsHashIdx", "blockNum", blockNum)
-			default:
 			}
 			j++
 			return nil
@@ -897,7 +974,7 @@ RETRY:
 }
 
 // HeadersHashIdx - headerHash -> offset (analog of kv.HeaderNumber)
-func HeadersHashIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegment uint64, tmpDir string, logEvery *time.Ticker) error {
+func HeadersHashIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegment uint64, tmpDir string, processed *atomic.Uint64) error {
 	d, err := compress.NewDecompressor(segmentFilePath)
 	if err != nil {
 		return err
@@ -905,6 +982,7 @@ func HeadersHashIdx(ctx context.Context, segmentFilePath string, firstBlockNumIn
 	defer d.Close()
 
 	if err := Idx(d, firstBlockNumInSegment, tmpDir, func(idx *recsplit.RecSplit, i, offset uint64, word []byte) error {
+		processed.Inc()
 		h := types.Header{}
 		if err := rlp.DecodeBytes(word[1:], &h); err != nil {
 			return err
@@ -914,13 +992,6 @@ func HeadersHashIdx(ctx context.Context, segmentFilePath string, firstBlockNumIn
 		}
 		//TODO: optimize by - types.RawRlpHash(word).Bytes()
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-logEvery.C:
-			log.Info("[Snapshots Indexing] HeadersHashIdx", "blockNumber", h.Number.Uint64())
-		default:
-		}
 		return nil
 	}); err != nil {
 		return fmt.Errorf("HeadersHashIdx: %w", err)
@@ -928,7 +999,7 @@ func HeadersHashIdx(ctx context.Context, segmentFilePath string, firstBlockNumIn
 	return nil
 }
 
-func BodiesIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegment uint64, tmpDir string, logEvery *time.Ticker) error {
+func BodiesIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegment uint64, tmpDir string, processed *atomic.Uint64) error {
 	num := make([]byte, 8)
 
 	d, err := compress.NewDecompressor(segmentFilePath)
@@ -941,14 +1012,6 @@ func BodiesIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegme
 		n := binary.PutUvarint(num, i)
 		if err := idx.AddKey(num[:n], offset); err != nil {
 			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-logEvery.C:
-			log.Info("[Snapshots Indexing] BodyNumberIdx", "blockNumber", firstBlockNumInSegment+i)
-		default:
 		}
 		return nil
 	}); err != nil {
