@@ -798,10 +798,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 		expect := cfg.snapshotHashesCfg.ExpectBlocks
 		if headers < expect || bodies < expect || txs < expect {
 			chainID, _ := uint256.FromBig(cfg.chainConfig.ChainID)
-			workers := runtime.NumCPU() - 1
-			if workers < 1 {
-				workers = 1
-			}
+			workers := 4
 			if err := cfg.snapshots.BuildIndices(ctx, *chainID, cfg.tmpdir, workers); err != nil {
 				return err
 			}

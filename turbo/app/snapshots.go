@@ -137,10 +137,7 @@ func rebuildIndices(ctx context.Context, chainDB kv.RoDB, cfg ethconfig.Snapshot
 	for _, f := range idxFilesList {
 		_ = os.Remove(f)
 	}
-	workers := runtime.NumCPU() - 1
-	if workers < 1 {
-		workers = 1
-	}
+	workers := 4
 	if err := allSnapshots.BuildIndices(ctx, *chainID, tmpDir, workers); err != nil {
 		return err
 	}

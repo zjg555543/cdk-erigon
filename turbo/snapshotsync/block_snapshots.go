@@ -335,6 +335,8 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 	logEvery := time.NewTicker(10 * time.Second)
 	defer logEvery.Stop()
 
+	bound := make(chan struct{}, workers)
+
 	errs := make(chan error, 1)
 	defer close(errs)
 	total, err := totalCount(s, Headers)
@@ -346,8 +348,10 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 	processed := &atomic.Uint64{}
 	for _, sn := range s.blocks {
 		wg.Add(1)
+		bound <- struct{}{}
 		go func(sn *BlocksSnapshot) {
 			defer wg.Done()
+			defer func() { <-bound }()
 			f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, Headers))
 			if err := HeadersHashIdx(ctx, f, sn.From, tmpDir, processed); err != nil {
 				errs <- err
@@ -375,8 +379,10 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 	}
 	for _, sn := range s.blocks {
 		wg.Add(1)
+		bound <- struct{}{}
 		go func(sn *BlocksSnapshot) {
 			defer wg.Done()
+			defer func() { <-bound }()
 			f := path.Join(s.dir, SegmentFileName(sn.From, sn.To, Bodies))
 			if err := BodiesIdx(ctx, f, sn.From, tmpDir, processed); err != nil {
 				errs <- err
@@ -408,8 +414,10 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 	}
 	for _, sn := range s.blocks {
 		wg.Add(1)
+		bound <- struct{}{}
 		go func(sn *BlocksSnapshot) {
 			defer wg.Done()
+			defer func() { <-bound }()
 			// build txs idx
 			gg := sn.Bodies.MakeGetter()
 			buf, _ := gg.Next(nil)
