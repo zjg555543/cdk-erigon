@@ -1009,6 +1009,7 @@ func BodiesIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegme
 	defer d.Close()
 
 	if err := Idx(d, firstBlockNumInSegment, tmpDir, func(idx *recsplit.RecSplit, i, offset uint64, word []byte) error {
+		processed.Inc()
 		n := binary.PutUvarint(num, i)
 		if err := idx.AddKey(num[:n], offset); err != nil {
 			return err
