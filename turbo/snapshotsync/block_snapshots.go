@@ -365,7 +365,11 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-logEvery.C:
-			log.Info("[Snapshots Indexing] HeadersHashIdx", "progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)))
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			log.Info("[Snapshots Indexing] HeadersHashIdx",
+				"progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)),
+				"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 		default:
 		}
 	}
@@ -396,7 +400,11 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-logEvery.C:
-			log.Info("[Snapshots Indexing] BodyNumberIdx", "progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)))
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			log.Info("[Snapshots Indexing] BodyNumberIdx",
+				"progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)),
+				"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 		default:
 		}
 	}
@@ -452,7 +460,11 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-logEvery.C:
-			log.Info("[Snapshots Indexing] TransactionsHashIdx", "progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)))
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			log.Info("[Snapshots Indexing] TransactionsHashIdx",
+				"progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)),
+				"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 		default:
 		}
 	}
