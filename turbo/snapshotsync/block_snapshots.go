@@ -909,6 +909,7 @@ func TransactionsHashIdx(ctx context.Context, chainID uint256.Int, sn *BlocksSna
 	if err != nil {
 		return err
 	}
+	defer txnHashIdx.Close()
 	txnHash2BlockNumIdx, err := recsplit.NewRecSplit(recsplit.RecSplitArgs{
 		KeyCount:   d.Count(),
 		Enums:      true,
@@ -922,6 +923,7 @@ func TransactionsHashIdx(ctx context.Context, chainID uint256.Int, sn *BlocksSna
 	if err != nil {
 		return err
 	}
+	defer txnHash2BlockNumIdx.Close()
 
 RETRY:
 	blockNum := firstBlockNum
@@ -1081,6 +1083,7 @@ func Idx(d *compress.Decompressor, firstDataID uint64, tmpDir string, walker fun
 	if err != nil {
 		return err
 	}
+	defer rs.Close()
 
 RETRY:
 
