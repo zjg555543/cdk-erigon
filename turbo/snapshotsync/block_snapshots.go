@@ -348,7 +348,20 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 	processed := &atomic.Uint64{}
 	for _, sn := range s.blocks {
 		wg.Add(1)
-		bound <- struct{}{}
+	Loop:
+		for {
+			select {
+			case bound <- struct{}{}:
+				break Loop
+			case <-logEvery.C:
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				log.Info("[Snapshots Indexing] HeadersHashIdx",
+					"progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)),
+					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
+			}
+		}
+
 		go func(sn *BlocksSnapshot) {
 			defer wg.Done()
 			defer func() { <-bound }()
@@ -422,7 +435,19 @@ func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tm
 	}
 	for _, sn := range s.blocks {
 		wg.Add(1)
-		bound <- struct{}{}
+	Loop3:
+		for {
+			select {
+			case bound <- struct{}{}:
+				break Loop3
+			case <-logEvery.C:
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				log.Info("[Snapshots Indexing] TransactionsHashIdx",
+					"progress", fmt.Sprintf("%.2f%%", 100*float64(processed.Load())/float64(total)),
+					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
+			}
+		}
 		go func(sn *BlocksSnapshot) {
 			defer wg.Done()
 			defer func() { <-bound }()
