@@ -332,7 +332,7 @@ func totalCount(s *AllSnapshots, t SnapshotType) (uint64, error) {
 }
 
 func (s *AllSnapshots) BuildIndices(ctx context.Context, chainID uint256.Int, tmpDir string, workers int) error {
-	logEvery := time.NewTicker(30 * time.Second)
+	logEvery := time.NewTicker(10 * time.Second)
 	defer logEvery.Stop()
 
 	errs := make(chan error, 1)
