@@ -1037,8 +1037,6 @@ func HeadersHashIdx(ctx context.Context, segmentFilePath string, firstBlockNumIn
 		if err := idx.AddKey(h.Hash().Bytes(), offset); err != nil {
 			return err
 		}
-		//TODO: optimize by - types.RawRlpHash(word).Bytes()
-
 		return nil
 	}); err != nil {
 		return fmt.Errorf("HeadersHashIdx: %w", err)
