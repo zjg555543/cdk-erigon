@@ -226,7 +226,7 @@ func AddTorrentFiles(snapshotsDir string, torrentClient *torrent.Client) error {
 		}
 		took := time.Since(t)
 		if took > 5*time.Second {
-			log.Info("[torrent] Check validity", "file", torrentFilePath)
+			log.Info("[torrent] Check validity", "file", torrentFilePath, "took", took)
 		}
 	}
 
