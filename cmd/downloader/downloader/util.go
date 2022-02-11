@@ -121,6 +121,7 @@ func BuildTorrentFilesIfNeed(ctx context.Context, root string) error {
 		default:
 		}
 	}
+	fmt.Printf("alex7\n")
 	return nil
 }
 
