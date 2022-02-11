@@ -2,7 +2,10 @@ module github.com/ledgerwatch/erigon
 
 go 1.16
 
-replace github.com/etcd-io/bbolt => go.etcd.io/bbolt v1.3.5
+replace (
+	github.com/anacrolix/torrent => github.com/AskAlexSharov/torrent v1.40.2
+	github.com/etcd-io/bbolt => go.etcd.io/bbolt v1.3.5
+)
 
 require (
 	github.com/RoaringBitmap/roaring v0.9.4
@@ -20,6 +23,7 @@ require (
 	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/edsrzf/mmap-go v1.0.0
 	github.com/emicklei/dot v0.16.0
+	github.com/etcd-io/bbolt v0.0.0-00010101000000-000000000000 // indirect
 	github.com/fatih/color v1.13.0
 	github.com/fjl/gencodec v0.0.0-20191126094850-e283372f291f
 	github.com/flanglet/kanzi-go v1.9.1-0.20211212184056-72dda96261ee // indirect
