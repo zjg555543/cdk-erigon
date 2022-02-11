@@ -56,10 +56,6 @@ func New(snapshotsDir string, verbosity lg.Level, downloadRate, uploadRate datas
 	}
 	torrentConfig.Logger = NewAdapterLogger().FilterLevel(verbosity)
 
-	c, err := storage.NewBoltPieceCompletion(snapshotsDir)
-	if err != nil {
-		return nil, err
-	}
-	torrentConfig.DefaultStorage = storage.NewFileWithCompletion(snapshotsDir, c)
+	torrentConfig.DefaultStorage = storage.NewFile(snapshotsDir)
 	return torrentConfig, nil
 }
