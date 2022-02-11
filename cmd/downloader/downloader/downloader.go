@@ -213,18 +213,29 @@ func AddTorrentFiles(snapshotsDir string, torrentClient *torrent.Client) error {
 	if err != nil {
 		return err
 	}
+	errs := make(chan error, len(files))
+	defer close(errs)
 	for _, torrentFilePath := range files {
-		fmt.Printf("alex add: %s\n", torrentFilePath)
-		mi, err := metainfo.LoadFromFile(torrentFilePath)
-		if err != nil {
+		go func(torrentFilePath string) {
+			mi, err := metainfo.LoadFromFile(torrentFilePath)
+			if err != nil {
+				errs <- err
+				return
+			}
+			mi.AnnounceList = Trackers
+			_, err = torrentClient.AddTorrent(mi)
+			if err != nil {
+				errs <- err
+				return
+			}
+			fmt.Printf("alex add after : %s\n", torrentFilePath)
+		}(torrentFilePath)
+	}
+
+	for i := 0; i < len(files); i++ {
+		if err := <-errs; err != nil {
 			return err
 		}
-		mi.AnnounceList = Trackers
-		_, err = torrentClient.AddTorrent(mi)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("alex add after : %s\n", torrentFilePath)
 	}
 
 	return nil
