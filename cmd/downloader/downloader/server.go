@@ -36,6 +36,7 @@ func CreateTorrentFilesAndAdd(ctx context.Context, snapshotDir string, torrentCl
 	if err := BuildTorrentFilesIfNeed(ctx, snapshotDir); err != nil {
 		return err
 	}
+	fmt.Printf("alex444\n")
 	if err := AddTorrentFiles(snapshotDir, torrentClient); err != nil {
 		return err
 	}
