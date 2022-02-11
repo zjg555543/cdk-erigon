@@ -89,21 +89,17 @@ func allSegmentFiles(dir string) ([]string, error) {
 func BuildTorrentFilesIfNeed(ctx context.Context, root string) error {
 	logEvery := time.NewTicker(20 * time.Second)
 	defer logEvery.Stop()
-	fmt.Printf("alex4\n")
 	files, err := allSegmentFiles(root)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("alex5\n")
 
 	for i, f := range files {
-		fmt.Printf("alex6: %s\n", f)
 		torrentFileName := path.Join(root, f+".torrent")
 		if _, err := os.Stat(torrentFileName); err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
-			fmt.Printf("build: %s\n", f)
 			info, err := BuildInfoBytesForFile(root, f)
 			if err != nil {
 				return err
@@ -121,12 +117,10 @@ func BuildTorrentFilesIfNeed(ctx context.Context, root string) error {
 		default:
 		}
 	}
-	fmt.Printf("alex7\n")
 	return nil
 }
 
 func BuildInfoBytesForFile(root string, fileName string) (*metainfo.Info, error) {
-	defer func(t time.Time) { fmt.Printf("util.go:124: %s, %s\n", time.Since(t), fileName) }(time.Now())
 	info := &metainfo.Info{PieceLength: torrentcfg.DefaultPieceSize}
 	if err := info.BuildFromFilePath(filepath.Join(root, fileName)); err != nil {
 		return nil, err
