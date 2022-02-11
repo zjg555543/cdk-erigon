@@ -35,6 +35,7 @@ func Default() *torrent.ClientConfig {
 	torrentConfig.TorrentPeersLowWater = 5       // default: 50
 	torrentConfig.HalfOpenConnsPerTorrent = 5    // default: 25
 	torrentConfig.TotalHalfOpenConns = 10        // default: 100
+
 	return torrentConfig
 }
 
@@ -55,6 +56,10 @@ func New(snapshotsDir string, verbosity lg.Level, downloadRate, uploadRate datas
 	}
 	torrentConfig.Logger = NewAdapterLogger().FilterLevel(verbosity)
 
-	torrentConfig.DefaultStorage = storage.NewFile(snapshotsDir)
+	c, err := storage.NewBoltPieceCompletion(snapshotsDir)
+	if err != nil {
+		return nil, err
+	}
+	torrentConfig.DefaultStorage = storage.NewFileWithCompletion(snapshotsDir, c)
 	return torrentConfig, nil
 }
