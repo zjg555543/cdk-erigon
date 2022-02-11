@@ -39,6 +39,7 @@ func CreateTorrentFilesAndAdd(ctx context.Context, snapshotDir string, torrentCl
 	if err := AddTorrentFiles(snapshotDir, torrentClient); err != nil {
 		return err
 	}
+	fmt.Printf("alex77\n")
 	for _, t := range torrentClient.Torrents() {
 		t.AllowDataDownload()
 		t.AllowDataUpload()
