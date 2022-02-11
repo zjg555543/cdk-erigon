@@ -132,6 +132,7 @@ func Downloader(ctx context.Context, cmd *cobra.Command) error {
 	if err = downloader.CreateTorrentFilesAndAdd(ctx, snapshotDir, protocols.TorrentClient); err != nil {
 		return fmt.Errorf("CreateTorrentFilesAndAdd: %w", err)
 	}
+	fmt.Printf("alex9\n")
 
 	go downloader.LoggingLoop(ctx, protocols.TorrentClient)
 
@@ -140,10 +141,14 @@ func Downloader(ctx context.Context, cmd *cobra.Command) error {
 		return fmt.Errorf("new server: %w", err)
 	}
 
+	fmt.Printf("alex10\n")
+
 	grpcServer, err := StartGrpc(bittorrentServer, downloaderApiAddr, nil)
 	if err != nil {
 		return err
 	}
+	<-ctx.Done()
+	fmt.Printf("alex11\n")
 	<-cmd.Context().Done()
 	fmt.Printf("alex1\n")
 	grpcServer.GracefulStop()
