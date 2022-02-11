@@ -94,7 +94,10 @@ func BuildTorrentFilesIfNeed(ctx context.Context, root string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("alex5\n")
+
 	for i, f := range files {
+		fmt.Printf("alex6: %s\n", f)
 		torrentFileName := path.Join(root, f+".torrent")
 		if _, err := os.Stat(torrentFileName); err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
