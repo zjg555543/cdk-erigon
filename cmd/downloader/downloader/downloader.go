@@ -217,6 +217,7 @@ func AddTorrentFiles(snapshotsDir string, torrentClient *torrent.Client) error {
 	defer close(errs)
 	for _, torrentFilePath := range files {
 		go func(torrentFilePath string) {
+			fmt.Printf("alex add: %s\n", torrentFilePath)
 			mi, err := metainfo.LoadFromFile(torrentFilePath)
 			if err != nil {
 				errs <- err
@@ -228,6 +229,7 @@ func AddTorrentFiles(snapshotsDir string, torrentClient *torrent.Client) error {
 				errs <- err
 				return
 			}
+			fmt.Printf("alex add after : %s\n", torrentFilePath)
 		}(torrentFilePath)
 	}
 
