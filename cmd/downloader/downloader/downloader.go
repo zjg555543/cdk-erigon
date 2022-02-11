@@ -91,7 +91,6 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 		case <-ctx.Done():
 			return
 		case <-logEvery.C:
-			panic(1)
 			torrents := torrentClient.Torrents()
 			allComplete := true
 			gotInfo := 0
