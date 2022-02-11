@@ -3,7 +3,6 @@ module github.com/ledgerwatch/erigon
 go 1.16
 
 replace (
-	github.com/anacrolix/torrent => github.com/AskAlexSharov/torrent v1.40.2
 	github.com/etcd-io/bbolt => go.etcd.io/bbolt v1.3.5
 )
 
