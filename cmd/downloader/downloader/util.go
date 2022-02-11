@@ -100,6 +100,7 @@ func BuildTorrentFilesIfNeed(ctx context.Context, root string) error {
 			if !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
+			fmt.Printf("build: %s\n", f)
 			info, err := BuildInfoBytesForFile(root, f)
 			if err != nil {
 				return err
