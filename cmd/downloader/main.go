@@ -146,6 +146,7 @@ func Downloader(ctx context.Context, cmd *cobra.Command) error {
 	}
 	<-cmd.Context().Done()
 	grpcServer.GracefulStop()
+	protocols.Close()
 	return nil
 }
 
