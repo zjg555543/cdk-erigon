@@ -89,7 +89,7 @@ func allSegmentFiles(dir string) ([]string, error) {
 func BuildTorrentFilesIfNeed(ctx context.Context, root string) error {
 	logEvery := time.NewTicker(20 * time.Second)
 	defer logEvery.Stop()
-
+	fmt.Printf("alex4\n")
 	files, err := allSegmentFiles(root)
 	if err != nil {
 		return err
@@ -111,11 +111,11 @@ func BuildTorrentFilesIfNeed(ctx context.Context, root string) error {
 		}
 
 		select {
-		default:
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-logEvery.C:
 			log.Info("[torrent] Creating .torrent files", "Progress", fmt.Sprintf("%d/%d", i, len(files)))
+		default:
 		}
 	}
 	return nil
