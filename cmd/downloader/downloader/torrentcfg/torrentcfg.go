@@ -60,6 +60,6 @@ func New(snapshotsDir string, verbosity lg.Level, downloadRate, uploadRate datas
 	if err != nil {
 		return nil, err
 	}
-	torrentConfig.DefaultStorage = storage.NewMMapWithCompletion(snapshotsDir, c)
+	torrentConfig.DefaultStorage = storage.NewFileWithCompletion(snapshotsDir, c)
 	return torrentConfig, nil
 }
