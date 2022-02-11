@@ -145,7 +145,9 @@ func Downloader(ctx context.Context, cmd *cobra.Command) error {
 		return err
 	}
 	<-cmd.Context().Done()
+	fmt.Printf("alex1\n")
 	grpcServer.GracefulStop()
+	fmt.Printf("alex2\n")
 	protocols.Close()
 	return nil
 }
