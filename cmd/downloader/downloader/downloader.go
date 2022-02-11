@@ -224,6 +224,7 @@ func AddTorrentFiles(snapshotsDir string, torrentClient *torrent.Client) error {
 		if _, err = torrentClient.AddTorrent(mi); err != nil {
 			return err
 		}
+		fmt.Printf("alex add after : %s\n", torrentFilePath)
 	}
 
 	return nil
