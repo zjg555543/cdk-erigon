@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
@@ -43,6 +44,7 @@ func CreateTorrentFilesAndAdd(ctx context.Context, snapshotDir string, torrentCl
 		t.AllowDataUpload()
 		t.DownloadAll()
 	}
+	fmt.Printf("alex8\n")
 	return nil
 }
 
