@@ -121,6 +121,7 @@ func BuildTorrentFilesIfNeed(ctx context.Context, root string) error {
 }
 
 func BuildInfoBytesForFile(root string, fileName string) (*metainfo.Info, error) {
+	defer func(t time.Time) { fmt.Printf("util.go:124: %s, %s\n", time.Since(t), fileName) }(time.Now())
 	info := &metainfo.Info{PieceLength: torrentcfg.DefaultPieceSize}
 	if err := info.BuildFromFilePath(filepath.Join(root, fileName)); err != nil {
 		return nil, err
