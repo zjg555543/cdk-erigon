@@ -98,15 +98,15 @@ func New(ctx context.Context, ethBackend services.ApiBackend, txPool txpool.Txpo
 					default:
 					}
 					if s, ok := status.FromError(err); ok && s.Code() == codes.Canceled {
-						time.Sleep(time.Second)
+						time.Sleep(3 * time.Second)
 						continue
 					}
 					if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
-						time.Sleep(time.Second)
+						time.Sleep(3 * time.Second)
 						continue
 					}
 					log.Warn("rpc filters: error subscribing to pending transactions", "err", err)
-					time.Sleep(time.Second)
+					time.Sleep(3 * time.Second)
 				}
 			}
 		}()
