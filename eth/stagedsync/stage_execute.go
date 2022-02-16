@@ -314,7 +314,6 @@ Loop:
 			totalGasTmp := new(big.Int).Set(totalGasUsed)
 			elapsed := time.Since(startTime)
 			estimateRatio := float64(cumulativeGas.Sub(cumulativeGas, startGasUsed).Uint64()) / float64(totalGasTmp.Sub(totalGasTmp, startGasUsed).Uint64())
-			fmt.Printf("alex: %+v, %+v, %+v\n", estimateRatio, totalGasUsed, startGasUsed)
 			var estimatedTime common.PrettyDuration
 			if estimateRatio != 0 {
 				estimatedTime = common.PrettyDuration((elapsed.Seconds() / estimateRatio) * float64(time.Second))
