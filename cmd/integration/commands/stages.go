@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/c2h5oh/datasize"
 	common2 "github.com/ledgerwatch/erigon-lib/common"
@@ -218,6 +219,25 @@ var cmdPrintStages = &cobra.Command{
 		db := openDB(chaindata, logger, false)
 		defer db.Close()
 
+		tx, _ := db.BeginRw(ctx)
+		defer tx.Rollback()
+		t := time.Now()
+		i, j := 0, 0
+		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+			j++
+			if j%1000 == 0 {
+				tx.Delete(kv.PlainState, k, nil)
+				i++
+			}
+			if i > 100 {
+
+				return fmt.Errorf("alex")
+			}
+			return nil
+		})
+		took := time.Since(t)
+		fmt.Printf("took: %s\n", took)
+		tx.Rollback()
 		if err := printAllStages(db, ctx); err != nil {
 			log.Error("Error", "err", err)
 			return err
