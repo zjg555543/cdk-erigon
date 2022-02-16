@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/google/btree"
 	common2 "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/ledgerwatch/secp256k1"
 	"github.com/spf13/cobra"
@@ -210,6 +212,16 @@ var cmdStageTxLookup = &cobra.Command{
 		return nil
 	},
 }
+
+type storageItem struct {
+	k []byte
+}
+
+func (a *storageItem) Less(b btree.Item) bool {
+	bi := b.(*storageItem)
+	return bytes.Compare(a.k, bi.k) < 0
+}
+
 var cmdPrintStages = &cobra.Command{
 	Use:   "print_stages",
 	Short: "",
@@ -221,8 +233,30 @@ var cmdPrintStages = &cobra.Command{
 
 		tx, _ := db.BeginRw(ctx)
 		defer tx.Rollback()
-		t := time.Now()
 		i, j := 0, 0
+		st := btree.New(32)
+		var toDel [][]byte
+
+		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+			if len(k) > 20 {
+				return nil
+			}
+			i++
+			if len(toDel) < 1000 && i%100 == 0 {
+				toDel = append(toDel, common.CopyBytes(k))
+			}
+			st.ReplaceOrInsert(&storageItem{k: common.CopyBytes(k)})
+			return nil
+		})
+		i = 0
+		t := time.Now()
+		for _, k := range toDel {
+			st.Delete(&storageItem{k: k})
+		}
+		took := time.Since(t)
+		fmt.Printf("took: %s\n", took)
+
+		t = time.Now()
 		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
 			j++
 			if j%10 == 0 {
@@ -235,7 +269,7 @@ var cmdPrintStages = &cobra.Command{
 			}
 			return nil
 		})
-		took := time.Since(t)
+		took = time.Since(t)
 		fmt.Printf("took: %s\n", took)
 		tx.Rollback()
 		return nil
