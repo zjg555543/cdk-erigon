@@ -20,6 +20,7 @@ type ChangeSetWriter struct {
 	storageChanged map[common.Address]bool
 	storageChanges map[string][]byte
 	blockNumber    uint64
+	buf            []byte
 }
 
 func NewChangeSetWriter() *ChangeSetWriter {
@@ -104,8 +105,8 @@ func (w *ChangeSetWriter) WriteAccountStorage(address common.Address, incarnatio
 		return nil
 	}
 
-	compositeKey := dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes())
-
+	w.buf = dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes(), w.buf)
+	compositeKey := w.buf
 	w.storageChanges[string(compositeKey)] = original.Bytes()
 	w.storageChanged[address] = true
 

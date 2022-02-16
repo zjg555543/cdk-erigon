@@ -288,7 +288,7 @@ func (d *DebugReaderWriter) DeleteAccount(address common.Address, original *acco
 }
 
 func (d *DebugReaderWriter) WriteAccountStorage(address common.Address, incarnation uint64, key *common.Hash, original, value *uint256.Int) error {
-	d.updatedStorage[string(dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes()))] = value.Bytes()
+	d.updatedStorage[string(dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes(), nil))] = value.Bytes()
 	return d.w.WriteAccountStorage(address, incarnation, key, original, value)
 }
 

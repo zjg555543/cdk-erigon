@@ -352,6 +352,7 @@ func getExtractFunc(db kv.Tx, changeSetBucket string) etl.ExtractFunc {
 
 func getExtractCode(db kv.Tx, changeSetBucket string) etl.ExtractFunc {
 	decode := changeset.Mapper[changeSetBucket].Decode
+	var buf []byte
 	return func(dbKey, dbValue []byte, next etl.ExtractNextFunc) error {
 		_, k, _ := decode(dbKey, dbValue)
 		value, err := db.GetOne(kv.PlainState, k)
@@ -369,7 +370,8 @@ func getExtractCode(db kv.Tx, changeSetBucket string) etl.ExtractFunc {
 		if incarnation == 0 {
 			return nil
 		}
-		plainKey := dbutils.PlainGenerateStoragePrefix(k, incarnation)
+		buf = dbutils.PlainGenerateStoragePrefix(k, incarnation, buf)
+		plainKey := buf
 		var codeHash []byte
 		codeHash, err = db.GetOne(kv.PlainContractCode, plainKey)
 		if err != nil {
@@ -431,6 +433,7 @@ func getUnwindExtractAccounts(db kv.Tx, changeSetBucket string) etl.ExtractFunc 
 
 func getCodeUnwindExtractFunc(db kv.Tx, changeSetBucket string) etl.ExtractFunc {
 	decode := changeset.Mapper[changeSetBucket].Decode
+	var buf []byte
 	return func(dbKey, dbValue []byte, next etl.ExtractNextFunc) error {
 		_, k, v := decode(dbKey, dbValue)
 		if len(v) == 0 {
@@ -448,7 +451,8 @@ func getCodeUnwindExtractFunc(db kv.Tx, changeSetBucket string) etl.ExtractFunc 
 		if incarnation == 0 {
 			return nil
 		}
-		plainKey := dbutils.PlainGenerateStoragePrefix(k, incarnation)
+		buf = dbutils.PlainGenerateStoragePrefix(k, incarnation, buf)
+		plainKey := buf
 		codeHash, err = db.GetOne(kv.PlainContractCode, plainKey)
 		if err != nil {
 			return fmt.Errorf("getCodeUnwindExtractFunc: %w, key=%x", err, plainKey)
