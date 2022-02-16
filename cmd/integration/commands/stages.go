@@ -244,6 +244,9 @@ var cmdPrintStages = &cobra.Command{
 			if len(toDel) < 1000 && i%100 == 0 {
 				toDel = append(toDel, k)
 			}
+			if i > 100_000 {
+				return fmt.Errorf("alex")
+			}
 			st.ReplaceOrInsert(&storageItem{k: k})
 			return nil
 		})
