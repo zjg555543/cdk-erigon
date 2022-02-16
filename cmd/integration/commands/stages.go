@@ -225,7 +225,7 @@ var cmdPrintStages = &cobra.Command{
 		i, j := 0, 0
 		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
 			j++
-			if j%1000 == 0 {
+			if j%10 == 0 {
 				tx.Delete(kv.PlainState, k, nil)
 				i++
 			}
