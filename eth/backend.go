@@ -523,35 +523,34 @@ func New(stack *node.Node, config *ethconfig.Config, txpoolCfg txpool2.Config, l
 		gpoParams.Default = config.Miner.GasPrice
 	}
 	//eth.APIBackend.gpo = gasprice.NewOracle(eth.APIBackend, gpoParams)
-	/*
-		// start HTTP API
-		httpRpcCfg := cli.Flags{
-			HttpListenAddress: "0.0.0.0",
-			HttpPort:          8545,
-			API:               []string{"eth", "net", "web3", "txpool", "debug"},
-		} // TODO: add rpcdaemon cli flags to Erigon and fill this struct (or break it to smaller config objects)
-		ethRpcClient, txPoolRpcClient, miningRpcClient, starkNetRpcClient, stateCache, ff, err := cli.EmbeddedServices(
-			ctx, chainKv, httpRpcCfg.StateCache, blockReader,
-			ethBackendRPC,
-			backend.txPool2GrpcServer,
-			miningRPC,
-		)
-		if err != nil {
-			return nil, err
-		}
 
-		var borDb kv.RoDB
-		if casted, ok := backend.engine.(*bor.Bor); ok {
-			borDb = casted.DB
+	// start HTTP API
+	httpRpcCfg := cli.Flags{
+		HttpListenAddress: "0.0.0.0",
+		HttpPort:          8545,
+		API:               []string{"eth", "net", "web3", "txpool", "debug"},
+	} // TODO: add rpcdaemon cli flags to Erigon and fill this struct (or break it to smaller config objects)
+	ethRpcClient, txPoolRpcClient, miningRpcClient, starkNetRpcClient, stateCache, ff, err := cli.EmbeddedServices(
+		ctx, chainKv, httpRpcCfg.StateCache, blockReader,
+		ethBackendRPC,
+		backend.txPool2GrpcServer,
+		miningRPC,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var borDb kv.RoDB
+	if casted, ok := backend.engine.(*bor.Bor); ok {
+		borDb = casted.DB
+	}
+	apiList := commands.APIList(chainKv, borDb, ethRpcClient, txPoolRpcClient, miningRpcClient, starkNetRpcClient, ff, stateCache, blockReader, httpRpcCfg, nil)
+	go func() {
+		if err := cli.StartRpcServer(ctx, httpRpcCfg, apiList); err != nil {
+			log.Error(err.Error())
+			return
 		}
-		apiList := commands.APIList(chainKv, borDb, ethRpcClient, txPoolRpcClient, miningRpcClient, starkNetRpcClient, ff, stateCache, blockReader, httpRpcCfg, nil)
-		go func() {
-			if err := cli.StartRpcServer(ctx, httpRpcCfg, apiList); err != nil {
-				log.Error(err.Error())
-				return
-			}
-		}()
-	*/
+	}()
 
 	// Register the backend on the node
 	stack.RegisterAPIs(backend.APIs())
