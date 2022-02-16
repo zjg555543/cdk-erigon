@@ -15,7 +15,6 @@ import (
 	common2 "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/ledgerwatch/secp256k1"
 	"github.com/spf13/cobra"
@@ -243,9 +242,9 @@ var cmdPrintStages = &cobra.Command{
 			}
 			i++
 			if len(toDel) < 1000 && i%100 == 0 {
-				toDel = append(toDel, common.CopyBytes(k))
+				toDel = append(toDel, k)
 			}
-			st.ReplaceOrInsert(&storageItem{k: common.CopyBytes(k)})
+			st.ReplaceOrInsert(&storageItem{k: k})
 			return nil
 		})
 		i = 0
@@ -264,7 +263,6 @@ var cmdPrintStages = &cobra.Command{
 				i++
 			}
 			if i > 1000 {
-
 				return fmt.Errorf("alex")
 			}
 			return nil
