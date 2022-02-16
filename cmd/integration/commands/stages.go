@@ -229,7 +229,7 @@ var cmdPrintStages = &cobra.Command{
 				tx.Delete(kv.PlainState, k, nil)
 				i++
 			}
-			if i > 100 {
+			if i > 1000 {
 
 				return fmt.Errorf("alex")
 			}
@@ -238,6 +238,7 @@ var cmdPrintStages = &cobra.Command{
 		took := time.Since(t)
 		fmt.Printf("took: %s\n", took)
 		tx.Rollback()
+		return nil
 		if err := printAllStages(db, ctx); err != nil {
 			log.Error("Error", "err", err)
 			return err
