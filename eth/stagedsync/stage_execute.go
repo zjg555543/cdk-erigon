@@ -427,6 +427,7 @@ func unwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, quit <-chan
 		return fmt.Errorf("getting rewind data: %w", errRewind)
 	}
 
+	var buf []byte
 	if err := changes.Load(tx, stateBucket, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
 		if len(k) == 20 {
 			if len(v) > 0 {
@@ -436,7 +437,7 @@ func unwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, quit <-chan
 				}
 
 				// Fetch the code hash
-				recoverCodeHashPlain(&acc, tx, k)
+				buf = recoverCodeHashPlain(&acc, tx, k, buf)
 				var address common.Address
 				copy(address[:], k)
 
@@ -448,7 +449,8 @@ func unwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, quit <-chan
 				if original != nil {
 					// clean up all the code incarnations original incarnation and the new one
 					for incarnation := original.Incarnation; incarnation > acc.Incarnation && incarnation > 0; incarnation-- {
-						err = tx.Delete(kv.PlainContractCode, dbutils.PlainGenerateStoragePrefix(address[:], incarnation), nil)
+						buf = dbutils.PlainGenerateStoragePrefix(address[:], incarnation, buf)
+						err = tx.Delete(kv.PlainContractCode, buf, nil)
 						if err != nil {
 							return fmt.Errorf("writeAccountPlain for %x: %w", address, err)
 						}
@@ -530,14 +532,16 @@ func unwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, quit <-chan
 	return nil
 }
 
-func recoverCodeHashPlain(acc *accounts.Account, db kv.Tx, key []byte) {
+func recoverCodeHashPlain(acc *accounts.Account, db kv.Tx, key []byte, buf []byte) []byte {
 	var address common.Address
 	copy(address[:], key)
 	if acc.Incarnation > 0 && acc.IsEmptyCodeHash() {
-		if codeHash, err2 := db.GetOne(kv.PlainContractCode, dbutils.PlainGenerateStoragePrefix(address[:], acc.Incarnation)); err2 == nil {
+		buf = dbutils.PlainGenerateStoragePrefix(address[:], acc.Incarnation, buf)
+		if codeHash, err2 := db.GetOne(kv.PlainContractCode, buf); err2 == nil {
 			copy(acc.CodeHash[:], codeHash)
 		}
 	}
+	return buf
 }
 
 func min(a, b uint64) uint64 {

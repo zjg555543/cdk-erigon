@@ -21,6 +21,7 @@ type PlainStateWriter struct {
 	db          putDel
 	csw         *ChangeSetWriter
 	accumulator *shards.Accumulator
+	buf         []byte
 }
 
 func NewPlainStateWriter(db putDel, changeSetsDB kv.RwTx, blockNumber uint64) *PlainStateWriter {
@@ -67,7 +68,8 @@ func (w *PlainStateWriter) UpdateAccountCode(address common.Address, incarnation
 	if err := w.db.Put(kv.Code, codeHash[:], code); err != nil {
 		return err
 	}
-	return w.db.Put(kv.PlainContractCode, dbutils.PlainGenerateStoragePrefix(address[:], incarnation), codeHash[:])
+	w.buf = dbutils.PlainGenerateStoragePrefix(address[:], incarnation, w.buf)
+	return w.db.Put(kv.PlainContractCode, w.buf, codeHash[:])
 }
 
 func (w *PlainStateWriter) DeleteAccount(address common.Address, original *accounts.Account) error {
@@ -101,8 +103,8 @@ func (w *PlainStateWriter) WriteAccountStorage(address common.Address, incarnati
 	if *original == *value {
 		return nil
 	}
-	compositeKey := dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes())
-
+	w.buf = dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes(), w.buf)
+	compositeKey := w.buf
 	v := value.Bytes()
 	if w.accumulator != nil {
 		w.accumulator.ChangeStorage(address, incarnation, *key, v)

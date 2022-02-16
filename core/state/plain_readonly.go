@@ -47,6 +47,7 @@ type PlainState struct {
 	blockNr                      uint64
 	storage                      map[common.Address]*btree.BTree
 	trace                        bool
+	buf                          []byte
 }
 
 func NewPlainState(tx kv.Tx, blockNr uint64) *PlainState {
@@ -164,7 +165,8 @@ func (s *PlainState) ReadAccountData(address common.Address) (*accounts.Account,
 	}
 	//restore codehash
 	if a.Incarnation > 0 && a.IsEmptyCodeHash() {
-		if codeHash, err1 := s.tx.GetOne(kv.PlainContractCode, dbutils.PlainGenerateStoragePrefix(address[:], a.Incarnation)); err1 == nil {
+		s.buf = dbutils.PlainGenerateStoragePrefix(address[:], a.Incarnation, s.buf)
+		if codeHash, err1 := s.tx.GetOne(kv.PlainContractCode, s.buf); err1 == nil {
 			if len(codeHash) > 0 {
 				a.CodeHash = common.BytesToHash(codeHash)
 			}
@@ -176,7 +178,8 @@ func (s *PlainState) ReadAccountData(address common.Address) (*accounts.Account,
 }
 
 func (s *PlainState) ReadAccountStorage(address common.Address, incarnation uint64, key *common.Hash) ([]byte, error) {
-	compositeKey := dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes())
+	s.buf = dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes(), s.buf)
+	compositeKey := s.buf
 	enc, err := GetAsOf(s.tx, s.storageHistoryC, s.storageChangesC, true /* storage */, compositeKey, s.blockNr+1)
 	if err != nil {
 		return nil, err

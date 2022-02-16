@@ -347,7 +347,7 @@ func TestSnapshot2WritableTxWalkReplaceAndCreateNewKey(t *testing.T) {
 	for i := 1; i < 3; i++ {
 		for j := 1; j < 3; j++ {
 			data = append(data, KvData{
-				K: dbutils.PlainGenerateCompositeStorageKey([]byte{uint8(i) * 2}, 1, []byte{uint8(j) * 2}),
+				K: dbutils.PlainGenerateCompositeStorageKey([]byte{uint8(i) * 2}, 1, []byte{uint8(j) * 2}, nil),
 				V: []byte{uint8(i) * 2, uint8(j) * 2},
 			})
 		}
@@ -370,9 +370,9 @@ func TestSnapshot2WritableTxWalkReplaceAndCreateNewKey(t *testing.T) {
 
 	c, err := tx.RwCursor(kv.PlainState)
 	require.NoError(t, err)
-	replaceKey := dbutils.PlainGenerateCompositeStorageKey([]byte{2}, 1, []byte{4})
+	replaceKey := dbutils.PlainGenerateCompositeStorageKey([]byte{2}, 1, []byte{4}, nil)
 	replaceValue := []byte{2, 4, 4}
-	newKey := dbutils.PlainGenerateCompositeStorageKey([]byte{2}, 1, []byte{5})
+	newKey := dbutils.PlainGenerateCompositeStorageKey([]byte{2}, 1, []byte{5}, nil)
 	newValue := []byte{2, 5}
 
 	//get first correct k&v

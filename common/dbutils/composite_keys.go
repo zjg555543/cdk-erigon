@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	common2 "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/common"
 )
 
@@ -89,12 +90,12 @@ func ParseCompositeStorageKey(compositeKey []byte) (common.Hash, uint64, common.
 
 // AddrHash + incarnation + KeyHash
 // For contract storage (for plain state)
-func PlainGenerateCompositeStorageKey(address []byte, incarnation uint64, key []byte) []byte {
-	compositeKey := make([]byte, common.AddressLength+common.IncarnationLength+common.HashLength)
-	copy(compositeKey, address)
-	binary.BigEndian.PutUint64(compositeKey[common.AddressLength:], incarnation)
-	copy(compositeKey[common.AddressLength+common.IncarnationLength:], key)
-	return compositeKey
+func PlainGenerateCompositeStorageKey(address []byte, incarnation uint64, key []byte, buf []byte) []byte {
+	buf = common2.EnsureEnoughSize(buf, common.AddressLength+common.IncarnationLength+common.HashLength)
+	copy(buf, address)
+	binary.BigEndian.PutUint64(buf[common.AddressLength:], incarnation)
+	copy(buf[common.AddressLength+common.IncarnationLength:], key)
+	return buf
 }
 
 func PlainParseCompositeStorageKey(compositeKey []byte) (common.Address, uint64, common.Hash) {
@@ -123,11 +124,11 @@ func GenerateStoragePrefix(addressHash []byte, incarnation uint64) []byte {
 }
 
 // address hash + incarnation prefix (for plain state)
-func PlainGenerateStoragePrefix(address []byte, incarnation uint64) []byte {
-	prefix := make([]byte, common.AddressLength+NumberLength)
-	copy(prefix, address)
-	binary.BigEndian.PutUint64(prefix[common.AddressLength:], incarnation)
-	return prefix
+func PlainGenerateStoragePrefix(address []byte, incarnation uint64, buf []byte) []byte {
+	buf = common2.EnsureEnoughSize(buf, common.AddressLength+common.IncarnationLength)
+	copy(buf, address)
+	binary.BigEndian.PutUint64(buf[common.AddressLength:], incarnation)
+	return buf
 }
 
 func PlainParseStoragePrefix(prefix []byte) (common.Address, uint64) {

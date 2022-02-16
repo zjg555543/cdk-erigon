@@ -16,7 +16,8 @@ var _ StateReader = (*PlainStateReader)(nil)
 // Data in the plain state is stored using un-hashed account/storage items
 // as opposed to the "normal" state that uses hashes of merkle paths to store items.
 type PlainStateReader struct {
-	db kv.Getter
+	db  kv.Getter
+	buf []byte
 }
 
 func NewPlainStateReader(db kv.Getter) *PlainStateReader {
@@ -41,7 +42,8 @@ func (r *PlainStateReader) ReadAccountData(address common.Address) (*accounts.Ac
 }
 
 func (r *PlainStateReader) ReadAccountStorage(address common.Address, incarnation uint64, key *common.Hash) ([]byte, error) {
-	compositeKey := dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes())
+	r.buf = dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes(), r.buf)
+	compositeKey := r.buf
 	enc, err := r.db.GetOne(kv.PlainState, compositeKey)
 	if err != nil {
 		return nil, err
