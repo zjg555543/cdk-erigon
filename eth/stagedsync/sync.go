@@ -324,7 +324,7 @@ func (s *Sync) runStage(stage *Stage, db kv.RwDB, tx kv.RwTx, firstCycle bool, b
 		logPrefix := s.LogPrefix()
 		log.Info(fmt.Sprintf("[%s] DONE", logPrefix), "in", t)
 	}
-	s.timings = append(s.timings, Timing{isPrune: false, stage: stage.ID, took: t})
+	s.timings = append(s.timings, Timing{stage: stage.ID, took: t})
 	return nil
 }
 
