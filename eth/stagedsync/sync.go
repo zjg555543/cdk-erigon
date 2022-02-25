@@ -262,13 +262,13 @@ func printLogs(tx kv.RwTx, timings []Timing) error {
 	var logCtx []interface{}
 	count := 0
 	for i := range timings {
-		if timings[i].took < 10*time.Millisecond {
-			continue
-		}
+		//if timings[i].took < 10*time.Millisecond {
+		//	continue
+		//}
 		count++
-		if count == 50 {
-			break
-		}
+		//if count == 50 {
+		//	break
+		//}
 		if timings[i].isUnwind {
 			logCtx = append(logCtx, "Unwind "+string(timings[i].stage), timings[i].took.Truncate(time.Millisecond).String())
 		} else if timings[i].isPrune {
