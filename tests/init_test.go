@@ -244,6 +244,7 @@ func (tm *testMatcher) runTestFile(t *testing.T, path, name string, runTest inte
 				if r, _ := tm.findSkip(name); r != "" {
 					t.Skip(r)
 				}
+				t.Parallel()
 				runTestFunc(runTest, t, name, m, key)
 			})
 		}
