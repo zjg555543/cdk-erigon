@@ -93,6 +93,7 @@ var txsBeginEnd2 = Migration{
 					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 			}
 
+			fmt.Printf("alex3\n")
 			if err := db.Update(context.Background(), func(tx kv.RwTx) error {
 				canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockNum)
 				if err != nil {
@@ -123,6 +124,7 @@ var txsBeginEnd2 = Migration{
 					return fmt.Errorf("failed to write body txs: %w", err)
 				}
 
+				fmt.Printf("alex4\n")
 				//TODO: drop nonCanonical bodies, headers, txs
 				if err = tx.ForPrefix(kv.BlockBody, numHashBuf[:8], func(k, v []byte) error {
 					if bytes.Equal(k, numHashBuf) { // don't delete canonical blocks
