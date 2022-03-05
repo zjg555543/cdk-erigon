@@ -128,6 +128,7 @@ var txsBeginEnd2 = Migration{
 					if bytes.Equal(k, numHashBuf) { // don't delete canonical blocks
 						return nil
 					}
+					fmt.Printf("a: %x\n", k[:8])
 					bodyForStorage := new(types.BodyForStorage)
 					if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
 						return err
