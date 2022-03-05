@@ -58,7 +58,6 @@ var txsBeginEnd2 = Migration{
 				latestBlock = binary.BigEndian.Uint64(progress)
 				log.Info("[migration] Continue migration", "from_block", latestBlock)
 			} else {
-
 				latestBlock = bodiesProgress + 1 // include block 0
 			}
 			return nil
@@ -132,7 +131,6 @@ var txsBeginEnd2 = Migration{
 				if bytes.Equal(k, numHashBuf) { // don't delete canonical blocks
 					return nil
 				}
-				fmt.Printf("a: %x\n", k[:8])
 				bodyForStorage := new(types.BodyForStorage)
 				if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
 					return err
@@ -170,7 +168,7 @@ var txsBeginEnd2 = Migration{
 			if err := BeforeCommit(tx, numBuf, false); err != nil {
 				return err
 			}
-			if blockNum%10 == 0 {
+			if blockNum%100 == 0 {
 				if err := tx.Commit(); err != nil {
 					return err
 				}
