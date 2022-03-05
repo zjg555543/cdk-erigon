@@ -169,7 +169,6 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 			if blockNum%1_000 == 0 {
-				fmt.Printf("commit\n")
 				if err := tx.Commit(); err != nil {
 					return err
 				}
