@@ -105,7 +105,6 @@ var txsBeginEnd2 = Migration{
 			copy(numHashBuf[8:], canonicalHash[:])
 			b, err := rawdb.ReadBodyForStorageByKey(tx, numHashBuf)
 			if err != nil {
-				panic(err)
 				return err
 			}
 			if b == nil {
