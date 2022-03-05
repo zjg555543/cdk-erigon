@@ -10,6 +10,7 @@ import (
 
 	common2 "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
@@ -169,6 +170,8 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 			if blockNum%1_000 == 0 {
+				dirt, sz, err := tx.(*mdbx.MdbxTx).SpaceDirty()
+				fmt.Printf("commit: %dKb, %dKb\n", dirt/1024, sz/1024)
 				if err := tx.Commit(); err != nil {
 					return err
 				}
