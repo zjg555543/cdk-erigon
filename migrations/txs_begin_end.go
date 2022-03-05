@@ -93,7 +93,6 @@ var txsBeginEnd2 = Migration{
 			default:
 			}
 
-			fmt.Printf("alex3: %d\n", blockNum)
 			if err := db.Update(context.Background(), func(tx kv.RwTx) error {
 				canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockNum)
 				if err != nil {
