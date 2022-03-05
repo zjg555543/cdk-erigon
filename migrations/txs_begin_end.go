@@ -84,16 +84,16 @@ var txsBeginEnd2 = Migration{
 			blockNum := uint64(i)
 
 			select {
-			default:
 			case <-logEvery.C:
 				var m runtime.MemStats
 				runtime.ReadMemStats(&m)
 				log.Debug("[migration] Adding empty txs to begin/end of blocks",
 					"processed", fmt.Sprintf("%.2f%%", 100-100*float64(blockNum)/float64(latestBlock)),
 					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
+			default:
 			}
 
-			fmt.Printf("alex3\n")
+			fmt.Printf("alex3: %d\n", blockNum)
 			if err := db.Update(context.Background(), func(tx kv.RwTx) error {
 				canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockNum)
 				if err != nil {
@@ -124,7 +124,6 @@ var txsBeginEnd2 = Migration{
 					return fmt.Errorf("failed to write body txs: %w", err)
 				}
 
-				fmt.Printf("alex4\n")
 				//TODO: drop nonCanonical bodies, headers, txs
 				if err = tx.ForPrefix(kv.BlockBody, numHashBuf[:8], func(k, v []byte) error {
 					if bytes.Equal(k, numHashBuf) { // don't delete canonical blocks
