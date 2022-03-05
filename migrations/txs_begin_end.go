@@ -49,6 +49,7 @@ var txsBeginEnd2 = Migration{
 		defer logEvery.Stop()
 
 		var latestBlock uint64
+		fmt.Printf("alex0\n")
 		if err := db.View(context.Background(), func(tx kv.Tx) error {
 			bodiesProgress, err := stages.GetStageProgress(tx, stages.Bodies)
 			if err != nil {
@@ -65,6 +66,7 @@ var txsBeginEnd2 = Migration{
 		}
 
 		if progress == nil {
+			fmt.Printf("alex1\n")
 			if err := db.Update(context.Background(), func(tx kv.RwTx) error {
 				if _, err := tx.IncrementSequence(kv.EthTx, latestBlock*2); err != nil {
 					return err
@@ -74,6 +76,7 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 		}
+		fmt.Printf("alex2\n")
 
 		numBuf := make([]byte, 8)
 		numHashBuf := make([]byte, 8+32)
@@ -85,9 +88,8 @@ var txsBeginEnd2 = Migration{
 			case <-logEvery.C:
 				var m runtime.MemStats
 				runtime.ReadMemStats(&m)
-				log.Debug("[migration] Replacement preprocessing",
+				log.Debug("[migration] Adding empty txs to begin/end of blocks",
 					"processed", fmt.Sprintf("%.2f%%", 100-100*float64(blockNum)/float64(latestBlock)),
-					//"input", common.ByteCount(inputSize.Load()), "output", common.ByteCount(outputSize.Load()),
 					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 			}
 
