@@ -87,7 +87,7 @@ var txsBeginEnd2 = Migration{
 			case <-logEvery.C:
 				var m runtime.MemStats
 				runtime.ReadMemStats(&m)
-				log.Debug("[migration] Adding empty txs to begin/end of blocks",
+				log.Info("[migration] Adding empty txs to begin/end of blocks",
 					"processed", fmt.Sprintf("%.2f%%", 100-100*float64(blockNum)/float64(latestBlock)),
 					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 			default:
