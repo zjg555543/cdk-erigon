@@ -56,7 +56,9 @@ var txsBeginEnd2 = Migration{
 			}
 			if progress != nil {
 				latestBlock = binary.BigEndian.Uint64(progress)
+				log.Info("[migration] Continue migration", "from_block", latestBlock)
 			} else {
+
 				latestBlock = bodiesProgress + 1 // include block 0
 			}
 			return nil
@@ -65,7 +67,6 @@ var txsBeginEnd2 = Migration{
 		}
 
 		if progress == nil {
-			fmt.Printf("alex1\n")
 			if err := db.Update(context.Background(), func(tx kv.RwTx) error {
 				if _, err := tx.IncrementSequence(kv.EthTx, latestBlock*2); err != nil {
 					return err
@@ -75,7 +76,6 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 		}
-		fmt.Printf("alex2\n")
 
 		tx, err := db.BeginRw(context.Background())
 		if err != nil {
