@@ -135,11 +135,11 @@ var txsBeginEnd2 = Migration{
 			if err := writeTransactionsNewDeprecated(tx, txs, b.BaseTxId+1); err != nil {
 				return fmt.Errorf("failed to write body txs: %w", err)
 			}
-			binary.BigEndian.PutUint64(numBuf, b.BaseTxId)
+			binary.BigEndian.PutUint64(numBuf, b.BaseTxId) // del first tx in block
 			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
 				return err
 			}
-			binary.BigEndian.PutUint64(numBuf, b.BaseTxId+uint64(b.TxAmount))
+			binary.BigEndian.PutUint64(numBuf, b.BaseTxId+uint64(b.TxAmount)) // del last tx in block
 			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
 				return err
 			}
@@ -149,6 +149,12 @@ var txsBeginEnd2 = Migration{
 				newBlock.Transactions, err = rawdb.CanonicalTransactions(tx, baseTxId, txAmount)
 				fmt.Printf("alex read: %d,%d, %d=%d\n", blockNum, baseTxId, txAmount, len(newBlock.Transactions))
 
+				for _, oldTx := range oldBlock.Transactions {
+					fmt.Printf("old: %d\n", oldTx.GetNonce())
+				}
+				for _, oldTx := range newBlock.Transactions {
+					fmt.Printf("new: %d\n", oldTx.GetNonce())
+				}
 				for i, oldTx := range oldBlock.Transactions {
 					newTx := newBlock.Transactions[i]
 					if oldTx.GetNonce() != newTx.GetNonce() {
