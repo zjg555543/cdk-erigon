@@ -269,3 +269,24 @@ func writeTransactionsNewDeprecated(db kv.RwTx, txs []types.Transaction, baseTxI
 	}
 	return nil
 }
+
+func readCanonicalBodyWithTransactionsDeprecated(db kv.Getter, hash common.Hash, number uint64) *types.Body {
+	data := rawdb.ReadStorageBodyRLP(db, hash, number)
+	if len(data) == 0 {
+		return nil
+	}
+	bodyForStorage := new(types.BodyForStorage)
+	err := rlp.DecodeBytes(data, bodyForStorage)
+	if err != nil {
+		log.Error("Invalid block body RLP", "hash", hash, "err", err)
+		return nil
+	}
+	body := new(types.Body)
+	body.Uncles = bodyForStorage.Uncles
+	body.Transactions, err = rawdb.CanonicalTransactions(db, bodyForStorage.BaseTxId, bodyForStorage.TxAmount)
+	if err != nil {
+		log.Error("failed ReadTransactionByHash", "hash", hash, "block", number, "err", err)
+		return nil
+	}
+	return body
+}
