@@ -127,6 +127,7 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 
+			fmt.Printf("alex: %d,%d+%d, %d\n", blockNum, b.BaseTxId, blockNum*2, b.TxAmount)
 			b.BaseTxId += (blockNum) * 2
 			b.TxAmount += 2
 			if err := rawdb.WriteBodyForStorage(tx, canonicalHash, blockNum, b); err != nil {
