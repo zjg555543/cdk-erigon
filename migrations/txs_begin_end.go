@@ -149,9 +149,9 @@ var txsBeginEnd2 = Migration{
 				newBlock.Transactions, err = rawdb.CanonicalTransactions(tx, baseTxId, txAmount)
 				fmt.Printf("alex read: %d,%d, %d=%d\n", blockNum, baseTxId, txAmount, len(newBlock.Transactions))
 
-				//for i, oldTx := range oldBlock.Transactions {
-				//	fmt.Printf("old: %d, %d\n", oldTx.GetNonce(), newBlock.Transactions[i].GetNonce())
-				//}
+				for i, oldTx := range oldBlock.Transactions {
+					fmt.Printf("old: %d, %d\n", oldTx.GetNonce(), newBlock.Transactions[i].GetNonce())
+				}
 				for i, oldTx := range oldBlock.Transactions {
 					newTx := newBlock.Transactions[i]
 					fmt.Printf("found: %d\n", i)
