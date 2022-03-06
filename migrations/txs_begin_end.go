@@ -257,7 +257,6 @@ func writeTransactionsNewDeprecated(db kv.RwTx, txs []types.Transaction, baseTxI
 	for _, tx := range txs {
 		txIdKey := make([]byte, 8)
 		binary.BigEndian.PutUint64(txIdKey, txId)
-		txId++
 
 		buf.Reset()
 		if err := rlp.Encode(buf, tx); err != nil {
@@ -269,6 +268,7 @@ func writeTransactionsNewDeprecated(db kv.RwTx, txs []types.Transaction, baseTxI
 		if err := db.Put(kv.EthTx, txIdKey, common.CopyBytes(buf.Bytes())); err != nil {
 			return err
 		}
+		txId++
 	}
 	return nil
 }
