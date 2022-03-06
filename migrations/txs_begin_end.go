@@ -133,7 +133,6 @@ var txsBeginEnd2 = Migration{
 			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
 				return err
 			}
-			fmt.Printf("del: %d,%d\n", b.BaseTxId, b.BaseTxId+uint64(b.TxAmount)-1)
 			binary.BigEndian.PutUint64(numBuf, b.BaseTxId+uint64(b.TxAmount)-1) // del last tx in block
 			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
 				return err
