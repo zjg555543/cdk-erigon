@@ -106,10 +106,7 @@ var txsBeginEnd2 = Migration{
 
 			var oldBlock *types.Body
 			if ASSERT {
-				oldBlock, err = rawdb.ReadBodyWithTransactions(tx, canonicalHash, blockNum)
-				if err != nil {
-					return err
-				}
+				oldBlock = rawdb.ReadCanonicalBodyWithTransactions(tx, canonicalHash, blockNum)
 			}
 
 			binary.BigEndian.PutUint64(numHashBuf[:8], blockNum)
