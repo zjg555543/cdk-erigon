@@ -67,17 +67,6 @@ var txsBeginEnd2 = Migration{
 			return err
 		}
 
-		if progress == nil {
-			if err := db.Update(context.Background(), func(tx kv.RwTx) error {
-				if _, err := tx.IncrementSequence(kv.EthTx, latestBlock*2); err != nil {
-					return err
-				}
-				return nil
-			}); err != nil {
-				return err
-			}
-		}
-
 		tx, err := db.BeginRw(context.Background())
 		if err != nil {
 			return err
@@ -215,6 +204,23 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 			if _, err := tx.IncrementSequence(kv.NonCanonicalTxs, -v); err != nil {
+				return err
+			}
+
+			c, err := tx.Cursor(kv.EthTx)
+			if err != nil {
+				return err
+			}
+			k, _, err := c.Last()
+			if err != nil {
+				return err
+			}
+			currentSeq, err := tx.ReadSequence(kv.EthTx)
+			if err != nil {
+				return err
+			}
+
+			if _, err := tx.IncrementSequence(kv.EthTx, binary.BigEndian.Uint64(k)-currentSeq); err != nil {
 				return err
 			}
 
