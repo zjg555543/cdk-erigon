@@ -207,21 +207,34 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 
-			c, err := tx.Cursor(kv.EthTx)
-			if err != nil {
-				return err
-			}
-			k, _, err := c.Last()
-			if err != nil {
-				return err
-			}
-			currentSeq, err := tx.ReadSequence(kv.EthTx)
-			if err != nil {
-				return err
-			}
+			{
+				c, err := tx.Cursor(kv.HeaderCanonical)
+				if err != nil {
+					return err
+				}
+				k, v, err := c.Last()
+				if err != nil {
+					return err
+				}
+				data, err := tx.GetOne(kv.BlockBody, append(k, v...))
+				if err != nil {
+					return err
+				}
+				bodyForStorage := new(types.BodyForStorage)
+				if err := rlp.DecodeBytes(data, bodyForStorage); err != nil {
+					return err
+				}
+				if err != nil {
+					return err
+				}
+				currentSeq, err := tx.ReadSequence(kv.EthTx)
+				if err != nil {
+					return err
+				}
 
-			if _, err := tx.IncrementSequence(kv.EthTx, binary.BigEndian.Uint64(k)-currentSeq); err != nil {
-				return err
+				if _, err := tx.IncrementSequence(kv.EthTx, bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount)-currentSeq+1); err != nil {
+					return err
+				}
 			}
 
 			// This migration is no-op, but it forces the migration mechanism to apply it and thus write the DB schema version info
