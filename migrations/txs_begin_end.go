@@ -128,12 +128,12 @@ var txsBeginEnd2 = Migration{
 			}
 
 			fmt.Printf("alex: %d,%d+%d, %d\n", blockNum, b.BaseTxId, blockNum*2, b.TxAmount)
-			b.BaseTxId += blockNum * 2
+			b.BaseTxId += (blockNum) * 2
 			b.TxAmount += 2
 			if err := rawdb.WriteBodyForStorage(tx, canonicalHash, blockNum, b); err != nil {
 				return fmt.Errorf("failed to write body: %w", err)
 			}
-			if err := writeTransactionsNewDeprecated(tx, txs, b.BaseTxId); err != nil {
+			if err := writeTransactionsNewDeprecated(tx, txs, b.BaseTxId+1); err != nil {
 				return fmt.Errorf("failed to write body txs: %w", err)
 			}
 
