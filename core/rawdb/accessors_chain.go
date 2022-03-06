@@ -300,7 +300,6 @@ func CanonicalTransactions(db kv.Getter, baseTxId uint64, amount uint32) ([]type
 		if txs[i], decodeErr = types.DecodeTransaction(stream); decodeErr != nil {
 			return decodeErr
 		}
-		fmt.Printf("get: %d,%d\n", binary.BigEndian.Uint64(k), txs[i].GetNonce())
 		i++
 		return nil
 	}); err != nil {

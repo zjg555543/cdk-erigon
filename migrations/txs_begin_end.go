@@ -145,11 +145,6 @@ var txsBeginEnd2 = Migration{
 			if ASSERT {
 				newBlock, baseTxId, txAmount := rawdb.ReadBody(tx, canonicalHash, blockNum)
 				newBlock.Transactions, err = rawdb.CanonicalTransactions(tx, baseTxId, txAmount)
-				fmt.Printf("alex read: %d,%d, %d=%d\n", blockNum, baseTxId, txAmount, len(newBlock.Transactions))
-
-				for i, oldTx := range oldBlock.Transactions {
-					fmt.Printf("old: %d, %d\n", oldTx.GetNonce(), newBlock.Transactions[i].GetNonce())
-				}
 				for i, oldTx := range oldBlock.Transactions {
 					newTx := newBlock.Transactions[i]
 					if oldTx.GetNonce() != newTx.GetNonce() {
@@ -259,8 +254,6 @@ func writeTransactionsNewDeprecated(db kv.RwTx, txs []types.Transaction, baseTxI
 		if err := rlp.Encode(buf, tx); err != nil {
 			return fmt.Errorf("broken tx rlp: %w", err)
 		}
-
-		fmt.Printf("put: %d,%d\n", txId, tx.GetNonce())
 		// If next Append returns KeyExists error - it means you need to open transaction in App code before calling this func. Batch is also fine.
 		if err := db.Put(kv.EthTx, txIdKey, common.CopyBytes(buf.Bytes())); err != nil {
 			return err
