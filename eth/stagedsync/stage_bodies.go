@@ -2,7 +2,6 @@ package stagedsync
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"runtime"
 	"time"
@@ -187,11 +186,6 @@ Loop:
 				u.UnwindTo(blockHeight-1, header.Hash())
 				break Loop
 			}
-
-			c, _ := tx.Cursor(kv.EthTx)
-			k, _, _ := c.Last()
-			a, _ := tx.ReadSequence(kv.EthTx)
-			fmt.Printf("alexxxxxx: %d,%d\n", binary.BigEndian.Uint64(k), a)
 
 			// Check existence before write - because WriteRawBody isn't idempotent (it allocates new sequence range for transactions on every call)
 			if err = rawdb.WriteRawBodyIfNotExists(tx, header.Hash(), blockHeight, rawBody); err != nil {
