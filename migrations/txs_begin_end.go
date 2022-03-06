@@ -18,6 +18,8 @@ import (
 	"github.com/ledgerwatch/log/v3"
 )
 
+const ASSERT = true
+
 var ErrTxsBeginEndNoMigration = fmt.Errorf("in this Erigon version DB format was changed: added additional first/last system-txs to blocks. There is no DB migration for this change. Please re-sync or switch to earlier version")
 
 var txsBeginEnd = Migration{
@@ -101,6 +103,15 @@ var txsBeginEnd2 = Migration{
 			if err != nil {
 				return err
 			}
+
+			var oldBlock *types.Body
+			if ASSERT {
+				oldBlock, err = rawdb.ReadBodyWithTransactions(tx, canonicalHash, blockNum)
+				if err != nil {
+					return err
+				}
+			}
+
 			binary.BigEndian.PutUint64(numHashBuf[:8], blockNum)
 			copy(numHashBuf[8:], canonicalHash[:])
 			b, err := rawdb.ReadBodyForStorageByKey(tx, numHashBuf)
@@ -116,16 +127,28 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 
-			b.BaseTxId += (latestBlock - blockNum) * 2
+			b.BaseTxId += blockNum * 2
 			b.TxAmount += 2
 			if err := rawdb.WriteBodyForStorage(tx, canonicalHash, blockNum, b); err != nil {
 				return fmt.Errorf("failed to write body: %w", err)
 			}
-			if err := writeTransactionsNewDeprecated(tx, txs, uint64(len(txs))+2); err != nil {
+			if err := writeTransactionsNewDeprecated(tx, txs, b.BaseTxId); err != nil {
 				return fmt.Errorf("failed to write body txs: %w", err)
 			}
 
-			//TODO: drop nonCanonical bodies, headers, txs
+			if ASSERT {
+				newBlock, err := rawdb.ReadBodyWithTransactions(tx, canonicalHash, blockNum)
+				if err != nil {
+					return err
+				}
+				for i, oldTx := range oldBlock.Transactions {
+					newTx := newBlock.Transactions[i]
+					if oldTx.GetNonce() != newTx.GetNonce() {
+						panic(blockNum)
+					}
+				}
+			}
+
 			if err = tx.ForPrefix(kv.BlockBody, numHashBuf[:8], func(k, v []byte) error {
 				if bytes.Equal(k, numHashBuf) { // don't delete canonical blocks
 					return nil
