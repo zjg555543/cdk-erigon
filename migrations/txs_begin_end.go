@@ -133,7 +133,7 @@ var txsBeginEnd2 = Migration{
 			if err := rawdb.WriteBodyForStorage(tx, canonicalHash, blockNum, b); err != nil {
 				return fmt.Errorf("failed to write body: %w", err)
 			}
-			fmt.Printf("alex write: %d,%d, %d=%d\n", blockNum, b.BaseTxId+1, b.TxAmount, len(txs))
+			fmt.Printf("alex write: %d,%d, %d=%d\n", blockNum, b.BaseTxId+1, b.TxAmount-2, len(txs))
 			if err := writeTransactionsNewDeprecated(tx, txs, b.BaseTxId+1); err != nil {
 				return fmt.Errorf("failed to write body txs: %w", err)
 			}
