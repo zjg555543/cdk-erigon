@@ -127,15 +127,21 @@ var txsBeginEnd2 = Migration{
 				return err
 			}
 
-			fmt.Printf("alex: %d,%d+%d, %d\n", blockNum, b.BaseTxId, blockNum*2, b.TxAmount)
 			b.BaseTxId += (blockNum) * 2
 			b.TxAmount += 2
 			if err := rawdb.WriteBodyForStorage(tx, canonicalHash, blockNum, b); err != nil {
 				return fmt.Errorf("failed to write body: %w", err)
 			}
-			fmt.Printf("alex write: %d,%d, %d=%d\n", blockNum, b.BaseTxId+1, b.TxAmount-2, len(txs))
 			if err := writeTransactionsNewDeprecated(tx, txs, b.BaseTxId+1); err != nil {
 				return fmt.Errorf("failed to write body txs: %w", err)
+			}
+			binary.BigEndian.PutUint64(numBuf, b.BaseTxId)
+			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
+				return err
+			}
+			binary.BigEndian.PutUint64(numBuf, b.BaseTxId+uint64(b.TxAmount))
+			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
+				return err
 			}
 
 			if ASSERT {
