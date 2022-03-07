@@ -2,7 +2,6 @@ package stagedsync
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"runtime"
 	"time"
@@ -188,32 +187,24 @@ Loop:
 				break Loop
 			}
 
-			{
-				c, _ := tx.Cursor(kv.EthTx)
-				k, _, _ := c.Last()
-				a, _ := tx.ReadSequence(kv.EthTx)
-				c1, err := tx.Cursor(kv.HeaderCanonical)
-				if err != nil {
-					panic(err)
-					return err
+			/*
+				{
+					c, _ := tx.Cursor(kv.EthTx)
+					k, _, _ := c.Last()
+					a, _ := tx.ReadSequence(kv.EthTx)
+					//tx.ForEach(kv.HeaderCanonical, nil, func(k, v []byte) error {
+					//	fmt.Printf("HeaderCanonical: %x,%x\n", k, v)
+					//	return nil
+					//})
+					//tx.ForEach(kv.BlockBody, nil, func(k, v []byte) error {
+					//	fmt.Printf("BlockBody: %x\n", k)
+					//	return nil
+					//})
+					if k != nil {
+						fmt.Printf("alexxxxxx: last_tx_id=%d,seq=%d,amount=%d\n", binary.BigEndian.Uint64(k), a, len(rawBody.Transactions))
+					}
 				}
-				lastCanonicalNum, lastCanonicalHash, err := c1.Last()
-				if err != nil {
-					panic(err)
-					return err
-				}
-				tx.ForEach(kv.HeaderCanonical, nil, func(k, v []byte) error {
-					fmt.Printf("HeaderCanonical: %x,%x\n", k, v)
-					return nil
-				})
-				tx.ForEach(kv.BlockBody, nil, func(k, v []byte) error {
-					fmt.Printf("BlockBody: %x\n", k)
-					return nil
-				})
-				if k != nil {
-					fmt.Printf("alexxxxxx: last_tx_id=%d,seq=%d,amount=%d\n", binary.BigEndian.Uint64(k), a, len(rawBody.Transactions))
-				}
-			}
+			*/
 
 			// Check existence before write - because WriteRawBody isn't idempotent (it allocates new sequence range for transactions on every call)
 			if err = rawdb.WriteRawBodyIfNotExists(tx, header.Hash(), blockHeight, rawBody); err != nil {
