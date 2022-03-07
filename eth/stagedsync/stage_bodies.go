@@ -194,11 +194,13 @@ Loop:
 				c, _ := tx.Cursor(kv.EthTx)
 				k, _, _ := c.Last()
 				a, _ := tx.ReadSequence(kv.EthTx)
-				c1, err := tx.Cursor(kv.BlockBody)
+				c1, err := tx.Cursor(kv.HeaderCanonical)
+				lastCanonicalNum, lastCanonicalHash, err := c1.Last()
 				if err != nil {
 					return err
 				}
-				_, bodyRlp, err := c1.Last()
+				lastKey := append(lastCanonicalNum, lastCanonicalHash...)
+				bodyRlp, err := tx.GetOne(kv.BlockBody, lastKey)
 				if err != nil {
 					return err
 				}
@@ -207,7 +209,7 @@ Loop:
 					return err
 				}
 				if k != nil {
-					fmt.Printf("alexxxxxx: %d,%d,%d,%d\n", binary.BigEndian.Uint64(k), a, bodyForStorage.BaseTxId, bodyForStorage.TxAmount)
+					fmt.Printf("alexxxxxx: last_tx_id=%d,seq=%d,base_id=%d,amoutn=%d\n", binary.BigEndian.Uint64(k), a, bodyForStorage.BaseTxId, bodyForStorage.TxAmount)
 				}
 			}
 
