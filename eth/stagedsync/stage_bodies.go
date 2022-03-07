@@ -13,11 +13,9 @@ import (
 	"github.com/ledgerwatch/erigon/cmd/rpcdaemon/interfaces"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/rawdb"
-	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/p2p/enode"
 	"github.com/ledgerwatch/erigon/params"
-	"github.com/ledgerwatch/erigon/rlp"
 	"github.com/ledgerwatch/erigon/turbo/adapter"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
 	"github.com/ledgerwatch/erigon/turbo/stages/bodydownload"
@@ -212,22 +210,8 @@ Loop:
 					fmt.Printf("BlockBody: %x\n", k)
 					return nil
 				})
-				lastKey := append(lastCanonicalNum, lastCanonicalHash...)
-				bodyRlp, err := tx.GetOne(kv.BlockBody, lastKey)
-				if err != nil {
-					panic(err)
-					return err
-				}
-				if bodyRlp == nil {
-					panic("nil")
-				}
-				bodyForStorage := new(types.BodyForStorage)
-				if err := rlp.DecodeBytes(bodyRlp, bodyForStorage); err != nil {
-					panic(err)
-					return err
-				}
 				if k != nil {
-					fmt.Printf("alexxxxxx: last_tx_id=%d,seq=%d,base_id=%d,amoutn=%d\n", binary.BigEndian.Uint64(k), a, bodyForStorage.BaseTxId, bodyForStorage.TxAmount)
+					fmt.Printf("alexxxxxx: last_tx_id=%d,seq=%d,amount=%d\n", binary.BigEndian.Uint64(k), a, len(rawBody.Transactions))
 				}
 			}
 
