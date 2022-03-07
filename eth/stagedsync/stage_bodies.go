@@ -13,9 +13,11 @@ import (
 	"github.com/ledgerwatch/erigon/cmd/rpcdaemon/interfaces"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/rawdb"
+	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/p2p/enode"
 	"github.com/ledgerwatch/erigon/params"
+	"github.com/ledgerwatch/erigon/rlp"
 	"github.com/ledgerwatch/erigon/turbo/adapter"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
 	"github.com/ledgerwatch/erigon/turbo/stages/bodydownload"
@@ -188,10 +190,24 @@ Loop:
 				break Loop
 			}
 
-			c, _ := tx.Cursor(kv.EthTx)
-			k, _, _ := c.Last()
-			a, _ := tx.ReadSequence(kv.EthTx)
-			fmt.Printf("alexxxxxx: %d,%d\n", binary.BigEndian.Uint64(k), a)
+			{
+				c, _ := tx.Cursor(kv.EthTx)
+				k, _, _ := c.Last()
+				a, _ := tx.ReadSequence(kv.EthTx)
+				c1, err := tx.Cursor(kv.BlockBody)
+				if err != nil {
+					return err
+				}
+				_, bodyRlp, err := c1.Last()
+				if err != nil {
+					return err
+				}
+				bodyForStorage := new(types.BodyForStorage)
+				if err := rlp.DecodeBytes(bodyRlp, bodyForStorage); err != nil {
+					return err
+				}
+				fmt.Printf("alexxxxxx: %d,%d,%d,%d\n", binary.BigEndian.Uint64(k), a, bodyForStorage.BaseTxId, bodyForStorage.TxAmount)
+			}
 
 			// Check existence before write - because WriteRawBody isn't idempotent (it allocates new sequence range for transactions on every call)
 			if err = rawdb.WriteRawBodyIfNotExists(tx, header.Hash(), blockHeight, rawBody); err != nil {
