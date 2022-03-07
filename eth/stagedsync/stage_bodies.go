@@ -206,7 +206,9 @@ Loop:
 				if err := rlp.DecodeBytes(bodyRlp, bodyForStorage); err != nil {
 					return err
 				}
-				fmt.Printf("alexxxxxx: %d,%d,%d,%d\n", binary.BigEndian.Uint64(k), a, bodyForStorage.BaseTxId, bodyForStorage.TxAmount)
+				if k != nil {
+					fmt.Printf("alexxxxxx: %d,%d,%d,%d\n", binary.BigEndian.Uint64(k), a, bodyForStorage.BaseTxId, bodyForStorage.TxAmount)
+				}
 			}
 
 			// Check existence before write - because WriteRawBody isn't idempotent (it allocates new sequence range for transactions on every call)
