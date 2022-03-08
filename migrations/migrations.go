@@ -124,6 +124,7 @@ func (m *Migrator) VerifyVersion(db kv.RwDB) error {
 		if err != nil {
 			return fmt.Errorf("reading DB schema version: %w", err)
 		}
+		fmt.Printf("alex1: %x\n", existingVersion)
 		if len(existingVersion) != 0 && len(existingVersion) != 12 {
 			return fmt.Errorf("incorrect length of DB schema version: %d", len(existingVersion))
 		}
