@@ -163,6 +163,13 @@ func StageLoopStep(
 		}
 		log.Info("Commit cycle", "in", time.Since(commitStart))
 	}
+	for i := 0; i < 100; i++ {
+		if err := db.Update(ctx, func(tx kv.RwTx) error {
+			return nil
+		}); err != nil {
+			panic(err)
+		}
+	}
 	var rotx kv.Tx
 	if rotx, err = db.BeginRo(ctx); err != nil {
 		return headBlockHash, err
