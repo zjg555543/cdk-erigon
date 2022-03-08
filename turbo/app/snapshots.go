@@ -115,6 +115,22 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 	chainDB := mdbx.NewMDBX(log.New()).Path(path.Join(datadir, "chaindata")).Readonly().MustOpen()
 	defer chainDB.Close()
 
+	chainDB.View(context.Background(), func(tx kv.Tx) error {
+		tx.ForAmount(kv.EthTx, nil, 20, func(k, v []byte) error {
+			reader := bytes.NewReader(v)
+			stream := rlp.NewStream(reader, 0)
+			tx, err := types.DecodeTransaction(stream)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("a: %d, %x\n", binary.BigEndian.Uint64(k), tx.Hash())
+
+			return nil
+		})
+		return nil
+	})
+	panic(1)
+
 	if rebuild {
 		cfg := ethconfig.NewSnapshotCfg(true, true)
 		rwSnapshotDir, err := dir.OpenRw(snapshotDir)
@@ -122,22 +138,6 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 			return err
 		}
 		defer rwSnapshotDir.Close()
-		chainDB.View(context.Background(), func(tx kv.Tx) error {
-			tx.ForAmount(kv.EthTx, nil, 20, func(k, v []byte) error {
-
-				reader := bytes.NewReader(nil)
-				stream := rlp.NewStream(reader, 0)
-				tx, err := types.DecodeTransaction(stream)
-				if err != nil {
-					return err
-				}
-				fmt.Printf("a: %d, %x\n", binary.BigEndian.Uint64(k), tx.Hash())
-
-				return nil
-			})
-			return nil
-		})
-		panic(1)
 		if err := rebuildIndices(ctx, chainDB, cfg, rwSnapshotDir, tmpDir, from); err != nil {
 			log.Error("Error", "err", err)
 		}
