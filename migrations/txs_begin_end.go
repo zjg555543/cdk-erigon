@@ -19,7 +19,7 @@ import (
 	"github.com/ledgerwatch/log/v3"
 )
 
-const ASSERT = false
+const ASSERT = true
 
 var ErrTxsBeginEndNoMigration = fmt.Errorf("in this Erigon version DB format was changed: added additional first/last system-txs to blocks. There is no DB migration for this change. Please re-sync or switch to earlier version")
 
@@ -110,6 +110,24 @@ var txsBeginEnd = Migration{
 			}
 
 			if ASSERT {
+				m := map[string]uint64{}
+				tx.ForAmount(kv.EthTx, nil, 1_000_000, func(k, v []byte) error {
+					reader := bytes.NewReader(v)
+					stream := rlp.NewStream(reader, 0)
+					txn, err := types.DecodeTransaction(stream)
+					if err != nil {
+						return err
+					}
+
+					if i, ok := m[txn.Hash().String()]; ok {
+						fmt.Printf("found: %d, %d, %s", i, binary.BigEndian.Uint64(k), txn.Hash().String())
+						panic(1)
+					} else {
+						m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
+					}
+					return nil
+				})
+
 				newBlock, baseTxId, txAmount := rawdb.ReadBody(tx, canonicalHash, blockNum)
 				newBlock.Transactions, err = rawdb.CanonicalTransactions(tx, baseTxId, txAmount)
 				for i, oldTx := range oldBlock.Transactions {
