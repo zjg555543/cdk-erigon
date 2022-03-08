@@ -1047,7 +1047,7 @@ RETRY:
 	errCh := make(chan error, 3)
 	defer close(errCh)
 	num := make([]byte, 8)
-
+	m := map[string]uint64{}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -1067,7 +1067,12 @@ RETRY:
 			if it.empty {
 				continue
 			}
-			fmt.Printf("add: %d, %x\n", it.i, it.txnHash[:])
+
+			if _, ok := m[string(it.txnHash[:])]; ok {
+				fmt.Printf("add: %d, %x\n", it.i, it.txnHash[:])
+			} else {
+				m[string(it.txnHash[:])] = it.i
+			}
 
 			if err := txnHashIdx.AddKey(it.txnHash[:], it.offset); err != nil {
 				errCh <- it.err
