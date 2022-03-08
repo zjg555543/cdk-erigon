@@ -1067,6 +1067,8 @@ RETRY:
 			if it.empty {
 				continue
 			}
+			fmt.Printf("add: %d, %x\n", it.i, it.txnHash[:])
+
 			if err := txnHashIdx.AddKey(it.txnHash[:], it.offset); err != nil {
 				errCh <- it.err
 				return
