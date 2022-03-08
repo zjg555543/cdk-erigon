@@ -1012,6 +1012,8 @@ RETRY:
 		empty     bool // block may have empty txn in the beginning or end of block. such txs have no hash, but have ID
 		err       error
 	}
+	m := map[string]uint64{}
+
 	txsCh := make(chan txHashWithOffet, 1024)
 	txsCh2 := make(chan txHashWithOffet, 1024)
 	go func() { //TODO: can't spawn multiple goroutines, because consumer expecting right order of txWithOffet.i
@@ -1038,6 +1040,13 @@ RETRY:
 				txsCh2 <- txHashWithOffet{err: it.err}
 				return
 			}
+			if v, ok := m[string(slot.IdHash[:])]; ok {
+				fmt.Printf("add: %d, %d, %x\n", v, it.i, slot.IdHash[:])
+				panic(1)
+			} else {
+				m[string(slot.IdHash[:])] = it.i
+			}
+
 			txsCh <- txHashWithOffet{txnHash: slot.IdHash, i: it.i, offset: it.offset}
 			txsCh2 <- txHashWithOffet{txnHash: slot.IdHash, i: it.i, offset: it.offset}
 		}
@@ -1047,7 +1056,6 @@ RETRY:
 	errCh := make(chan error, 3)
 	defer close(errCh)
 	num := make([]byte, 8)
-	m := map[string]uint64{}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -1066,13 +1074,6 @@ RETRY:
 			}
 			if it.empty {
 				continue
-			}
-
-			if v, ok := m[string(it.txnHash[:])]; ok {
-				fmt.Printf("add: %d, %d, %x\n", v, it.i, it.txnHash[:])
-				panic(1)
-			} else {
-				m[string(it.txnHash[:])] = it.i
 			}
 
 			if err := txnHashIdx.AddKey(it.txnHash[:], it.offset); err != nil {
