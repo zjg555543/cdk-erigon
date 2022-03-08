@@ -137,6 +137,7 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 			})
 			return nil
 		})
+		panic(1)
 		if err := rebuildIndices(ctx, chainDB, cfg, rwSnapshotDir, tmpDir, from); err != nil {
 			log.Error("Error", "err", err)
 		}
