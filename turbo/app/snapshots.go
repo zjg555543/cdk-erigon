@@ -124,7 +124,6 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("a: %d, %x\n", binary.BigEndian.Uint64(k), txn.Hash())
 
 			if i, ok := m[txn.Hash().String()]; ok {
 				fmt.Printf("found: %d, %d, %s", i, binary.BigEndian.Uint64(k), txn.Hash().String())
