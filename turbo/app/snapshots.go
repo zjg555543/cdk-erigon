@@ -115,16 +115,22 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 	chainDB := mdbx.NewMDBX(log.New()).Path(path.Join(datadir, "chaindata")).Readonly().MustOpen()
 	defer chainDB.Close()
 
+	m := map[string]uint64{}
 	chainDB.View(context.Background(), func(tx kv.Tx) error {
-		tx.ForAmount(kv.EthTx, nil, 20, func(k, v []byte) error {
+		tx.ForAmount(kv.EthTx, nil, 1_000_000, func(k, v []byte) error {
 			reader := bytes.NewReader(v)
 			stream := rlp.NewStream(reader, 0)
-			tx, err := types.DecodeTransaction(stream)
+			txn, err := types.DecodeTransaction(stream)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("a: %d, %x\n", binary.BigEndian.Uint64(k), tx.Hash())
+			fmt.Printf("a: %d, %x\n", binary.BigEndian.Uint64(k), txn.Hash())
 
+			if i, ok := m[txn.Hash().String()]; ok {
+				fmt.Printf("found: %d, %d, %s", i, binary.BigEndian.Uint64(k), txn.Hash().String())
+			} else {
+				m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
+			}
 			return nil
 		})
 		return nil
