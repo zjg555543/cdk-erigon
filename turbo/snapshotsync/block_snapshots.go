@@ -1070,6 +1070,7 @@ RETRY:
 
 			if v, ok := m[string(it.txnHash[:])]; ok {
 				fmt.Printf("add: %d, %d, %x\n", v, it.i, it.txnHash[:])
+				panic(1)
 			} else {
 				m[string(it.txnHash[:])] = it.i
 			}
