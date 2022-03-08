@@ -110,27 +110,6 @@ var txsBeginEnd = Migration{
 			}
 
 			if ASSERT {
-				m := map[string]uint64{}
-				reader := bytes.NewReader(nil)
-				stream := rlp.NewStream(reader, 0)
-
-				tx.ForAmount(kv.EthTx, nil, 100_000, func(k, v []byte) error {
-					reader.Reset(v)
-					stream.Reset(reader, 0)
-					txn, err := types.DecodeTransaction(stream)
-					if err != nil {
-						return err
-					}
-
-					if i, ok := m[txn.Hash().String()]; ok {
-						fmt.Printf("found: %d, %d, %s", i, binary.BigEndian.Uint64(k), txn.Hash().String())
-						panic(1)
-					} else {
-						m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
-					}
-					return nil
-				})
-
 				newBlock, baseTxId, txAmount := rawdb.ReadBody(tx, canonicalHash, blockNum)
 				newBlock.Transactions, err = rawdb.CanonicalTransactions(tx, baseTxId, txAmount)
 				for i, oldTx := range oldBlock.Transactions {
@@ -183,6 +162,29 @@ var txsBeginEnd = Migration{
 				return err
 			}
 			if blockNum%10_000 == 0 {
+				if ASSERT {
+					m := map[string]uint64{}
+					reader := bytes.NewReader(nil)
+					stream := rlp.NewStream(reader, 0)
+
+					tx.ForAmount(kv.EthTx, nil, 100_000, func(k, v []byte) error {
+						reader.Reset(v)
+						stream.Reset(reader, 0)
+						txn, err := types.DecodeTransaction(stream)
+						if err != nil {
+							return err
+						}
+
+						if i, ok := m[txn.Hash().String()]; ok {
+							fmt.Printf("found: %d, %d, %s", i, binary.BigEndian.Uint64(k), txn.Hash().String())
+							panic(1)
+						} else {
+							m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
+						}
+						return nil
+					})
+
+				}
 				if err := tx.Commit(); err != nil {
 					return err
 				}
