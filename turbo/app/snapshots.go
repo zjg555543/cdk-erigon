@@ -135,7 +135,7 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 		})
 		return nil
 	})
-	panic(1)
+	panic(2)
 
 	if rebuild {
 		cfg := ethconfig.NewSnapshotCfg(true, true)
