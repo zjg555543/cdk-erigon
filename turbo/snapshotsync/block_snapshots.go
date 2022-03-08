@@ -1068,8 +1068,8 @@ RETRY:
 				continue
 			}
 
-			if _, ok := m[string(it.txnHash[:])]; ok {
-				fmt.Printf("add: %d, %x\n", it.i, it.txnHash[:])
+			if v, ok := m[string(it.txnHash[:])]; ok {
+				fmt.Printf("add: %d, %d, %x\n", v, it.i, it.txnHash[:])
 			} else {
 				m[string(it.txnHash[:])] = it.i
 			}
