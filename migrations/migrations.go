@@ -130,6 +130,7 @@ func (m *Migrator) VerifyVersion(db kv.RwDB) error {
 		if len(existingVersion) == 12 {
 			major := binary.BigEndian.Uint32(existingVersion)
 			minor := binary.BigEndian.Uint32(existingVersion[4:])
+			fmt.Printf("alex: %d, %d\n", major, kv.DBSchemaVersion.Major)
 			if major > kv.DBSchemaVersion.Major {
 				return fmt.Errorf("cannot downgrade major DB version from %d to %d", major, kv.DBSchemaVersion.Major)
 			} else if major == kv.DBSchemaVersion.Major {
