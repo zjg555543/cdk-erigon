@@ -111,9 +111,12 @@ var txsBeginEnd = Migration{
 
 			if ASSERT {
 				m := map[string]uint64{}
-				tx.ForAmount(kv.EthTx, nil, 1_000_000, func(k, v []byte) error {
-					reader := bytes.NewReader(v)
-					stream := rlp.NewStream(reader, 0)
+				reader := bytes.NewReader(nil)
+				stream := rlp.NewStream(reader, 0)
+
+				tx.ForAmount(kv.EthTx, nil, 100_000, func(k, v []byte) error {
+					reader.Reset(v)
+					stream.Reset(reader, 0)
 					txn, err := types.DecodeTransaction(stream)
 					if err != nil {
 						return err
