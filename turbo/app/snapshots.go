@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -17,9 +18,11 @@ import (
 	"github.com/ledgerwatch/erigon/cmd/hack/tool"
 	"github.com/ledgerwatch/erigon/cmd/utils"
 	"github.com/ledgerwatch/erigon/core/rawdb"
+	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/internal/debug"
 	"github.com/ledgerwatch/erigon/params"
+	"github.com/ledgerwatch/erigon/rlp"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/urfave/cli"
@@ -119,6 +122,21 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 			return err
 		}
 		defer rwSnapshotDir.Close()
+		chainDB.View(context.Background(), func(tx kv.Tx) error {
+			tx.ForAmount(kv.EthTx, nil, 20, func(k, v []byte) error {
+
+				reader := bytes.NewReader(nil)
+				stream := rlp.NewStream(reader, 0)
+				tx, err := types.DecodeTransaction(stream)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("a: %d, %x\n", binary.BigEndian.Uint64(k), tx.Hash())
+
+				return nil
+			})
+			return nil
+		})
 		if err := rebuildIndices(ctx, chainDB, cfg, rwSnapshotDir, tmpDir, from); err != nil {
 			log.Error("Error", "err", err)
 		}
