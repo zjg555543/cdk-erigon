@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -30,18 +29,13 @@ import (
 	"sync"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/ledgerwatch/erigon/common/dbutils"
-	"github.com/ledgerwatch/erigon/core/rawdb"
-	"github.com/ledgerwatch/erigon/core/types"
-	"github.com/ledgerwatch/erigon/params"
-	"github.com/ledgerwatch/erigon/rlp"
-
 	"github.com/gofrs/flock"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 	"github.com/ledgerwatch/erigon/migrations"
 	"github.com/ledgerwatch/erigon/p2p"
+	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/rpc"
 	"github.com/ledgerwatch/log/v3"
 )
@@ -545,28 +539,6 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 	if err := migrator.VerifyVersion(db); err != nil {
 		return nil, err
 	}
-	m := map[string]uint64{}
-	db.View(context.Background(), func(tx kv.Tx) error {
-		tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(0), 100_000, func(k, v []byte) error {
-			bodyForStorage := new(types.BodyForStorage)
-			if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
-				return err
-			}
-			txs, _ := rawdb.CanonicalTransactions(tx, bodyForStorage.BaseTxId+1, bodyForStorage.TxAmount-2)
-			for _, txn := range txs {
-				if i, ok := m[txn.Hash().String()]; ok {
-					fmt.Printf("found: %d,%d, %s\n", i, binary.BigEndian.Uint64(k), txn.Hash().String())
-					panic(1)
-				} else {
-					m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
-				}
-			}
-
-			return nil
-		})
-		return nil
-	})
-	panic(23)
 
 	has, err := migrator.HasPendingMigrations(db)
 	if err != nil {
