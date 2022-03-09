@@ -117,7 +117,17 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 
 	m := map[string]uint64{}
 	chainDB.View(context.Background(), func(tx kv.Tx) error {
-		tx.ForAmount(kv.EthTx, nil, 1_000_000, func(k, v []byte) error {
+		tx.ForAmount(kv.BlockBody, nil, 1, func(k, v []byte) error {
+			bodyForStorage := new(types.BodyForStorage)
+			if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
+				return err
+			}
+			fmt.Printf("bod: %d, %d \n", bodyForStorage.BaseTxId, bodyForStorage.TxAmount)
+			return nil
+		})
+		//tx.ForAmount(kv.EthTx, nil, 1_000_000, func(k, v []byte) error {
+		tx.ForAmount(kv.EthTx, nil, 10, func(k, v []byte) error {
+			fmt.Printf("tx: %d\n", binary.BigEndian.Uint64(k))
 			reader := bytes.NewReader(v)
 			stream := rlp.NewStream(reader, 0)
 			txn, err := types.DecodeTransaction(stream)
