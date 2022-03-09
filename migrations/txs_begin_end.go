@@ -179,10 +179,7 @@ var txsBeginEnd = Migration{
 							fmt.Printf("found before:  %d, %s\n", binary.BigEndian.Uint64(k), txn.Hash().String())
 						}
 						if i, ok := m[txn.Hash().String()]; ok {
-							tx.ForAmount(kv.BlockBody, nil, 42_000, func(k, v []byte) error {
-								if binary.BigEndian.Uint64(k) < blockNum {
-									return nil
-								}
+							tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(blockNum), 42_000, func(k, v []byte) error {
 								bodyForStorage := new(types.BodyForStorage)
 								if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
 									return err
