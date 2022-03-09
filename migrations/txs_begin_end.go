@@ -176,7 +176,7 @@ var txsBeginEnd = Migration{
 						}
 
 						if binary.BigEndian.Uint64(k) == 704 || binary.BigEndian.Uint64(k) == 82757 {
-							fmt.Printf("found before:  %d, %s", binary.BigEndian.Uint64(k), txn.Hash().String())
+							fmt.Printf("found before:  %d, %s\n", binary.BigEndian.Uint64(k), txn.Hash().String())
 						}
 						if i, ok := m[txn.Hash().String()]; ok {
 							tx.ForAmount(kv.BlockBody, nil, 42_000, func(k, v []byte) error {
