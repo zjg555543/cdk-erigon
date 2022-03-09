@@ -164,38 +164,26 @@ var txsBeginEnd = Migration{
 			if blockNum%10_000 == 0 {
 				if ASSERT {
 					m := map[string]uint64{}
-					reader := bytes.NewReader(nil)
-					stream := rlp.NewStream(reader, 0)
-
-					tx.ForAmount(kv.EthTx, nil, 100_000, func(k, v []byte) error {
-						reader.Reset(v)
-						stream.Reset(reader, 0)
-						txn, err := types.DecodeTransaction(stream)
-						if err != nil {
+					tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(blockNum), 42_000, func(k, v []byte) error {
+						bodyForStorage := new(types.BodyForStorage)
+						if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
 							return err
 						}
-
-						if binary.BigEndian.Uint64(k) == 704 || binary.BigEndian.Uint64(k) == 82757 {
-							fmt.Printf("found before:  %d, %s\n", binary.BigEndian.Uint64(k), txn.Hash().String())
+						if bodyForStorage.BaseTxId > 700 && bodyForStorage.BaseTxId < 1000 ||
+							82757 > bodyForStorage.BaseTxId && 82757 < bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount) {
+							fmt.Printf("bodies: %d, %d, %d\n", binary.BigEndian.Uint64(k), bodyForStorage.BaseTxId, bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount)-1)
 						}
-						if i, ok := m[txn.Hash().String()]; ok {
-							tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(blockNum), 42_000, func(k, v []byte) error {
-								bodyForStorage := new(types.BodyForStorage)
-								if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
-									return err
-								}
-								if bodyForStorage.BaseTxId > 700 && bodyForStorage.BaseTxId < 1000 ||
-									82757 > bodyForStorage.BaseTxId && 82757 < bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount) {
-									fmt.Printf("bodies: %d, %d, %d\n", binary.BigEndian.Uint64(k), bodyForStorage.BaseTxId, bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount)-1)
-								}
+						txs, _ := rawdb.CanonicalTransactions(tx, bodyForStorage.BaseTxId+1, bodyForStorage.TxAmount-2)
+						for _, txn := range txs {
 
-								return nil
-							})
-							fmt.Printf("found: %d,%d, %d, %s\n", i, blockNum, binary.BigEndian.Uint64(k), txn.Hash().String())
-							panic(1)
-						} else {
-							m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
+							if i, ok := m[txn.Hash().String()]; ok {
+								fmt.Printf("found: %d,%d, %d, %s\n", i, blockNum, binary.BigEndian.Uint64(k), txn.Hash().String())
+								panic(1)
+							} else {
+								m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
+							}
 						}
+
 						return nil
 					})
 
