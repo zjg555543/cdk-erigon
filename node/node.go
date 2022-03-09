@@ -17,7 +17,9 @@
 package node
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -29,7 +31,9 @@ import (
 	"sync"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/params"
+	"github.com/ledgerwatch/erigon/rlp"
 
 	"github.com/gofrs/flock"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -540,7 +544,29 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 	if err := migrator.VerifyVersion(db); err != nil {
 		return nil, err
 	}
+	db.View(context.Background(), func(tx kv.Tx) error {
+		m := map[string]uint64{}
+		reader := bytes.NewReader(nil)
+		stream := rlp.NewStream(reader, 0)
 
+		tx.ForAmount(kv.EthTx, nil, 100_000, func(k, v []byte) error {
+			reader.Reset(v)
+			stream.Reset(reader, 0)
+			txn, err := types.DecodeTransaction(stream)
+			if err != nil {
+				return err
+			}
+
+			if i, ok := m[txn.Hash().String()]; ok {
+				fmt.Printf("found: %d, %d, %s\n", i, binary.BigEndian.Uint64(k), txn.Hash().String())
+				panic(1)
+			} else {
+				m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
+			}
+			return nil
+		})
+		return nil
+	})
 	has, err := migrator.HasPendingMigrations(db)
 	if err != nil {
 		return nil, err
