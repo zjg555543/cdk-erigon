@@ -766,6 +766,16 @@ func DefaultGenesisBlockByChainName(chain string) *Genesis {
 		return DefaultMumbaiGenesisBlock()
 	case networkname.BorMainnetChainName:
 		return DefaultBorMainnetGenesisBlock()
+	case networkname.Devnet5ChainName:
+		return &Genesis{
+			Config:     params.Devnet5ChainConfig,
+			Nonce:      0x1234,
+			Timestamp:  0,
+			GasLimit:   10000000,
+			Difficulty: big.NewInt(1),
+			Mixhash:    common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+			Coinbase:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		}
 	default:
 		return nil
 	}

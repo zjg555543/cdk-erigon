@@ -600,6 +600,8 @@ func (srv *Server) setupDiscovery(ctx context.Context) error {
 			unhandled = make(chan discover.ReadPacket, 100)
 			sconn = &sharedUDPConn{conn, unhandled}
 		}
+
+		fmt.Println(srv.BootstrapNodes)
 		cfg := discover.Config{
 			PrivateKey:  srv.PrivateKey,
 			NetRestrict: srv.NetRestrict,

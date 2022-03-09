@@ -53,6 +53,7 @@ var (
 	RialtoGenesisHash     = common.HexToHash("0xaabe549bfa85c84f7aee9da7010b97453ad686f2c2d8ce00503d1a00c72cad54")
 	MumbaiGenesisHash     = common.HexToHash("0x7b66506a9ebdbf30d32b43c5f15a3b1216269a1ec3a75aa3182b86176a2b1ca7")
 	BorMainnetGenesisHash = common.HexToHash("0xa9c28ce2141b56c474f1dc504bee9b01eb1bd7d1a507580d5519d4437a97de1b")
+	Devnet5GenesisHash    = common.HexToHash("0x51c7fe41be669f69c45c33a56982cbde405313342d9e2b00d7c91a7b284dd4f8")
 )
 
 var (
@@ -178,6 +179,25 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
+	}
+
+	Devnet5ChainConfig = &ChainConfig{
+		ChainName:               networkname.Devnet5ChainName,
+		Consensus:               EtHashConsensus,
+		ChainID:                 big.NewInt(1337762),
+		HomesteadBlock:          big.NewInt(0),
+		EIP150Block:             big.NewInt(0),
+		EIP155Block:             big.NewInt(0),
+		EIP158Block:             big.NewInt(0),
+		ByzantiumBlock:          big.NewInt(0),
+		ConstantinopleBlock:     big.NewInt(0),
+		PetersburgBlock:         big.NewInt(0),
+		IstanbulBlock:           big.NewInt(0),
+		BerlinBlock:             big.NewInt(0),
+		LondonBlock:             big.NewInt(0),
+		TerminalBlockNumber:     1000,
+		TerminalTotalDifficulty: big.NewInt(500000000000),
+		Ethash:                  &EthashConfig{},
 	}
 
 	BSCChainConfig = &ChainConfig{
@@ -1110,6 +1130,8 @@ func ChainConfigByChainName(chain string) *ChainConfig {
 		return RinkebyChainConfig
 	case networkname.GoerliChainName:
 		return GoerliChainConfig
+	case networkname.Devnet5ChainName:
+		return Devnet5ChainConfig
 	case networkname.ErigonMineName:
 		return ErigonChainConfig
 	case networkname.SokolChainName:
@@ -1143,6 +1165,8 @@ func GenesisHashByChainName(chain string) *common.Hash {
 		return &RinkebyGenesisHash
 	case networkname.GoerliChainName:
 		return &GoerliGenesisHash
+	case networkname.Devnet5ChainName:
+		return &Devnet5GenesisHash
 	case networkname.ErigonMineName:
 		return &ErigonGenesisHash
 	case networkname.SokolChainName:

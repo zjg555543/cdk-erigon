@@ -149,6 +149,12 @@ var MumbaiBootnodes = []string{
 	"enode://f0f48a8781629f95ff02606081e6e43e4aebd503f3d07fc931fad7dd5ca1ba52bd849a6f6c3be0e375cf13c9ae04d859c4a9ae3546dc8ed4f10aa5dbb47d4998@34.226.134.117:30303",
 }
 
+var Devnet5Bootnodes = []string{
+	"enode://77927a49570f079b4b73c4fca0c50206c48d3a22ed175e715fbfaccc08f838813d527b4ba9929a99bc87d53b8e80a63b185a37d9c950d57c227004b8c4e8fec1@164.92.193.6:30303",
+	"enode://6167e29219f7a0d35847a784111e5da1d3d52c074711692fdde7f8077c48943fd875fd2f5cc8b4813e6f35e56071ae3d85beaf6b06d8666fdad019d0be3e70f7@64.227.128.126:30303",
+	"enode://74744416c7fbdf28cb0a2631d8590c10d31f1d09e944e7f54d9dbf5741d088d4e0360e7c897e0527aee0bc9408cfac0edbea8571cc0ca445bd599be537aad262@164.92.206.58:30303",
+}
+
 var BorMainnetBootnodes = []string{
 	"enode://0cb82b395094ee4a2915e9714894627de9ed8498fb881cec6db7c65e8b9a5bd7f2f25cc84e71e89d0947e51c76e85d0847de848c7782b13c0255247a6758178c@44.232.55.71:30303",
 	"enode://88116f4295f5a31538ae409e4d44ad40d22e44ee9342869e7d68bdec55b0f83c1530355ce8b41fbec0928a7d75a5745d528450d30aec92066ab6ba1ee351d710@159.203.9.164:30303",
@@ -204,6 +210,8 @@ func BootnodeURLsOfChain(chain string) []string {
 		return MumbaiBootnodes
 	case networkname.BorMainnetChainName:
 		return BorMainnetBootnodes
+	case networkname.Devnet5ChainName:
+		return Devnet5Bootnodes
 	default:
 		return []string{}
 	}

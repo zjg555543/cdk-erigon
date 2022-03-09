@@ -15,4 +15,5 @@ const (
 	RialtoChainName     = "rialto"
 	MumbaiChainName     = "mumbai"
 	BorMainnetChainName = "bor-mainnet"
+	Devnet5ChainName    = "devnet5"
 )
