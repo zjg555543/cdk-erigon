@@ -194,7 +194,7 @@ var txsBeginEnd = Migration{
 
 								return nil
 							})
-							fmt.Printf("found: %d, %d, %s", i, binary.BigEndian.Uint64(k), txn.Hash().String())
+							fmt.Printf("found: %d,%d, %d, %s", i, blockNum, binary.BigEndian.Uint64(k), txn.Hash().String())
 							panic(1)
 						} else {
 							m[txn.Hash().String()] = binary.BigEndian.Uint64(k)
