@@ -176,7 +176,7 @@ var txsBeginEnd = Migration{
 						}
 
 						if binary.BigEndian.Uint64(k) == 704 || binary.BigEndian.Uint64(k) == 82757 {
-							fmt.Printf("found:  %d, %s", binary.BigEndian.Uint64(k), txn.Hash().String())
+							fmt.Printf("found before:  %d, %s", binary.BigEndian.Uint64(k), txn.Hash().String())
 						}
 						if i, ok := m[txn.Hash().String()]; ok {
 							tx.ForAmount(kv.BlockBody, nil, 42_000, func(k, v []byte) error {
@@ -184,7 +184,7 @@ var txsBeginEnd = Migration{
 								if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
 									return err
 								}
-								if bodyForStorage.BaseTxId < 1000 ||
+								if bodyForStorage.BaseTxId > 700 && bodyForStorage.BaseTxId < 1000 ||
 									82757 > bodyForStorage.BaseTxId && 82757 < bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount) {
 									fmt.Printf("bodies: %d, %d, %d\n", binary.BigEndian.Uint64(k), bodyForStorage.BaseTxId, bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount)-1)
 								}
