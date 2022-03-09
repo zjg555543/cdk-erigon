@@ -201,6 +201,7 @@ var txsBeginEnd = Migration{
 			}
 		}
 
+		panic(88)
 		if err := tx.Commit(); err != nil {
 			return err
 		}
