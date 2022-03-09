@@ -169,10 +169,6 @@ var txsBeginEnd = Migration{
 						if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
 							return err
 						}
-						if bodyForStorage.BaseTxId > 700 && bodyForStorage.BaseTxId < 1000 ||
-							82757 > bodyForStorage.BaseTxId && 82757 < bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount) {
-							fmt.Printf("bodies: %d, %d, %d\n", binary.BigEndian.Uint64(k), bodyForStorage.BaseTxId, bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount)-1)
-						}
 						txs, _ := rawdb.CanonicalTransactions(tx, bodyForStorage.BaseTxId+1, bodyForStorage.TxAmount-2)
 						for _, txn := range txs {
 
