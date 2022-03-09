@@ -181,8 +181,8 @@ var txsBeginEnd = Migration{
 								if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
 									return err
 								}
-								if 704 < bodyForStorage.BaseTxId && 704 < bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount) ||
-									82757 < bodyForStorage.BaseTxId && 82757 < bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount) {
+								if 704 > bodyForStorage.BaseTxId && 704 < bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount) ||
+									82757 > bodyForStorage.BaseTxId && 82757 < bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount) {
 									fmt.Printf("bodies: %d, %d, %d\n", binary.BigEndian.Uint64(k), bodyForStorage.BaseTxId, bodyForStorage.BaseTxId+uint64(bodyForStorage.TxAmount)-1)
 								}
 
