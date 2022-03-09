@@ -98,21 +98,15 @@ var txsBeginEnd = Migration{
 				return fmt.Errorf("failed to write body: %w", err)
 			}
 
-			if blockNum < 10 {
-				fmt.Printf("del: %d,%d\n", b.BaseTxId, b.BaseTxId+uint64(b.TxAmount)-1)
-			}
-			if blockNum == 0 {
-				panic(2)
-			}
-			binary.BigEndian.PutUint64(numBuf, b.BaseTxId) // del first tx in block
-			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
+			// del first tx in block
+			if err = tx.Delete(kv.EthTx, dbutils.EncodeBlockNumber(b.BaseTxId), nil); err != nil {
 				return err
 			}
 			if err := writeTransactionsNewDeprecated(tx, txs, b.BaseTxId+1); err != nil {
 				return fmt.Errorf("failed to write body txs: %w", err)
 			}
-			binary.BigEndian.PutUint64(numBuf, b.BaseTxId+uint64(b.TxAmount)-1) // del last tx in block
-			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
+			// del last tx in block
+			if err = tx.Delete(kv.EthTx, dbutils.EncodeBlockNumber(b.BaseTxId+uint64(b.TxAmount)-1), nil); err != nil {
 				return err
 			}
 
@@ -201,7 +195,7 @@ var txsBeginEnd = Migration{
 			}
 		}
 
-		panic(88)
+		//panic(88)
 		if err := tx.Commit(); err != nil {
 			return err
 		}
