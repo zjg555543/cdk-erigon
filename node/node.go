@@ -547,14 +547,13 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 	}
 	m := map[string]uint64{}
 	db.View(context.Background(), func(tx kv.Tx) error {
-		tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(0), 42_000, func(k, v []byte) error {
+		tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(0), 100_000, func(k, v []byte) error {
 			bodyForStorage := new(types.BodyForStorage)
 			if err := rlp.DecodeBytes(v, bodyForStorage); err != nil {
 				return err
 			}
 			txs, _ := rawdb.CanonicalTransactions(tx, bodyForStorage.BaseTxId+1, bodyForStorage.TxAmount-2)
 			for _, txn := range txs {
-
 				if i, ok := m[txn.Hash().String()]; ok {
 					fmt.Printf("found: %d,%d, %s\n", i, binary.BigEndian.Uint64(k), txn.Hash().String())
 					panic(1)
