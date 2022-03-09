@@ -97,6 +97,13 @@ var txsBeginEnd = Migration{
 			if err := rawdb.WriteBodyForStorage(tx, canonicalHash, blockNum, b); err != nil {
 				return fmt.Errorf("failed to write body: %w", err)
 			}
+
+			if blockNum < 10 {
+				fmt.Printf("del: %d,%d\n", b.BaseTxId, b.BaseTxId+uint64(b.TxAmount)-1)
+			}
+			if blockNum == 0 {
+				panic(2)
+			}
 			binary.BigEndian.PutUint64(numBuf, b.BaseTxId) // del first tx in block
 			if err = tx.Delete(kv.EthTx, numHashBuf, nil); err != nil {
 				return err
