@@ -312,6 +312,7 @@ func New(stack *node.Node, config *ethconfig.Config, txpoolCfg txpool2.Config, l
 
 	var blockReader interfaces.FullBlockReader
 	if config.Snapshot.Enabled {
+		fmt.Printf("backend0\n")
 		snConfig := snapshothashes.KnownConfig(chainConfig.ChainName)
 		snConfig.ExpectBlocks, err = RestoreExpectedExternalSnapshot(chainKv, snConfig)
 		if err != nil {
@@ -319,8 +320,8 @@ func New(stack *node.Node, config *ethconfig.Config, txpoolCfg txpool2.Config, l
 		}
 
 		allSnapshots := snapshotsync.NewRoSnapshots(config.Snapshot, config.SnapshotDir.Path)
+		allSnapshots.AsyncOpenAll(ctx)
 		blockReader = snapshotsync.NewBlockReaderWithSnapshots(allSnapshots)
-
 		if len(stack.Config().DownloaderAddr) > 0 {
 			// connect to external Downloader
 			backend.downloaderClient, err = downloadergrpc.NewClient(ctx, stack.Config().DownloaderAddr)
