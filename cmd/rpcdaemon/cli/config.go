@@ -287,8 +287,11 @@ func RemoteServices(ctx context.Context, cfg httpcfg.HttpCfg, logger log.Logger,
 		log.Info("if you run RPCDaemon on same machine with Erigon add --datadir option")
 	}
 
+	fmt.Printf("config0\n")
 	if cfg.SingleNodeMode {
+		fmt.Printf("config1\n")
 		if cfg.Snapshot.Enabled {
+			fmt.Printf("config2\n")
 			var cc *params.ChainConfig
 			if err := db.View(context.Background(), func(tx kv.Tx) error {
 				genesisBlock, err := rawdb.ReadBlockByNumber(tx, 0)
@@ -308,9 +311,11 @@ func RemoteServices(ctx context.Context, cfg httpcfg.HttpCfg, logger log.Logger,
 			}
 
 			allSnapshots := snapshotsync.NewRoSnapshots(cfg.Snapshot, filepath.Join(cfg.DataDir, "snapshots"))
+			fmt.Printf("config3\n")
 			allSnapshots.AsyncOpenAll(ctx)
 			blockReader = snapshotsync.NewBlockReaderWithSnapshots(allSnapshots)
 		} else {
+			fmt.Printf("config4\n")
 			blockReader = snapshotsync.NewBlockReader()
 		}
 	}
