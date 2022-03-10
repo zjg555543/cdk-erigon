@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"math/big"
 	"sync"
 
@@ -157,7 +158,9 @@ func (api *BaseAPI) blockByHashWithSenders(tx kv.Tx, hash common.Hash) (*types.B
 }
 func (api *BaseAPI) blockWithSenders(tx kv.Tx, hash common.Hash, number uint64) (*types.Block, error) {
 	if api.blocksLRU != nil {
+		fmt.Printf("alex: 10\n")
 		if it, ok := api.blocksLRU.Get(hash); ok && it != nil {
+			fmt.Printf("alex: 11\n")
 			return it.(*types.Block), nil
 		}
 	}
@@ -166,6 +169,7 @@ func (api *BaseAPI) blockWithSenders(tx kv.Tx, hash common.Hash, number uint64) 
 		return nil, err
 	}
 	if block == nil { // don't save nil's to cache
+		fmt.Printf("alex: 12\n")
 		return nil, nil
 	}
 	// don't save empty blocks to cache, because in Erigon

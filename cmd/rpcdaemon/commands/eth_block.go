@@ -203,7 +203,6 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber
 		fmt.Printf("alex0\n")
 		return nil, nil
 	}
-	fmt.Printf("alex1\n")
 	additionalFields := make(map[string]interface{})
 	td, err := rawdb.ReadTd(tx, b.Hash(), b.NumberU64())
 	if err != nil {
