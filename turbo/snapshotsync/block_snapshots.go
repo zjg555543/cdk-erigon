@@ -207,8 +207,11 @@ func (s *RoSnapshots) ReopenSomeIndices(types ...Type) (err error) {
 }
 
 func (s *RoSnapshots) AsyncOpenAll(ctx context.Context) {
+	fmt.Printf("AsyncOpenAll\n")
 	go func() {
 		for !s.segmentsReady.Load() || !s.indicesReady.Load() {
+			fmt.Printf("AsyncOpenAll1: %t, %t\n", s.segmentsReady.Load(), s.indicesReady.Load())
+
 			select {
 			case <-ctx.Done():
 				return
@@ -216,12 +219,19 @@ func (s *RoSnapshots) AsyncOpenAll(ctx context.Context) {
 			}
 			if err := s.ReopenSegments(); err != nil && !errors.Is(err, os.ErrNotExist) {
 				log.Error("AsyncOpenAll", "err", err)
+			} else {
+				fmt.Printf("AsyncOpenAll3: %s\n", err)
+
 			}
 			if err := s.ReopenIndices(); err != nil && !errors.Is(err, os.ErrNotExist) {
 				log.Error("AsyncOpenAll", "err", err)
+			} else {
+				fmt.Printf("AsyncOpenAll2: %s\n", err)
+
 			}
 			time.Sleep(15 * time.Second)
 		}
+		fmt.Printf("AsyncOpenAll done\n")
 	}()
 }
 
