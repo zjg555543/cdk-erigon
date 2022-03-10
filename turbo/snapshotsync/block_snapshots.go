@@ -318,17 +318,21 @@ func (s *RoSnapshots) closeIndices() {
 
 func (s *RoSnapshots) Blocks(blockNumber uint64) (snapshot *BlocksSnapshot, found bool) {
 	if !s.indicesReady.Load() {
+		fmt.Printf("alex: 30\n")
 		return nil, false
 	}
 
 	if blockNumber > s.segmentsAvailable {
+		fmt.Printf("alex: 31\n")
 		return snapshot, false
 	}
 	for _, blocksSnapshot := range s.blocks {
 		if blocksSnapshot.Has(blockNumber) {
+			fmt.Printf("alex: 32\n")
 			return blocksSnapshot, true
 		}
 	}
+	fmt.Printf("alex: 33\n")
 	return snapshot, false
 }
 
