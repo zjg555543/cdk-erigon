@@ -688,17 +688,17 @@ func DumpBlocks(ctx context.Context, blockFrom, blockTo, blocksPerFile uint64, t
 func dumpBlocksRange(ctx context.Context, blockFrom, blockTo uint64, tmpDir, snapshotDir string, chainDB kv.RoDB, workers int, lvl log.Lvl) error {
 	segmentFile := filepath.Join(snapshotDir, SegmentFileName(blockFrom, blockTo, Transactions))
 	if _, err := DumpTxs(ctx, chainDB, segmentFile, tmpDir, blockFrom, blockTo, workers, lvl); err != nil {
-		return err
+		return fmt.Errorf("DumpTxs: %w", err)
 	}
 
 	segmentFile = filepath.Join(snapshotDir, SegmentFileName(blockFrom, blockTo, Bodies))
 	if err := DumpBodies(ctx, chainDB, segmentFile, tmpDir, blockFrom, blockTo, workers, lvl); err != nil {
-		return err
+		return fmt.Errorf("DumpBodies: %w", err)
 	}
 
 	segmentFile = filepath.Join(snapshotDir, SegmentFileName(blockFrom, blockTo, Headers))
 	if err := DumpHeaders(ctx, chainDB, segmentFile, tmpDir, blockFrom, blockTo, workers, lvl); err != nil {
-		return err
+		return fmt.Errorf("DumpHeaders: %w", err)
 	}
 
 	return nil
@@ -715,7 +715,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 
 	f, err := compress.NewCompressor(ctx, "Transactions", segmentFile, tmpDir, compress.MinPatternScore, workers)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("NewCompressor: %w, %s", err, segmentFile)
 	}
 	defer f.Close()
 
@@ -744,11 +744,12 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 		binary.BigEndian.PutUint64(numBuf, txId)
 		tv, err := tx.GetOne(kv.EthTx, numBuf[:8])
 		if err != nil {
+			panic(err)
 			return err
 		}
 		if tv == nil {
 			if err := f.AddWord(nil); err != nil {
-				return err
+				return fmt.Errorf("AddWord1: %d", err)
 			}
 			return nil
 		}
@@ -756,10 +757,11 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 		parseCtx.WithSender(false)
 		valueBuf, err = parse(tv, valueBuf, nil, 0)
 		if err != nil {
+			panic(err)
 			return err
 		}
 		if err := f.AddWord(valueBuf); err != nil {
-			return err
+			return fmt.Errorf("AddWord2: %d", err)
 		}
 		return nil
 	}
@@ -776,16 +778,26 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 
 		h := common.BytesToHash(v)
 		dataRLP := rawdb.ReadStorageBodyRLP(tx, h, blockNum)
+		if dataRLP == nil {
+			tx.ForAmount(kv.BlockBody, nil, 10, func(k, v []byte) error {
+				fmt.Printf("found: %d,%x\n", binary.BigEndian.Uint64(k), k[8:])
+				return nil
+			})
+			return false, fmt.Errorf("body not found: %d, %x", blockNum, h)
+		}
 		var body types.BodyForStorage
 		if e := rlp.DecodeBytes(dataRLP, &body); e != nil {
+			panic(e)
 			return false, e
 		}
 		lastBody = body
 		if body.TxAmount == 0 {
+			panic(err)
 			return true, nil
 		}
 		senders, err := rawdb.ReadSenders(tx, h, blockNum)
 		if err != nil {
+			panic(err)
 			return false, err
 		}
 
@@ -796,6 +808,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 		j := 0
 
 		if err := addSystemTx(tx, body.BaseTxId); err != nil {
+			panic(err)
 			return false, err
 		}
 		count++
@@ -835,23 +848,24 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 			}
 			return nil
 		}); err != nil {
-			return false, err
+			return false, fmt.Errorf("ForAmount: %w", err)
 		}
 
 		if err := addSystemTx(tx, body.BaseTxId+uint64(body.TxAmount)-1); err != nil {
+			panic(err)
 			return false, err
 		}
 		prevTxID++
 		count++
 		return true, nil
 	}); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("BigChunks: %w", err)
 	}
 	if lastBody.BaseTxId+uint64(lastBody.TxAmount)-firstTxID != count {
 		return 0, fmt.Errorf("incorrect tx count: %d, expected: %d", count, lastBody.BaseTxId+uint64(lastBody.TxAmount)-firstTxID)
 	}
 	if err := f.Compress(); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("compress: %w", err)
 	}
 
 	_, fileName := filepath.Split(segmentFile)
@@ -915,7 +929,7 @@ func DumpHeaders(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string
 		return err
 	}
 	if err := f.Compress(); err != nil {
-		return err
+		return fmt.Errorf("compress: %w", err)
 	}
 
 	return nil
@@ -970,7 +984,7 @@ func DumpBodies(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string,
 		return err
 	}
 	if err := f.Compress(); err != nil {
-		return err
+		return fmt.Errorf("compress: %w", err)
 	}
 
 	return nil
