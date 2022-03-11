@@ -346,6 +346,7 @@ type ControlServerImpl struct {
 func NewControlServer(db kv.RwDB, nodeName string, chainConfig *params.ChainConfig,
 	genesisHash common.Hash, engine consensus.Engine, networkID uint64, sentries []direct.SentryClient,
 	window int, blockReader interfaces.HeaderAndCanonicalReader) (*ControlServerImpl, error) {
+	fmt.Println(genesisHash)
 	hd := headerdownload.NewHeaderDownload(
 		512,       /* anchorLimit */
 		1024*1024, /* linkLimit */

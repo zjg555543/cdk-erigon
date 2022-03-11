@@ -179,12 +179,25 @@ func New(stack *node.Node, config *ethconfig.Config, txpoolCfg txpool2.Config, l
 		panic(err)
 	}
 
-	chainConfig, genesis, genesisErr := core.CommitGenesisBlock(chainKv, config.Genesis)
+	tx, _ := chainKv.BeginRo(context.Background())
+	l, _ := rawdb.ReadCanonicalHash(tx, 0)
+	chainConfig, _ := rawdb.ReadChainConfig(tx, l)
+
+	var genesis *types.Block
+	var genesisErr error
+	var genesisHash common.Hash
+	if chainConfig == nil {
+		chainConfig, genesis, genesisErr = core.CommitGenesisBlock(chainKv, config.Genesis)
+		genesisHash = genesis.Hash()
+	} else {
+		genesisHash = l
+	}
+
 	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
 		return nil, genesisErr
 	}
 	types.SetHeaderSealFlag(chainConfig.IsHeaderWithSeal())
-	log.Info("Initialised chain configuration", "config", chainConfig, "genesis", genesis.Hash())
+	log.Info("Initialised chain configuration", "config", chainConfig, "genesis", genesisHash)
 
 	// Apply special hacks for BSC params
 	if chainConfig.Parlia != nil {
@@ -202,7 +215,7 @@ func New(stack *node.Node, config *ethconfig.Config, txpoolCfg txpool2.Config, l
 		networkID:            config.NetworkID,
 		etherbase:            config.Miner.Etherbase,
 		chainConfig:          chainConfig,
-		genesisHash:          genesis.Hash(),
+		genesisHash:          genesisHash,
 		waitForStageLoopStop: make(chan struct{}),
 		waitForMiningStop:    make(chan struct{}),
 		sentries:             []direct.SentryClient{},
@@ -344,7 +357,7 @@ func New(stack *node.Node, config *ethconfig.Config, txpoolCfg txpool2.Config, l
 		blockReader = snapshotsync.NewBlockReader()
 	}
 
-	backend.sentryControlServer, err = sentry.NewControlServer(chainKv, stack.Config().NodeName(), chainConfig, genesis.Hash(), backend.engine, backend.config.NetworkID, backend.sentries, config.BlockDownloaderWindow, blockReader)
+	backend.sentryControlServer, err = sentry.NewControlServer(chainKv, stack.Config().NodeName(), chainConfig, genesisHash, backend.engine, backend.config.NetworkID, backend.sentries, config.BlockDownloaderWindow, blockReader)
 	if err != nil {
 		return nil, err
 	}

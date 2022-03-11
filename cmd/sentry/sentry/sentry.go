@@ -178,11 +178,11 @@ func makeP2PServer(
 	protocol p2p.Protocol,
 ) (*p2p.Server, error) {
 	var urls []string
+	fmt.Println(genesisHash)
 	chainConfig := params.ChainConfigByGenesisHash(genesisHash)
 	if chainConfig != nil {
 		urls = params.BootnodeURLsOfChain(chainConfig.ChainName)
 	}
-
 	bootstrapNodes, err := utils.ParseNodesFromURLs(urls)
 	if err != nil {
 		return nil, fmt.Errorf("bad option %s: %w", utils.BootnodesFlag.Name, err)

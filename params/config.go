@@ -1202,6 +1202,8 @@ func ChainConfigByGenesisHash(genesisHash common.Hash) *ChainConfig {
 		return GoerliChainConfig
 	case genesisHash == ErigonGenesisHash:
 		return ErigonChainConfig
+	case genesisHash == Devnet5GenesisHash:
+		return Devnet5ChainConfig
 	case genesisHash == SokolGenesisHash:
 		return SokolChainConfig
 	case genesisHash == FermionGenesisHash:

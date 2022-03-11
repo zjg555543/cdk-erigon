@@ -579,7 +579,7 @@ func (srv *Server) setupDiscovery(ctx context.Context) error {
 		return err
 	}
 	realaddr := conn.LocalAddr().(*net.UDPAddr)
-	srv.log.Trace("UDP listener up", "addr", realaddr)
+	srv.log.Info("UDP listener up", "addr", realaddr)
 	if srv.NAT != nil {
 		if !realaddr.IP.IsLoopback() && srv.NAT.SupportsMapping() {
 			srv.loopWG.Add(1)
