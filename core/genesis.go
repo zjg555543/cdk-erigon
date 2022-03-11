@@ -771,7 +771,7 @@ func DefaultGenesisBlockByChainName(chain string) *Genesis {
 			Config:     params.Devnet5ChainConfig,
 			Nonce:      0x1234,
 			Timestamp:  0,
-			GasLimit:   10000000,
+			GasLimit:   4194304,
 			Difficulty: big.NewInt(1),
 			Mixhash:    common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
 			Coinbase:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
