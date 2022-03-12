@@ -20,6 +20,7 @@ package forkid
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"math"
 	"math/big"
@@ -240,6 +241,7 @@ func GatherForks(config *params.ChainConfig) []uint64 {
 		if !strings.HasSuffix(field.Name, "Block") {
 			continue
 		}
+		fmt.Println(field)
 		if field.Type != reflect.TypeOf(new(big.Int)) {
 			continue
 		}

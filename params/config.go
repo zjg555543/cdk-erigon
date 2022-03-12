@@ -184,7 +184,7 @@ var (
 	Devnet5ChainConfig = &ChainConfig{
 		ChainName:               networkname.Devnet5ChainName,
 		Consensus:               EtHashConsensus,
-		ChainID:                 big.NewInt(1337762),
+		ChainID:                 big.NewInt(1337802),
 		HomesteadBlock:          big.NewInt(0),
 		EIP150Block:             big.NewInt(0),
 		EIP155Block:             big.NewInt(0),
@@ -196,7 +196,7 @@ var (
 		BerlinBlock:             big.NewInt(0),
 		LondonBlock:             big.NewInt(0),
 		TerminalBlockNumber:     1000,
-		TerminalTotalDifficulty: big.NewInt(500000000000),
+		TerminalTotalDifficulty: big.NewInt(20000000000000),
 		Ethash:                  &EthashConfig{},
 	}
 

@@ -373,6 +373,7 @@ func NewControlServer(db kv.RwDB, nodeName string, chainConfig *params.ChainConf
 	}
 	cs.ChainConfig = chainConfig
 	cs.forks = forkid.GatherForks(cs.ChainConfig)
+	fmt.Println(cs.forks)
 	cs.genesisHash = genesisHash
 	cs.networkId = networkID
 	var err error
