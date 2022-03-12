@@ -188,7 +188,9 @@ func New(stack *node.Node, config *ethconfig.Config, txpoolCfg txpool2.Config, l
 	var genesisHash common.Hash
 	if chainConfig == nil {
 		chainConfig, genesis, genesisErr = core.CommitGenesisBlock(chainKv, config.Genesis)
-		genesisHash = genesis.Hash()
+		if genesis != nil {
+			genesisHash = genesis.Hash()
+		}
 	} else {
 		genesisHash = l
 	}
