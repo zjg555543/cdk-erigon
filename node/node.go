@@ -525,7 +525,7 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 	log.Info("Opening Database", "label", name, "path", dbPath)
 
 	openFunc = func(exclusive bool) (kv.RwDB, error) {
-		opts := mdbx.NewMDBX(logger).Path(dbPath).Label(label).DBVerbosity(config.DatabaseVerbosity).MapSize(6 * datasize.TB).Flags(func(f uint) uint { return (f ^ mdbx1.Durable) | mdbx1.SafeNoSync }).SyncPeriod(30 * time.Second)
+		opts := mdbx.NewMDBX(logger).Path(dbPath).Label(label).DBVerbosity(config.DatabaseVerbosity).MapSize(6 * datasize.TB).Flags(func(f uint) uint { return (f ^ mdbx1.Durable) | mdbx1.SafeNoSync }).SyncPeriod(60 * time.Second)
 		if exclusive {
 			opts = opts.Exclusive()
 		}
