@@ -195,7 +195,7 @@ var (
 		IstanbulBlock:           big.NewInt(0),
 		BerlinBlock:             big.NewInt(0),
 		LondonBlock:             big.NewInt(0),
-		TerminalBlockNumber:     1000,
+		MergeForkBlock:          big.NewInt(1000),
 		TerminalTotalDifficulty: big.NewInt(20000000000000),
 		Ethash:                  &EthashConfig{},
 	}
@@ -614,7 +614,7 @@ type ChainConfig struct {
 	// EIP-3675: Upgrade consensus to Proof-of-Stake
 	TerminalTotalDifficulty *big.Int    `json:"terminalTotalDifficulty,omitempty"` // The merge happens when terminal total difficulty is reached
 	TerminalBlockHash       common.Hash `json:"terminalBlockHash,omitempty"`       // Enforce particular terminal block; see TERMINAL_BLOCK_HASH in EIP-3675
-	TerminalBlockNumber     uint64      `json:"terminalBlockNumber,omitempty"`     // Enforce particular terminal block; see TERMINAL_BLOCK_NUMBER in EIP-3675
+	MergeForkBlock          *big.Int    `json:"mergeForkBlock,omitempty"`          // Enforce particular terminal block; see TERMINAL_BLOCK_NUMBER in EIP-3675
 
 	// Various consensus engines
 	Ethash *EthashConfig `json:"ethash,omitempty"`

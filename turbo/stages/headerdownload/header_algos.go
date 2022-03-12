@@ -1074,7 +1074,7 @@ func (hd *HeaderDownload) ProcessSegment(segment ChainSegment, newBlock bool, pe
 	lowestNum := segment[0].Number
 	highest := segment[len(segment)-1]
 	highestNum := highest.Number
-	log.Info("processSegment", "from", lowestNum, "to", highestNum)
+	log.Trace("processSegment", "from", lowestNum, "to", highestNum)
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
 	foundAnchor, anchor, start := hd.findAnchor(segment)
