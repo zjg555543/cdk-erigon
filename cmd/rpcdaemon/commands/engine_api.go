@@ -206,6 +206,7 @@ func (e *EngineImpl) GetPayloadV1(ctx context.Context, payloadID hexutil.Bytes) 
 // Can also be used to ping the execution layer (heartbeats).
 // See https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.7/src/engine/specification.md#engine_exchangetransitionconfigurationv1
 func (e *EngineImpl) ExchangeTransitionConfigurationV1(ctx context.Context, beaconConfig TransitionConfiguration) (TransitionConfiguration, error) {
+	log.Info("Received ExchangeTransitionConfiguration")
 	tx, err := e.db.BeginRo(ctx)
 
 	if err != nil {
