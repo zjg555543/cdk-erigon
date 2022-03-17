@@ -27,9 +27,11 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/ledgerwatch/erigon/params"
+	mdbx2 "github.com/torquem-ch/mdbx-go/mdbx"
 
 	"github.com/gofrs/flock"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -522,7 +524,8 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 	var openFunc func(exclusive bool) (kv.RwDB, error)
 	log.Info("Opening Database", "label", name, "path", dbPath)
 	openFunc = func(exclusive bool) (kv.RwDB, error) {
-		opts := mdbx.NewMDBX(logger).Path(dbPath).Label(label).DBVerbosity(config.DatabaseVerbosity).MapSize(6 * datasize.TB)
+		opts := mdbx.NewMDBX(logger).Path(dbPath).Label(label).DBVerbosity(config.DatabaseVerbosity).MapSize(6 * datasize.TB).
+			Flags(func(f uint) uint { return f ^ mdbx2.Durable | mdbx2.SafeNoSync | mdbx2.WriteMap }).SyncPeriod(60 * time.Second)
 		if exclusive {
 			opts = opts.Exclusive()
 		}
