@@ -1014,7 +1014,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 		// wait for Downloader service to download all expected snapshots
 		if cfg.snapshots.IndicesAvailable() < cfg.snapshots.SegmentsAvailable() {
 			chainID, _ := uint256.FromBig(cfg.chainConfig.ChainID)
-			if err := snapshotsync.BuildIndices(ctx, cfg.snapshots, cfg.snapshotDir, *chainID, cfg.tmpdir, cfg.snapshots.IndicesAvailable(), log.LvlInfo); err != nil {
+			if err := snapshotsync.BuildIndices(ctx, cfg.snapshots, cfg.snapshotDir, *chainID, cfg.tmpdir, cfg.snapshots.IndicesAvailable(), log.LvlWarn); err != nil {
 				return err
 			}
 		}
