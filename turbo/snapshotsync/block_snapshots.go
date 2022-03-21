@@ -544,6 +544,7 @@ func (s *RoSnapshots) closeSegmentsLocked() {
 	}
 }
 func (s *RoSnapshots) ViewHeaders(blockNum uint64, f func(sn *HeaderSegment) error) (found bool, err error) {
+	fmt.Printf("alex2: %d, %d\n", blockNum, s.BlocksAvailable())
 	if !s.indicesReady.Load() || blockNum > s.BlocksAvailable() {
 		return false, nil
 	}
