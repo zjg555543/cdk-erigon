@@ -1086,6 +1086,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 
 		// ResetSequence - allow set arbitrary value to sequence (for example to decrement it to exact value)
 		ok, err := cfg.snapshots.ViewTxs(cfg.snapshots.BlocksAvailable(), func(sn *snapshotsync.TxnSegment) error {
+			fmt.Printf("alex: %s, %d\n", sn.Seg.FilePath(), cfg.snapshots.BlocksAvailable())
 			lastTxnID := sn.IdxTxnHash.BaseDataID() + uint64(sn.Seg.Count())
 			if err := rawdb.ResetSequence(tx, kv.EthTx, lastTxnID+1); err != nil {
 				return err
