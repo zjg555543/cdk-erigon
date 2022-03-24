@@ -271,7 +271,7 @@ Loop:
 		writeChangeSets := nextStagesExpectData || blockNum > cfg.prune.History.PruneTo(to)
 		writeReceipts := nextStagesExpectData || blockNum > cfg.prune.Receipts.PruneTo(to)
 		writeCallTraces := nextStagesExpectData || blockNum > cfg.prune.CallTraces.PruneTo(to)
-		fmt.Printf("prune: %d, %d=%t, %d=%t, %d=%t\n", blockNum, cfg.prune.History.PruneTo(to), writeChangeSets, cfg.prune.Receipts.PruneTo(to), writeReceipts, cfg.prune.CallTraces.PruneTo(to), writeCallTraces)
+		fmt.Printf("prune: %d, %d, %d=%t, %d=%t, %d=%t\n", nextStageProgress, blockNum, cfg.prune.History.PruneTo(to), writeChangeSets, cfg.prune.Receipts.PruneTo(to), writeReceipts, cfg.prune.CallTraces.PruneTo(to), writeCallTraces)
 		if err = executeBlock(block, tx, batch, cfg, *cfg.vmConfig, writeChangeSets, writeReceipts, writeCallTraces, contractHasTEVM, initialCycle); err != nil {
 			log.Error(fmt.Sprintf("[%s] Execution failed", logPrefix), "block", blockNum, "hash", block.Hash().String(), "err", err)
 			u.UnwindTo(blockNum-1, block.Hash())
