@@ -318,6 +318,10 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 				if err != nil {
 					return nil, nil, fmt.Errorf("interate over plain state: %w", err)
 				}
+				v, err := tx.GetOne(kv.StateLookup, v)
+				if err != nil {
+					return nil, nil, err
+				}
 				var newK []byte
 				if len(k) == common.AddressLength {
 					newK = make([]byte, common.HashLength)

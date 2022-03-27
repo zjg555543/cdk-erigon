@@ -26,7 +26,11 @@ func NewPlainStateReader(db kv.Getter) *PlainStateReader {
 }
 
 func (r *PlainStateReader) ReadAccountData(address common.Address) (*accounts.Account, error) {
-	enc, err := r.db.GetOne(kv.PlainState, address.Bytes())
+	lookup, err := r.db.GetOne(kv.PlainState, address.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	enc, err := r.db.GetOne(kv.StateLookup, lookup)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +46,11 @@ func (r *PlainStateReader) ReadAccountData(address common.Address) (*accounts.Ac
 
 func (r *PlainStateReader) ReadAccountStorage(address common.Address, incarnation uint64, key *common.Hash) ([]byte, error) {
 	compositeKey := dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes())
-	enc, err := r.db.GetOne(kv.PlainState, compositeKey)
+	lookup, err := r.db.GetOne(kv.PlainState, compositeKey)
+	if err != nil {
+		return nil, err
+	}
+	enc, err := r.db.GetOne(kv.StateLookup, lookup)
 	if err != nil {
 		return nil, err
 	}

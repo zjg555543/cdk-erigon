@@ -24,7 +24,11 @@ func GetAsOf(tx kv.Tx, indexC kv.Cursor, changesC kv.CursorDupSort, storage bool
 	if !errors.Is(err, ethdb.ErrKeyNotFound) {
 		return nil, err
 	}
-	return tx.GetOne(kv.PlainState, key)
+	lookup, err := tx.GetOne(kv.PlainState, key)
+	if err != nil {
+		return nil, err
+	}
+	return tx.GetOne(kv.StateLookup, lookup)
 }
 
 func FindByHistory(tx kv.Tx, indexC kv.Cursor, changesC kv.CursorDupSort, storage bool, key []byte, timestamp uint64) ([]byte, error) {

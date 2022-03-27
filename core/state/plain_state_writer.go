@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"math/big"
 
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -11,11 +12,13 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/shards"
 )
 
+var CurrentLookup = big.NewInt(1)
 var _ WriterWithChangeSets = (*PlainStateWriter)(nil)
 
 type putDel interface {
 	kv.Putter
 	kv.Deleter
+	kv.Getter
 }
 type PlainStateWriter struct {
 	db          putDel
@@ -52,7 +55,18 @@ func (w *PlainStateWriter) UpdateAccountData(address common.Address, original, a
 	if w.accumulator != nil {
 		w.accumulator.ChangeAccount(address, account.Incarnation, value)
 	}
-	return w.db.Put(kv.PlainState, address[:], value)
+	lookup, err := w.db.GetOne(kv.PlainState, address[:])
+	if err != nil {
+		return err
+	}
+	if len(lookup) == 0 {
+		if err := w.db.Put(kv.PlainState, address[:], CurrentLookup.Bytes()); err != nil {
+			return err
+		}
+		defer CurrentLookup.Add(CurrentLookup, common.Big1)
+		return w.db.Put(kv.StateLookup, CurrentLookup.Bytes(), value)
+	}
+	return w.db.Put(kv.StateLookup, lookup, value)
 }
 
 func (w *PlainStateWriter) UpdateAccountCode(address common.Address, incarnation uint64, codeHash common.Hash, code []byte) error {
@@ -110,7 +124,11 @@ func (w *PlainStateWriter) WriteAccountStorage(address common.Address, incarnati
 	if len(v) == 0 {
 		return w.db.Delete(kv.PlainState, compositeKey, nil)
 	}
-	return w.db.Put(kv.PlainState, compositeKey, v)
+	if err := w.db.Put(kv.PlainState, compositeKey, CurrentLookup.Bytes()); err != nil {
+		return err
+	}
+	defer CurrentLookup.Add(CurrentLookup, common.Big1)
+	return w.db.Put(kv.StateLookup, CurrentLookup.Bytes(), v)
 }
 
 func (w *PlainStateWriter) CreateContract(address common.Address) error {

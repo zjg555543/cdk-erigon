@@ -68,6 +68,10 @@ func (api *ParityAPIImpl) ListStorageKeys(ctx context.Context, account common.Ad
 	}
 
 	for v, err = c.SeekBothRange(seekBytes, seekVal); v != nil && len(keys) != quantity && err == nil; _, v, err = c.NextDup() {
+		v, err := tx.GetOne(kv.StateLookup, v)
+		if err != nil {
+			return nil, err
+		}
 		if len(v) > common.HashLength {
 			keys = append(keys, v[:common.HashLength])
 		} else {

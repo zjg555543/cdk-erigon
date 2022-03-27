@@ -23,7 +23,11 @@ import (
 )
 
 func ReadAccount(db kv.Tx, addr common.Address, acc *accounts.Account) (bool, error) {
-	enc, err := db.GetOne(kv.PlainState, addr[:])
+	lookup, err := db.GetOne(kv.PlainState, addr[:])
+	if err != nil {
+		return false, err
+	}
+	enc, err := db.GetOne(kv.StateLookup, lookup)
 	if err != nil {
 		return false, err
 	}

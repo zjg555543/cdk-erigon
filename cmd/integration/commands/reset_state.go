@@ -108,6 +108,9 @@ func resetExec(tx kv.RwTx, g *core.Genesis) error {
 	if err := tx.ClearBucket(kv.PlainState); err != nil {
 		return err
 	}
+	if err := tx.ClearBucket(kv.StateLookup); err != nil {
+		return err
+	}
 	if err := tx.ClearBucket(kv.AccountChangeSet); err != nil {
 		return err
 	}

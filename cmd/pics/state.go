@@ -81,6 +81,7 @@ var bucketLabels = map[string]string{
 	kv.Code:              "Code Of Contracts",
 	kv.SyncStageProgress: "Sync Progress",
 	kv.PlainState:        "Plain State",
+	kv.StateLookup:       "State Lookup",
 	kv.HashedAccounts:    "Hashed Accounts",
 	kv.HashedStorage:     "Hashed Storage",
 	kv.TrieOfAccounts:    "Intermediate Hashes Of Accounts",

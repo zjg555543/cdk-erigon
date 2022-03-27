@@ -202,6 +202,15 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 	if err != nil {
 		return err
 	}
+	cursor, err := tx.Cursor(kv.StateLookup)
+	if err != nil {
+		return err
+	}
+	k, _, err := cursor.Last()
+	if err != nil {
+		return err
+	}
+	state.CurrentLookup = state.CurrentLookup.SetBytes(k)
 	nextStagesExpectData := nextStageProgress > 0 // Incremental move of next stages depend on fully written ChangeSets, Receipts, CallTraceSet
 
 	logPrefix := s.LogPrefix()

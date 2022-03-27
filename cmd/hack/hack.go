@@ -733,6 +733,10 @@ func readAccount(chaindata string, account common.Address) error {
 		if !bytes.HasPrefix(k, account.Bytes()) {
 			break
 		}
+		v, err := tx.GetOne(kv.StateLookup, v)
+		if err != nil {
+			return err
+		}
 		fmt.Printf("%x => %x\n", k, v)
 	}
 	return nil
@@ -1191,6 +1195,10 @@ func dumpState(chaindata string, block int, name string) error {
 	var ks [20 + 32]byte
 	for ; k != nil && e == nil; k, v, e = sc.Next() {
 		if len(k) == 20 {
+			v, err := tx.GetOne(kv.StateLookup, v)
+			if err != nil {
+				return err
+			}
 			n := binary.PutUvarint(numBuf, uint64(len(k)))
 			if _, err = wa.Write(numBuf[:n]); err != nil {
 				return err
@@ -1558,6 +1566,10 @@ func supply(chaindata string) error {
 			}
 			if len(k) != 20 {
 				continue
+			}
+			v, err := tx.GetOne(kv.StateLookup, v)
+			if err != nil {
+				return err
 			}
 			if err1 := a.DecodeForStorage(v); err1 != nil {
 				return err1
