@@ -21,11 +21,11 @@ git commit -m "ci: $network"
 git push
 
 # update Erigon submodule
-cd ./../erigon
+cd ./../erigon$
 cd turbo/snapshotsync/snapshothashes/erigon-snapshots
 git checkout main
 git pull
-cd ../../../../
+cd -
 git add turbo/snapshotsync/snapshothashes/erigon-snapshots
 git commit -m "ci: $network snapshots"
 git push
