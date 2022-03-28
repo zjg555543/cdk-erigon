@@ -55,7 +55,7 @@ Content-Type: application/json
   "jsonrpc": "2.0",
   "method": "eth_getBlockByNumber",
   "params": [
-    "0x0",
+    "0x61A800",
     true
   ],
   "id": 1
