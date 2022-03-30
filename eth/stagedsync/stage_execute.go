@@ -219,7 +219,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 	startTime := time.Now()
 
 	var batch ethdb.DbWithPendingMutations
-	batch = olddb.NewBatch(tx, quit)
+	batch = olddb.NewHashBatch(tx, quit, cfg.tmpdir)
 	defer batch.Rollback()
 
 	logEvery := time.NewTicker(logInterval)
@@ -297,7 +297,7 @@ Loop:
 				// TODO: This creates stacked up deferrals
 				defer tx.Rollback()
 			}
-			batch = olddb.NewBatch(tx, quit)
+			batch = olddb.NewHashBatch(tx, quit, cfg.tmpdir)
 			// TODO: This creates stacked up deferrals
 			defer batch.Rollback()
 		}
