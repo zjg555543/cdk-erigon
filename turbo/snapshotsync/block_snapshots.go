@@ -1014,6 +1014,9 @@ func CanDeleteTo(curBlockNum uint64, snapshots *RoSnapshots) (blockTo uint64) {
 	return min(hardLimit, snapshots.BlocksAvailable()+1)
 }
 func (br *BlockRetire) RetireBlocksInBackground(ctx context.Context, blockFrom, blockTo uint64, chainID uint256.Int, lvl log.Lvl) {
+	fmt.Printf("retire1: %d, %d\n", blockFrom, blockTo)
+	fmt.Printf("retire2: %d, %d\n", br.snapshots.idxAvailable.Load(), br.snapshots.segmentsAvailable.Load())
+	fmt.Printf("retire3: %d, %d\n", br.snapshots.idxAvailable.Load(), br.snapshots.segmentsAvailable.Load())
 	br.result = nil
 	if br.working.Load() {
 		return
