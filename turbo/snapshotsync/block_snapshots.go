@@ -1970,6 +1970,7 @@ func (m *Merger) merge(ctx context.Context, toMerge []string, targetFile string,
 	}
 
 	for _, d := range cList {
+		log.Debug("[snapshots] Merge", "file", d.FilePath())
 		if err := d.WithReadAhead(func() error {
 			g := d.MakeGetter()
 			for g.HasNext() {
