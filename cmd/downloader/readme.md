@@ -5,12 +5,12 @@ Service to seed/download historical data (immutable .seg files)
 ## How to Start Erigon in snapshot sync mode
 
 ```shell
-# 1. Downloader by default run inside Erigon, by `--snapshot` flag:
-erigon --snapshot --datadir=<your_datadir> 
+# 1. Downloader by default run inside Erigon, by `--syncmode=snap` flag:
+erigon --syncmode=snap --datadir=<your_datadir> 
 ```
 
 ```shell
-# 2. It's possible to start Downloader as independent process, by `--snapshot --downloader.api.addr=127.0.0.1:9093` flags:
+# 2. It's possible to start Downloader as independent process, by `--syncmode=snap --downloader.api.addr=127.0.0.1:9093` flags:
 make erigon downloader 
 
 # Start downloader (can limit network usage by 512mb/sec: --download.rate=512mb --upload.rate=512mb)
@@ -19,10 +19,10 @@ downloader --downloader.api.addr=127.0.0.1:9093 --torrent.port=42068 --datadir=<
 # --torrent.port=42068  - is for public BitTorrent protocol listen 
 
 # Erigon on startup does send list of .torrent files to Downloader and wait for 100% download accomplishment
-erigon --snapshot --downloader.api.addr=127.0.0.1:9093 --datadir=<your_datadir> 
+erigon --syncmode=snap --downloader.api.addr=127.0.0.1:9093 --datadir=<your_datadir> 
 ```
 
-Use `--snapshot.keepblocks=true` to don't delete retired blocks from DB
+Use `--snap.keepblocks=true` to don't delete retired blocks from DB
 
 Any network/chain can start with snapshot sync:
 
@@ -30,7 +30,7 @@ Any network/chain can start with snapshot sync:
 - node will move old blocks from DB to snapshots of 1K blocks size, then merge snapshots to bigger range, until
   snapshots of 500K blocks, then automatically start seeding new snapshot
 
-Flag `--snapshot` is compatible with `--prune` flag
+Flag `--syncmode=snap` is compatible with `--prune` flag
 
 ## How to create new network or bootnode
 
@@ -90,3 +90,14 @@ downloader torrent_hashes --verify --datadir=<your_datadir>
 ```
 rsync -aP --delete -e "ssh -T -o Compression=no -x" <src> <dst>
 ```
+
+## Release details
+
+Start automatic commit of new hashes to branch `master`
+
+```
+crontab -e
+@hourly        cd <erigon_source_dir> && ./cmd/downloader/torrent_hashes_update.sh <your_datadir> <network_name> 1>&2 2>> ~/erigon_cron.log
+```
+
+It does push to branch `auto`, before release - merge `auto` to `main` manually

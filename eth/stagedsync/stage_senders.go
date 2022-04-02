@@ -406,13 +406,13 @@ func retireBlocks(s *PruneState, tx kv.RwTx, cfg SendersCfg, ctx context.Context
 			return err
 		}
 
-		canDeleteTo := cfg.blockRetire.CanDeleteTo(s.ForwardProgress)
+		canDeleteTo := snapshotsync.CanDeleteTo(s.ForwardProgress, cfg.blockRetire.Snapshots())
 		if err := rawdb.DeleteAncientBlocks(tx, canDeleteTo, 1_000); err != nil {
 			return nil
 		}
 	}
 
-	blockFrom, blockTo, ok := cfg.blockRetire.CanRetire(s.ForwardProgress)
+	blockFrom, blockTo, ok := snapshotsync.CanRetire(s.ForwardProgress, cfg.blockRetire.Snapshots())
 	if !ok {
 		return nil
 	}

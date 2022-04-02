@@ -1217,10 +1217,10 @@ func (hd *HeaderDownload) EnableRequestChaining() {
 	hd.requestChaining = true
 }
 
-func (hd *HeaderDownload) SetFetching(fetching bool) {
+func (hd *HeaderDownload) SetFetchingNew(fetching bool) {
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
-	hd.fetching = fetching
+	hd.fetchingNew = fetching
 }
 
 func (hd *HeaderDownload) SetPosStatus(status SyncStatus) {
@@ -1265,10 +1265,10 @@ func (hd *HeaderDownload) RequestChaining() bool {
 	return hd.requestChaining
 }
 
-func (hd *HeaderDownload) Fetching() bool {
+func (hd *HeaderDownload) FetchingNew() bool {
 	hd.lock.RLock()
 	defer hd.lock.RUnlock()
-	return hd.fetching
+	return hd.fetchingNew
 }
 
 func (hd *HeaderDownload) GetPendingPayloadStatus() common.Hash {
@@ -1289,24 +1289,24 @@ func (hd *HeaderDownload) ClearPendingPayloadStatus() {
 	hd.pendingPayloadStatus = common.Hash{}
 }
 
-func (hd *HeaderDownload) GetPendingHeader() (common.Hash, uint64) {
+func (hd *HeaderDownload) GetUnsettledForkChoice() (*engineapi.ForkChoiceMessage, uint64) {
 	hd.lock.RLock()
 	defer hd.lock.RUnlock()
-	return hd.pendingHeaderHash, hd.pendingHeaderHeight
+	return hd.unsettledForkChoice, hd.unsettledHeadHeight
 }
 
-func (hd *HeaderDownload) SetPendingHeader(blockHash common.Hash, blockHeight uint64) {
+func (hd *HeaderDownload) SetUnsettledForkChoice(forkChoice *engineapi.ForkChoiceMessage, headHeight uint64) {
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
-	hd.pendingHeaderHash = blockHash
-	hd.pendingHeaderHeight = blockHeight
+	hd.unsettledForkChoice = forkChoice
+	hd.unsettledHeadHeight = headHeight
 }
 
-func (hd *HeaderDownload) ClearPendingHeader() {
+func (hd *HeaderDownload) ClearUnsettledForkChoice() {
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
-	hd.pendingHeaderHash = common.Hash{}
-	hd.pendingHeaderHeight = 0
+	hd.unsettledForkChoice = nil
+	hd.unsettledHeadHeight = 0
 }
 
 func (hd *HeaderDownload) RequestId() int {
