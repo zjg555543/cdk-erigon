@@ -834,6 +834,23 @@ MainLoop:
 	return res
 }
 
+func noEmptyFiles(in []FileInfo) (res []FileInfo) {
+	for _, f := range in {
+		stat, err := os.Stat(f.Path)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			log.Warn("check file error", "err", err)
+			continue
+		}
+		if stat.Size() == 0 {
+			continue
+		}
+	}
+	return nil
+}
+
 // noOverlaps - keep largest ranges and avoid overlap
 func noOverlaps(in []FileInfo) (res []FileInfo) {
 	for i := range in {
