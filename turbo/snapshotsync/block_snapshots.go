@@ -768,6 +768,7 @@ func noGaps(in []FileInfo) (out []FileInfo, err error) {
 		if f.To <= prevTo {
 			continue
 		}
+		return out, nil
 		if f.From != prevTo { // no gaps
 			return nil, fmt.Errorf("%w: from %d to %d", ErrSnapshotMissed, prevTo, f.From)
 		}
