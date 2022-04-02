@@ -471,6 +471,7 @@ func ReadBodyWithTransactions(db kv.Getter, hash common.Hash, number uint64) (*t
 func ReadCanonicalBodyWithTransactions(db kv.Getter, hash common.Hash, number uint64) *types.Body {
 	body, baseTxId, txAmount := ReadBody(db, hash, number)
 	if body == nil {
+		log.Warn("dbg: nil after ReadCanonicalBodyWithTransactions.ReadBody")
 		return nil
 	}
 	var err error
@@ -485,6 +486,7 @@ func ReadCanonicalBodyWithTransactions(db kv.Getter, hash common.Hash, number ui
 func NonCanonicalBodyWithTransactions(db kv.Getter, hash common.Hash, number uint64) *types.Body {
 	body, baseTxId, txAmount := ReadBody(db, hash, number)
 	if body == nil {
+		log.Warn("dbg: nil after NonCanonicalBodyWithTransactions.ReadBody")
 		return nil
 	}
 	var err error
@@ -1069,10 +1071,12 @@ func ReceiptsAvailableFrom(tx kv.Tx) (uint64, error) {
 func ReadBlock(tx kv.Getter, hash common.Hash, number uint64) *types.Block {
 	header := ReadHeader(tx, hash, number)
 	if header == nil {
+		log.Warn("dbg: nil after ReadBlock.ReadHeader")
 		return nil
 	}
 	body := ReadCanonicalBodyWithTransactions(tx, hash, number)
 	if body == nil {
+		log.Warn("dbg: nil after ReadBlock.ReadCanonicalBodyWithTransactions")
 		return nil
 	}
 	return types.NewBlockFromStorage(hash, header, body.Transactions, body.Uncles)
@@ -1109,6 +1113,9 @@ func HasBlock(db kv.Getter, hash common.Hash, number uint64) bool {
 func ReadBlockWithSenders(db kv.Getter, hash common.Hash, number uint64) (*types.Block, []common.Address, error) {
 	block := ReadBlock(db, hash, number)
 	if block == nil {
+		if block == nil {
+			log.Warn("dbg: nil after ReadBlock")
+		}
 		return nil, nil, nil
 	}
 	senders, err := ReadSenders(db, hash, number)

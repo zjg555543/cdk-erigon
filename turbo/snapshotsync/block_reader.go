@@ -14,6 +14,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/rlp"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // BlockReader can read blocks from db and snapshots
@@ -73,10 +74,20 @@ func (back *BlockReader) BlockWithSenders(ctx context.Context, tx kv.Getter, has
 		if err != nil {
 			return nil, nil, err
 		}
+		if block == nil {
+			log.Warn("dbg: nil rawdb.ReadBlockWithSenders")
+		}
 		return block, senders, nil
 	}
 
-	return rawdb.NonCanonicalBlockWithSenders(tx, hash, blockHeight)
+	block, senders, err = rawdb.NonCanonicalBlockWithSenders(tx, hash, blockHeight)
+	if err != nil {
+		return nil, nil, err
+	}
+	if block == nil {
+		log.Warn("dbg: nil rawdb.ReadBlockWithSenders")
+	}
+	return block, senders, nil
 }
 
 func (back *BlockReader) TxnLookup(ctx context.Context, tx kv.Getter, txnHash common.Hash) (uint64, bool, error) {
