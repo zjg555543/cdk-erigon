@@ -1085,10 +1085,12 @@ func ReadBlock(tx kv.Getter, hash common.Hash, number uint64) *types.Block {
 func NonCanonicalBlockWithSenders(tx kv.Getter, hash common.Hash, number uint64) (*types.Block, []common.Address, error) {
 	header := ReadHeader(tx, hash, number)
 	if header == nil {
+		log.Warn("dbg: nil after NonCanonicalBlockWithSenders.ReadHeader")
 		return nil, nil, fmt.Errorf("header not found for block %d, %x", number, hash)
 	}
-	body := ReadCanonicalBodyWithTransactions(tx, hash, number)
+	body := NonCanonicalBodyWithTransactions(tx, hash, number)
 	if body == nil {
+		log.Warn("dbg: nil after NonCanonicalBlockWithSenders.ReadCanonicalBodyWithTransactions")
 		return nil, nil, fmt.Errorf("body not found for block %d, %x", number, hash)
 	}
 	block := types.NewBlockFromStorage(hash, header, body.Transactions, body.Uncles)
