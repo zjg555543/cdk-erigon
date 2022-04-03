@@ -24,6 +24,7 @@ import (
 	"github.com/ledgerwatch/erigon/internal/ethapi"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/rpc"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // EthAPI is a collection of functions that are exposed in the
@@ -161,11 +162,13 @@ func (api *BaseAPI) blockWithSenders(tx kv.Tx, hash common.Hash, number uint64) 
 			return it.(*types.Block), nil
 		}
 	}
+
 	block, _, err := api._blockReader.BlockWithSenders(context.Background(), tx, hash, number)
 	if err != nil {
 		return nil, err
 	}
 	if block == nil { // don't save nil's to cache
+		log.Warn("dbg: after api._blockReader.BlockWithSenders")
 		return nil, nil
 	}
 	// don't save empty blocks to cache, because in Erigon

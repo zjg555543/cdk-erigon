@@ -195,11 +195,13 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber
 		return nil, err
 	}
 	defer tx.Rollback()
+	log.Warn("dbg: Hi, McSim85")
 	b, err := api.blockByRPCNumber(number, tx)
 	if err != nil {
 		return nil, err
 	}
 	if b == nil {
+		log.Warn("dbg: after api.blockByRPCNumber")
 		return nil, nil
 	}
 	additionalFields := make(map[string]interface{})
