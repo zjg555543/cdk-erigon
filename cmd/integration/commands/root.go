@@ -42,13 +42,18 @@ func openDB(path string, logger log.Logger, applyMigrations bool) kv.RwDB {
 	db := openKV(label, logger, path, false)
 	db.View(context.Background(), func(tx kv.Tx) error {
 		fmt.Printf("--headers\n")
-		_ = tx.ForAmount(kv.Headers, dbutils.EncodeBlockNumber(15521071-20), 40, func(k, v []byte) error {
-			fmt.Printf("%d, %d\n", binary.BigEndian.Uint64(k), len(v))
+		_ = tx.ForAmount(kv.Headers, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
+			fmt.Printf("%d, %d, %x\n", binary.BigEndian.Uint64(k), len(v), k[8:])
 			return nil
 		})
 		fmt.Printf("--bodies\n")
-		_ = tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(15521071-20), 40, func(k, v []byte) error {
+		_ = tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
 			fmt.Printf("%d, %d\n", binary.BigEndian.Uint64(k), len(v))
+			return nil
+		})
+		fmt.Printf("--canonical\n")
+		_ = tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
+			fmt.Printf("%d, %x\n", binary.BigEndian.Uint64(k), v)
 			return nil
 		})
 		return nil
