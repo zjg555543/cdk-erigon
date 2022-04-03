@@ -1173,21 +1173,10 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 
 	from := dbutils.EncodeBlockNumber(blockFrom)
 	var lastBody types.BodyForStorage
-	warmup := func(blockFrom uint64, amount int) {
-		_ = db.View(ctx, func(tx kv.Tx) error {
-			for i := blockFrom; i < blockTo+uint64(amount); i++ {
-				_, _ = rawdb.ReadBlockByNumber(tx, blockFrom)
-			}
-			return nil
-		})
-	}
 	if err := kv.BigChunks(db, kv.HeaderCanonical, from, func(tx kv.Tx, k, v []byte) (bool, error) {
 		blockNum := binary.BigEndian.Uint64(k)
 		if blockNum >= blockTo {
 			return false, nil
-		}
-		if binary.BigEndian.Uint64(from)%1_000 == 0 {
-			go warmup(binary.BigEndian.Uint64(from), 1_000)
 		}
 
 		h := common.BytesToHash(v)
