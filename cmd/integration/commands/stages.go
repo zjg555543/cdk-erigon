@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -1014,7 +1015,26 @@ func stageTxLookup(db kv.RwDB, ctx context.Context) error {
 }
 
 func printAllStages(db kv.RoDB, ctx context.Context) error {
-	return db.View(ctx, func(tx kv.Tx) error { return printStages(tx) })
+	_ = db.View(ctx, func(tx kv.Tx) error { return printStages(tx) })
+	db.View(context.Background(), func(tx kv.Tx) error {
+		fmt.Printf("--headers\n")
+		_ = tx.ForAmount(kv.Headers, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
+			fmt.Printf("%d, %d, %x\n", binary.BigEndian.Uint64(k), len(v), k[8:])
+			return nil
+		})
+		fmt.Printf("--bodies\n")
+		_ = tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
+			fmt.Printf("%d, %d\n", binary.BigEndian.Uint64(k), len(v))
+			return nil
+		})
+		fmt.Printf("--canonical\n")
+		_ = tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
+			fmt.Printf("%d, %x\n", binary.BigEndian.Uint64(k), v)
+			return nil
+		})
+		return nil
+	})
+	return nil
 }
 
 func printAppliedMigrations(db kv.RwDB, ctx context.Context) error {

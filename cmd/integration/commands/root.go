@@ -1,15 +1,11 @@
 package commands
 
 import (
-	"context"
-	"encoding/binary"
-	"fmt"
 	"path/filepath"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	kv2 "github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon/cmd/utils"
-	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/internal/debug"
 	"github.com/ledgerwatch/erigon/migrations"
 	"github.com/ledgerwatch/log/v3"
@@ -40,24 +36,6 @@ func RootCommand() *cobra.Command {
 func openDB(path string, logger log.Logger, applyMigrations bool) kv.RwDB {
 	label := kv.ChainDB
 	db := openKV(label, logger, path, false)
-	db.View(context.Background(), func(tx kv.Tx) error {
-		fmt.Printf("--headers\n")
-		_ = tx.ForAmount(kv.Headers, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
-			fmt.Printf("%d, %d, %x\n", binary.BigEndian.Uint64(k), len(v), k[8:])
-			return nil
-		})
-		fmt.Printf("--bodies\n")
-		_ = tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
-			fmt.Printf("%d, %d\n", binary.BigEndian.Uint64(k), len(v))
-			return nil
-		})
-		fmt.Printf("--canonical\n")
-		_ = tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
-			fmt.Printf("%d, %x\n", binary.BigEndian.Uint64(k), v)
-			return nil
-		})
-		return nil
-	})
 	if applyMigrations {
 		has, err := migrations.NewMigrator(label).HasPendingMigrations(db)
 		if err != nil {
