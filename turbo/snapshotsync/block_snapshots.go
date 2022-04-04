@@ -1196,6 +1196,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 		if err != nil {
 			return false, err
 		}
+		fmt.Printf("debug: %d\n", len(senders))
 
 		if !firstIDSaved {
 			firstIDSaved = true
