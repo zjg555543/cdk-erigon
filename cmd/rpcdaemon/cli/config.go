@@ -352,7 +352,7 @@ func RemoteServices(ctx context.Context, cfg httpcfg.HttpCfg, logger log.Logger,
 			allSnapshots := snapshotsync.NewRoSnapshots(cfg.Snapshot, filepath.Join(cfg.DataDir, "snapshots"))
 			allSnapshots.AsyncOpenAll(ctx)
 			onNewSnapshot = func() {
-				allSnapshots.Reopen()
+				allSnapshots.Reopen(false)
 			}
 			blockReader = snapshotsync.NewBlockReaderWithSnapshots(allSnapshots)
 		} else {

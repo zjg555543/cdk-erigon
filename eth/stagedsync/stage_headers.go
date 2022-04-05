@@ -964,7 +964,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 		if err := WaitForDownloader(ctx, tx, cfg); err != nil {
 			return err
 		}
-		if err := cfg.snapshots.Reopen(); err != nil {
+		if err := cfg.snapshots.Reopen(false); err != nil {
 			return fmt.Errorf("ReopenSegments: %w", err)
 		}
 		expect := cfg.snapshotHashesCfg.ExpectBlocks
@@ -986,7 +986,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 				log.Warn(fmt.Sprintf("not enough snapshots available: %d < %d, but we can re-generate them because DB has historical blocks up to: %d", cfg.snapshots.SegmentsAvailable(), expect, hasInDB))
 			}
 		}
-		if err := cfg.snapshots.Reopen(); err != nil {
+		if err := cfg.snapshots.Reopen(false); err != nil {
 			return fmt.Errorf("ReopenIndices: %w", err)
 		}
 
@@ -1004,7 +1004,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 				}
 			}
 
-			if err := cfg.snapshots.Reopen(); err != nil {
+			if err := cfg.snapshots.Reopen(false); err != nil {
 				return fmt.Errorf("ReopenIndices: %w", err)
 			}
 		}

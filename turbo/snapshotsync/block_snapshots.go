@@ -447,7 +447,7 @@ func (s *RoSnapshots) AsyncOpenAll(ctx context.Context) {
 				return
 			default:
 			}
-			if err := s.Reopen(); err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, ErrSnapshotMissed) {
+			if err := s.Reopen(false); err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, ErrSnapshotMissed) {
 				log.Error("AsyncOpenAll", "err", err)
 			}
 			time.Sleep(15 * time.Second)
@@ -455,7 +455,7 @@ func (s *RoSnapshots) AsyncOpenAll(ctx context.Context) {
 	}()
 }
 
-func (s *RoSnapshots) Reopen() error {
+func (s *RoSnapshots) Reopen(trace bool) error {
 	s.Headers.lock.Lock()
 	defer s.Headers.lock.Unlock()
 	s.Bodies.lock.Lock()
@@ -468,6 +468,10 @@ func (s *RoSnapshots) Reopen() error {
 		return err
 	}
 	for _, f := range files {
+		if trace {
+			fmt.Printf("opening: %d-%d\n", f.From, f.To)
+		}
+
 		{
 			seg := &BodySegment{From: f.From, To: f.To}
 			fileName := SegmentFileName(f.From, f.To, Bodies)
@@ -542,6 +546,9 @@ func (s *RoSnapshots) Reopen() error {
 
 	s.idxAvailable.Store(s.idxAvailability())
 	s.indicesReady.Store(true)
+	if trace {
+		fmt.Printf("alex open res: %d, %d\n", s.SegmentsAvailable(), s.IndicesAvailable())
+	}
 
 	return nil
 }
@@ -1048,7 +1055,7 @@ func retireBlocks(ctx context.Context, blockFrom, blockTo uint64, chainID uint25
 	if err := DumpBlocks(ctx, blockFrom, blockTo, DEFAULT_SEGMENT_SIZE, tmpDir, snapshots.Dir(), db, workers, lvl); err != nil {
 		return fmt.Errorf("DumpBlocks: %w", err)
 	}
-	if err := snapshots.Reopen(); err != nil {
+	if err := snapshots.Reopen(false); err != nil {
 		return fmt.Errorf("ReopenSegments: %w", err)
 	}
 	merger := NewMerger(tmpDir, workers, lvl, chainID)
@@ -1059,9 +1066,6 @@ func retireBlocks(ctx context.Context, blockFrom, blockTo uint64, chainID uint25
 	err := merger.Merge(ctx, snapshots, ranges, &dir.Rw{Path: snapshots.Dir()}, true)
 	if err != nil {
 		return err
-	}
-	if err := snapshots.Reopen(); err != nil {
-		return fmt.Errorf("ReopenSegments: %w", err)
 	}
 	if notifier != nil { // notify about new snapshots of any size
 		notifier.OnNewSnapshot()
@@ -1939,7 +1943,7 @@ func (m *Merger) Merge(ctx context.Context, snapshots *RoSnapshots, mergeRanges 
 			}
 		}
 
-		if err := snapshots.Reopen(); err != nil {
+		if err := snapshots.Reopen(true); err != nil {
 			return fmt.Errorf("ReopenSegments: %w", err)
 		}
 		if err := m.removeOldFiles(toMergeHeaders, snapshotDir); err != nil {
