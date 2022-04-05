@@ -1058,6 +1058,12 @@ func retireBlocks(ctx context.Context, blockFrom, blockTo uint64, chainID uint25
 	if err := snapshots.Reopen(false); err != nil {
 		return fmt.Errorf("ReopenSegments: %w", err)
 	}
+	if err := BuildIndices(ctx, snapshots, &dir.Rw{Path: snapshots.Dir()}, chainID, tmpDir, snapshots.IndicesAvailable(), log.LvlInfo); err != nil {
+		return err
+	}
+	if err := snapshots.Reopen(false); err != nil {
+		return fmt.Errorf("ReopenSegments: %w", err)
+	}
 	merger := NewMerger(tmpDir, workers, lvl, chainID)
 	ranges := merger.FindMergeRanges(snapshots)
 	if len(ranges) == 0 {
@@ -1925,6 +1931,7 @@ func (m *Merger) Merge(ctx context.Context, snapshots *RoSnapshots, mergeRanges 
 				return fmt.Errorf("mergeByAppendSegments: %w", err)
 			}
 			if doIndex {
+				fmt.Printf("index: h: %d\n", r.from)
 				if err := HeadersIdx(ctx, segFilePath, r.from, m.tmpDir, logEvery, m.lvl); err != nil {
 					return fmt.Errorf("HeadersIdx: %w", err)
 				}
