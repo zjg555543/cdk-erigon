@@ -21,6 +21,7 @@ import (
 	"github.com/ledgerwatch/erigon/cmd/utils"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
+	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/internal/debug"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
@@ -246,7 +247,6 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	snapshots.Reopen(false)
 
 	br := snapshotsync.NewBlockRetire(runtime.NumCPU()-1, tmpDir, snapshots, chainDB, nil, nil)
-
 	for i := from; i < to; i += every {
 		br.RetireBlocksInBackground(ctx, i, i+every, *chainID, log.LvlInfo)
 		br.Wait()
@@ -254,7 +254,19 @@ func doRetireCommand(cliCtx *cli.Context) error {
 		if res.Err != nil {
 			panic(res.Err)
 		}
+		var stageProgress uint64
+		chainDB.View(context.Background(), func(tx kv.Tx) error {
+			stageProgress, _ = stages.GetStageProgress(tx, stages.Senders)
+			return nil
+		})
+		blockFrom, blockTo, ok := snapshotsync.CanRetire(stageProgress, snapshots)
+		if !ok {
+			return nil
+		}
+		fmt.Printf("can retire: %d, %d, %t\n", blockFrom, blockTo, ok)
+
 	}
+
 	return nil
 }
 
