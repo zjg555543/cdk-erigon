@@ -520,7 +520,7 @@ func InitPreverifiedHashes(chain string) (map[common.Hash]struct{}, uint64) {
 		height = sepoliaPreverifiedHeight
 	case networkname.GoerliChainName:
 		encodings = goerliPreverifiedHashes
-		height = goerliPreferifiedHeight
+		height = goerliPreverifiedHeight
 	default:
 		log.Debug("Preverified hashes not found for", "chain", chain)
 		return nil, 0
@@ -801,6 +801,9 @@ func (hd *HeaderDownload) InsertHeaders(hf FeedHeaderFunc, terminalTotalDifficul
 					return false, err
 				}
 				if td != nil {
+					if hd.seenAnnounces.Pop(link.hash) {
+						hd.toAnnounce = append(hd.toAnnounce, Announce{Hash: link.hash, Number: link.blockHeight})
+					}
 					// Check if transition to proof-of-stake happened and stop forward syncing
 					if terminalTotalDifficulty != nil && td.Cmp(terminalTotalDifficulty) >= 0 {
 						hd.highestInDb = link.blockHeight
