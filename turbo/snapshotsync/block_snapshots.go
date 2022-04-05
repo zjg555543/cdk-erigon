@@ -1116,7 +1116,6 @@ func dumpBlocksRange(ctx context.Context, blockFrom, blockTo uint64, tmpDir, sna
 // DumpTxs - [from, to)
 // Format: hash[0]_1byte + sender_address_2bytes + txnRlp
 func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockFrom, blockTo uint64, workers int, lvl log.Lvl) (firstTxID uint64, err error) {
-	t := time.Now()
 	logEvery := time.NewTicker(20 * time.Second)
 	defer logEvery.Stop()
 
@@ -1263,6 +1262,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 	if lastBody.BaseTxId+uint64(lastBody.TxAmount)-firstTxID != count {
 		return 0, fmt.Errorf("incorrect tx count: %d, expected: %d", count, lastBody.BaseTxId+uint64(lastBody.TxAmount)-firstTxID)
 	}
+	t := time.Now()
 	if err := f.Compress(); err != nil {
 		return 0, fmt.Errorf("compress: %w", err)
 	}
