@@ -980,7 +980,11 @@ func (br *BlockRetire) Result() *BlockRetireResult {
 }
 func CanRetire(curBlockNum uint64, snapshots *RoSnapshots) (blockFrom, blockTo uint64, can bool) {
 	blockFrom = snapshots.BlocksAvailable() + 1
-	return canRetire(blockFrom, curBlockNum-params.FullImmutabilityThreshold)
+	blockFrom, blockTo, can = canRetire(blockFrom, curBlockNum-params.FullImmutabilityThreshold)
+
+	fmt.Printf("CanRetire: %d, %d, %d -> \n", curBlockNum, snapshots.SegmentsAvailable(), snapshots.IndicesAvailable())
+	fmt.Printf("CanRetire2: %d, %d, %t\n", blockFrom, blockTo, can)
+	return
 }
 func canRetire(from, to uint64) (blockFrom, blockTo uint64, can bool) {
 	blockFrom = (from / 1_000) * 1_000
