@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/c2h5oh/datasize"
 	common2 "github.com/ledgerwatch/erigon-lib/common"
@@ -1016,20 +1017,21 @@ func stageTxLookup(db kv.RwDB, ctx context.Context) error {
 
 func printAllStages(db kv.RoDB, ctx context.Context) error {
 	_ = db.View(ctx, func(tx kv.Tx) error { return printStages(tx) })
+	logEvery := time.NewTicker(10 * time.Second)
+	defer logEvery.Stop()
+
 	db.View(context.Background(), func(tx kv.Tx) error {
-		fmt.Printf("--headers\n")
-		_ = tx.ForAmount(kv.Headers, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
-			fmt.Printf("%d, %d, %x\n", binary.BigEndian.Uint64(k), len(v), k[8:])
-			return nil
-		})
-		fmt.Printf("--bodies\n")
-		_ = tx.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
-			fmt.Printf("%d, %d\n", binary.BigEndian.Uint64(k), len(v))
-			return nil
-		})
-		fmt.Printf("--canonical\n")
-		_ = tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(15521071-4), 8, func(k, v []byte) error {
-			fmt.Printf("%d, %x\n", binary.BigEndian.Uint64(k), v)
+		from := uint64(0)
+		_ = tx.ForEach(kv.HeaderCanonical, dbutils.EncodeBlockNumber(from), func(k, v []byte) error {
+			has, _ := tx.Has(kv.Headers, append([]byte{}, append(k, v...)...))
+			if !has {
+				fmt.Printf("Canonical Header %x, %x not found\n", k, v)
+			}
+			select {
+			default:
+			case <-logEvery.C:
+				log.Info("Scanning", "progress", binary.BigEndian.Uint64(k))
+			}
 			return nil
 		})
 		return nil
