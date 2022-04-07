@@ -386,6 +386,8 @@ func (back *BlockReaderWithSnapshots) BlockWithSenders(ctx context.Context, tx k
 		return
 	}
 	if ok {
+		fmt.Printf("Alex1:\n")
+
 		var b *types.BodyForStorage
 		ok, err = back.sn.ViewBodies(blockHeight, func(seg *BodySegment) error {
 			bodyOffset := seg.idxBodyNumber.Lookup2(blockHeight - seg.idxBodyNumber.BaseDataID())
@@ -403,6 +405,7 @@ func (back *BlockReaderWithSnapshots) BlockWithSenders(ctx context.Context, tx k
 			return
 		}
 		if ok {
+			fmt.Printf("Alex2:\n")
 			if b.TxAmount <= 2 {
 				block = types.NewBlockFromStorage(hash, h, nil, b.Uncles)
 				if len(senders) != block.Transactions().Len() {
@@ -559,6 +562,7 @@ func (back *BlockReaderWithSnapshots) txnByHash(txnHash common.Hash, segments []
 			continue
 		}
 
+		fmt.Printf("alex: %s\n", sn.Seg.FilePath())
 		reader := recsplit.NewIndexReader(sn.IdxTxnHash)
 		offset := reader.Lookup(txnHash[:])
 		gg := sn.Seg.MakeGetter()
