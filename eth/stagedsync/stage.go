@@ -127,8 +127,10 @@ func PruneTable(tx kv.RwTx, table string, logPrefix string, pruneTo uint64, logE
 		if i > limit {
 			break
 		}
-
 		blockNum := binary.BigEndian.Uint64(k)
+		if blockNum%100 == 0 {
+			fmt.Printf("del: %s, %d, to: %d\n", table, blockNum, pruneTo)
+		}
 		if blockNum >= pruneTo {
 			break
 		}
