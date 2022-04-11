@@ -530,16 +530,16 @@ func StartRpcServer(ctx context.Context, cfg httpcfg.HttpCfg, rpcAPI []rpc.API) 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = listener.Shutdown(shutdownCtx)
-		log.Info("HTTP endpoint closed", "url", httpEndpoint)
+		log.Debug("HTTP endpoint closed", "url", httpEndpoint)
 
 		if engineListener != nil {
 			_ = engineListener.Shutdown(shutdownCtx)
-			log.Info("Engine HTTP endpoint close", "url", engineHttpEndpoint)
+			log.Debug("Engine HTTP endpoint close", "url", engineHttpEndpoint)
 		}
 
 		if engineListenerAuth != nil {
 			_ = engineListenerAuth.Shutdown(shutdownCtx)
-			log.Info("Engine HTTP endpoint close", "url", engineHttpEndpoint)
+			log.Debug("Engine HTTP endpoint close", "url", engineHttpEndpoint)
 		}
 
 		if cfg.GRPCServerEnabled {
@@ -548,7 +548,7 @@ func StartRpcServer(ctx context.Context, cfg httpcfg.HttpCfg, rpcAPI []rpc.API) 
 			}
 			grpcServer.GracefulStop()
 			_ = grpcListener.Close()
-			log.Info("GRPC endpoint closed", "url", grpcEndpoint)
+			log.Debug("GRPC endpoint closed", "url", grpcEndpoint)
 		}
 	}()
 	<-ctx.Done()

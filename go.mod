@@ -6,11 +6,11 @@ replace github.com/etcd-io/bbolt => go.etcd.io/bbolt v1.3.5
 
 require (
 	github.com/RoaringBitmap/roaring v0.9.4
-	github.com/VictoriaMetrics/fastcache v1.9.0
+	github.com/VictoriaMetrics/fastcache v1.10.0
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/anacrolix/go-libutp v1.2.0
-	github.com/anacrolix/log v0.10.1-0.20220123034749-3920702c17f8
-	github.com/anacrolix/torrent v1.41.0
+	github.com/anacrolix/log v0.13.1
+	github.com/anacrolix/torrent v1.41.1-0.20220309095723-02b6ee995497
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2
 	github.com/consensys/gnark-crypto v0.4.0
@@ -20,7 +20,7 @@ require (
 	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/edsrzf/mmap-go v1.0.0
 	github.com/emicklei/dot v0.16.0
-	github.com/emirpasic/gods v1.12.0
+	github.com/emirpasic/gods v1.12.1
 	github.com/fatih/color v1.13.0
 	github.com/fjl/gencodec v0.0.0-20191126094850-e283372f291f
 	github.com/fortytw2/leaktest v1.3.0 // indirect
@@ -50,7 +50,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.0-beta.6
 	github.com/quasilyte/go-ruleguard/dsl v0.3.19
 	github.com/rs/cors v1.8.2
-	github.com/shirou/gopsutil/v3 v3.22.2
+	github.com/shirou/gopsutil/v3 v3.22.3
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.1
@@ -68,7 +68,7 @@ require (
 	go.uber.org/atomic v1.9.0
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220204135822-1c1b9b1eba6a
+	golang.org/x/sys v0.0.0-20220405052023-b1e9470b6e64
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
 	google.golang.org/grpc v1.45.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
