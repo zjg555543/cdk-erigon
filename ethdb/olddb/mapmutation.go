@@ -245,8 +245,6 @@ func (m *mapmutation) doCommit(tx kv.RwTx) error {
 				progress := fmt.Sprintf("%.1fM/%.1fM", float64(count)/1_000_000, total/1_000_000)
 				log.Info("Write to db", "progress", progress, "current table", table)
 				tx.CollectMetrics()
-			case <-m.quit:
-				return nil
 			}
 		}
 		if err := collector.Load(m.db, table, etl.IdentityLoadFunc, etl.TransformArgs{Quit: m.quit}); err != nil {

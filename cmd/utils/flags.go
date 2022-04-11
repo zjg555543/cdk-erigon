@@ -152,8 +152,7 @@ var (
 	}
 	SyncModeFlag = cli.StringFlag{
 		Name:  "syncmode",
-		Usage: `Blockchain sync mode ("snap", "fast")`,
-		Value: string(ethconfig.Defaults.SyncMode),
+		Usage: `Default: "snap" for BSC, Mainnet and Goerli. "fast" in all other cases`,
 	}
 	// Transaction pool settings
 	TxPoolDisableFlag = cli.BoolFlag{
@@ -649,6 +648,16 @@ var (
 		Name:  "torrent.port",
 		Value: 42069,
 		Usage: "port to listen and serve BitTorrent protocol",
+	}
+	TorrentMaxPeersFlag = cli.IntFlag{
+		Name:  "torrent.maxpeers",
+		Value: 10,
+		Usage: "limit amount of torrent peers",
+	}
+	TorrentConnsPerFileFlag = cli.IntFlag{
+		Name:  "torrent.conns.perfile",
+		Value: 5,
+		Usage: "connections per file",
 	}
 	DbPageSizeFlag = cli.StringFlag{
 		Name:  "db.pagesize",
@@ -1342,51 +1351,37 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, nodeConfig *node.Config, cfg *ethconfig.Config) {
-	if ctx.GlobalIsSet(SyncModeFlag.Name) {
-		syncMode := ctx.GlobalString(SyncModeFlag.Name)
-		if syncMode == string(ethconfig.FastSync) {
-			cfg.SyncMode = ethconfig.FastSync
-		} else if syncMode == string(ethconfig.SnapSync) {
-			cfg.SyncMode = ethconfig.SnapSync
-			cfg.Snapshot.Enabled = true
-		} else {
-			panic(fmt.Errorf("invalid sync mode: %s", cfg.SyncMode))
-		}
+	cfg.SyncModeCli = ctx.GlobalString(SyncModeFlag.Name)
+	snDir, err := dir.OpenRw(filepath.Join(nodeConfig.DataDir, "snapshots"))
+	if err != nil {
+		panic(err)
 	}
-	if cfg.Snapshot.Enabled {
-		snDir, err := dir.OpenRw(filepath.Join(nodeConfig.DataDir, "snapshots"))
-		if err != nil {
+	cfg.SnapshotDir = snDir
+	cfg.Snapshot.KeepBlocks = ctx.GlobalBool(SnapshotKeepBlocksFlag.Name)
+	if !ctx.GlobalIsSet(DownloaderAddrFlag.Name) {
+		var downloadRateStr, uploadRateStr string
+		if ctx.GlobalIsSet(TorrentDownloadRateFlag.Name) {
+			downloadRateStr = ctx.GlobalString(TorrentDownloadRateFlag.Name)
+		}
+		if ctx.GlobalIsSet(TorrentUploadRateFlag.Name) {
+			uploadRateStr = ctx.GlobalString(TorrentUploadRateFlag.Name)
+		}
+		var downloadRate, uploadRate datasize.ByteSize
+		if err := downloadRate.UnmarshalText([]byte(downloadRateStr)); err != nil {
 			panic(err)
 		}
-		cfg.SnapshotDir = snDir
-	}
-	cfg.Snapshot.KeepBlocks = ctx.GlobalBool(SnapshotKeepBlocksFlag.Name)
-	torrentVerbosity := lg.Warning
-	if ctx.GlobalIsSet(TorrentVerbosityFlag.Name) {
-		torrentVerbosity = torrentcfg.String2LogLevel[ctx.GlobalString(TorrentVerbosityFlag.Name)]
-	}
+		if err := uploadRate.UnmarshalText([]byte(uploadRateStr)); err != nil {
+			panic(err)
+		}
 
-	var downloadRateStr, uploadRateStr string
-	if ctx.GlobalIsSet(TorrentDownloadRateFlag.Name) {
-		downloadRateStr = ctx.GlobalString(TorrentDownloadRateFlag.Name)
-	}
-	if ctx.GlobalIsSet(TorrentUploadRateFlag.Name) {
-		uploadRateStr = ctx.GlobalString(TorrentUploadRateFlag.Name)
-	}
-	var downloadRate, uploadRate datasize.ByteSize
-	if err := downloadRate.UnmarshalText([]byte(downloadRateStr)); err != nil {
-		panic(err)
-	}
-	if err := uploadRate.UnmarshalText([]byte(uploadRateStr)); err != nil {
-		panic(err)
-	}
-	torrentPort := TorrentPortFlag.Value
-	if ctx.GlobalIsSet(TorrentPortFlag.Name) {
-		torrentPort = ctx.GlobalInt(TorrentPortFlag.Name)
-	}
-
-	if cfg.Snapshot.Enabled && !ctx.GlobalIsSet(DownloaderAddrFlag.Name) {
-		torrentCfg, dirCloser, err := torrentcfg.New(cfg.SnapshotDir, torrentVerbosity, downloadRate, uploadRate, torrentPort)
+		torrentCfg, dirCloser, err := torrentcfg.New(cfg.SnapshotDir,
+			torrentcfg.String2LogLevel[ctx.GlobalString(TorrentVerbosityFlag.Name)],
+			nodeConfig.P2P.NAT,
+			downloadRate, uploadRate,
+			ctx.GlobalInt(TorrentPortFlag.Name),
+			ctx.GlobalInt(TorrentMaxPeersFlag.Name),
+			ctx.GlobalInt(TorrentConnsPerFileFlag.Name),
+		)
 		if err != nil {
 			panic(err)
 		}

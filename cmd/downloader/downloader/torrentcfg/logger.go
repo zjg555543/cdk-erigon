@@ -47,6 +47,12 @@ func (b adapterHandler) Handle(r lg.Record) {
 		if strings.Contains(str, "could not find offer for id") { // suppress useless errors
 			break
 		}
+		if strings.Contains(str, "webrtc conn for unloaded torrent") { // suppress useless errors
+			break
+		}
+		if strings.Contains(str, "TrackerClient closed") { // suppress useless errors
+			break
+		}
 
 		log.Warn(str)
 	case lg.Error:
@@ -64,9 +70,12 @@ func (b adapterHandler) Handle(r lg.Record) {
 		if strings.Contains(str, "don't want conns") { // suppress useless errors
 			break
 		}
+		if strings.Contains(str, "torrent closed") { // suppress useless errors
+			break
+		}
 
 		log.Error(str)
 	default:
-		log.Debug(r.String(), "log_type", "unknown")
+		log.Debug(r.String(), "torrent_log_type", "unknown")
 	}
 }
