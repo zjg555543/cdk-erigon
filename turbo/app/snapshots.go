@@ -201,10 +201,19 @@ func doCompress(cliCtx *cli.Context) error {
 		return err
 	}
 	scanner := bufio.NewScanner(os.Stdin)
-	buf := make([]byte, 0, 16*1024*1024)
+	buf := make([]byte, 0, 64*1024*1024)
 	scanner.Buffer(buf, cap(buf))
+	i := 0
 	for scanner.Scan() {
-		if err := c.AddWord(scanner.Bytes()); err != nil {
+		bts := scanner.Bytes()
+		if len(bts) > 0 {
+			i++
+			fmt.Printf("decompress len: %d\n", len(bts))
+			if i == 10 {
+				return nil
+			}
+		}
+		if err := c.AddWord(bts); err != nil {
 			return err
 		}
 		select {
