@@ -167,10 +167,6 @@ func doUncompress(cliCtx *cli.Context) error {
 		var EOL = []byte("\n")
 		for g.HasNext() {
 			buf, _ := g.Next(buf[:0])
-			if len(buf) > 0 {
-				fmt.Printf("compress len: %d\n", len(buf))
-				panic(1)
-			}
 			if _, err := wr.Write(buf); err != nil {
 				return err
 			}
