@@ -169,7 +169,6 @@ func doUncompress(cliCtx *cli.Context) error {
 		for g.HasNext() {
 			buf, _ := g.Next(buf[:0])
 			if len(buf) > 0 {
-
 				fmt.Printf("compress len: %d\n", len(buf))
 				panic(1)
 			}
