@@ -1632,8 +1632,8 @@ func HeadersIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegm
 
 	fmt.Printf("HeadersIdx1: %s\n", d.FilePath())
 	if err := Idx(ctx, d, firstBlockNumInSegment, tmpDir, func(idx *recsplit.RecSplit, i, offset uint64, word []byte) error {
-		fmt.Printf("HeadersIdx2: %d\n", len(word[1:])
-		
+		fmt.Printf("HeadersIdx2: %d\n", len(word[1:]))
+
 		h := types.Header{}
 
 		if err := rlp.DecodeBytes(word[1:], &h); err != nil {
