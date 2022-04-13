@@ -201,7 +201,7 @@ func doCompress(cliCtx *cli.Context) error {
 		return err
 	}
 	scanner := bufio.NewScanner(os.Stdin)
-	buf := make([]byte, 0, 64*1024*1024)
+	buf := make([]byte, 0, 128*1024*1024)
 	scanner.Buffer(buf, cap(buf))
 	for scanner.Scan() {
 		bts := scanner.Bytes()
