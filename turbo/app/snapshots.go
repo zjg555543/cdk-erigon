@@ -160,15 +160,21 @@ func doUncompress(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	i := 0
 	if err := decompressor.WithReadAhead(func() error {
 		wr := bufio.NewWriterSize(os.Stdout, etl.BufIOSize)
 		g := decompressor.MakeGetter()
-		var buf []byte
-
+		buf := make([]byte, 0, 1024*1024)
 		var EOL = []byte("\n")
+		i := 0
 		for g.HasNext() {
 			buf, _ := g.Next(buf[:0])
+			if len(buf) > 0 {
+				i++
+				log.Info("uncompress", "len", len(buf))
+				if i == 10 {
+					panic(1)
+				}
+			}
 			if _, err := wr.Write(buf); err != nil {
 				return err
 			}
@@ -198,18 +204,24 @@ func doCompress(cliCtx *cli.Context) error {
 	f := args[0]
 	datadir := cliCtx.String(utils.DataDirFlag.Name)
 	tmpDir := filepath.Join(datadir, etl.TmpDirName)
-	c, err := compress.NewCompressor(ctx, "", f, tmpDir, compress.MinPatternScore, runtime.NumCPU()-1, log.LvlInfo)
+	c, err := compress.NewCompressor(ctx, "", f, tmpDir, compress.MinPatternScore, runtime.NumCPU()-2, log.LvlInfo)
 	if err != nil {
 		return err
 	}
 	scanner := bufio.NewScanner(os.Stdin)
-	buf := make([]byte, 0, 16*1024*1024)
+	buf := make([]byte, 0, 64*1024*1024)
 	scanner.Buffer(buf, cap(buf))
+	i := 0
 	for scanner.Scan() {
 		bts := scanner.Bytes()
 		if len(bts) > 0 {
-			fmt.Printf("compress len: %d\n", len(bts))
-			panic(1)
+			i++
+			log.Warn("compress", "len", len(bts))
+			if i == 10 {
+				return nil
+			}
+		} else {
+			fmt.Printf("empty: %d\n", i)
 		}
 		if err := c.AddWord(bts); err != nil {
 			return err
