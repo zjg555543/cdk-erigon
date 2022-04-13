@@ -196,23 +196,15 @@ func doCompress(cliCtx *cli.Context) error {
 	f := args[0]
 	datadir := cliCtx.String(utils.DataDirFlag.Name)
 	tmpDir := filepath.Join(datadir, etl.TmpDirName)
-	c, err := compress.NewCompressor(ctx, "", f, tmpDir, compress.MinPatternScore, runtime.NumCPU()-2, log.LvlInfo)
+	c, err := compress.NewCompressor(ctx, "", f, tmpDir, compress.MinPatternScore, runtime.NumCPU()-1, log.LvlInfo)
 	if err != nil {
 		return err
 	}
 	scanner := bufio.NewScanner(os.Stdin)
 	buf := make([]byte, 0, 64*1024*1024)
 	scanner.Buffer(buf, cap(buf))
-	i := 0
 	for scanner.Scan() {
 		bts := scanner.Bytes()
-		if len(bts) > 0 {
-			i++
-			fmt.Printf("decompress len: %d\n", len(bts))
-			if i == 10 {
-				return nil
-			}
-		}
 		if err := c.AddWord(bts); err != nil {
 			return err
 		}
