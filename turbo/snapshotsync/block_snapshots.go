@@ -1635,7 +1635,7 @@ func HeadersIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegm
 		h := types.Header{}
 
 		if err := rlp.DecodeBytes(word[1:], &h); err != nil {
-			return err
+			return fmt.Errorf("%w, len %d",err, len(word[1:]))
 		}
 		if err := idx.AddKey(h.Hash().Bytes(), offset); err != nil {
 			return err
