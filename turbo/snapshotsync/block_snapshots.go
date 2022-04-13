@@ -1624,7 +1624,7 @@ RETRY:
 
 // HeadersIdx - headerHash -> offset (analog of kv.HeaderNumber)
 func HeadersIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegment uint64, tmpDir string, logEvery *time.Ticker, lvl log.Lvl) error {
-fmt.Printf("HeadersIdx: %s\n",segmentFilePath)
+	fmt.Printf("HeadersIdx: %s\n", segmentFilePath)
 	d, err := compress.NewDecompressor(segmentFilePath)
 	if err != nil {
 		return err
@@ -1634,9 +1634,10 @@ fmt.Printf("HeadersIdx: %s\n",segmentFilePath)
 	fmt.Printf("HeadersIdx1: %s\n", d.FilePath())
 	if err := Idx(ctx, d, firstBlockNumInSegment, tmpDir, func(idx *recsplit.RecSplit, i, offset uint64, word []byte) error {
 		h := types.Header{}
+		fmt.Printf("a: %d\n", len(word))
 
 		if err := rlp.DecodeBytes(word[1:], &h); err != nil {
-			return fmt.Errorf("%w, len %d",err, len(word[1:]))
+			return fmt.Errorf("%w, len %d", err, len(word[1:]))
 		}
 		if err := idx.AddKey(h.Hash().Bytes(), offset); err != nil {
 			return err
