@@ -1624,6 +1624,7 @@ RETRY:
 
 // HeadersIdx - headerHash -> offset (analog of kv.HeaderNumber)
 func HeadersIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegment uint64, tmpDir string, logEvery *time.Ticker, lvl log.Lvl) error {
+fmt.Printf("HeadersIdx: %s\n",segmentFilePath)
 	d, err := compress.NewDecompressor(segmentFilePath)
 	if err != nil {
 		return err
