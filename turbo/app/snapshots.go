@@ -161,7 +161,7 @@ func doUncompress(cliCtx *cli.Context) error {
 		return err
 	}
 	if err := decompressor.WithReadAhead(func() error {
-		wr := bufio.NewWriterSize(os.Stdout, etl.BufIOSize)
+		wr := bufio.NewWriterSize(os.Stdout, 16*etl.BufIOSize)
 		g := decompressor.MakeGetter()
 		buf := make([]byte, 0, 16*1024*1024)
 		var EOL = []byte("\n")
