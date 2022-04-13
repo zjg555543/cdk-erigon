@@ -160,6 +160,7 @@ func doUncompress(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	i := 0
 	if err := decompressor.WithReadAhead(func() error {
 		wr := bufio.NewWriterSize(os.Stdout, etl.BufIOSize)
 		g := decompressor.MakeGetter()
@@ -169,8 +170,11 @@ func doUncompress(cliCtx *cli.Context) error {
 		for g.HasNext() {
 			buf, _ := g.Next(buf[:0])
 			if len(buf) > 0 {
+				i++
 				fmt.Printf("compress len: %d\n", len(buf))
-				panic(1)
+				if i == 10 {
+					panic(1)
+				}
 			}
 			if _, err := wr.Write(buf); err != nil {
 				return err
