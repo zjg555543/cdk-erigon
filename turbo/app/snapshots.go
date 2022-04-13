@@ -165,16 +165,8 @@ func doUncompress(cliCtx *cli.Context) error {
 		g := decompressor.MakeGetter()
 		buf := make([]byte, 0, 16*1024*1024)
 		var EOL = []byte("\n")
-		i := 0
 		for g.HasNext() {
 			buf, _ = g.Next(buf[:0])
-			if len(buf) > 0 {
-				i++
-				log.Info("uncompress", "len", len(buf))
-				if i == 10 {
-					return nil
-				}
-			}
 			if _, err := wr.Write(buf); err != nil {
 				return err
 			}
