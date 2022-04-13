@@ -461,6 +461,7 @@ func (s *RoSnapshots) Reopen() error {
 		{
 			seg := &BodySegment{From: f.From, To: f.To}
 			fileName := SegmentFileName(f.From, f.To, Bodies)
+			fmt.Printf("a1: %s\n", fileName)
 			seg.seg, err = compress.NewDecompressor(path.Join(s.dir, fileName))
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
@@ -473,6 +474,7 @@ func (s *RoSnapshots) Reopen() error {
 		{
 			seg := &HeaderSegment{From: f.From, To: f.To}
 			fileName := SegmentFileName(f.From, f.To, Headers)
+			fmt.Printf("a2: %s\n", fileName)
 			seg.seg, err = compress.NewDecompressor(path.Join(s.dir, fileName))
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
@@ -485,6 +487,7 @@ func (s *RoSnapshots) Reopen() error {
 		{
 			seg := &TxnSegment{From: f.From, To: f.To}
 			fileName := SegmentFileName(f.From, f.To, Transactions)
+			fmt.Printf("a3: %s\n", fileName)
 			seg.Seg, err = compress.NewDecompressor(path.Join(s.dir, fileName))
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
@@ -1627,8 +1630,12 @@ func HeadersIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegm
 	}
 	defer d.Close()
 
+	fmt.Printf("HeadersIdx1: %s\n", d.FilePath())
 	if err := Idx(ctx, d, firstBlockNumInSegment, tmpDir, func(idx *recsplit.RecSplit, i, offset uint64, word []byte) error {
+		fmt.Printf("HeadersIdx2: %d\n", len(word[1:])
+		
 		h := types.Header{}
+
 		if err := rlp.DecodeBytes(word[1:], &h); err != nil {
 			return err
 		}
