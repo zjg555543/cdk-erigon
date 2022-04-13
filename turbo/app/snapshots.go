@@ -172,7 +172,7 @@ func doUncompress(cliCtx *cli.Context) error {
 				i++
 				log.Info("compress", "len", len(buf))
 				if i == 10 {
-					panic(1)
+					return nil
 				}
 			}
 			if _, err := wr.Write(buf); err != nil {
