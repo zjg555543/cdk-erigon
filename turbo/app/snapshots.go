@@ -204,14 +204,6 @@ func doCompress(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-<<<<<<< HEAD
-	scanner := bufio.NewScanner(os.Stdin)
-	buf := make([]byte, 0, 128*1024*1024)
-	scanner.Buffer(buf, cap(buf))
-	for scanner.Scan() {
-		bts := scanner.Bytes()
-		if err := c.AddWord(bts); err != nil {
-=======
 	r := bufio.NewReaderSize(os.Stdin, 16*etl.BufIOSize)
 	buf := make([]byte, 0, 32*1024*1024)
 	var l uint64
@@ -225,7 +217,6 @@ func doCompress(cliCtx *cli.Context) error {
 			return err
 		}
 		if err = c.AddWord(buf); err != nil {
->>>>>>> fix-recompress
 			return err
 		}
 		select {
