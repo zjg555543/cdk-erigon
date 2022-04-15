@@ -666,6 +666,7 @@ func BuildIndices(ctx context.Context, s *RoSnapshots, snapshotDir *dir.Rw, chai
 				continue
 			}
 			f := filepath.Join(snapshotDir.Path, SegmentFileName(sn.From, sn.To, Headers))
+			fmt.Printf("f: %s\n", SegmentFileName(sn.From, sn.To, Headers))
 			if err := HeadersIdx(ctx, f, sn.From, tmpDir, logEvery, lvl); err != nil {
 				return err
 			}
@@ -681,6 +682,7 @@ func BuildIndices(ctx context.Context, s *RoSnapshots, snapshotDir *dir.Rw, chai
 				continue
 			}
 			f := filepath.Join(snapshotDir.Path, SegmentFileName(sn.From, sn.To, Bodies))
+			fmt.Printf("f: %s\n", SegmentFileName(sn.From, sn.To, Headers))
 			if err := BodiesIdx(ctx, f, sn.From, tmpDir, logEvery, lvl); err != nil {
 				return err
 			}
@@ -1379,6 +1381,8 @@ func TransactionsIdx(ctx context.Context, chainID uint256.Int, blockFrom, blockT
 	firstBlockNum := blockFrom
 
 	bodySegmentPath := filepath.Join(snapshotDir.Path, SegmentFileName(blockFrom, blockTo, Bodies))
+	fmt.Printf("f: %s\n",  SegmentFileName(blockFrom, blockTo, Bodies))
+		
 	bodiesSegment, err := compress.NewDecompressor(bodySegmentPath)
 	if err != nil {
 		return err
