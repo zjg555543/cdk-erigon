@@ -695,6 +695,8 @@ func BuildIndices(ctx context.Context, s *RoSnapshots, snapshotDir *dir.Rw, chai
 	}
 	if err := s.Txs.View(func(segments []*TxnSegment) error {
 		return s.Bodies.View(func(bodySegments []*BodySegment) error {
+			wg := sync.WaitGroup{}
+			errch := make(chan error, len(segments))
 			for i, sn := range segments {
 				if sn.From < from {
 					continue
@@ -705,7 +707,16 @@ func BuildIndices(ctx context.Context, s *RoSnapshots, snapshotDir *dir.Rw, chai
 					continue
 				}
 
-				if err := TransactionsIdx(ctx, chainID, sn.From, sn.To, snapshotDir, tmpDir, logEvery, lvl); err != nil {
+				wg.Add(1)
+				go func(blockFrom, blockTo uint64) {
+					defer wg.Done()
+					errch <- TransactionsIdx(ctx, chainID, blockFrom, blockTo, snapshotDir, tmpDir, logEvery, lvl)
+				}(sn.From, sn.To)
+			}
+			wg.Wait()
+			close(errch)
+			for err := range errch {
+				if err != nil {
 					return err
 				}
 			}
@@ -1875,6 +1886,7 @@ func (m *Merger) Merge(ctx context.Context, snapshots *RoSnapshots, mergeRanges 
 		if err != nil {
 			return err
 		}
+
 		{
 			segFilePath := filepath.Join(snapshotDir.Path, SegmentFileName(r.from, r.to, Bodies))
 			if err := m.merge(ctx, toMergeBodies, segFilePath, logEvery); err != nil {
