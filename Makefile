@@ -11,7 +11,7 @@ CGO_CFLAGS := CGO_CFLAGS="$(CGO_CFLAGS)"
 DBG_CGO_CFLAGS += -DMDBX_DEBUG=1
 
 GO_MINOR_VERSION = $(shell $(GO) version | cut -c 16-17)
-BUILD_TAGS = nosqlite,noboltdb
+BUILD_TAGS = nosqlite
 PACKAGE = github.com/ledgerwatch/erigon
 
 GO_FLAGS += -trimpath -tags $(BUILD_TAGS) -buildvcs=false

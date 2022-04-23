@@ -3,7 +3,6 @@ package torrentcfg
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"time"
 
 	lg "github.com/anacrolix/log"
@@ -96,7 +95,7 @@ func New(snapshotsDir *dir.Rw, verbosity lg.Level, natif nat.Interface, download
 	torrentConfig.Logger.Handlers = []lg.Handler{adapterHandler{}}
 
 	//c, err := NewMdbxPieceCompletion(db)
-	c, err := storage.NewBoltPieceCompletion(filepath.Join(snapshotsDir.Path, "db"))
+	c, err := storage.NewBoltPieceCompletion(snapshotsDir.Path)
 	if err != nil {
 		return nil, fmt.Errorf("NewBoltPieceCompletion: %w", err)
 	}
