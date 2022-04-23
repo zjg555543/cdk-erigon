@@ -38,8 +38,8 @@ crawshaw.io/sqlite v0.3.3-0.20210127221821-98b1f83c5508/go.mod h1:igAO5JulrQ1Dbd
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 filippo.io/edwards25519 v1.0.0-rc.1 h1:m0VOOB23frXZvAOK44usCgLWvtsxIoMCTBGJZlpmGfU=
-github.com/AlexeyAkhunov/torrent v1.42.1-0.20220423152504-f891d8180118 h1:iU7LR8lyWkaPOxJQXF/Imb3z2sB2RCfMdwPPKCZ0zdo=
-github.com/AlexeyAkhunov/torrent v1.42.1-0.20220423152504-f891d8180118/go.mod h1:QsFkVp////43Z+HqBfmwsxnsI9IXqGtRqNb2XoS0DgY=
+github.com/AlexeyAkhunov/torrent v1.42.1-0.20220423162623-a6c0a6d108b1 h1:BNtAW7CKtBbd4FcI0Z/cumMxOTUifekEl5M9pJZ/4mQ=
+github.com/AlexeyAkhunov/torrent v1.42.1-0.20220423162623-a6c0a6d108b1/go.mod h1:QsFkVp////43Z+HqBfmwsxnsI9IXqGtRqNb2XoS0DgY=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=

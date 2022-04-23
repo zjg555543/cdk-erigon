@@ -175,4 +175,4 @@ require (
 	modernc.org/token v1.0.0 // indirect
 )
 
-replace github.com/anacrolix/torrent => github.com/AlexeyAkhunov/torrent v1.42.1-0.20220423152504-f891d8180118
+replace github.com/anacrolix/torrent => github.com/AlexeyAkhunov/torrent v1.42.1-0.20220423162623-a6c0a6d108b1
