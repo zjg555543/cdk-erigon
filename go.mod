@@ -174,3 +174,5 @@ require (
 	modernc.org/strutil v1.1.1 // indirect
 	modernc.org/token v1.0.0 // indirect
 )
+
+replace github.com/anacrolix/torrent => github.com/AlexeyAkhunov/torrent v1.42.1-0.20220423152504-f891d8180118
