@@ -119,7 +119,7 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 					"download", common2.ByteCount(uint64(stats.readBytesPerSec))+"/s",
 					"upload", common2.ByteCount(uint64(stats.writeBytesPerSec))+"/s",
 					"peers", stats.peersCount,
-					"torrents", stats.torrentsCount,
+					"files", stats.torrentsCount,
 					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 				continue
 			}
@@ -129,7 +129,7 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 				"download", common2.ByteCount(uint64(stats.readBytesPerSec))+"/s",
 				"upload", common2.ByteCount(uint64(stats.writeBytesPerSec))+"/s",
 				"peers", stats.peersCount,
-				"torrents", stats.torrentsCount,
+				"files", stats.torrentsCount,
 				"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 			if stats.peersCount == 0 {
 				ips := torrentClient.BadPeerIPs()
