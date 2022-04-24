@@ -39,6 +39,13 @@ func New(cfg *torrentcfg.Cfg, snapshotDir *dir.Rw) (*Protocols, error) {
 		}
 	}
 
+	//go func() {
+	//	every := time.NewTicker(time.Second * 10)
+	//	for range every.C {
+	//		stats:=torrentClient.ConnStats()
+	//	}
+	//}()
+
 	return &Protocols{
 		cfg:           cfg,
 		TorrentClient: torrentClient,
