@@ -197,8 +197,10 @@ func CalcStats(prevStats AggStats, interval time.Duration, client *torrent.Clien
 	result.minPeers = math.MaxInt
 	for _, t := range torrents {
 		stats := t.Stats()
-		result.minSeeds = min(result.minSeeds, stats.ConnectedSeeders)
-		result.maxSeeds = max(result.maxSeeds, stats.ConnectedSeeders)
+		if !t.Complete.Bool() {
+			result.minSeeds = min(result.minSeeds, stats.ConnectedSeeders)
+			result.maxSeeds = max(result.maxSeeds, stats.ConnectedSeeders)
+		}
 		result.minPeers = min(result.minPeers, stats.ActivePeers)
 		result.maxPeers = max(result.maxPeers, stats.ActivePeers)
 
