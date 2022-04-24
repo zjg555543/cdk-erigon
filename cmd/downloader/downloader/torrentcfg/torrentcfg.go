@@ -99,6 +99,5 @@ func New(snapshotsDir *dir.Rw, verbosity lg.Level, natif nat.Interface, download
 	}
 	m := storage.NewMMapWithCompletion(snapshotsDir.Path, c)
 	torrentConfig.DefaultStorage = m
-
 	return &Cfg{ClientConfig: torrentConfig, DB: db, CompletionCloser: m}, nil
 }

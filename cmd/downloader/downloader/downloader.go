@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 
@@ -117,6 +118,8 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 				continue
 			}
 
+			torrentClient.WriteStatus(os.Stdout)
+
 			runtime.ReadMemStats(&m)
 			stats = CalcStats(stats, interval, torrentClient)
 			if allComplete {
@@ -175,8 +178,14 @@ func CalcStats(prevStats AggStats, interval time.Duration, client *torrent.Clien
 	//var aggCompletedPieces, aggNumPieces, aggPartialPieces int
 	peers := map[torrent.PeerID]*torrent.PeerConn{}
 	torrents := client.Torrents()
+	connStats := client.ConnStats()
+
+	result.bytesRead += connStats.BytesReadData.Int64()
+	result.bytesWritten += connStats.BytesWrittenData.Int64()
 	for _, t := range torrents {
-		stats := t.Stats()
+		//stats := t.Stats()
+		//stats.ActivePeers
+		//stats.ConnectedSeeders
 		/*
 			var completedPieces, partialPieces int
 			psrs := t.PieceStateRuns()
@@ -192,10 +201,9 @@ func CalcStats(prevStats AggStats, interval time.Duration, client *torrent.Clien
 			aggPartialPieces += partialPieces
 			aggNumPieces = t.NumPieces()
 		*/
-		result.bytesRead += stats.BytesRead.Int64() + stats.BytesReadData.Int64()
-		result.bytesWritten += stats.BytesWritten.Int64() + stats.BytesWrittenData.Int64()
 		aggBytesCompleted += t.BytesCompleted()
 		aggLen += t.Length()
+
 		for _, peer := range t.PeerConns() {
 			peers[peer.PeerID] = peer
 		}
