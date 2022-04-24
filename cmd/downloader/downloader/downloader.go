@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"fmt"
+	"math"
 	"runtime"
 	"time"
 
@@ -98,11 +99,6 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 			allComplete := true
 			gotInfo := 0
 			for _, t := range torrents {
-				if t != nil && t.Info() != nil && !t.Complete.Bool() {
-					st := t.Stats()
-					fmt.Printf("alex: %s, peerConns=%d, activePeers=%d, peending=%d, halfOpen=%d, totalPeers=%d, seeders=%d,\n", t.Info().Name, len(t.PeerConns()), st.ActivePeers, st.PendingPeers, st.HalfOpenPeers, st.TotalPeers, st.ConnectedSeeders)
-				}
-
 				select {
 				case <-t.GotInfo(): // all good
 					gotInfo++
@@ -169,6 +165,22 @@ type AggStats struct {
 
 	bytesRead    int64
 	bytesWritten int64
+
+	minPeers, maxPeers int
+	minSeeds, maxSeeds int
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func CalcStats(prevStats AggStats, interval time.Duration, client *torrent.Client) (result AggStats) {
@@ -180,10 +192,16 @@ func CalcStats(prevStats AggStats, interval time.Duration, client *torrent.Clien
 
 	result.bytesRead += connStats.BytesReadUsefulIntendedData.Int64()
 	result.bytesWritten += connStats.BytesWrittenData.Int64()
+
+	result.minSeeds = math.MaxInt
+	result.minPeers = math.MaxInt
 	for _, t := range torrents {
-		//stats := t.Stats()
-		//stats.ActivePeers
-		//stats.ConnectedSeeders
+		stats := t.Stats()
+		result.minSeeds = min(result.minSeeds, stats.ConnectedSeeders)
+		result.maxSeeds = max(result.maxSeeds, stats.ConnectedSeeders)
+		result.minPeers = min(result.minPeers, stats.ActivePeers)
+		result.maxPeers = max(result.maxPeers, stats.ActivePeers)
+
 		/*
 			var completedPieces, partialPieces int
 			psrs := t.PieceStateRuns()
