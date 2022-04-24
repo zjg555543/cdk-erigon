@@ -98,7 +98,7 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 			allComplete := true
 			gotInfo := 0
 			for _, t := range torrents {
-				if t != nil && !t.Complete.Bool() {
+				if t != nil && t.Info() != nil && !t.Complete.Bool() {
 					st := t.Stats()
 					fmt.Printf("alex: %s, peerConns=%d, activePeers=%d, peending=%d, halfOpen=%d, totalPeers=%d, seeders=%d,\n", t.Info().Name, len(t.PeerConns()), st.ActivePeers, st.PendingPeers, st.HalfOpenPeers, st.TotalPeers, st.ConnectedSeeders)
 				}
