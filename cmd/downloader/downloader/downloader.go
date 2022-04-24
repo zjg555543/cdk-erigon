@@ -234,6 +234,12 @@ func CalcStats(prevStats AggStats, interval time.Duration, client *torrent.Clien
 			peers[peer.PeerID] = peer
 		}
 	}
+	if result.minSeeds == math.MaxInt {
+		result.minSeeds = 0
+	}
+	if result.minPeers == math.MaxInt {
+		result.minPeers = 0
+	}
 
 	result.readBytesPerSec += (result.bytesRead - prevStats.bytesRead) / int64(interval.Seconds())
 	result.writeBytesPerSec += (result.bytesWritten - prevStats.bytesWritten) / int64(interval.Seconds())
