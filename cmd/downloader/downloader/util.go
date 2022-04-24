@@ -28,7 +28,7 @@ var Trackers = [][]string{
 	trackers.First(10, trackers.Best),
 	//trackers.First(3, trackers.Udp),
 	//trackers.First(3, trackers.Https),
-	trackers.First(10, trackers.Ws),
+	//trackers.First(10, trackers.Ws),
 }
 
 func AllTorrentPaths(dir string) ([]string, error) {
