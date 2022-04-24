@@ -120,7 +120,11 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 				log.Info("[torrent] Seeding",
 					"download", common2.ByteCount(uint64(stats.readBytesPerSec))+"/s",
 					"upload", common2.ByteCount(uint64(stats.writeBytesPerSec))+"/s",
-					"peers", stats.peersCount,
+					"unique_peers", stats.peersCount,
+					"min_peers", stats.minPeers,
+					"max_peers", stats.maxPeers,
+					"min_seeds", stats.minSeeds,
+					"max_seeds", stats.maxSeeds,
 					"files", stats.torrentsCount,
 					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 				continue
@@ -130,7 +134,11 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 				"Progress", fmt.Sprintf("%.2f%%", stats.Progress),
 				"download", common2.ByteCount(uint64(stats.readBytesPerSec))+"/s",
 				"upload", common2.ByteCount(uint64(stats.writeBytesPerSec))+"/s",
-				"peers", stats.peersCount,
+				"unique_peers", stats.peersCount,
+				"min_peers", stats.minPeers,
+				"max_peers", stats.maxPeers,
+				"min_seeds", stats.minSeeds,
+				"max_seeds", stats.maxSeeds,
 				"files", stats.torrentsCount,
 				"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 			if stats.peersCount == 0 {
