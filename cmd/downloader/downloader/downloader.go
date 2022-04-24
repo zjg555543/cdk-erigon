@@ -119,7 +119,8 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 			}
 
 			torrentClient.WriteStatus(os.Stdout)
-
+			st := torrentClient.ConnStats()
+			fmt.Printf("alex: %d-%d=%d\n", st.BytesReadData.Int64()/1024, st.BytesReadUsefulIntendedData.Int64()/1024, (st.BytesReadData.Int64()-st.BytesReadUsefulIntendedData.Int64())/1024)
 			runtime.ReadMemStats(&m)
 			stats = CalcStats(stats, interval, torrentClient)
 			if allComplete {
@@ -180,7 +181,7 @@ func CalcStats(prevStats AggStats, interval time.Duration, client *torrent.Clien
 	torrents := client.Torrents()
 	connStats := client.ConnStats()
 
-	result.bytesRead += connStats.BytesReadData.Int64()
+	result.bytesRead += connStats.BytesReadUsefulIntendedData.Int64()
 	result.bytesWritten += connStats.BytesWrittenData.Int64()
 	for _, t := range torrents {
 		//stats := t.Stats()
