@@ -101,6 +101,9 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 			for _, t := range torrents {
 				select {
 				case <-t.GotInfo(): // all good
+					t.AllowDataDownload()
+					t.AllowDataUpload()
+					t.DownloadAll()
 					gotInfo++
 				default:
 					t.AllowDataUpload()
