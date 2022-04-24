@@ -105,6 +105,7 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 				default:
 					t.AllowDataUpload()
 					t.AllowDataDownload()
+					t.DownloadAll()
 				}
 				allComplete = allComplete && t.Complete.Bool()
 			}
@@ -308,6 +309,7 @@ func ResolveAbsentTorrents(ctx context.Context, torrentClient *torrent.Client, p
 		}
 		t.AllowDataDownload()
 		t.AllowDataUpload()
+		t.DownloadAll()
 	}
 	if !silent {
 		ctxLocal, cancel := context.WithCancel(ctx)
