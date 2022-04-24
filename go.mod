@@ -9,8 +9,8 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.10.0
 	github.com/VictoriaMetrics/metrics v1.18.1
 	github.com/anacrolix/go-libutp v1.2.0
-	github.com/anacrolix/log v0.13.1
-	github.com/anacrolix/torrent v1.42.0
+	github.com/anacrolix/log v0.11.0
+	github.com/anacrolix/torrent v1.41.1-0.20220309095723-02b6ee995497
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2
 	github.com/consensys/gnark-crypto v0.4.0
@@ -71,12 +71,9 @@ require (
 )
 
 require (
-	crawshaw.io/sqlite v0.3.3-0.20210127221821-98b1f83c5508 // indirect
-	github.com/ajwerner/btree v0.0.0-20211201061316-91c8b66ad617 // indirect
 	github.com/anacrolix/chansync v0.3.0 // indirect
 	github.com/anacrolix/dht/v2 v2.16.2-0.20220311024416-dd658f18fd51 // indirect
 	github.com/anacrolix/envpprof v1.2.1 // indirect
-	github.com/anacrolix/generics v0.0.0-20220217222028-44932cf46edd // indirect
 	github.com/anacrolix/missinggo v1.3.0 // indirect
 	github.com/anacrolix/missinggo/perf v1.0.0 // indirect
 	github.com/anacrolix/missinggo/v2 v2.5.4-0.20220317032254-8c5ea4947a0b // indirect
@@ -149,7 +146,6 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
-	github.com/tidwall/btree v0.7.2-0.20211211132910-4215444137fc // indirect
 	github.com/tklauser/go-sysconf v0.3.9 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
@@ -173,4 +169,5 @@ require (
 	modernc.org/opt v0.1.1 // indirect
 	modernc.org/strutil v1.1.1 // indirect
 	modernc.org/token v1.0.0 // indirect
+	zombiezen.com/go/sqlite v0.8.0 // indirect
 )
