@@ -3,7 +3,6 @@ package downloader
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime"
 	"time"
 
@@ -118,9 +117,7 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 				continue
 			}
 
-			torrentClient.WriteStatus(os.Stdout)
-			st := torrentClient.ConnStats()
-			fmt.Printf("alex: %d-%d=%d\n", st.BytesReadData.Int64()/1024, st.BytesReadUsefulIntendedData.Int64()/1024, (st.BytesReadData.Int64()-st.BytesReadUsefulIntendedData.Int64())/1024)
+			//torrentClient.WriteStatus(os.Stdout)
 			runtime.ReadMemStats(&m)
 			stats = CalcStats(stats, interval, torrentClient)
 			if allComplete {
