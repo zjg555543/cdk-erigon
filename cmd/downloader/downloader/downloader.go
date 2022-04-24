@@ -98,6 +98,8 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 			allComplete := true
 			gotInfo := 0
 			for _, t := range torrents {
+				fmt.Printf("alex: %s, %d\n", t.Info().Name, len(t.PeerConns()))
+
 				select {
 				case <-t.GotInfo(): // all good
 					gotInfo++
