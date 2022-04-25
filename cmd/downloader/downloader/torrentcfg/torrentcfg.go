@@ -3,6 +3,7 @@ package torrentcfg
 import (
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	lg "github.com/anacrolix/log"
@@ -93,6 +94,7 @@ func New(snapshotsDir *dir.Rw, verbosity lg.Level, natif nat.Interface, download
 	}
 	torrentConfig.Logger = lg.Default.FilterLevel(verbosity)
 	torrentConfig.Logger.Handlers = []lg.Handler{adapterHandler{}}
+	torrentConfig.MaxUnverifiedBytes = math.MaxInt
 
 	c, err := NewMdbxPieceCompletion(db)
 	if err != nil {
