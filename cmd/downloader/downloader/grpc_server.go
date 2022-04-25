@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"errors"
+	"io"
 	"path/filepath"
 
 	"github.com/anacrolix/torrent"
@@ -44,7 +45,11 @@ func CreateTorrentFilesAndAdd(ctx context.Context, snapshotDir *dir.Rw, torrentC
 		t.AllowDataUpload()
 		if !t.Complete.Bool() {
 			t.AllowDataDownload()
-			t.DownloadAll()
+			go func() {
+				r := t.NewReader()
+				r.SetReadahead(256 * 1024 * 1024)
+				_, _ = io.Copy(io.Discard, r)
+			}()
 		}
 	}
 	return nil
