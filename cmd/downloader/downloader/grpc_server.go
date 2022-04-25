@@ -47,7 +47,7 @@ func CreateTorrentFilesAndAdd(ctx context.Context, snapshotDir *dir.Rw, torrentC
 			t.AllowDataDownload()
 			go func() {
 				r := t.NewReader()
-				r.SetReadahead(256 * 1024 * 1024)
+				r.SetReadahead(128 * 1024 * 1024)
 				_, _ = io.Copy(io.Discard, r)
 			}()
 		}
