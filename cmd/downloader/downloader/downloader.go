@@ -117,6 +117,7 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 					"download", common2.ByteCount(uint64(stats.readBytesPerSec))+"/s",
 					"upload", common2.ByteCount(uint64(stats.writeBytesPerSec))+"/s",
 					"unique_peers", stats.peersCount,
+					"connections", stats.conns,
 					"files", stats.torrentsCount,
 					"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 				continue
@@ -127,6 +128,7 @@ func LoggingLoop(ctx context.Context, torrentClient *torrent.Client) {
 				"download", common2.ByteCount(uint64(stats.readBytesPerSec))+"/s",
 				"upload", common2.ByteCount(uint64(stats.writeBytesPerSec))+"/s",
 				"unique_peers", stats.peersCount,
+				"connections", stats.conns,
 				"files", stats.torrentsCount,
 				"alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
 			if stats.peersCount == 0 {
@@ -161,6 +163,7 @@ type AggStats struct {
 
 	bytesRead    int64
 	bytesWritten int64
+	conns        int
 }
 
 func min(a, b int) int {
@@ -191,6 +194,7 @@ func CalcStats(prevStats AggStats, interval time.Duration, client *torrent.Clien
 		aggLen += t.Length()
 
 		for _, peer := range t.PeerConns() {
+			result.conns++
 			peers[peer.PeerID] = peer
 		}
 	}
@@ -285,39 +289,6 @@ func ResolveAbsentTorrents(ctx context.Context, torrentClient *torrent.Client, p
 	}
 
 	return nil
-}
-
-//nolint
-func waitForChecksumVerify(ctx context.Context, torrentClient *torrent.Client) {
-	//TODO: tr.VerifyData() - find when to call it
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go func() {
-		interval := time.Second * 5
-		logEvery := time.NewTicker(interval)
-		defer logEvery.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-logEvery.C:
-				var aggBytesCompleted, aggLen int64
-				for _, t := range torrentClient.Torrents() {
-					aggBytesCompleted += t.BytesCompleted()
-					aggLen += t.Length()
-				}
-
-				line := fmt.Sprintf(
-					"[torrent] verifying snapshots: %s/%s",
-					common2.ByteCount(uint64(aggBytesCompleted)),
-					common2.ByteCount(uint64(aggLen)),
-				)
-				log.Info(line)
-			}
-		}
-	}()
-	torrentClient.WaitAll() // wait for checksum verify
 }
 
 func VerifyDtaFiles(ctx context.Context, snapshotDir string) error {
