@@ -74,6 +74,7 @@ func StageExecuteBlocksCfg(
 	tmpdir string,
 	blockReader interfaces.FullBlockReader,
 ) ExecuteBlockCfg {
+	panic(prune.Receipts)
 	return ExecuteBlockCfg{
 		db:            kv,
 		prune:         prune,

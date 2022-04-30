@@ -52,6 +52,8 @@ func FromCli(flags string, exactHistory, exactReceipts, exactTxIndex, exactCallT
 	if exactReceipts > 0 {
 		mode.Receipts = Distance(exactReceipts)
 	}
+	fmt.Printf("from cli flags: %d\n", mode.Receipts)
+
 	if exactTxIndex > 0 {
 		mode.TxIndex = Distance(exactTxIndex)
 	}
@@ -103,7 +105,9 @@ func Get(db kv.Getter) (Mode, error) {
 		return prune, err
 	}
 	if blockAmount != nil {
+		fmt.Printf("from db: %d, %d\n", prune.Receipts, blockAmount)
 		prune.Receipts = blockAmount
+		fmt.Printf("from db2: %d, %d\n", prune.Receipts, blockAmount)
 	}
 
 	blockAmount, err = get(db, kv.PruneTxIndex)
@@ -261,6 +265,7 @@ func Override(db kv.RwTx, sm Mode) error {
 
 // EnsureNotChanged - prohibit change some configs after node creation. prohibit from human mistakes
 func EnsureNotChanged(tx kv.GetPut, pruneMode Mode) (Mode, error) {
+	fmt.Printf("EnsureNotChanged: %d\n", pruneMode.Receipts)
 	err := setIfNotExist(tx, pruneMode)
 	if err != nil {
 		return pruneMode, err
