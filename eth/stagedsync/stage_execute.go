@@ -285,6 +285,7 @@ Loop:
 		writeChangeSets := nextStagesExpectData || blockNum > cfg.prune.History.PruneTo(to)
 		writeReceipts := nextStagesExpectData || blockNum > cfg.prune.Receipts.PruneTo(to)
 		fmt.Printf("writeReceipts: %t, %t, blockNum=%d, to=%d, pruneTo=%d \n", writeReceipts, nextStagesExpectData, blockNum, to, cfg.prune.Receipts.PruneTo(to))
+		fmt.Printf("writeReceipts2: %d \n", cfg.prune.Receipts)
 		writeCallTraces := nextStagesExpectData || blockNum > cfg.prune.CallTraces.PruneTo(to)
 		if err = executeBlock(block, tx, batch, cfg, *cfg.vmConfig, writeChangeSets, writeReceipts, writeCallTraces, contractHasTEVM, initialCycle); err != nil {
 			log.Error(fmt.Sprintf("[%s] Execution failed", logPrefix), "block", blockNum, "hash", block.Hash().String(), "err", err)
