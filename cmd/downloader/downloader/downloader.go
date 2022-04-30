@@ -92,7 +92,7 @@ func (cli *Protocols) Start(ctx context.Context, silent bool) error {
 					return
 				}
 				t.AllowDataDownload()
-				//t.DownloadAll()
+				t.DownloadAll()
 				go func(t *torrent.Torrent) {
 					r := t.NewReader()
 					r.SetReadahead(int64(t.NumPieces() * torrentcfg.DefaultPieceSize))
