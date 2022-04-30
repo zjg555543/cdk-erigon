@@ -168,12 +168,12 @@ func Downloader(ctx context.Context) error {
 
 	bittorrentServer, err := downloader.NewGrpcServer(protocols.DB, protocols, snapshotDir)
 	if err != nil {
-		return fmt.Errorf("new server: %w", err)
+		return fmt.Errorf("NewGrpcServer: %w", err)
 	}
 
 	grpcServer, err := StartGrpc(bittorrentServer, downloaderApiAddr, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("StartGrpc: %w", err)
 	}
 	defer grpcServer.GracefulStop()
 
