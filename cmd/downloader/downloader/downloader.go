@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"fmt"
+	"io"
 	"runtime"
 	"sync"
 	"time"
@@ -91,10 +92,12 @@ func (cli *Protocols) Start(ctx context.Context, silent bool) error {
 					return
 				}
 				t.AllowDataDownload()
-				t.DownloadAll()
+				//t.DownloadAll()
 				go func(t *torrent.Torrent) {
-					//r := t.NewReader()
-					//_, _ = io.Copy(io.Discard, r) // enable streaming - it will prioritize sequential download
+					r := t.NewReader()
+					r.SetReadahead(int64(t.NumPieces() * torrentcfg.DefaultPieceSize))
+					buf := make([]byte, 32*1024)
+					_, _ = io.CopyBuffer(io.Discard, r, buf) // enable streaming - it will prioritize sequential download
 
 					<-t.Complete.On()
 					sem.Release(1)
