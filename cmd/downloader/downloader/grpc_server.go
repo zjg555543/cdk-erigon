@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"errors"
+	"os"
 
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/ledgerwatch/erigon-lib/common/dir"
@@ -39,6 +40,7 @@ type GrpcServer struct {
 }
 
 func (s *GrpcServer) Download(ctx context.Context, request *proto_downloader.DownloadRequest) (*emptypb.Empty, error) {
+	s.t.TorrentClient.WriteStatus(os.Stdout)
 	torrentClient := s.t.TorrentClient
 	mi := &metainfo.MetaInfo{AnnounceList: Trackers}
 	for _, it := range request.Items {
