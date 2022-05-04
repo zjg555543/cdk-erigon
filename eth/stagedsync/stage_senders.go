@@ -405,6 +405,12 @@ func PruneSendersStage(s *PruneState, tx kv.RwTx, cfg SendersCfg, ctx context.Co
 func retireBlocksInSingleBackgroundThread(s *PruneState, cfg SendersCfg, ctx context.Context) (err error) {
 	// if something already happens in background - noop
 	if cfg.blockRetire.Working() {
+		log.Warn("snap: working...")
+		blockFrom, blockTo, ok := snapshotsync.CanRetire(s.ForwardProgress, cfg.blockRetire.Snapshots())
+		if !ok {
+			return nil
+		}
+		log.Warn("snap: can retire...", "from", blockFrom, "to", blockTo, "ok", ok)
 		return nil
 	}
 	if res := cfg.blockRetire.Result(); res != nil {
@@ -417,6 +423,7 @@ func retireBlocksInSingleBackgroundThread(s *PruneState, cfg SendersCfg, ctx con
 	if !ok {
 		return nil
 	}
+	log.Warn("snap: can retire...", "from", blockFrom, "to", blockTo, "ok", ok)
 
 	chainID, _ := uint256.FromBig(cfg.chainConfig.ChainID)
 	cfg.blockRetire.RetireBlocksInBackground(ctx, blockFrom, blockTo, *chainID, log.LvlInfo)
