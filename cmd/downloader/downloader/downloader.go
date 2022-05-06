@@ -18,13 +18,15 @@ import (
 )
 
 type Downloader struct {
-	torrentClient *torrent.Client
-	db            kv.RwDB
-	cfg           *torrentcfg.Cfg
-
-	statsLock   *sync.RWMutex
-	stats       AggStats
+	db          kv.RwDB
+	cfg         *torrentcfg.Cfg
 	snapshotDir *dir.Rw
+
+	torrentClient *torrent.Client
+	torrentMu     sync.RWMutex
+
+	stats     AggStats
+	statsLock *sync.RWMutex
 }
 
 type AggStats struct {
@@ -116,6 +118,11 @@ func (d *Downloader) Start(ctx context.Context, silent bool) error {
 				return
 			case <-statEvery.C:
 				d.ReCalcStats(interval)
+				stats := d.Stats()
+				if stats.Completed {
+					d.OnComplete()
+					//TODO: d
+				}
 
 			case <-logEvery.C:
 				if silent {
@@ -204,6 +211,9 @@ func (d *Downloader) ReCalcStats(interval time.Duration) {
 	}
 	stats.PeersUnique = int32(len(peers))
 	stats.FilesTotal = int32(len(torrents))
+	if prevStats.Completed == false && stats.Completed == true {
+		d.OnComplete()
+	}
 
 	d.stats = stats
 }
@@ -224,11 +234,6 @@ func (d *Downloader) Close() {
 	}
 }
 
-func (d *Downloader) PeerID() []byte {
-	peerID := d.torrentClient.PeerID()
-	return peerID[:]
-}
-
 func (d *Downloader) StopSeeding(hash metainfo.Hash) error {
 	t, ok := d.torrentClient.Torrent(hash)
 	if !ok {
@@ -241,5 +246,15 @@ func (d *Downloader) StopSeeding(hash metainfo.Hash) error {
 }
 
 func (d *Downloader) Torrent() *torrent.Client {
+	d.torrentMu.RLock()
+	defer d.torrentMu.RUnlock()
+	return d.torrentClient
+}
+
+// OnComplete is called when all torrents are fully downloaded
+func (d *Downloader) OnComplete() *torrent.Client {
+	d.torrentMu.Lock()
+	defer d.torrentMu.Unlock()
+	// TODO: stop, rename snapshotDir, start (or create new torrent client)
 	return d.torrentClient
 }
