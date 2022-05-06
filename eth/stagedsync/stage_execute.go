@@ -272,6 +272,7 @@ Loop:
 			log.Error(fmt.Sprintf("[%s] Empty block", logPrefix), "blocknum", blockNum)
 			break
 		}
+		fmt.Printf("block: %d, %x, %x\n", block.NumberU64(), block.Hash(), block.Header().Hash())
 
 		lastLogTx += uint64(block.Transactions().Len())
 
