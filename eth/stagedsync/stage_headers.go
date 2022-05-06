@@ -1130,6 +1130,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 	}
 
 	if s.BlockNumber < cfg.snapshots.BlocksAvailable() { // allow genesis
+		fmt.Printf("why i started writing canonical??? %d, %d\n", s.BlockNumber, cfg.snapshots.BlocksAvailable())
 		logEvery := time.NewTicker(logInterval)
 		defer logEvery.Stop()
 
