@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"runtime/debug"
 
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/remote"
@@ -296,7 +295,7 @@ func (back *BlockReaderWithSnapshots) Header(ctx context.Context, tx kv.Getter, 
 			return nil
 		})
 
-		fmt.Printf("%s\n\n", debug.Stack())
+		//fmt.Printf("%s\n\n", debug.Stack())
 	}
 	return h, nil
 }
