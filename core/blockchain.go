@@ -286,9 +286,7 @@ func ExecuteBlockEphemerally(
 	if chainConfig.IsByzantium(header.Number.Uint64()) && !vmConfig.NoReceipts {
 		receiptSha := types.DeriveSha(receipts)
 		if receiptSha != block.ReceiptHash() {
-			a, _ := json.Marshal(receipts)
-			fmt.Printf("receipts: %s\n", a)
-			return nil, nil, fmt.Errorf("mismatched receipt headers for block %d, result %x, in block %x, txs.Len=%d, recepts.len=%d\n", block.NumberU64(), receiptSha, block.ReceiptHash(), block.Transactions().Len(), len(receipts))
+			return nil, nil, fmt.Errorf("mismatched receipt headers for block %d, result %x, in block %x, txs.Len=%d, recepts.len=%d", block.NumberU64(), receiptSha, block.ReceiptHash(), block.Transactions().Len(), len(receipts))
 		}
 	}
 
