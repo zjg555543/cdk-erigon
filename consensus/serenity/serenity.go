@@ -81,6 +81,8 @@ func (s *Serenity) VerifyHeader(chain consensus.ChainHeaderReader, header *types
 	// Short circuit if the parent is not known
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
+		fmt.Printf("no parent! %x, %x\n", header.Hash(), header.ParentHash)
+		panic(consensus.ErrUnknownAncestor)
 		return consensus.ErrUnknownAncestor
 	}
 
