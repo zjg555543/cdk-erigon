@@ -278,7 +278,7 @@ func (back *BlockReaderWithSnapshots) Header(ctx context.Context, tx kv.Getter, 
 	}
 
 	h = rawdb.ReadHeader(tx, hash, blockHeight)
-	fmt.Printf("alex2 read from db, %t, %d, %x\n", h == nil, blockHeight, hash)
+	fmt.Printf("BlockReaderWithSnapshots.Header read from db, %t, %d, %x\n", h == nil, blockHeight, hash)
 	return h, nil
 }
 
