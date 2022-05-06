@@ -285,7 +285,7 @@ func (back *BlockReaderWithSnapshots) Header(ctx context.Context, tx kv.Getter, 
 	h = rawdb.ReadHeader(tx, hash, blockHeight)
 	if h == nil {
 		fmt.Printf("BlockReaderWithSnapshots.Header from db is nil: %d, %x\n", blockHeight, hash)
-		tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(blockHeight-1), 3, func(k, v []byte) error {
+		tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(blockHeight-100), 3, func(k, v []byte) error {
 			fmt.Printf("canonical: %d, %x\n", binary.BigEndian.Uint64(k), v)
 			return nil
 		})
