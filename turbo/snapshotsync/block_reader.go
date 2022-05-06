@@ -289,6 +289,7 @@ func (back *BlockReaderWithSnapshots) Header(ctx context.Context, tx kv.Getter, 
 			fmt.Printf("canonical: %d, %x\n", binary.BigEndian.Uint64(k), v)
 			return nil
 		})
+		panic(1)
 		fmt.Printf("\n\n")
 	}
 	return h, nil
