@@ -988,7 +988,6 @@ func (cr chainReader) GetHeader(hash common.Hash, number uint64) *types.Header {
 	if cr.blockReader != nil {
 		h, err := cr.blockReader.Header(context.Background(), cr.tx, hash, number)
 		if h == nil {
-
 			fmt.Printf("alex header is nil: %s, %x\n", err, hash)
 		} else {
 
