@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"runtime/debug"
 
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/remote"
@@ -286,12 +285,17 @@ func (back *BlockReaderWithSnapshots) Header(ctx context.Context, tx kv.Getter, 
 	h = rawdb.ReadHeader(tx, hash, blockHeight)
 	if h == nil {
 		fmt.Printf("BlockReaderWithSnapshots.Header from db is nil: %d, %x\n", blockHeight, hash)
-		tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(blockHeight-3), 3, func(k, v []byte) error {
+
+		tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(blockHeight-1), 3, func(k, v []byte) error {
+			fmt.Printf("headers: %d, %x\n", binary.BigEndian.Uint64(k), k[8:])
+			return nil
+		})
+		tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(blockHeight-1), 3, func(k, v []byte) error {
 			fmt.Printf("canonical: %d, %x\n", binary.BigEndian.Uint64(k), v)
 			return nil
 		})
 
-		fmt.Printf("%s\n\n", debug.Stack())
+		//fmt.Printf("%s\n\n", debug.Stack())
 	}
 	return h, nil
 }
