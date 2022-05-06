@@ -274,10 +274,16 @@ func (back *BlockReaderWithSnapshots) Header(ctx context.Context, tx kv.Getter, 
 		return nil
 	})
 	if ok {
+		if h == nil {
+			fmt.Printf("BlockReaderWithSnapshots.Header is nil: %d\n", blockHeight)
+		}
 		return h, nil
 	}
 
 	h = rawdb.ReadHeader(tx, hash, blockHeight)
+	if h == nil {
+		fmt.Printf("BlockReaderWithSnapshots.Header from db is nil: %d\n", blockHeight)
+	}
 	return h, nil
 }
 
