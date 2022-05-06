@@ -264,6 +264,8 @@ Loop:
 		if err != nil {
 			return err
 		}
+		lastKey, _ := rawdb.LastKey(tx, kv.HeaderCanonical)
+		fmt.Printf("last canonical: %d\n", binary.BigEndian.Uint64(lastKey))
 		block, _, err := cfg.blockReader.BlockWithSenders(ctx, tx, blockHash, blockNum)
 		if err != nil {
 			return err
