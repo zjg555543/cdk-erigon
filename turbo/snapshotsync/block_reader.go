@@ -3,6 +3,7 @@ package snapshotsync
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
@@ -10,6 +11,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/recsplit"
 	"github.com/ledgerwatch/erigon/common"
+	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/rlp"
@@ -283,6 +285,11 @@ func (back *BlockReaderWithSnapshots) Header(ctx context.Context, tx kv.Getter, 
 	h = rawdb.ReadHeader(tx, hash, blockHeight)
 	if h == nil {
 		fmt.Printf("BlockReaderWithSnapshots.Header from db is nil: %d, %x\n", blockHeight, hash)
+		tx.ForAmount(kv.HeaderCanonical, dbutils.EncodeBlockNumber(blockHeight-1), 3, func(k, v []byte) error {
+			fmt.Printf("canonical: %d, %x\n", binary.BigEndian.Uint64(k), v)
+			return nil
+		})
+		fmt.Printf("\n\n")
 	}
 	return h, nil
 }
