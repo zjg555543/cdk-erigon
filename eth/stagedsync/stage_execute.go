@@ -264,8 +264,10 @@ Loop:
 		if err != nil {
 			return err
 		}
-		lastKey, _ := rawdb.LastKey(tx, kv.HeaderCanonical)
-		fmt.Printf("last canonical: %d\n", binary.BigEndian.Uint64(lastKey))
+		if blockHash == (common.Hash{}) {
+			lastKey, _ := rawdb.LastKey(tx, kv.HeaderCanonical)
+			return fmt.Errorf("[%s] block %d has no canonical marker. last block with such marker: %d", logPrefix, blockNum, binary.BigEndian.Uint64(lastKey))
+		}
 		block, _, err := cfg.blockReader.BlockWithSenders(ctx, tx, blockHash, blockNum)
 		if err != nil {
 			return err
