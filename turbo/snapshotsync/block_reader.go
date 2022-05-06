@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/remote"
@@ -289,8 +290,8 @@ func (back *BlockReaderWithSnapshots) Header(ctx context.Context, tx kv.Getter, 
 			fmt.Printf("canonical: %d, %x\n", binary.BigEndian.Uint64(k), v)
 			return nil
 		})
-		panic(1)
-		fmt.Printf("\n\n")
+
+		fmt.Printf("%s\n\n", debug.Stack())
 	}
 	return h, nil
 }
