@@ -429,6 +429,7 @@ func (cs *MultyClient) newBlockHashes66(ctx context.Context, req *proto_sentry.I
 }
 
 func (cs *MultyClient) blockHeaders66(ctx context.Context, in *proto_sentry.InboundMessage, sentry direct.SentryClient) error {
+	defer func(t time.Time) { fmt.Printf("sentry_multy_client.go:432: %s\n", time.Since(t)) }(time.Now())
 	// Parse the entire packet from scratch
 	var pkt eth.BlockHeadersPacket66
 	if err := rlp.DecodeBytes(in.Data, &pkt); err != nil {
