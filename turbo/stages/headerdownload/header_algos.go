@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"math/big"
+	"math/rand"
 	"sort"
 	"strings"
 	"time"
@@ -958,7 +959,7 @@ func (hd *HeaderDownload) ProcessSegment(segment ChainSegment, newBlock bool, pe
 			anchor.links = append(anchor.links, link)
 			hd.anchors[anchor.parentHash] = anchor
 			heap.Push(hd.anchorQueue, anchor)
-			requestMore = true
+			requestMore = rand.Uint32()%100 == 0
 		}
 	}
 	log.Trace("Link queue", "size", hd.linkQueue.Len())
