@@ -1,0 +1,160 @@
+{"Time":"2022-05-07T14:48:11.731391+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestBodiesUnwind"}
+{"Time":"2022-05-07T14:48:11.732488+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestBodiesUnwind","Output":"=== RUN   TestBodiesUnwind\n"}
+{"Time":"2022-05-07T14:48:11.759147+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestBodiesUnwind","Output":"--- PASS: TestBodiesUnwind (0.03s)\n"}
+{"Time":"2022-05-07T14:48:11.759176+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestBodiesUnwind","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:11.75974+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestCallTrace"}
+{"Time":"2022-05-07T14:48:11.759751+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestCallTrace","Output":"=== RUN   TestCallTrace\n"}
+{"Time":"2022-05-07T14:48:11.783484+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestCallTrace","Output":"--- PASS: TestCallTrace (0.02s)\n"}
+{"Time":"2022-05-07T14:48:11.783509+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestCallTrace","Elapsed":0.02}
+{"Time":"2022-05-07T14:48:11.783514+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainStatic"}
+{"Time":"2022-05-07T14:48:11.783526+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainStatic","Output":"=== RUN   TestUnwindExecutionStagePlainStatic\n"}
+{"Time":"2022-05-07T14:48:11.835983+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainStatic","Output":"--- PASS: TestUnwindExecutionStagePlainStatic (0.05s)\n"}
+{"Time":"2022-05-07T14:48:11.83602+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainStatic","Elapsed":0.05}
+{"Time":"2022-05-07T14:48:11.836034+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithIncarnationChanges"}
+{"Time":"2022-05-07T14:48:11.836044+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithIncarnationChanges","Output":"=== RUN   TestUnwindExecutionStagePlainWithIncarnationChanges\n"}
+{"Time":"2022-05-07T14:48:11.894395+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithIncarnationChanges","Output":"--- PASS: TestUnwindExecutionStagePlainWithIncarnationChanges (0.06s)\n"}
+{"Time":"2022-05-07T14:48:11.89443+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithIncarnationChanges","Elapsed":0.06}
+{"Time":"2022-05-07T14:48:11.894454+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithCodeChanges"}
+{"Time":"2022-05-07T14:48:11.89446+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithCodeChanges","Output":"=== RUN   TestUnwindExecutionStagePlainWithCodeChanges\n"}
+{"Time":"2022-05-07T14:48:11.89447+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithCodeChanges","Output":"    stage_execute_test.go:54: not supported yet, to be restored\n"}
+{"Time":"2022-05-07T14:48:11.894482+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithCodeChanges","Output":"--- SKIP: TestUnwindExecutionStagePlainWithCodeChanges (0.00s)\n"}
+{"Time":"2022-05-07T14:48:11.894499+07:00","Action":"skip","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindExecutionStagePlainWithCodeChanges","Elapsed":0}
+{"Time":"2022-05-07T14:48:11.894504+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPruneExecution"}
+{"Time":"2022-05-07T14:48:11.894509+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPruneExecution","Output":"=== RUN   TestPruneExecution\n"}
+{"Time":"2022-05-07T14:48:11.929312+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPruneExecution","Output":"--- PASS: TestPruneExecution (0.03s)\n"}
+{"Time":"2022-05-07T14:48:11.929355+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPruneExecution","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:11.929364+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateClearState"}
+{"Time":"2022-05-07T14:48:11.929391+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateClearState","Output":"=== RUN   TestPromoteHashedStateClearState\n"}
+{"Time":"2022-05-07T14:48:11.981125+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateClearState","Output":"--- PASS: TestPromoteHashedStateClearState (0.05s)\n"}
+{"Time":"2022-05-07T14:48:11.981153+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateClearState","Elapsed":0.05}
+{"Time":"2022-05-07T14:48:11.98116+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateIncremental"}
+{"Time":"2022-05-07T14:48:11.981176+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateIncremental","Output":"=== RUN   TestPromoteHashedStateIncremental\n"}
+{"Time":"2022-05-07T14:48:12.034809+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateIncremental","Output":"--- PASS: TestPromoteHashedStateIncremental (0.05s)\n"}
+{"Time":"2022-05-07T14:48:12.034835+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateIncremental","Elapsed":0.05}
+{"Time":"2022-05-07T14:48:12.034845+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateIncrementalMixed"}
+{"Time":"2022-05-07T14:48:12.034849+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateIncrementalMixed","Output":"=== RUN   TestPromoteHashedStateIncrementalMixed\n"}
+{"Time":"2022-05-07T14:48:12.088917+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateIncrementalMixed","Output":"--- PASS: TestPromoteHashedStateIncrementalMixed (0.05s)\n"}
+{"Time":"2022-05-07T14:48:12.088944+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateIncrementalMixed","Elapsed":0.05}
+{"Time":"2022-05-07T14:48:12.088952+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashed"}
+{"Time":"2022-05-07T14:48:12.088957+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashed","Output":"=== RUN   TestUnwindHashed\n"}
+{"Time":"2022-05-07T14:48:12.143329+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashed","Output":"--- PASS: TestUnwindHashed (0.05s)\n"}
+{"Time":"2022-05-07T14:48:12.14336+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashed","Elapsed":0.05}
+{"Time":"2022-05-07T14:48:12.143379+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown"}
+{"Time":"2022-05-07T14:48:12.143384+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown","Output":"=== RUN   TestPromoteIncrementallyShutdown\n"}
+{"Time":"2022-05-07T14:48:12.14339+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown/cancel"}
+{"Time":"2022-05-07T14:48:12.143394+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown/cancel","Output":"=== RUN   TestPromoteIncrementallyShutdown/cancel\n"}
+{"Time":"2022-05-07T14:48:12.169684+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown/no_cancel"}
+{"Time":"2022-05-07T14:48:12.169709+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown/no_cancel","Output":"=== RUN   TestPromoteIncrementallyShutdown/no_cancel\n"}
+{"Time":"2022-05-07T14:48:12.196657+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown","Output":"--- PASS: TestPromoteIncrementallyShutdown (0.05s)\n"}
+{"Time":"2022-05-07T14:48:12.196685+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown/cancel","Output":"    --- PASS: TestPromoteIncrementallyShutdown/cancel (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.196692+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown/cancel","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.196699+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown/no_cancel","Output":"    --- PASS: TestPromoteIncrementallyShutdown/no_cancel (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.196705+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown/no_cancel","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.196709+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteIncrementallyShutdown","Elapsed":0.05}
+{"Time":"2022-05-07T14:48:12.196714+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown"}
+{"Time":"2022-05-07T14:48:12.196718+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown","Output":"=== RUN   TestPromoteHashedStateCleanlyShutdown\n"}
+{"Time":"2022-05-07T14:48:12.196762+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown/cancel"}
+{"Time":"2022-05-07T14:48:12.196775+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown/cancel","Output":"=== RUN   TestPromoteHashedStateCleanlyShutdown/cancel\n"}
+{"Time":"2022-05-07T14:48:12.224518+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown/no_cancel"}
+{"Time":"2022-05-07T14:48:12.224543+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown/no_cancel","Output":"=== RUN   TestPromoteHashedStateCleanlyShutdown/no_cancel\n"}
+{"Time":"2022-05-07T14:48:12.251033+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown","Output":"--- PASS: TestPromoteHashedStateCleanlyShutdown (0.05s)\n"}
+{"Time":"2022-05-07T14:48:12.251054+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown/cancel","Output":"    --- PASS: TestPromoteHashedStateCleanlyShutdown/cancel (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.251059+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown/cancel","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.251064+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown/no_cancel","Output":"    --- PASS: TestPromoteHashedStateCleanlyShutdown/no_cancel (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.251068+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown/no_cancel","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.251086+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestPromoteHashedStateCleanlyShutdown","Elapsed":0.05}
+{"Time":"2022-05-07T14:48:12.251089+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown"}
+{"Time":"2022-05-07T14:48:12.251094+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown","Output":"=== RUN   TestUnwindHashStateShutdown\n"}
+{"Time":"2022-05-07T14:48:12.2511+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown/cancel"}
+{"Time":"2022-05-07T14:48:12.251103+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown/cancel","Output":"=== RUN   TestUnwindHashStateShutdown/cancel\n"}
+{"Time":"2022-05-07T14:48:12.277624+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown/no_cancel"}
+{"Time":"2022-05-07T14:48:12.277649+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown/no_cancel","Output":"=== RUN   TestUnwindHashStateShutdown/no_cancel\n"}
+{"Time":"2022-05-07T14:48:12.304219+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown","Output":"--- PASS: TestUnwindHashStateShutdown (0.05s)\n"}
+{"Time":"2022-05-07T14:48:12.304247+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown/cancel","Output":"    --- PASS: TestUnwindHashStateShutdown/cancel (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.304254+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown/cancel","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.304262+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown/no_cancel","Output":"    --- PASS: TestUnwindHashStateShutdown/no_cancel (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.304267+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown/no_cancel","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.304272+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindHashStateShutdown","Elapsed":0.05}
+{"Time":"2022-05-07T14:48:12.304277+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase"}
+{"Time":"2022-05-07T14:48:12.304281+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase","Output":"=== RUN   TestIndexGenerator_GenerateIndex_SimpleCase\n"}
+{"Time":"2022-05-07T14:48:12.307297+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase/account_plain_state"}
+{"Time":"2022-05-07T14:48:12.307313+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase/account_plain_state","Output":"=== RUN   TestIndexGenerator_GenerateIndex_SimpleCase/account_plain_state\n"}
+{"Time":"2022-05-07T14:48:12.33276+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase/storage_plain_state"}
+{"Time":"2022-05-07T14:48:12.332777+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase/storage_plain_state","Output":"=== RUN   TestIndexGenerator_GenerateIndex_SimpleCase/storage_plain_state\n"}
+{"Time":"2022-05-07T14:48:12.365869+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase","Output":"--- PASS: TestIndexGenerator_GenerateIndex_SimpleCase (0.06s)\n"}
+{"Time":"2022-05-07T14:48:12.365904+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase/account_plain_state","Output":"    --- PASS: TestIndexGenerator_GenerateIndex_SimpleCase/account_plain_state (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.365912+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase/account_plain_state","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.365919+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase/storage_plain_state","Output":"    --- PASS: TestIndexGenerator_GenerateIndex_SimpleCase/storage_plain_state (0.01s)\n"}
+{"Time":"2022-05-07T14:48:12.365928+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase/storage_plain_state","Elapsed":0.01}
+{"Time":"2022-05-07T14:48:12.365933+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_GenerateIndex_SimpleCase","Elapsed":0.06}
+{"Time":"2022-05-07T14:48:12.365937+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_Truncate"}
+{"Time":"2022-05-07T14:48:12.365942+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_Truncate","Output":"=== RUN   TestIndexGenerator_Truncate\n"}
+{"Time":"2022-05-07T14:48:12.421293+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_Truncate","Output":"--- PASS: TestIndexGenerator_Truncate (0.06s)\n"}
+{"Time":"2022-05-07T14:48:12.421323+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIndexGenerator_Truncate","Elapsed":0.06}
+{"Time":"2022-05-07T14:48:12.421331+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestRoaringCanParseRealDBValue"}
+{"Time":"2022-05-07T14:48:12.421336+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestRoaringCanParseRealDBValue","Output":"=== RUN   TestRoaringCanParseRealDBValue\n"}
+{"Time":"2022-05-07T14:48:12.421387+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestRoaringCanParseRealDBValue","Output":"--- PASS: TestRoaringCanParseRealDBValue (0.00s)\n"}
+{"Time":"2022-05-07T14:48:12.421407+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestRoaringCanParseRealDBValue","Elapsed":0}
+{"Time":"2022-05-07T14:48:12.421422+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestAccountAndStorageTrie"}
+{"Time":"2022-05-07T14:48:12.42144+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestAccountAndStorageTrie","Output":"=== RUN   TestAccountAndStorageTrie\n"}
+{"Time":"2022-05-07T14:48:12.44808+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestAccountAndStorageTrie","Output":"--- PASS: TestAccountAndStorageTrie (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.448101+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestAccountAndStorageTrie","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.448106+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestAccountTrieAroundExtensionNode"}
+{"Time":"2022-05-07T14:48:12.448109+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestAccountTrieAroundExtensionNode","Output":"=== RUN   TestAccountTrieAroundExtensionNode\n"}
+{"Time":"2022-05-07T14:48:12.471955+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestAccountTrieAroundExtensionNode","Output":"--- PASS: TestAccountTrieAroundExtensionNode (0.02s)\n"}
+{"Time":"2022-05-07T14:48:12.471982+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestAccountTrieAroundExtensionNode","Elapsed":0.02}
+{"Time":"2022-05-07T14:48:12.47199+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStorageDeletion"}
+{"Time":"2022-05-07T14:48:12.471995+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStorageDeletion","Output":"=== RUN   TestStorageDeletion\n"}
+{"Time":"2022-05-07T14:48:12.497992+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStorageDeletion","Output":"--- PASS: TestStorageDeletion (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.498023+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStorageDeletion","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.498032+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIssuanceStage"}
+{"Time":"2022-05-07T14:48:12.498037+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIssuanceStage","Output":"=== RUN   TestIssuanceStage\n"}
+{"Time":"2022-05-07T14:48:12.523591+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIssuanceStage","Output":"--- PASS: TestIssuanceStage (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.523619+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestIssuanceStage","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.523627+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestLogIndex"}
+{"Time":"2022-05-07T14:48:12.523633+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestLogIndex","Output":"=== RUN   TestLogIndex\n"}
+{"Time":"2022-05-07T14:48:12.551537+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestLogIndex","Output":"--- PASS: TestLogIndex (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.551567+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestLogIndex","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.551575+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSenders"}
+{"Time":"2022-05-07T14:48:12.55158+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSenders","Output":"=== RUN   TestSenders\n"}
+{"Time":"2022-05-07T14:48:12.577373+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSenders","Output":"--- PASS: TestSenders (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.577396+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSenders","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.577402+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStagesSuccess"}
+{"Time":"2022-05-07T14:48:12.577406+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStagesSuccess","Output":"=== RUN   TestStagesSuccess\n"}
+{"Time":"2022-05-07T14:48:12.601734+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStagesSuccess","Output":"--- PASS: TestStagesSuccess (0.02s)\n"}
+{"Time":"2022-05-07T14:48:12.601763+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStagesSuccess","Elapsed":0.02}
+{"Time":"2022-05-07T14:48:12.601792+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestDisabledStages"}
+{"Time":"2022-05-07T14:48:12.601798+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestDisabledStages","Output":"=== RUN   TestDisabledStages\n"}
+{"Time":"2022-05-07T14:48:12.627873+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestDisabledStages","Output":"--- PASS: TestDisabledStages (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.627903+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestDisabledStages","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.627912+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestErroredStage"}
+{"Time":"2022-05-07T14:48:12.627916+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestErroredStage","Output":"=== RUN   TestErroredStage\n"}
+{"Time":"2022-05-07T14:48:12.653679+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestErroredStage","Output":"--- PASS: TestErroredStage (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.653725+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestErroredStage","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.653734+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindSomeStagesBehindUnwindPoint"}
+{"Time":"2022-05-07T14:48:12.653739+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindSomeStagesBehindUnwindPoint","Output":"=== RUN   TestUnwindSomeStagesBehindUnwindPoint\n"}
+{"Time":"2022-05-07T14:48:12.677908+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindSomeStagesBehindUnwindPoint","Output":"--- PASS: TestUnwindSomeStagesBehindUnwindPoint (0.02s)\n"}
+{"Time":"2022-05-07T14:48:12.677948+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindSomeStagesBehindUnwindPoint","Elapsed":0.02}
+{"Time":"2022-05-07T14:48:12.677957+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwind"}
+{"Time":"2022-05-07T14:48:12.677962+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwind","Output":"=== RUN   TestUnwind\n"}
+{"Time":"2022-05-07T14:48:12.703702+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwind","Output":"--- PASS: TestUnwind (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.703733+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwind","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.703742+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindEmptyUnwinder"}
+{"Time":"2022-05-07T14:48:12.703747+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindEmptyUnwinder","Output":"=== RUN   TestUnwindEmptyUnwinder\n"}
+{"Time":"2022-05-07T14:48:12.727131+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindEmptyUnwinder","Output":"--- PASS: TestUnwindEmptyUnwinder (0.02s)\n"}
+{"Time":"2022-05-07T14:48:12.727151+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestUnwindEmptyUnwinder","Elapsed":0.02}
+{"Time":"2022-05-07T14:48:12.727157+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSyncDoTwice"}
+{"Time":"2022-05-07T14:48:12.72716+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSyncDoTwice","Output":"=== RUN   TestSyncDoTwice\n"}
+{"Time":"2022-05-07T14:48:12.750713+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSyncDoTwice","Output":"--- PASS: TestSyncDoTwice (0.02s)\n"}
+{"Time":"2022-05-07T14:48:12.750734+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSyncDoTwice","Elapsed":0.02}
+{"Time":"2022-05-07T14:48:12.750739+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStateSyncInterruptRestart"}
+{"Time":"2022-05-07T14:48:12.750741+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStateSyncInterruptRestart","Output":"=== RUN   TestStateSyncInterruptRestart\n"}
+{"Time":"2022-05-07T14:48:12.774466+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStateSyncInterruptRestart","Output":"--- PASS: TestStateSyncInterruptRestart (0.02s)\n"}
+{"Time":"2022-05-07T14:48:12.774496+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestStateSyncInterruptRestart","Elapsed":0.02}
+{"Time":"2022-05-07T14:48:12.774504+07:00","Action":"run","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSyncInterruptLongUnwind"}
+{"Time":"2022-05-07T14:48:12.774516+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSyncInterruptLongUnwind","Output":"=== RUN   TestSyncInterruptLongUnwind\n"}
+{"Time":"2022-05-07T14:48:12.799676+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSyncInterruptLongUnwind","Output":"--- PASS: TestSyncInterruptLongUnwind (0.03s)\n"}
+{"Time":"2022-05-07T14:48:12.799699+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Test":"TestSyncInterruptLongUnwind","Elapsed":0.03}
+{"Time":"2022-05-07T14:48:12.799707+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Output":"PASS\n"}
+{"Time":"2022-05-07T14:48:12.805575+07:00","Action":"output","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Output":"ok  \tgithub.com/ledgerwatch/erigon/eth/stagedsync\t1.526s\n"}
+{"Time":"2022-05-07T14:48:12.805622+07:00","Action":"pass","Package":"github.com/ledgerwatch/erigon/eth/stagedsync","Elapsed":1.526}

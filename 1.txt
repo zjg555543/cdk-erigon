@@ -1,0 +1,249 @@
+
+git describe --tags --long --dirty=-dirty "--match=v[0-9]*" | cut -d '-' -f 1-2
+
+
+ rsync -aP -e "ssh -T -o Compression=no -x" /home/admin/.local/share/mainnet/snapshots/ admin@turbogeth16f.weblogix.it:/home/admin/.local/share/mainnet/snapshots/
+
+curl localhost:8545 -X POST -H "Content-Type: application/json" --data '{"method":"eth_getTransactionReceipt" "params":["0xa83c3d0d0523450bf2e4f016ac5b3c4239fe450a5f8742091a36b090619ac201"],"id":1,"jsonrpc":"2.0"}'
+
+
+go run -trimpath ./cmd/erigon --datadir=/home/admin/.local/share/ropsten --chain=ropsten --syncmode=snap --maxpeers=50 --prune=hrtc --txpool.disable --port=30353 --torrent.port=42065 --private.api.addr=127.0.0.1:9095 1>&2 2> ~/web/turbogeth16f.weblogix.it/public_html/ropsten.txt < /dev/null &
+
+
+
+curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_getTransactionReceipt", "params": ["0xa83c3d0d0523450bf2e4f016ac5b3c4239fe450a5f8742091a36b090619ac201"], "id":1}' localhost:8545
+
+
+go run -trimpath ./cmd/erigon --datadir=/home/admin/.local/share/bsc --chain=bsc --syncmode=snap --torrent.download.rate=1gb --torrent.upload.rate=1gb --port=30323 --torrent.port=42067 --private.api.addr=127.0.0.1:9092 --torrent.maxpeers=1024 2>&1 2> ~/web/turbogeth16f.weblogix.it/public_html/goerli2.txt < /dev/null &
+
+
+progress="0.01% 23.2 MiB/207.5 GiB"
+progress="0.01% 23.2Mb/207.5Gb"
+
+
+body 6500004: 76054790-76054819
+	txn: 76054790
+	txn: 76054791
+	txn: 76054792
+	txn: 76054793
+	txn: 76054794
+	txn: 76054795
+	txn: 76054796
+	txn: 76054797
+	txn: 76054798
+	txn: 76054799
+	txn: 76054800
+	txn: 76054801
+	txn: 76054802
+	txn: 76054803
+	txn: 76054804
+	txn: 76054805
+	txn: 76054806
+	txn: 76054807
+	txn: 76054808
+	txn: 76054809
+	txn: 76054810
+	txn: 76054811
+	txn: 76054812
+	txn: 76054813
+	txn: 76054814
+	txn: 76054815
+	txn: 76054816
+	txn: 76054817
+	txn: 76054818
+body 6500005: 76054797-76054801
+	txn: 76054797
+	txn: 76054798
+	txn: 76054799
+	txn: 76054800
+--
+INFO[05-01|09:58:57.231] database closed                          label=chaindata
+laptop:~/projects/erigon (devel*) »  no gaps in tx ids are allowed: block 6500005 does jump from 76054820 to 76054797
+
+
+
+
+go run -trimpath ./cmd/erigon --datadir=/home/admin/.local/share/goerli --chain=goerli --syncmode=snap --maxpeers=50 --prune=hrtc --torrent.download.rate=1gb --torrent.upload.rate=1gb --torrent.maxpeers=1024 --torrent.conns.perfile=200 1>&2 2> ~/web/turbogeth16f.weblogix.it/public_html/goerli.txt < /dev/null &
+
+go run -trimpath ./cmd/erigon --datadir=/home/admin/.local/share/mainnet --chain=mainnet --syncmode=snap --maxpeers=50 --prune=hrtc --torrent.download.rate=1gb --torrent.upload.rate=1gb --port=30313 --torrent.port=42068 --private.api.addr=127.0.0.1:9091 --torrent.maxpeers=1024 --torrent.conns.perfile=200 1>&2 2> ~/web/turbogeth16f.weblogix.it/public_html/mainnet.txt < /dev/null &
+
+
+
+76054724
+76054724
+
+
+76054723
+76054724
+76054755
+
+go run -trimpath ./cmd/downloader --datadir=/home/admin/.local/share/mainnet --torrent.download.rate=30gb --torrent.maxpeers=1024 --torrent.conns.perfile=200
+
+
+gcloud compute scp  erigon@bsc-sn:'/mnt/ssd/erigon/snapshots/v1-00[0-5]*.seg' ~/data/bsc_sn/ 1>&2 2>> ~/data/logs/scp.log &!
+gcloud compute scp  erigon@bsc-sn:'/mnt/ssd/erigon/snapshots/v1-001*.seg' ~/data/bsc_sn/
+--zone=europe-west1-b 1>&2 2>> ~/data/logs/scp.log &!
+gcloud compute scp  erigon@bsc-sn:'/mnt/ssd/erigon/snapshots/v1-002*.seg' ~/data/bsc_sn/
+ --zone=europe-west1-b 1>&2 2>> ~/data/logs/scp.log &!
+gcloud compute scp  erigon@bsc-sn:'/mnt/ssd/erigon/snapshots/v1-003*.seg' ~/data/bsc_sn/ --zone=europe-west1-b 1>&2 2>> ~/data/logs/scp.log &!
+gcloud compute scp  erigon@bsc-sn:'/mnt/ssd/erigon/snapshots/v1-004*.seg' ~/data/bsc_sn/ --zone=europe-west1-b 1>&2 2>> ~/data/logs/scp.log &!
+gcloud compute scp  erigon@bsc-sn:'/mnt/ssd/erigon/snapshots/v1-005*.seg' ~/data/bsc_sn/ --zone=europe-west1-b 1>&2 2>> ~/data/logs/scp.log &!
+
+
+go run -trimpath ./cmd/downloader --datadir=/home/admin/.local/share/mainnet --torrent.download.rate=30gb --torrent.conns.perfile=200 --torrent.maxpeers=500 --torrent.upload.rate=30gb
+
+
+
+go  run -trimpath ./cmd/downloader torrent_hashes  --datadir=/mnt/ssd/erigon
+sudo systemctl start erigon
+
+STOP_BEFORE_STAGE=Execution go run --trimpath  ./cmd/erigon --datadir=/mnt/ssd/erigon2 --chain=goerli --syncmode=fast >>/home/erigon/erigon.log 2>&1 &
+
+
+./build/bin/erigon_old snapshots uncompress /Users/alex.sharov/data/goerli_retire2/snapshots/v1-000000-000500-headers.seg | ./build/bin/erigon snapshots compress /Users/alex.sharov/data/goerli_retire2/snapshots/v1-000000-000500-header.new --datadir=/Users/alex.sharov/data/goerli_retire2/ 
+
+
+
+go run -trimpath ./cmd/erigon --datadir=/home/admin/.local/share/bsc --chain=bsc --syncmode=snap 1>&2 2> ~/web/turbogeth16f.weblogix.it/public_html/mainnet.txt < /dev/null &
+
+
+
+
+go run -trimpath ./cmd/downloader torrent_hashes --rebuild --datadir=/mnt/ssd/erigon
+
+go run -trimpath ./cmd/erigon --datadir=/home/admin/.local/share/bsc --chain=bsc --syncmode=fast --prune=hrtc --metrics --metrics.addr=0.0.0.0 --http --syncmode=snap --snap.keepblocks=true 1>&2 2> ~/web/turbogeth16f.weblogix.it/public_html/mainnet.txt < /dev/null &
+
+go run -trimpath ./cmd/downloader torrent_hashes --rebuild --datadir=/mnt/ssd/erigon
+
+
+go run --trimpath  ./cmd/erigon       --datadir /Users/alex.sharov/data/goerli_tmp       --chain dev        --private.api.addr "localhost:9090"    --mine         --dev.period 2         --verbosity 2         --networkid 8995         --txpool.pricelimit 10000         --allow-insecure-unlock --discovery.dns "" 
+
+
+
+
+ STOP_BEFORE_STAGE=Execution go run --trimpath  ./cmd/erigon --datadir=/mnt/ssd/erigon2 --syncmode=fast >>/home/erigon/erigon.log 2>&1 &>/home/erigon/erigon.log 2>&1 &
+
+./build/bin/erigon_old snapshots uncompress /mnt/ssd/erigon/snapshots/v1-000000-000500-headers.seg | ./build/bin/erigon snapshots compress /mnt/ssd/erigon/snapshots/v1-000000-000500-header.new --datadir=/mnt/ssd/erigon/
+
+./cmd/downloader/recompress.sh /mnt/ssd/erigon >>/home/erigon/erigon.log 2>&1 &
+
+go  run -trimpath ./cmd/downloader torrent_hashes --rebuild --datadir=/mnt/ssd/erigon
+go  run -trimpath ./cmd/erigon snapshots index --rebuild --datadir=/mnt/ssd/erigon2
+go  run -trimpath ./cmd/erigon snapshots create --datadir=/mnt/ssd/erigon2 --to=13_000_000 >>/home/erigon/erigon.log 2>&1 &
+
+
+./build/bin/erigon snapshots create --datadir=/mnt/ssd/erigon2 --from=13_000_000 --to=14_000_000 >>/home/erigon/erigon.log 2>&1 &
+
+
+./build/bin/erigon snapshots create --datadir=/mnt/ssd/erigon2 --from=14_000_000 --to=14_500_000 >>/home/erigon/erigon.log 2>&1 &
+
+rsync -aP /mnt/ssd/erigon2/snapshots /mnt/ssd/erigon/snapshots
+
+go  run -trimpath ./cmd/integration stage_trie --reset --datadir=/mnt/ssd/erigon >>/home/erigon/erigon.log 2>&1 &
+
+go  run -trimpath ./cmd/integration print_stages --datadir=/mnt/ssd/erigon >>/home/erigon/erigon.log 2>&1 &
+
+go  run -trimpath ./cmd/downloader torrent_hashes --rebuild --datadir=/mnt/ssd/erigon2
+
+go  run -trimpath ./cmd/erigon snapshots index --datadir=/mnt/ssd/erigon2 --rebuild >>/home/erigon/erigon.log 2>&1 &
+
+go run -trimpath ./cmd/erigon snapshots retire --datadir=/home/alex/data/goerli_retire --from=6530000 --to=6570000 --every=1000
+
+BSC:
+./build/bin/erigon snapshots create --datadir=/mnt/ssd/erigon --pprof --pprof.addr=0.0.0.0 --from=11500000  --to=12000000 >>"$HOME/erigon.log" 2>&1 &
+./build/bin/erigon snapshots create --datadir=/mnt/ssd/erigon --pprof --pprof.addr=0.0.0.0 --from=16500000  --to=16600000 >>"$HOME/erigon.log" 2>&1 &
+
+
+go run -trimpath ./cmd/erigon snapshots index --rebuild --datadir=/mnt/ssd/erigon
+go run -trimpath ./cmd/integration force_set_snapshot --syncmode=snap --datadir=/mnt/ssd/erigon
+go run -trimpath ./cmd/downloader torrent_hashes --rebuild --datadir=/mnt/ssd/erigon
+
+
+./build/bin/erigon snapshots index --rebuild --datadir=/mnt/ssd/erigon --pprof --pprof.addr=0.0.0.0 >>"$HOME/erigon.log" 2>&1 &
+
+
+go run --trimpath  ./cmd/erigon --datadir=/evo/goerli_remove --chain=goerli --syncmode=snap --snap.keepblocks=true --pprof --prune=hrtc --maxpeers=200 --verbosity=3 --port=30323 --torrent.port=43069 --private.api.addr=127.0.0.1:6061 --txpool.disable
+
+go  run -trimpath ./cmd/integration stage_headers --datadir=/home/alex/data/goerli_retire --chain=goerli --unwind=100
+
+
+go  run  -trimpath ./cmd/erigon --datadir=/home/alex/data/goerli_retire2 --chain=goerli --prune=hrtc --syncmode=snap --http --verbosity=3 --txpool.disable --port=30333 --private.api.addr=127.0.0.1:90929 --torrent.port=12345
+
+
+
+
+
+STOP_BEFORE_STAGE=Execution go run --trimpath  ./cmd/erigon --datadir=/home/admin/.local/share/bsc --chain=bsc --maxpeers=1024 1>&2 2>> ~/web/turbogeth16e.weblogix.it/public_html/bsc.txt < /dev/null &
+
+
+go run -trimpath ./cmd/erigon --datadir=/home/admin/.local/share/mainnet --chain=mainnet --syncmode=snap --maxpeers=500 --prune=hrtc --torrent.download.rate=30mb --port=30313 --torrent.port=42068 --private.api.addr=127.0.0.1:9091 1>&2 2> ~/web/turbogeth16f.weblogix.it/public_html/mainnet.txt < /dev/null &
+
+
+go run -trimpath ./cmd/downloader torrent_hashes --rebuild --datadir=/home/admin/.local/share/bsc
+
+go run -trimpath ./cmd/downloader --datadir=/home/admin/.local/share/bsc --downloader.api.addr=127.0.0.1:9293 --torrent.port=42067 --torrent.upload.rate=1gb 1>&2 2> ~/web/turbogeth16e.weblogix.it/public_html/downloader_mainnet.txt < /dev/null &!
+
+curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber", "params": ["0x5E7B97", true], "id":1}' localhost:8545
+
+
+STOP_BEFORE_STAGE=Execution go run --trimpath  ./cmd/erigon snapshots create --datadir=/home/admin/.local/share/bsc --pprof --pprof.addr=0.0.0.0 1>&2 2>> ~/web/turbogeth16e.weblogix.it/public_html/bsc.txt < /dev/null &
+
+dd if=/dev/zero of=./testfile bs=4096 count=1000 oflag=direct
+
+fio --name=random-write --ioengine=posixaio --rw=randwrite --bs=4k --numjobs=1 --size=4g --iodepth=1 --runtime=10 --time_based --end_fsync=1
+rsync -aP --delete -e "ssh -T -o Compression=no -x" /mnt/nvme/bsc  /mnt/ssd/erigon/
+
+go  run  -trimpath ./cmd/erigon --datadir=/home/alex/data/goerli_retire --chain=goerli -prune=hrtc --syncmode=snap --snap.keepblocks=true --http
+
+
+nohup ~/erigon/build/bin/erigon snapshots create     --chain bsc --datadir /mnt/ssd/erigon --from    >> "$HOME/erigon.log" 2>&1 &
+
+go  run  -trimpath ./cmd/erigon --datadir=/home/alex/data/goerli_retire --chain=goerli -prune=hrtc --syncmode=snap  --snap.keepblocks=true --http --verbosity=4 1>&2 2>> ~/data/logs/goerli_retire.log < /dev/null &!
+
+```
+mdbx_txn_begin: MDBX_EBADSIGN: Wrong signature of a runtime object(s), e.g. memory corruption or double-free, label: chaindata, trace: [kv_mdbx.go:403 pool.go:476 pool.go:1327 asm_amd64.s:1581]"
+```
+
+
+go run --trimpath  ./cmd/downloader torrent_hashes --rebuild --datadir=/mnt/ssd/erigon
+go run --trimpath  ./cmd/integration print_stages --datadir=/mnt/ssd/erigon
+
+
+go run --trimpath ./cmd/erigon --nat extip:$EXTIP --chain $CHAIN --datadir /mnt/ssd/erigon --prune htrc --syncmode=snap --snap.keepblocks=true --http --maxpeers=200
+
+
+
+go run -trimpath ./cmd/integration stage_exec --datadir=/home/admin/.local/share/mainnet --syncmode=snap --unwind=10_000
+
+go run -trimpath ./cmd/erigon --datadir=/home/admin/.local/share/mainnet --prune=hrtc --metrics --metrics.addr=0.0.0.0 --http --syncmode=snap --snap.keepblocks=true 1>&2 2> ~/web/turbogeth16f.weblogix.it/public_html/mainnet.txt < /dev/null &
+
+go run --trimpath  ./cmd/integration stage_senders --datadir=/mnt/ssd/erigon --chain=bsc
+go run --trimpath  ./cmd/integration print_stages --datadir=/mnt/ssd/erigon --chain=bsc
+
+
+./build/bin/erigon snapshots create --datadir=/mnt/ssd/erigon --pprof --pprof.addr=0.0.0.0 --from=12000000 >> "$HOME/erigon.log" 2>&1 &
+
+
+
+
+nohup ./build/bin/erigon --datadir /mnt/nvme/bsc --chain bsc --prune htrc 2>&1 >>bsc.log &
+nohup ./build/bin/erigon --datadir /mnt/ssd/erigon --chain bsc --prune htrc 2>&1 >>bsc.log &
+
+
+rsync -aP -e "ssh -T -o Compression=no -x" /home/admin/.local/share/mainnet/snapshots/ admin@turbogeth16f.weblogix.it:/home/admin/.local/share/mainnet/snapshots/
+
+
+go run --trimpath  ./cmd/integration stage_senders --datadir=/mnt/ssd/erigon --chain=bsc
+
+
+
+./build/bin/erigon snapshots create --datadir=/mnt/ssd/erigon --pprof --pprof.addr=0.0.0.0 --from=13500000   >>"$HOME/erigon.log" 2>&1 &
+
+go run -trimpath ./cmd/integration state_stages --datadir=/home/admin/.local/share/mainnet --snapshot=true  --integrity.fast=false --unwind=100
+
+go run --trimpath  ./cmd/integration state_stages --datadir=<your_datadir> --unwind=100 --chain=goerli --integrity.fast=false
+go run --trimpath  ./cmd/integration stage_senders --datadir=<your_datadir> --unwind=100 --chain=goerli --integrity.fast=false
+go run --trimpath  ./cmd/integration stage_bodies --datadir=<your_datadir> --unwind=100 --chain=goerli
+go run --trimpath  ./cmd/integration stage_headers --datadir=<your_datadir> --unwind=100 --chain=goerli
+
+

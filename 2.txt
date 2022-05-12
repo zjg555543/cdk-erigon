@@ -1,0 +1,18 @@
+INFO[02-03|03:32:17.229] Long handover to background aggregation  from=15625 to=31249 composition=178.637514ms handover=9.726347ms
+INFO[02-03|03:32:21.966] Long handover to background aggregation  from=31250 to=46874 composition=146.868048ms handover=8.21766ms
+INFO[02-03|03:32:25.771] Progress                                 block=151500 blk/s=5049.918 state files=16 accounts="394.5 KiB" code="734 B" storage="734 B" commitment="368.9 KiB" total dat="716.5 KiB" total idx="48.2 KiB"
+INFO[02-03|03:32:26.266] Long handover to background aggregation  from=46875 to=62499 composition=242.851199ms handover=10.526951ms
+
+INFO[02-03|03:32:47.483] Long handover to background aggregation  from=109375 to=124999 composition=283.423507ms handover=11.512776ms
+INFO[02-03|03:32:55.780] Progress                                 block=237500 blk/s=2865.821 state files=16 accounts="739.8 KiB" code="240.2 KiB" storage="260.5 KiB" commitment="920.9 KiB" total dat="2.0 MiB" total idx="117.5 KiB"
+INFO[02-03|03:32:58.439] Long handover to background aggregation  from=140625 to=156249 composition=322.646739ms handover=10.27049ms
+INFO[02-03|03:33:03.682] Long handover to background aggregation  from=156250 to=171874 composition=439.108718ms handover=11.308395ms
+INFO[02-03|03:33:09.619] Long handover to background aggregation  from=171875 to=187499 composition=374.14263ms handover=11.214485ms
+INFO[02-03|03:33:16.443] Long handover to background aggregation  from=187500 to=203124 composition=353.6052ms handover=6.341181ms
+INFO[02-03|03:33:22.207] Long handover to background aggregation  from=203125 to=218749 composition=627.005168ms handover=9.204565ms
+INFO[02-03|03:33:25.781] Progress                                 block=316545 blk/s=2634.793 state files=24 accounts="965.5 KiB" code="452.4 KiB" storage="434.8 KiB" commitment="1.2 MiB" total dat="2.8 MiB" total idx="171.5 KiB"
+
+
+
+
+
