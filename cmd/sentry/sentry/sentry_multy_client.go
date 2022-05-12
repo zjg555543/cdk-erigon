@@ -278,7 +278,7 @@ func RecvMessage(
 	// need to read all messages from Sentry as fast as we can, then:
 	// - can group them or process in batch
 	// - can have slow processing
-	reqs := make(chan *proto_sentry.InboundMessage, 1024)
+	reqs := make(chan *proto_sentry.InboundMessage, 128)
 	defer close(reqs)
 	go func() {
 		for req := range reqs {
