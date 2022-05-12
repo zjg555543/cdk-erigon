@@ -287,9 +287,6 @@ func RecvMessage(
 				return
 			default:
 			}
-			if len(reqs) > 0 && len(reqs)%100 == 0 {
-				log.Info("msgs in erigon", "msgs", len(reqs))
-			}
 			if err = handleInboundMessage(ctx, req, sentry); err != nil {
 				if rlp.IsInvalidRLPError(err) {
 					log.Debug("[RecvMessage] Kick peer for invalid RLP", "err", err)
@@ -740,7 +737,17 @@ func (cs *MultyClient) getReceipts66(ctx context.Context, inreq *proto_sentry.In
 }
 
 func (cs *MultyClient) HandleInboundMessage(ctx context.Context, inreq *proto_sentry.InboundMessage, sentry direct.SentryClient) error {
+	defer func(t time.Time) {
+		switch inreq.Id {
+		case proto_sentry.MessageId_GET_BLOCK_HEADERS_66:
+		case proto_sentry.MessageId_GET_BLOCK_BODIES_66:
+		case proto_sentry.MessageId_GET_RECEIPTS_66:
+			fmt.Printf("sentry_multy_client.go:740: %s\n", time.Since(t))
+		default:
+		}
+	}(time.Now())
 	switch inreq.Id {
+
 	// ========= eth 66 ==========
 
 	case proto_sentry.MessageId_NEW_BLOCK_HASHES_66:
