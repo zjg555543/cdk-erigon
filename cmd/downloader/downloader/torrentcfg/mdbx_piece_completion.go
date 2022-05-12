@@ -25,12 +25,14 @@ func NewMdbxPieceCompletion(db kv.RwDB) (ret storage.PieceCompletion, err error)
 	return
 }
 
-func (me mdbxPieceCompletion) Get(pk metainfo.PieceKey) (cn storage.Completion, err error) {
-	err = me.db.View(context.Background(), func(tx kv.Tx) error {
-		var key [4]byte
-		binary.BigEndian.PutUint32(key[:], uint32(pk.Index))
+func (mc mdbxPieceCompletion) Get(pk metainfo.PieceKey) (cn storage.Completion, err error) {
+	err = mc.db.View(context.Background(), func(tx kv.Tx) error {
+		var key [metainfo.HashSize + 4]byte
+		copy(key[:], pk.InfoHash[:])
+		binary.BigEndian.PutUint32(key[metainfo.HashSize:], uint32(pk.Index))
+
 		cn.Ok = true
-		v, err := tx.GetOne(kv.BittorrentCompletion, append(pk.InfoHash[:], key[:]...))
+		v, err := tx.GetOne(kv.BittorrentCompletion, key[:])
 		if err != nil {
 			return err
 		}
@@ -47,19 +49,20 @@ func (me mdbxPieceCompletion) Get(pk metainfo.PieceKey) (cn storage.Completion, 
 	return
 }
 
-func (me mdbxPieceCompletion) Set(pk metainfo.PieceKey, b bool) error {
-	if c, err := me.Get(pk); err == nil && c.Ok && c.Complete == b {
+func (mc mdbxPieceCompletion) Set(pk metainfo.PieceKey, b bool) error {
+	if c, err := mc.Get(pk); err == nil && c.Ok && c.Complete == b {
 		return nil
 	}
-	return me.db.Update(context.Background(), func(tx kv.RwTx) error {
-		var key [4]byte
-		binary.BigEndian.PutUint32(key[:], uint32(pk.Index))
+	return mc.db.Update(context.Background(), func(tx kv.RwTx) error {
+		var key [metainfo.HashSize + 4]byte
+		copy(key[:], pk.InfoHash[:])
+		binary.BigEndian.PutUint32(key[metainfo.HashSize:], uint32(pk.Index))
 
 		v := []byte(incomplete)
 		if b {
 			v = []byte(complete)
 		}
-		err := tx.Put(kv.BittorrentCompletion, append(pk.InfoHash[:], key[:]...), v)
+		err := tx.Put(kv.BittorrentCompletion, key[:], v)
 		if err != nil {
 			return err
 		}
@@ -67,7 +70,7 @@ func (me mdbxPieceCompletion) Set(pk metainfo.PieceKey, b bool) error {
 	})
 }
 
-func (me *mdbxPieceCompletion) Close() error {
-	me.db.Close()
+func (mc *mdbxPieceCompletion) Close() error {
+	mc.db.Close()
 	return nil
 }
