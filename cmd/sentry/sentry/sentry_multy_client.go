@@ -490,7 +490,6 @@ func (cs *MultyClient) blockHeaders(ctx context.Context, pkt eth.BlockHeadersPac
 					}
 				}
 			} else {
-				defer func(t time.Time) { fmt.Printf("sentry_multy_client.go:493: %s\n", time.Since(t)) }(time.Now())
 				var canRequestMore bool
 				for _, segment := range segments {
 					requestMore := cs.Hd.ProcessSegment(segment, false /* newBlock */, ConvertH512ToPeerID(peerID))
@@ -513,7 +512,6 @@ func (cs *MultyClient) blockHeaders(ctx context.Context, pkt eth.BlockHeadersPac
 				}
 			}
 		} else {
-			defer func(t time.Time) { fmt.Printf("sentry_multy_client.go:515: %s\n", time.Since(t)) }(time.Now())
 			outreq := proto_sentry.PenalizePeerRequest{
 				PeerId:  peerID,
 				Penalty: proto_sentry.PenaltyKind_Kick, // TODO: Extend penalty kinds
@@ -529,7 +527,6 @@ func (cs *MultyClient) blockHeaders(ctx context.Context, pkt eth.BlockHeadersPac
 		PeerId:   peerID,
 		MinBlock: highestBlock,
 	}
-	defer func(t time.Time) { fmt.Printf("sentry_multy_client.go:530: %s\n", time.Since(t)) }(time.Now())
 
 	if _, err1 := sentry.PeerMinBlock(ctx, &outreq, &grpc.EmptyCallOption{}); err1 != nil {
 		log.Error("Could not send min block for peer", "err", err1)
