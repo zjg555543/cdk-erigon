@@ -940,7 +940,7 @@ func (ss *GrpcServer) send(msgID proto_sentry.MessageId, peerID [64]byte, b []by
 		ch := ss.messageStreams[msgID][i]
 		ch <- req
 		if len(ch) > MessagesQueueSize/2 {
-			log.Debug("[sentry] consuming is slow, drop 50% of old messages", "msgID", msgID.String())
+			log.Debug("[sentry] consuming is slow, drop 50% of old messages", "msgID", msgID.String(), "have_msgs", len(ch))
 			// evict old messages from channel
 			for j := 0; j < MessagesQueueSize/4; j++ {
 				select {
