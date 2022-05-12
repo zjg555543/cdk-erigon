@@ -722,6 +722,7 @@ func (cs *MultyClient) getReceipts66(ctx context.Context, inreq *proto_sentry.In
 }
 
 func (cs *MultyClient) HandleInboundMessage(ctx context.Context, inreq *proto_sentry.InboundMessage, sentry direct.SentryClient) error {
+	defer func(t time.Time, msg string) { fmt.Printf("sentry_multy_client.go:725: %s, %s\n", time.Since(t), msg) }(time.Now(), inreq.Id.String())
 	switch inreq.Id {
 	// ========= eth 66 ==========
 
