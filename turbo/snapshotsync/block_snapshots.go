@@ -1002,6 +1002,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 
 	var count, prevTxID uint64
 	numBuf := make([]byte, binary.MaxVarintLen64)
+	fmt.Printf("chainID: %d\n", chainID.Uint64())
 	parseCtx := types2.NewTxParseContext(*chainID)
 	parseCtx.WithSender(false)
 	slot := types2.TxSlot{}
