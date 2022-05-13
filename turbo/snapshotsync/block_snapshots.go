@@ -1008,7 +1008,11 @@ func DumpTxs(ctx context.Context, db kv.RoDB, segmentFile, tmpDir string, blockF
 	slot := types2.TxSlot{}
 	var sender [20]byte
 	parse := func(v, valueBuf []byte, senders []common.Address, j int) ([]byte, error) {
+
 		if _, err := parseCtx.ParseTransaction(v, 0, &slot, sender[:], false /* hasEnvelope */, nil); err != nil {
+			txnn, errrr := types.UnmarshalTransactionFromBinary(v)
+			fmt.Printf("eerrrr: %s\n", errrr)
+			fmt.Printf("eerrrr: %d, %d, %d\n", txnn.GetChainID(), txnn.Type(), txnn.GetNonce())
 			fmt.Printf("rlp: %x\n", v)
 			return valueBuf, err
 		}
