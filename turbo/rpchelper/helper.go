@@ -14,6 +14,7 @@ import (
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/rpc"
 	"github.com/ledgerwatch/erigon/turbo/adapter"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // unable to decode supplied params, or an invalid number of parameters
@@ -92,6 +93,7 @@ func CreateStateReader(ctx context.Context, tx kv.Tx, blockNrOrHash rpc.BlockNum
 		return nil, err
 	}
 	var stateReader state.StateReader
+	log.Warn("hi. number is", "num", blockNumber, "is_latest", latest)
 	if latest {
 		cacheView, err := stateCache.View(ctx, tx)
 		if err != nil {
