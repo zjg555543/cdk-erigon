@@ -466,7 +466,7 @@ if ($BuildTarget -eq "clean") {
     
     Write-Host " Running tests ..."
     $env:GODEBUG="cgocheck=0"
-    go test ./... -p 2 --timeout 30m
+    # go test ./... -p 2 --timeout 30m
     $TestCommand = "go test ./... -p 2 --timeout 30m"
     $TestCommand += ';$?'
     $success = Invoke-Expression -Command $TestCommand

@@ -673,7 +673,7 @@ func (r *RootHashAggregator) saveValueAccount(isIH, hasTree bool, v *accounts.Ac
 // has 2 basic operations:  _preOrderTraversalStep and _preOrderTraversalStepNoInDepth
 type AccTrieCursor struct {
 	SkipState       bool
-	is, lvl         int
+	lvl             int
 	k, v            [64][]byte // store up to 64 levels of key/value pairs in nibbles format
 	hasState        [64]uint16 // says that records in dbutil.HashedAccounts exists by given prefix
 	hasTree         [64]uint16 // says that records in dbutil.TrieOfAccounts exists by given prefix
@@ -883,7 +883,6 @@ func (c *AccTrieCursor) _nextSiblingInDB() error {
 		c.k[c.lvl] = nil
 		return nil
 	}
-	c.is++
 	if _, err := c._seek(c.next, []byte{}); err != nil {
 		return err
 	}
@@ -907,9 +906,6 @@ func (c *AccTrieCursor) _unmarshal(k, v []byte) {
 }
 
 func (c *AccTrieCursor) _deleteCurrent() error {
-	if c.hc == nil {
-		return nil
-	}
 	if c.hc == nil || c.deleted[c.lvl] {
 		return nil
 	}
@@ -938,11 +934,8 @@ func (c *AccTrieCursor) _consume() (bool, error) {
 		}
 	}
 
-	if err := c._deleteCurrent(); err != nil {
-		return false, err
-	}
-
-	return false, nil
+	err := c._deleteCurrent()
+	return false, err
 }
 
 func (c *AccTrieCursor) _next() (k, v []byte, hasTree bool, err error) {

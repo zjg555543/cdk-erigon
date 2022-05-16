@@ -151,18 +151,18 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 }
 
 type HashPromoter struct {
-	db               kv.RwTx
-	ChangeSetBufSize uint64
-	TempDir          string
-	quitCh           <-chan struct{}
+	db kv.RwTx
+	//ChangeSetBufSize uint64
+	TempDir string
+	quitCh  <-chan struct{}
 }
 
 func NewHashPromoter(db kv.RwTx, quitCh <-chan struct{}) *HashPromoter {
 	return &HashPromoter{
-		db:               db,
-		ChangeSetBufSize: 256 * 1024 * 1024,
-		TempDir:          os.TempDir(),
-		quitCh:           quitCh,
+		db: db,
+		//ChangeSetBufSize: 256 * 1024 * 1024,
+		TempDir: os.TempDir(),
+		quitCh:  quitCh,
 	}
 }
 
