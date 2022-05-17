@@ -82,6 +82,10 @@ func (b adapterHandler) Handle(r lg.Record) {
 
 		log.Error(str)
 	default:
-		log.Debug(r.String(), "torrent_log_type", "unknown")
+		log.Warn(r.String(), "torrent_log_type", "unknown")
+		r.Values(func(value interface{}) (more bool) {
+			log.Warn("context", "v", value)
+			return true
+		})
 	}
 }
