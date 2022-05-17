@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -53,6 +54,14 @@ type AggStats struct {
 }
 
 func New(cfg *torrentcfg.Cfg) (*Downloader, error) {
+	for _, trl := range Trackers { //validation
+		for _, tr := range trl {
+			if _, err := url.Parse(tr); err != nil {
+				return nil, fmt.Errorf("parsing tracker url: %s: %w", tr, err)
+			}
+		}
+	}
+
 	if err := portMustBeTCPAndUDPOpen(cfg.ListenPort); err != nil {
 		return nil, err
 	}
