@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -74,7 +75,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 		return logs, beginErr
 	}
 	defer tx.Rollback()
-
+	defer func(t time.Time) { fmt.Printf("eth_receipts.go:78: %s\n", time.Since(t)) }(time.Now())
 	if crit.BlockHash != nil {
 		number := rawdb.ReadHeaderNumber(tx, *crit.BlockHash)
 		if number == nil {
@@ -109,10 +110,10 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	if end < begin {
 		return nil, fmt.Errorf("end (%d) < begin (%d)", end, begin)
 	}
-
+	defer func(t time.Time) { fmt.Printf("eth_receipts.go:113: %s\n", time.Since(t)) }(time.Now())
 	blockNumbers := roaring.New()
 	blockNumbers.AddRange(begin, end+1) // [min,max)
-
+	defer func(t time.Time) { fmt.Printf("eth_receipts.go:116: %s\n", time.Since(t)) }(time.Now())
 	topicsBitmap, err := getTopicsBitmap(tx, crit.Topics, uint32(begin), uint32(end))
 	if err != nil {
 		return nil, err
@@ -120,7 +121,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	if topicsBitmap != nil {
 		blockNumbers.And(topicsBitmap)
 	}
-
+	defer func(t time.Time) { fmt.Printf("eth_receipts.go:124: %s\n", time.Since(t)) }(time.Now())
 	var addrBitmap *roaring.Bitmap
 	for _, addr := range crit.Addresses {
 		m, err := bitmapdb.Get(tx, kv.LogAddressIndex, addr[:], uint32(begin), uint32(end))
@@ -141,7 +142,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	if blockNumbers.GetCardinality() == 0 {
 		return logs, nil
 	}
-
+	defer func(t time.Time) { fmt.Printf("eth_receipts.go:145: %s\n", time.Since(t)) }(time.Now())
 	iter := blockNumbers.Iterator()
 	for iter.HasNext() {
 		if err = ctx.Err(); err != nil {
