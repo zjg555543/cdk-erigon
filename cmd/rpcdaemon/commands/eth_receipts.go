@@ -143,6 +143,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 		return logs, nil
 	}
 	defer func(t time.Time) { fmt.Printf("eth_receipts.go:145: %s\n", time.Since(t)) }(time.Now())
+	fmt.Printf("alex: %d\n", blockNumbers.GetCardinality())
 	iter := blockNumbers.Iterator()
 	for iter.HasNext() {
 		if err = ctx.Err(); err != nil {
