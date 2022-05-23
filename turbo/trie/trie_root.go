@@ -974,7 +974,7 @@ func (c *AccTrieCursor) _next() (k, v []byte, hasTree bool, err error) {
 
 // StorageTrieCursor - holds logic related to iteration over AccTrie bucket
 type StorageTrieCursor struct {
-	is, lvl                    int
+	lvl                        int
 	k, v                       [64][]byte
 	hasState, hasTree, hasHash [64]uint16
 	deleted                    [64]bool
@@ -1111,7 +1111,7 @@ func (c *StorageTrieCursor) _seek(seek, withinPrefix []byte) (bool, error) {
 	var k, v []byte
 	var err error
 	if len(seek) == 40 {
-		c.is++
+		//c.is++
 		k, v, err = c.c.Seek(seek)
 	} else {
 		// optimistic .Next call, can use result in 2 cases:
@@ -1123,7 +1123,7 @@ func (c *StorageTrieCursor) _seek(seek, withinPrefix []byte) (bool, error) {
 		//	return false, err
 		//}
 		//if len(k) > c.lvl && c.childID[c.lvl] > int8(bits.TrailingZeros16(c.hasTree[c.lvl])) {
-		c.is++
+		// c.is++
 		k, v, err = c.c.Seek(seek)
 		//}
 	}
