@@ -27,6 +27,21 @@ import (
 	"testing"
 )
 
+func TestName(t *testing.T) {
+	aa := Hash{}
+	a := aa[:]
+
+	b := CastToHash(a)
+	fmt.Printf("%x\n", b)
+	a[0] = 1
+	fmt.Printf("%x\n", b)
+	c := *(*Hash)(a)
+	fmt.Printf("%x\n", c)
+	a[0] = 2
+	fmt.Printf("%x\n", c)
+	d := make([]byte, 33)
+	CastToHash(d)
+}
 func TestBytesConversion(t *testing.T) {
 	bytes := []byte{5}
 	hash := BytesToHash(bytes)
