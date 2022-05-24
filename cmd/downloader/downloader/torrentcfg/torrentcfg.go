@@ -45,7 +45,15 @@ func Default() *torrent.ClientConfig {
 	return torrentConfig
 }
 
-func New(snapDir string, verbosity lg.Level, natif nat.Interface, downloadRate, uploadRate datasize.ByteSize, port, connsPerFile int, downloadSlots int) (*Cfg, error) {
+func New(snapDir string,
+	verbosity lg.Level,
+	natif nat.Interface,
+	downloadRate, uploadRate datasize.ByteSize,
+	port int,
+	addr string,
+	connsPerFile int,
+	downloadSlots int,
+) (*Cfg, error) {
 	torrentConfig := Default()
 	// We would-like to reduce amount of goroutines in Erigon, so reducing next params
 	torrentConfig.EstablishedConnsPerTorrent = connsPerFile // default: 50
@@ -58,6 +66,7 @@ func New(snapDir string, verbosity lg.Level, natif nat.Interface, downloadRate, 
 	torrentConfig.TorrentPeersLowWater = 50   // default: 50
 
 	torrentConfig.ListenPort = port
+	torrentConfig.SetListenAddr(addr)
 	torrentConfig.Seed = true
 	torrentConfig.DataDir = snapDir
 	torrentConfig.UpnpID = torrentConfig.UpnpID + "leecher"

@@ -41,6 +41,7 @@ var (
 	downloadRateStr, uploadRateStr string
 	torrentDownloadSlots           int
 	torrentPort                    int
+	torrentAddr                    string
 	torrentMaxPeers                int
 	torrentConnsPerFile            int
 	targetFile                     string
@@ -58,6 +59,7 @@ func init() {
 	rootCmd.Flags().StringVar(&downloadRateStr, "torrent.download.rate", utils.TorrentDownloadRateFlag.Value, utils.TorrentDownloadRateFlag.Usage)
 	rootCmd.Flags().StringVar(&uploadRateStr, "torrent.upload.rate", utils.TorrentUploadRateFlag.Value, utils.TorrentUploadRateFlag.Usage)
 	rootCmd.Flags().IntVar(&torrentPort, "torrent.port", utils.TorrentPortFlag.Value, utils.TorrentPortFlag.Usage)
+	rootCmd.Flags().StringVar(&torrentAddr, "torrent.addr", utils.TorrentAddrFlag.Value, utils.TorrentAddrFlag.Usage)
 	rootCmd.Flags().IntVar(&torrentMaxPeers, "torrent.maxpeers", utils.TorrentMaxPeersFlag.Value, utils.TorrentMaxPeersFlag.Usage)
 	rootCmd.Flags().IntVar(&torrentConnsPerFile, "torrent.conns.perfile", utils.TorrentConnsPerFileFlag.Value, utils.TorrentConnsPerFileFlag.Usage)
 	rootCmd.Flags().IntVar(&torrentDownloadSlots, "torrent.download.slots", utils.TorrentDownloadSlotsFlag.Value, utils.TorrentDownloadSlotsFlag.Usage)
@@ -132,7 +134,7 @@ func Downloader(ctx context.Context) error {
 		return fmt.Errorf("invalid nat option %s: %w", natSetting, err)
 	}
 
-	cfg, err := torrentcfg.New(snapDir, torrentLogLevel, natif, downloadRate, uploadRate, torrentPort, torrentConnsPerFile, torrentDownloadSlots)
+	cfg, err := torrentcfg.New(snapDir, torrentLogLevel, natif, downloadRate, uploadRate, torrentPort, torrentAddr, torrentConnsPerFile, torrentDownloadSlots)
 	if err != nil {
 		return err
 	}

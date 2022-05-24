@@ -664,6 +664,11 @@ var (
 		Value: 42069,
 		Usage: "port to listen and serve BitTorrent protocol",
 	}
+	TorrentAddrFlag = cli.StringFlag{
+		Name:  "torrent.addr",
+		Value: "",
+		Usage: "address to listen and serve BitTorrent protocol",
+	}
 	TorrentMaxPeersFlag = cli.IntFlag{
 		Name:  "torrent.maxpeers",
 		Value: 100,
@@ -1397,6 +1402,7 @@ func SetEthConfig(ctx *cli.Context, nodeConfig *node.Config, cfg *ethconfig.Conf
 			nodeConfig.P2P.NAT,
 			downloadRate, uploadRate,
 			ctx.GlobalInt(TorrentPortFlag.Name),
+			ctx.GlobalString(TorrentAddrFlag.Name),
 			ctx.GlobalInt(TorrentConnsPerFileFlag.Name),
 			ctx.GlobalInt(TorrentDownloadSlotsFlag.Name),
 		)
