@@ -9,6 +9,7 @@ import (
 
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/eth/stagedsync"
@@ -280,7 +281,10 @@ func printStages(db kv.Tx) error {
 			return err
 		}
 		fmt.Fprintf(w, "first body in db: %d\n\n", binary.BigEndian.Uint64(firstNonGenesis))
+		db.ForAmount(kv.BlockBody, dbutils.EncodeBlockNumber(2), 10, func(k, v []byte) error {
+			fmt.Fprintf(w, "first body in db: %d\n\n", binary.BigEndian.Uint64(k))
+			return nil
+		})
 	}
-
 	return nil
 }
