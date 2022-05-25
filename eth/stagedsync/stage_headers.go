@@ -1143,7 +1143,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 		// wait for Downloader service to download all expected snapshots
 		if cfg.snapshots.IndicesMax() < cfg.snapshots.SegmentsMax() {
 			chainID, _ := uint256.FromBig(cfg.chainConfig.ChainID)
-			workers := cmp.InRange(1, 2, runtime.GOMAXPROCS(-1)-1)
+			workers := cmp.InRange(1, 8, runtime.GOMAXPROCS(-1)-1)
 			if err := snapshotsync.BuildIndices(ctx, cfg.snapshots, *chainID, cfg.tmpdir, cfg.snapshots.IndicesMax(), workers, log.LvlInfo); err != nil {
 				return err
 			}
