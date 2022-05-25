@@ -930,10 +930,7 @@ func retireBlocks(ctx context.Context, blockFrom, blockTo uint64, chainID uint25
 	if err := snapshots.Reopen(); err != nil {
 		return fmt.Errorf("ReopenSegments: %w", err)
 	}
-	idxWorkers := workers
-	if idxWorkers > 4 {
-		idxWorkers = 4
-	}
+	idxWorkers := cmp.Max(4, workers)
 	if err := BuildIndices(ctx, snapshots, chainID, tmpDir, snapshots.IndicesMax(), idxWorkers, log.LvlInfo); err != nil {
 		return err
 	}
@@ -1179,6 +1176,7 @@ func DumpHeaders(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string
 	}
 	defer f.Close()
 
+	i := 0
 	key := make([]byte, 8+32)
 	from := dbutils.EncodeBlockNumber(blockFrom)
 	if err := kv.BigChunks(db, kv.HeaderCanonical, from, func(tx kv.Tx, k, v []byte) (bool, error) {
@@ -1186,6 +1184,7 @@ func DumpHeaders(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string
 		if blockNum >= blockTo {
 			return false, nil
 		}
+		i++
 		copy(key, k)
 		copy(key[8:], v)
 		dataRLP, err := tx.GetOne(kv.Headers, key)
@@ -1224,6 +1223,9 @@ func DumpHeaders(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string
 	}); err != nil {
 		return err
 	}
+	if i != int(blockTo-blockFrom) {
+		return fmt.Errorf("noth enough headers were added to segment: %d, %d-%d\n", i, blockFrom, blockTo)
+	}
 	if err := f.Compress(); err != nil {
 		return fmt.Errorf("compress: %w", err)
 	}
@@ -1242,6 +1244,7 @@ func DumpBodies(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string,
 	}
 	defer f.Close()
 
+	i := 0
 	key := make([]byte, 8+32)
 	from := dbutils.EncodeBlockNumber(blockFrom)
 	if err := kv.BigChunks(db, kv.HeaderCanonical, from, func(tx kv.Tx, k, v []byte) (bool, error) {
@@ -1249,6 +1252,7 @@ func DumpBodies(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string,
 		if blockNum >= blockTo {
 			return false, nil
 		}
+		i++
 		copy(key, k)
 		copy(key[8:], v)
 		dataRLP, err := tx.GetOne(kv.BlockBody, key)
@@ -1280,6 +1284,9 @@ func DumpBodies(ctx context.Context, db kv.RoDB, segmentFilePath, tmpDir string,
 		return true, nil
 	}); err != nil {
 		return err
+	}
+	if i != int(blockTo-blockFrom) {
+		return fmt.Errorf("noth enough bodies were added to segment: %d, %d-%d\n", i, blockFrom, blockTo)
 	}
 	if err := f.Compress(); err != nil {
 		return fmt.Errorf("compress: %w", err)
@@ -1345,7 +1352,6 @@ func TransactionsIdx(ctx context.Context, chainID uint256.Int, blockFrom, blockT
 		return err
 	}
 	defer d.Close()
-	fmt.Printf("count: %d,%d,%s\n", expectedCount, d.Count(), d.FilePath())
 
 	txnHashIdx, err := recsplit.NewRecSplit(recsplit.RecSplitArgs{
 		KeyCount:   d.Count(),
@@ -1509,7 +1515,6 @@ func BodiesIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegme
 		return err
 	}
 	defer d.Close()
-	fmt.Printf("count: %d, %s\n", d.Count(), d.FilePath())
 
 	if err := Idx(ctx, d, firstBlockNumInSegment, tmpDir, func(idx *recsplit.RecSplit, i, offset uint64, word []byte) error {
 		n := binary.PutUvarint(num, i)
