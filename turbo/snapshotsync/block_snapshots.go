@@ -1315,13 +1315,17 @@ func TransactionsIdx(ctx context.Context, chainID uint256.Int, blockFrom, blockT
 		}
 		firstTxID = firstBody.BaseTxId
 
-		bodyIdxPath := filepath.Join(snapDir, snap.IdxFileName(blockFrom, blockTo, snap.Bodies.String()))
+		bodyIdxFileName := snap.IdxFileName(blockFrom, blockTo, snap.Bodies.String())
+		bodyIdxPath := filepath.Join(snapDir, bodyIdxFileName)
 		idx, err := recsplit.OpenIndex(bodyIdxPath)
 		if err != nil {
 			return err
 		}
 		defer idx.Close()
 
+		if idx.KeyCount() != blockTo-blockFrom-1 {
+			return fmt.Errorf("body idx is too small? %s, %d != %d", bodyIdxFileName, idx.KeyCount(), blockTo-blockFrom-1)
+		}
 		off := idx.Lookup2(blockTo - blockFrom - 1)
 		gg.Reset(off)
 
@@ -1341,6 +1345,7 @@ func TransactionsIdx(ctx context.Context, chainID uint256.Int, blockFrom, blockT
 		return err
 	}
 	defer d.Close()
+	fmt.Printf("count: %d,%d,%s\n", expectedCount, d.Count(), d.FilePath())
 
 	txnHashIdx, err := recsplit.NewRecSplit(recsplit.RecSplitArgs{
 		KeyCount:   d.Count(),
@@ -1471,6 +1476,7 @@ func HeadersIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegm
 		return err
 	}
 	defer d.Close()
+	fmt.Printf("count: %d, %s\n", d.Count(), d.FilePath())
 
 	hasher := crypto.NewKeccakState()
 	var h common.Hash
@@ -1504,6 +1510,7 @@ func BodiesIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegme
 		return err
 	}
 	defer d.Close()
+	fmt.Printf("count: %d, %s\n", d.Count(), d.FilePath())
 
 	if err := Idx(ctx, d, firstBlockNumInSegment, tmpDir, func(idx *recsplit.RecSplit, i, offset uint64, word []byte) error {
 		n := binary.PutUvarint(num, i)
