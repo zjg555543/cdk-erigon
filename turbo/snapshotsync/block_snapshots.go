@@ -1323,10 +1323,10 @@ func TransactionsIdx(ctx context.Context, chainID uint256.Int, blockFrom, blockT
 		}
 		defer idx.Close()
 
-		if idx.KeyCount() != blockTo-blockFrom-1 {
+		if idx.KeyCount() != blockTo-blockFrom {
 			return fmt.Errorf("body idx is too small? %s, %d != %d", bodyIdxFileName, idx.KeyCount(), blockTo-blockFrom-1)
 		}
-		off := idx.Lookup2(blockTo - blockFrom - 1)
+		off := idx.Lookup2(idx.KeyCount() - 1)
 		gg.Reset(off)
 
 		buf, _ = gg.Next(buf[:0])
