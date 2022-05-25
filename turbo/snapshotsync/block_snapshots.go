@@ -1476,7 +1476,6 @@ func HeadersIdx(ctx context.Context, segmentFilePath string, firstBlockNumInSegm
 		return err
 	}
 	defer d.Close()
-	fmt.Printf("count: %d, %s\n", d.Count(), d.FilePath())
 
 	hasher := crypto.NewKeccakState()
 	var h common.Hash
