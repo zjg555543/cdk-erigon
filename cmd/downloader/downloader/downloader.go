@@ -180,10 +180,6 @@ func (d *Downloader) onComplete() {
 	d.pieceCompletionDB = c
 	d.folder = m
 	d.torrentClient = torrentClient
-
-	if err := VerifyDtaFiles(ctx, snapDir); err != nil {
-		panic(err)
-	}
 }
 
 func (d *Downloader) Stats() AggStats {
