@@ -472,7 +472,7 @@ func stageHeaders(db kv.RwDB, ctx context.Context) error {
 			return fmt.Errorf("re-read Bodies progress: %w", err)
 		}
 		{ // hard-unwind stage_body also
-			if err := rawdb.TruncateBlocks(ctx, tx, progress+1); err != nil {
+			if err := rawdb.TruncateBlocks(ctx, db, tx, progress+1); err != nil {
 				return err
 			}
 			progressBodies, err := stages.GetStageProgress(tx, stages.Bodies)

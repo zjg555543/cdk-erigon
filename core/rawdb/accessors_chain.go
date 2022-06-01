@@ -36,6 +36,7 @@ import (
 	"github.com/ledgerwatch/erigon/rlp"
 	"github.com/ledgerwatch/erigon/turbo/services"
 	"github.com/ledgerwatch/log/v3"
+	"go.uber.org/atomic"
 )
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
@@ -1201,9 +1202,11 @@ func SecondKey(tx kv.Tx, table string) ([]byte, error) {
 // TruncateBlocks - delete block >= blockFrom
 // does decrement sequnces of kv.EthTx and kv.NonCanonicalTxs
 // doesn't delete Reciepts, Senders, Canonical markers, TotalDifficulty
-func TruncateBlocks(ctx context.Context, tx kv.RwTx, blockFrom uint64) error {
+func TruncateBlocks(ctx context.Context, db kv.RoDB, tx kv.RwTx, blockFrom uint64) error {
 	logEvery := time.NewTicker(20 * time.Second)
 	defer logEvery.Stop()
+
+	kv.ReadAhead(ctx, db, atomic.NewBool(false), kv.EthTx, nil, math.MaxInt32)
 
 	c, err := tx.Cursor(kv.Headers)
 	if err != nil {
