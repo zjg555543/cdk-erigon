@@ -1206,8 +1206,6 @@ func TruncateBlocks(ctx context.Context, db kv.RoDB, tx kv.RwTx, blockFrom uint6
 	logEvery := time.NewTicker(20 * time.Second)
 	defer logEvery.Stop()
 
-	kv.ReadAhead(ctx, db, atomic.NewBool(false), kv.EthTx, nil, math.MaxInt32)
-
 	c, err := tx.Cursor(kv.Headers)
 	if err != nil {
 		return err
@@ -1216,6 +1214,8 @@ func TruncateBlocks(ctx context.Context, db kv.RoDB, tx kv.RwTx, blockFrom uint6
 	if blockFrom < 1 { //protect genesis
 		blockFrom = 1
 	}
+	warmupInProgress := atomic.NewBool(false)
+
 	for k, _, err := c.Last(); k != nil; k, _, err = c.Prev() {
 		if err != nil {
 			return err
@@ -1235,6 +1235,10 @@ func TruncateBlocks(ctx context.Context, db kv.RoDB, tx kv.RwTx, blockFrom uint6
 			return err
 		}
 		if b != nil {
+			if isCanonical && !warmupInProgress.Load() {
+				kv.ReadAhead(ctx, db, warmupInProgress, kv.EthTx, dbutils.EncodeBlockNumber(b.BaseTxId-100_000), 100_000)
+			}
+
 			bucket := kv.EthTx
 			if !isCanonical {
 				bucket = kv.NonCanonicalTxs
