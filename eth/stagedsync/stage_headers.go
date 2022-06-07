@@ -31,7 +31,7 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync/snapshothashes"
 	"github.com/ledgerwatch/erigon/turbo/stages/bodydownload"
 	"github.com/ledgerwatch/erigon/turbo/stages/headerdownload"
-	"github.com/opentracing/opentracing-go/log"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // The number of blocks we should be able to re-org sub-second on commodity hardware.
