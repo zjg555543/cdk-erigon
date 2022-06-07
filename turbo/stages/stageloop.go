@@ -46,22 +46,6 @@ func StageLoop(
 	initialCycle := true
 
 	for {
-		if !hd.POSSync() {
-			// Wait for delivery of any p2p headers here to resume the stage loop
-			// Since StageLoopStep creates RW database transaction, the mining loop can only do its work (it also requires creating RW transaction)
-			// when the control flow is outside StageLoopStep function. Therefore wait here to give mining loop this opportunity
-			select {
-			case <-ctx.Done():
-				return
-			case <-hd.DeliveryNotify:
-			}
-		} else {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-		}
 		start := time.Now()
 
 		// Estimate the current top height seen from the peer
@@ -245,7 +229,10 @@ func MiningStep(ctx context.Context, kv kv.RwDB, mining *stagedsync.Sync) (err e
 	}
 	defer tx.Rollback()
 
-	if err = mining.Run(nil, olddb.NewMiningBatch(tx), false); err != nil {
+	miningBatch := olddb.NewMiningBatch(tx)
+	defer miningBatch.Rollback()
+
+	if err = mining.Run(nil, miningBatch, false); err != nil {
 		return err
 	}
 	tx.Rollback()

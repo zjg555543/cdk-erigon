@@ -224,11 +224,8 @@ func Erigon2(genesis *core.Genesis, chainConfig *params.ChainConfig, logger log.
 
 	var blockReader services.FullBlockReader
 	var allSnapshots *snapshotsync.RoSnapshots
-	syncMode, err := ethconfig.SyncModeByChainName(chainConfig.ChainName, syncmodeCli)
-	if err != nil {
-		return err
-	}
-	if syncMode == ethconfig.SnapSync {
+	useSnapshots := ethconfig.UseSnapshotsByChainName(chainConfig.ChainName) && snapshotsCli
+	if useSnapshots {
 		allSnapshots = snapshotsync.NewRoSnapshots(ethconfig.NewSnapCfg(true, false, true), path.Join(datadir, "snapshots"))
 		defer allSnapshots.Close()
 		if err := allSnapshots.Reopen(); err != nil {

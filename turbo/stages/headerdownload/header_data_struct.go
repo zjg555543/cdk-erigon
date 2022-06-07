@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ledgerwatch/erigon-lib/etl"
@@ -105,9 +106,9 @@ type Anchor struct {
 	fLink         *Link       // Links attached immediately to this anchor (pointer to the first one, the rest can be found by following `next` fields)
 	parentHash    common.Hash // Hash of the header this anchor can be connected to (to disappear)
 	blockHeight   uint64
-	nextRetryTime uint64 // Zero when anchor has just been created, otherwise time when anchor needs to be check to see if retry is needed
-	timeouts      int    // Number of timeout that this anchor has experiences - after certain threshold, it gets invalidated
-	idx           int    // Index of the anchor in the queue to be able to modify specific items
+	nextRetryTime time.Time // Zero when anchor has just been created, otherwise time when anchor needs to be check to see if retry is needed
+	timeouts      int       // Number of timeout that this anchor has experiences - after certain threshold, it gets invalidated
+	idx           int       // Index of the anchor in the queue to be able to modify specific items
 }
 
 // AnchorQueue is a priority queue of anchors that priorises by the time when
@@ -133,7 +134,7 @@ func (aq AnchorQueue) Less(i, j int) bool {
 		// When next retry times are the same, we prioritise low block height anchors
 		return aq[i].blockHeight < aq[j].blockHeight
 	}
-	return aq[i].nextRetryTime < aq[j].nextRetryTime
+	return aq[i].nextRetryTime.Before(aq[j].nextRetryTime)
 }
 
 func (aq AnchorQueue) Swap(i, j int) {
@@ -153,6 +154,7 @@ func (aq *AnchorQueue) Pop() interface{} {
 	n := len(old)
 	x := old[n-1]
 	*aq = old[0 : n-1]
+	x.idx = -1
 	return x
 }
 
@@ -256,31 +258,43 @@ const ( // SyncStatus values
 	Synced // if we found a canonical hash during backward sync, in this case our sync process is done
 )
 
+type Stats struct {
+	Requests            int
+	SkeletonRequests    int
+	Responses           int
+	Duplicates          int
+	ReqMinBlock         uint64
+	ReqMaxBlock         uint64
+	SkeletonReqMinBlock uint64
+	SkeletonReqMaxBlock uint64
+	RespMinBlock        uint64
+	RespMaxBlock        uint64
+}
+
 type HeaderDownload struct {
-	badHeaders         map[common.Hash]struct{}
-	anchors            map[common.Hash]*Anchor // Mapping from parentHash to collection of anchors
-	links              map[common.Hash]*Link   // Links by header hash
-	engine             consensus.Engine
-	insertQueue        InsertQueue    // Priority queue of non-persisted links that need to be verified and can be inserted
-	seenAnnounces      *SeenAnnounces // External announcement hashes, after header verification if hash is in this set - will broadcast it further
-	persistedLinkQueue LinkQueue      // Priority queue of persisted links used to limit their number
-	linkQueue          LinkQueue      // Priority queue of non-persisted links used to limit their number
-	anchorQueue        *AnchorQueue   // Priority queue of anchors used to sequence the header requests
-	DeliveryNotify     chan struct{}
-	toAnnounce         []Announce
-	lock               sync.RWMutex
-	preverifiedHeight  uint64 // Block height corresponding to the last preverified hash
-	linkLimit          int    // Maximum allowed number of links
-	persistedLinkLimit int    // Maximum allowed number of persisted links
-	anchorLimit        int    // Maximum allowed number of anchors
-	highestInDb        uint64 // Height of the highest block header in the database
-	requestChaining    bool   // Whether the downloader is allowed to issue more requests when previous responses created or moved an anchor
-	fetchingNew        bool   // Set when the stage that is actively fetching the headers is in progress
-	topSeenHeightPoW   uint64
-	trace              bool
-	respCount          int
-	respMin            uint64
-	respMax            uint64
+	badHeaders             map[common.Hash]struct{}
+	anchors                map[common.Hash]*Anchor // Mapping from parentHash to collection of anchors
+	links                  map[common.Hash]*Link   // Links by header hash
+	engine                 consensus.Engine
+	insertQueue            InsertQueue    // Priority queue of non-persisted links that need to be verified and can be inserted
+	seenAnnounces          *SeenAnnounces // External announcement hashes, after header verification if hash is in this set - will broadcast it further
+	persistedLinkQueue     LinkQueue      // Priority queue of persisted links used to limit their number
+	linkQueue              LinkQueue      // Priority queue of non-persisted links used to limit their number
+	anchorQueue            *AnchorQueue   // Priority queue of anchors used to sequence the header requests
+	DeliveryNotify         chan struct{}
+	toAnnounce             []Announce
+	lock                   sync.RWMutex
+	preverifiedHeight      uint64 // Block height corresponding to the last preverified hash
+	linkLimit              int    // Maximum allowed number of links
+	persistedLinkLimit     int    // Maximum allowed number of persisted links
+	anchorLimit            int    // Maximum allowed number of anchors
+	highestInDb            uint64 // Height of the highest block header in the database
+	requestChaining        bool   // Whether the downloader is allowed to issue more requests when previous responses created or moved an anchor
+	fetchingNew            bool   // Set when the stage that is actively fetching the headers is in progress
+	topSeenHeightPoW       uint64
+	latestMinedBlockNumber uint64
+	trace                  bool
+	stats                  Stats
 
 	consensusHeaderReader consensus.ChainHeaderReader
 	headerReader          services.HeaderReader

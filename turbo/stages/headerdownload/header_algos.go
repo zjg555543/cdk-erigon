@@ -174,8 +174,7 @@ func (hd *HeaderDownload) removeUpwards(link *Link) {
 func (hd *HeaderDownload) MarkAllVerified() {
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
-	for hd.insertQueue.Len() > 0 {
-		link := hd.insertQueue[0]
+	for _, link := range hd.insertQueue {
 		if !link.verified {
 			link.linked = true
 			link.verified = true
@@ -241,6 +240,7 @@ func (hd *HeaderDownload) LogAnchorState() {
 func (hd *HeaderDownload) logAnchorState() {
 	//nolint:prealloc
 	var ss []string
+	currentTime := time.Now()
 	for anchorParent, anchor := range hd.anchors {
 		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf("{%8d", anchor.blockHeight))
@@ -294,11 +294,12 @@ func (hd *HeaderDownload) logAnchorState() {
 		sb.WriteString(fmt.Sprintf("-%d links=%d (%s)}", end, len(bs), sbb.String()))
 		sb.WriteString(fmt.Sprintf(" => %x", anchorParent))
 		sb.WriteString(fmt.Sprintf(", anchorQueue.idx=%d", anchor.idx))
+		sb.WriteString(fmt.Sprintf(", next retry in %v", anchor.nextRetryTime.Sub(currentTime)))
 		ss = append(ss, sb.String())
 	}
 	sort.Strings(ss)
+	log.Info("Queue sizes", "anchors", hd.anchorQueue.Len(), "links", hd.linkQueue.Len(), "persisted", hd.persistedLinkQueue.Len())
 	for _, s := range ss {
-		log.Info("anchorQueue", "len", hd.anchorQueue.Len())
 		log.Info(s)
 	}
 }
@@ -351,6 +352,7 @@ func (hd *HeaderDownload) RecoverFromDb(db kv.RoDB) error {
 			default:
 			}
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -380,7 +382,7 @@ func (hd *HeaderDownload) invalidateAnchor(anchor *Anchor, reason string) {
 	}
 }
 
-func (hd *HeaderDownload) RequestMoreHeaders(currentTime uint64) (*HeaderRequest, []PenaltyItem) {
+func (hd *HeaderDownload) RequestMoreHeaders(currentTime time.Time) (*HeaderRequest, []PenaltyItem) {
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
 	var penalties []PenaltyItem
@@ -391,7 +393,7 @@ func (hd *HeaderDownload) RequestMoreHeaders(currentTime uint64) (*HeaderRequest
 	for hd.anchorQueue.Len() > 0 {
 		anchor := (*hd.anchorQueue)[0]
 		// Only process the anchors for which the nextRetryTime has already come
-		if anchor.nextRetryTime > currentTime {
+		if anchor.nextRetryTime.After(currentTime) {
 			return nil, penalties
 		}
 		if anchor.timeouts < 10 {
@@ -412,7 +414,7 @@ func (hd *HeaderDownload) RequestMoreHeaders(currentTime uint64) (*HeaderRequest
 	return nil, penalties
 }
 
-func (hd *HeaderDownload) requestMoreHeadersForPOS(currentTime uint64) (timeout bool, request *HeaderRequest, penalties []PenaltyItem) {
+func (hd *HeaderDownload) requestMoreHeadersForPOS(currentTime time.Time) (timeout bool, request *HeaderRequest, penalties []PenaltyItem) {
 	anchor := hd.posAnchor
 	if anchor == nil {
 		log.Trace("No PoS anchor")
@@ -420,7 +422,7 @@ func (hd *HeaderDownload) requestMoreHeadersForPOS(currentTime uint64) (timeout 
 	}
 
 	// Only process the anchors for which the nextRetryTime has already come
-	if anchor.nextRetryTime > currentTime {
+	if anchor.nextRetryTime.After(currentTime) {
 		return
 	}
 
@@ -443,7 +445,33 @@ func (hd *HeaderDownload) requestMoreHeadersForPOS(currentTime uint64) (timeout 
 	return
 }
 
-func (hd *HeaderDownload) UpdateRetryTime(req *HeaderRequest, currentTime, timeout uint64) {
+func (hd *HeaderDownload) UpdateStats(req *HeaderRequest, skeleton bool) {
+	hd.lock.Lock()
+	defer hd.lock.Unlock()
+	if skeleton {
+		hd.stats.SkeletonRequests++
+		if hd.stats.SkeletonReqMinBlock == 0 || req.Number < hd.stats.SkeletonReqMinBlock {
+			hd.stats.SkeletonReqMinBlock = req.Number
+		}
+		if req.Number+req.Length*req.Skip > hd.stats.SkeletonReqMaxBlock {
+			hd.stats.SkeletonReqMaxBlock = req.Number + req.Length*req.Skip
+		}
+	} else {
+		hd.stats.Requests++
+		// We know that req is reverse request, with Skip == 0, therefore comparing Number with reqMax
+		if req.Number > hd.stats.ReqMaxBlock {
+			hd.stats.ReqMaxBlock = req.Number
+		}
+		if hd.stats.ReqMinBlock == 0 || req.Number < hd.stats.ReqMinBlock+req.Length {
+			if req.Number >= req.Length {
+				hd.stats.ReqMinBlock = req.Number - req.Length
+			}
+		}
+	}
+
+}
+
+func (hd *HeaderDownload) UpdateRetryTime(req *HeaderRequest, currentTime time.Time, timeout time.Duration) {
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
 	if req.Anchor.idx == -1 {
@@ -451,7 +479,7 @@ func (hd *HeaderDownload) UpdateRetryTime(req *HeaderRequest, currentTime, timeo
 		return
 	}
 	req.Anchor.timeouts++
-	req.Anchor.nextRetryTime = currentTime + timeout
+	req.Anchor.nextRetryTime = currentTime.Add(timeout)
 	heap.Fix(hd.anchorQueue, req.Anchor.idx)
 }
 
@@ -524,6 +552,9 @@ func (hd *HeaderDownload) InsertHeader(hf FeedHeaderFunc, terminalTotalDifficult
 				return true, true, nil
 			}
 		}
+		if link.blockHeight == hd.latestMinedBlockNumber {
+			return false, true, nil
+		}
 
 		if link.blockHeight > hd.highestInDb {
 			if hd.trace {
@@ -555,12 +586,12 @@ func (hd *HeaderDownload) InsertHeader(hf FeedHeaderFunc, terminalTotalDifficult
 func (hd *HeaderDownload) InsertHeaders(hf FeedHeaderFunc, terminalTotalDifficulty *big.Int, logPrefix string, logChannel <-chan time.Time) (bool, error) {
 	var more bool = true
 	var err error
-	var isPos bool
+	var force bool
 	for more {
-		if more, isPos, err = hd.InsertHeader(hf, terminalTotalDifficulty, logPrefix, logChannel); err != nil {
+		if more, force, err = hd.InsertHeader(hf, terminalTotalDifficulty, logPrefix, logChannel); err != nil {
 			return false, err
 		}
-		if isPos {
+		if force {
 			return true, nil
 		}
 	}
@@ -884,19 +915,27 @@ func (hd *HeaderDownload) ProcessHeader(sh ChainSegmentHeader, newBlock bool, pe
 	if sh.Number > hd.topSeenHeightPoW && (newBlock || hd.seenAnnounces.Seen(sh.Hash)) {
 		hd.topSeenHeightPoW = sh.Number
 	}
-	if sh.Number > hd.respMax {
-		hd.respMax = sh.Number
+	if sh.Number > hd.stats.RespMaxBlock {
+		hd.stats.RespMaxBlock = sh.Number
 	}
-	if hd.respMin == 0 || sh.Number < hd.respMin {
-		hd.respMin = sh.Number
+	if hd.stats.RespMinBlock == 0 || sh.Number < hd.stats.RespMinBlock {
+		hd.stats.RespMinBlock = sh.Number
 	}
 	if _, ok := hd.links[sh.Hash]; ok {
+		hd.stats.Duplicates++
 		// Duplicate
+		return false
+	}
+	if parentAnchor, ok := hd.anchors[sh.Header.ParentHash]; ok {
+		// Alternative branch connected to an existing anchor
+		// Adding link as another child to the anchor and quit (not to overwrite the anchor)
+		link := hd.addHeaderAsLink(sh, false /* persisted */)
+		link.next = parentAnchor.fLink
+		parentAnchor.fLink = link
 		return false
 	}
 	parent, foundParent := hd.links[sh.Header.ParentHash]
 	anchor, foundAnchor := hd.anchors[sh.Hash]
-	//fmt.Printf("sh = %d %x, foundParent=%t, foundAnchor=%t\n", sh.Number, sh.Hash, foundParent, foundAnchor)
 	if !foundParent && !foundAnchor {
 		if sh.Number < hd.highestInDb {
 			log.Debug(fmt.Sprintf("new anchor too far in the past: %d, latest header in db: %d", sh.Number, hd.highestInDb))
@@ -909,16 +948,12 @@ func (hd *HeaderDownload) ProcessHeader(sh ChainSegmentHeader, newBlock bool, pe
 	}
 	link := hd.addHeaderAsLink(sh, false /* persisted */)
 	if foundAnchor {
+		// The new link is what anchor was pointing to, so the link takes over the child links of the anchor and the anchor is removed
 		link.fChild = anchor.fLink
 		hd.removeAnchor(anchor)
-		//fmt.Printf("removed anchor %d %x\n", anchor.blockHeight, anchor.parentHash)
-	}
-	if parentAnchor, ok := hd.anchors[sh.Header.ParentHash]; ok {
-		link.next = parentAnchor.fLink
-		parentAnchor.fLink = link
 	}
 	if foundParent {
-		//fmt.Printf("sh = %d %x, found parent\n", sh.Number, sh.Hash)
+		// Add this link as another child to the parent that is found
 		link.next = parent.fChild
 		parent.fChild = link
 		if parent.persisted {
@@ -926,16 +961,15 @@ func (hd *HeaderDownload) ProcessHeader(sh ChainSegmentHeader, newBlock bool, pe
 			hd.moveLinkToQueue(link, InsertQueueID)
 		}
 	} else {
+		// The link has not known parent, therefore it becomes an anchor, unless it is too far in the past
 		if sh.Number+params.FullImmutabilityThreshold < hd.highestInDb {
 			log.Debug("Remove upwards", "height", link.blockHeight, "hash", link.blockHeight)
 			hd.removeUpwards(link)
 			return false
 		}
-		//fmt.Printf("sh = %d %x, nof found parent or anchor\n", sh.Number, sh.Hash)
-		// See if it links existing anchor
 		anchor = &Anchor{
 			parentHash:    sh.Header.ParentHash,
-			nextRetryTime: 0, // Will ensure this anchor will be top priority
+			nextRetryTime: time.Time{}, // Will ensure this anchor will be top priority
 			peerID:        peerID,
 			blockHeight:   sh.Number,
 		}
@@ -948,7 +982,6 @@ func (hd *HeaderDownload) ProcessHeader(sh ChainSegmentHeader, newBlock bool, pe
 }
 
 func (hd *HeaderDownload) ProcessHeaders(csHeaders []ChainSegmentHeader, newBlock bool, peerID [64]byte) bool {
-	hd.respCount++
 	requestMore := false
 	for _, sh := range csHeaders {
 		// Lock is acquired for every invocation of ProcessHeader
@@ -958,6 +991,7 @@ func (hd *HeaderDownload) ProcessHeaders(csHeaders []ChainSegmentHeader, newBloc
 	}
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
+	hd.stats.Responses++
 	log.Trace("Link queue", "size", hd.linkQueue.Len())
 	if hd.linkQueue.Len() > hd.linkLimit {
 		log.Trace("Too many links, cutting down", "count", hd.linkQueue.Len(), "tried to add", len(csHeaders), "limit", hd.linkLimit)
@@ -972,14 +1006,10 @@ func (hd *HeaderDownload) ProcessHeaders(csHeaders []ChainSegmentHeader, newBloc
 	return hd.requestChaining && requestMore
 }
 
-func (hd *HeaderDownload) ExtractRespStats() (respCount int, respMin uint64, respMax uint64) {
-	respCount = hd.respCount
-	respMin = hd.respMin
-	respMax = hd.respMax
-	hd.respCount = 0
-	hd.respMin = 0
-	hd.respMax = 0
-	return
+func (hd *HeaderDownload) ExtractStats() Stats {
+	s := hd.stats
+	hd.stats = Stats{}
+	return s
 }
 
 func (hd *HeaderDownload) TopSeenHeight() uint64 {
@@ -1129,13 +1159,13 @@ func (hd *HeaderDownload) AddMinedHeader(header *types.Header) error {
 	peerID := [64]byte{'m', 'i', 'n', 'e', 'r'} // "miner"
 
 	_ = hd.ProcessHeaders(segments, false /* newBlock */, peerID)
+	hd.latestMinedBlockNumber = header.Number.Uint64()
 	return nil
 }
 
 func (hd *HeaderDownload) AddHeadersFromSnapshot(tx kv.Tx, n uint64, r services.FullBlockReader) error {
 	hd.lock.Lock()
 	defer hd.lock.Unlock()
-
 	for i := n; i > 0 && hd.persistedLinkQueue.Len() < hd.persistedLinkLimit; i-- {
 		header, err := r.HeaderByNumber(context.Background(), tx, i)
 		if err != nil {
@@ -1193,11 +1223,11 @@ func (hd *HeaderDownload) StartPoSDownloader(
 		for {
 			var req *HeaderRequest
 			var penalties []PenaltyItem
-			var currentTime uint64
+			var currentTime time.Time
 
 			hd.lock.Lock()
 			if hd.posStatus == Syncing {
-				currentTime = uint64(time.Now().Unix())
+				currentTime = time.Now()
 				var timeout bool
 				timeout, req, penalties = hd.requestMoreHeadersForPOS(currentTime)
 				if timeout {
@@ -1214,7 +1244,7 @@ func (hd *HeaderDownload) StartPoSDownloader(
 				_, sentToPeer := headerReqSend(ctx, req)
 				if sentToPeer {
 					// If request was actually sent to a peer, we update retry time to be 5 seconds in the future
-					hd.UpdateRetryTime(req, currentTime, 5 /* timeout */)
+					hd.UpdateRetryTime(req, currentTime, 5*time.Second /* timeout */)
 					log.Trace("Sent request", "height", req.Number)
 				}
 			}

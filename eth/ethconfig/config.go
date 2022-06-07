@@ -18,7 +18,6 @@
 package ethconfig
 
 import (
-	"fmt"
 	"math/big"
 	"os"
 	"os/user"
@@ -63,7 +62,7 @@ var LightClientGPO = gasprice.Config{
 // Defaults contains default settings for use on the Ethereum main net.
 var Defaults = Config{
 	Sync: Sync{
-		Mode:                       FullSync,
+		UseSnapshots:               false,
 		BlockDownloaderWindow:      32768,
 		BodyDownloadTimeoutSeconds: 30,
 	},
@@ -129,7 +128,7 @@ type Snapshot struct {
 func (s Snapshot) String() string {
 	var out []string
 	if s.Enabled {
-		out = append(out, "--syncmode=snap")
+		out = append(out, "--snapshots=true")
 	}
 	if s.KeepBlocks {
 		out = append(out, "--"+FlagSnapKeepBlocks+"=true")
@@ -230,8 +229,7 @@ type Config struct {
 }
 
 type Sync struct {
-	ModeCli string
-	Mode    SyncMode
+	UseSnapshots bool
 	// LoopThrottle sets a minimum time between staged loop iterations
 	LoopThrottle time.Duration
 
@@ -239,26 +237,17 @@ type Sync struct {
 	BodyDownloadTimeoutSeconds int // TODO: change to duration
 }
 
-type SyncMode string
+// Chains where snapshots are enabled by default
+var ChainsWithSnapshots map[string]struct{} = map[string]struct{}{
+	networkname.MainnetChainName:    {},
+	networkname.BSCChainName:        {},
+	networkname.GoerliChainName:     {},
+	networkname.RopstenChainName:    {},
+	networkname.MumbaiChainName:     {},
+	networkname.BorMainnetChainName: {},
+}
 
-const (
-	FullSync SyncMode = "full"
-	SnapSync SyncMode = "snap"
-)
-
-func SyncModeByChainName(chain, syncCliFlag string) (SyncMode, error) {
-	if syncCliFlag == "full" {
-		return FullSync, nil
-	} else if syncCliFlag == "snap" {
-		return SnapSync, nil
-	} else if syncCliFlag != "" {
-		return FullSync, fmt.Errorf("unexpected syncmode: %s, only next options are valid: %s, %s", syncCliFlag, FullSync, SnapSync)
-	}
-	switch chain {
-	case networkname.MainnetChainName, networkname.BSCChainName, networkname.GoerliChainName,
-		networkname.RopstenChainName:
-		return SnapSync, nil
-	default:
-		return FullSync, nil
-	}
+func UseSnapshotsByChainName(chain string) bool {
+	_, ok := ChainsWithSnapshots[chain]
+	return ok
 }

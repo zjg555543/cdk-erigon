@@ -156,9 +156,9 @@ var (
 		Name:  "ethash.dagslockmmap",
 		Usage: "Lock memory maps for recent ethash mining DAGs",
 	}
-	SyncModeFlag = cli.StringFlag{
-		Name:  "syncmode",
-		Usage: `Default: "snap" for BSC, Mainnet and Goerli. "full" in all other cases`,
+	SnapshotFlag = cli.BoolTFlag{
+		Name:  "snapshots",
+		Usage: `Default: use snapshots "true" for BSC, Mainnet and Goerli. use snapshots "false" in all other cases`,
 	}
 	// Transaction pool settings
 	TxPoolDisableFlag = cli.BoolFlag{
@@ -495,6 +495,10 @@ var (
 	SentryAddrFlag = cli.StringFlag{
 		Name:  "sentry.api.addr",
 		Usage: "comma separated sentry addresses '<host>:<port>,<host>:<port>'",
+	}
+	SentryLogPeerInfoFlag = cli.BoolFlag{
+		Name:  "sentry.log-peer-info",
+		Usage: "Log detailed peer info when a peer connects or disconnects. Enable to integrate with observer.",
 	}
 	DownloaderAddrFlag = cli.StringFlag{
 		Name:  "downloader.api.addr",
@@ -1017,6 +1021,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *nodecfg.Config) {
 	SetP2PConfig(ctx, &cfg.P2P, cfg.NodeName(), cfg.DataDir)
 
 	cfg.DownloaderAddr = strings.TrimSpace(ctx.GlobalString(DownloaderAddrFlag.Name))
+	cfg.SentryLogPeerInfo = ctx.GlobalIsSet(SentryLogPeerInfoFlag.Name)
 }
 
 func SetNodeConfigCobra(cmd *cobra.Command, cfg *nodecfg.Config) {
@@ -1364,7 +1369,7 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 
 // SetEthConfig applies eth-related command line flags to the config.
 func SetEthConfig(ctx *cli.Context, nodeConfig *nodecfg.Config, cfg *ethconfig.Config) {
-	cfg.Sync.ModeCli = ctx.GlobalString(SyncModeFlag.Name)
+	cfg.Sync.UseSnapshots = ctx.GlobalBoolT(SnapshotFlag.Name)
 	cfg.SnapDir = filepath.Join(nodeConfig.DataDir, "snapshots")
 	cfg.Snapshot.KeepBlocks = ctx.GlobalBool(SnapKeepBlocksFlag.Name)
 	cfg.Snapshot.Produce = !ctx.GlobalBool(SnapStopFlag.Name)

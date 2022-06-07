@@ -10,7 +10,7 @@ import (
 var DefaultFlags = []cli.Flag{
 	utils.DataDirFlag,
 	utils.EthashDatasetDirFlag,
-	utils.SyncModeFlag,
+	utils.SnapshotFlag,
 	utils.TxPoolDisableFlag,
 	utils.TxPoolLocalsFlag,
 	utils.TxPoolNoLocalsFlag,
@@ -118,6 +118,7 @@ var DefaultFlags = []cli.Flag{
 	utils.MinerNoVerfiyFlag,
 	utils.MinerSigningKeyFileFlag,
 	utils.SentryAddrFlag,
+	utils.SentryLogPeerInfoFlag,
 	utils.DownloaderAddrFlag,
 	HealthCheckFlag,
 	utils.HeimdallURLFlag,
