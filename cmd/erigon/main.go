@@ -4,6 +4,7 @@ import "C"
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon/params"
@@ -15,6 +16,7 @@ import (
 )
 
 func main() {
+	runtime.SetCPUProfileRate(10_000)
 	defer func() {
 		panicResult := recover()
 		if panicResult == nil {
