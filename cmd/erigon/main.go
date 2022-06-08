@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/pprof"
 
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon/params"
@@ -17,6 +18,17 @@ import (
 
 func main() {
 	runtime.SetCPUProfileRate(10_000)
+	f, err := os.Create("cpu.pprof")
+	if err != nil {
+		fmt.Println("could not create CPU profile: ", err)
+		os.Exit(1)
+	}
+	if err := pprof.StartCPUProfile(f); err != nil {
+		fmt.Println("could not start CPU profile: ", err)
+		os.Exit(1)
+	}
+	defer pprof.StopCPUProfile()
+
 	defer func() {
 		panicResult := recover()
 		if panicResult == nil {
