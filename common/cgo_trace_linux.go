@@ -6,3 +6,7 @@ package main
 import (
 	_ "github.com/ianlancetaylor/cgosymbolizer"
 )
+
+func ini() {
+	runtime.SetCPUProfileRate(10_000)
+}
