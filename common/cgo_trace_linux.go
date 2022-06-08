@@ -1,7 +1,7 @@
 //go:build linux && debug
 // +build linux,debug
 
-package main
+package common
 
 import (
 	_ "github.com/ianlancetaylor/cgosymbolizer"
