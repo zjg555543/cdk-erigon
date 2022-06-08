@@ -4,8 +4,6 @@ import "C"
 import (
 	"fmt"
 	"os"
-	"runtime"
-	"unsafe"
 
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon/params"
@@ -17,7 +15,6 @@ import (
 )
 
 func main() {
-	runtime.SetCgoTraceback(0, unsafe.Pointer(C.pprofCgoTraceback), nil, nil)
 	defer func() {
 		panicResult := recover()
 		if panicResult == nil {
