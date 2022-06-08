@@ -1,5 +1,5 @@
-//go:build linux
-// +build linux
+//go:build linux && debug
+// +build linux,debug
 
 package main
 
