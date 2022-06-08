@@ -4,6 +4,8 @@
 package common
 
 import (
+	"runtime"
+
 	_ "github.com/ianlancetaylor/cgosymbolizer"
 )
 
