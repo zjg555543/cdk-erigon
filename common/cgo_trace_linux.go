@@ -5,8 +5,7 @@ package common
 
 import (
 	"runtime"
-
-	_ "github.com/ianlancetaylor/cgosymbolizer"
+	//_ "github.com/ianlancetaylor/cgosymbolizer"
 )
 
 func ini() {
