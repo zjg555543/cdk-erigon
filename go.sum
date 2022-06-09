@@ -387,8 +387,6 @@ github.com/kylelemons/godebug v0.0.0-20170224010052-a616ab194758 h1:0D5M2HQSGD3P
 github.com/kylelemons/godebug v0.0.0-20170224010052-a616ab194758/go.mod h1:B69LEHPfb2qLo0BaaOLcbitczOKLWTsrBG9LczfCD4k=
 github.com/leanovate/gopter v0.2.9 h1:fQjYxZaynp97ozCzfOyOuAGOU4aU/z37zf/tOujFk7c=
 github.com/leanovate/gopter v0.2.9/go.mod h1:U2L/78B+KVFIx2VmW6onHJQzXtFb+p5y3y2Sh+Jxxv8=
-github.com/ledgerwatch/erigon-lib v0.0.0-20220608095748-ec490fc4f9e9 h1:RdMVjnESwMxyCCAmBdf8bz106SiktsHO2ydCYng8VU0=
-github.com/ledgerwatch/erigon-lib v0.0.0-20220608095748-ec490fc4f9e9/go.mod h1:2gdslxiJqp1wYuEiEwWFueQORSRoeDQYZuaJIA2VGr4=
 github.com/ledgerwatch/erigon-lib v0.0.0-20220609031500-a0366c3104ef h1:DA/4UVAUdM/Bi+RdT+XNxkZw7OFt6Qt1ra/fc/fewes=
 github.com/ledgerwatch/erigon-lib v0.0.0-20220609031500-a0366c3104ef/go.mod h1:oiXEZU4CokRcM7k9SLKN1cGggZUCJ92Y1ZXkTmEhN4U=
 github.com/ledgerwatch/log/v3 v3.4.1 h1:/xGwlVulXnsO9Uq+tzaExc8OWmXXHU0dnLalpbnY5Bc=
@@ -615,8 +613,7 @@ github.com/tinylib/msgp v1.0.2/go.mod h1:+d+yLhGm8mzTaHzB+wgMYrodPfmZrzkirds8fDW
 github.com/tinylib/msgp v1.1.0/go.mod h1:+d+yLhGm8mzTaHzB+wgMYrodPfmZrzkirds8fDWklFE=
 github.com/tinylib/msgp v1.1.2/go.mod h1:+d+yLhGm8mzTaHzB+wgMYrodPfmZrzkirds8fDWklFE=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
-github.com/torquem-ch/mdbx-go v0.24.3-0.20220608095553-df432742e74c h1:oJiO3nhp4bsSb6usBnIuk5ozg7Y8Yqe2Go5P77p14I0=
-github.com/torquem-ch/mdbx-go v0.24.3-0.20220608095553-df432742e74c/go.mod h1:T2fsoJDVppxfAPTLd1svUgH1kpPmeXdPESmroSHcL1E=
+github.com/torquem-ch/mdbx-go v0.24.3-0.20220609031401-d4f37d42ed67 h1:IUiXgn2nLv37Sdn+S+T5iA+7s/FG3cTR9FEETG3/WUg=
 github.com/torquem-ch/mdbx-go v0.24.3-0.20220609031401-d4f37d42ed67/go.mod h1:T2fsoJDVppxfAPTLd1svUgH1kpPmeXdPESmroSHcL1E=
 github.com/ugorji/go v1.1.13/go.mod h1:jxau1n+/wyTGLQoCkjok9r5zFa/FxT6eI5HiHKQszjc=
 github.com/ugorji/go/codec v1.1.13 h1:013LbFhocBoIqgHeIHKlV4JWYhqogATYWZhIcH0WHn4=
