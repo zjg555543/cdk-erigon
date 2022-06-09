@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime/cgo"
 	"runtime/pprof"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -11,7 +10,6 @@ import (
 )
 
 func main() {
-	cgo.NewHandle()
 	f, err := os.Create("cpu.pprof")
 	if err != nil {
 		fmt.Println("could not create CPU profile: ", err)
