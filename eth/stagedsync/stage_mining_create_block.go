@@ -135,13 +135,14 @@ func SpawnMiningCreateBlockStage(s *StageState, tx kv.RwTx, cfg MiningCreateBloc
 		if err := cfg.txPool2.Best(200, &txSlots, tx); err != nil {
 			return err
 		}
+		log.Info("Best200", "len", len(txSlots.Txs))
 
 		for i := range txSlots.Txs {
 			s := rlp.NewStream(bytes.NewReader(txSlots.Txs[i]), uint64(len(txSlots.Txs[i])))
 
 			transaction, err := types.DecodeTransaction(s)
 			if err == io.EOF {
-				fmt.Println(len(txSlots.Txs[i]))
+				fmt.Printf("[%x]\n", txSlots.Txs[i])
 				continue
 			}
 			if err != nil {
@@ -162,7 +163,7 @@ func SpawnMiningCreateBlockStage(s *StageState, tx kv.RwTx, cfg MiningCreateBloc
 	current.RemoteTxs = types.NewTransactionsFixedOrder(txs)
 	// txpool v2 - doesn't prioritise local txs over remote
 	current.LocalTxs = types.NewTransactionsFixedOrder(nil)
-	log.Debug(fmt.Sprintf("[%s] Candidate txs", logPrefix), "amount", len(txs))
+	log.Info(fmt.Sprintf("[%s] Candidate txs", logPrefix), "amount", len(txs))
 	localUncles, remoteUncles, err := readNonCanonicalHeaders(tx, blockNum, cfg.engine, coinbase, txPoolLocals)
 	if err != nil {
 		return err
