@@ -590,18 +590,17 @@ func (s *RoSnapshots) PrintDebug() {
 	defer s.Bodies.lock.RUnlock()
 	s.Txs.lock.RLock()
 	defer s.Txs.lock.RUnlock()
-	fmt.Printf("sn: %d, %d\n", s.segmentsMax.Load(), s.idxMax.Load())
-	fmt.Println("    == Snapshots, Header")
+	log.Debug("    == Snapshots, Header")
 	for _, sn := range s.Headers.segments {
-		fmt.Printf("%d,  %t\n", sn.From, sn.idxHeaderHash == nil)
+		log.Debug(fmt.Sprintf("%d,  %t\n", sn.From, sn.idxHeaderHash == nil))
 	}
-	fmt.Println("    == Snapshots, Body")
+	log.Debug("    == Snapshots, Body")
 	for _, sn := range s.Bodies.segments {
-		fmt.Printf("%d,  %t\n", sn.From, sn.idxBodyNumber == nil)
+		log.Debug(fmt.Sprintf("%d,  %t\n", sn.From, sn.idxBodyNumber == nil))
 	}
-	fmt.Println("    == Snapshots, Txs")
+	log.Debug("    == Snapshots, Txs")
 	for _, sn := range s.Txs.segments {
-		fmt.Printf("%d,  %t, %t\n", sn.From, sn.IdxTxnHash == nil, sn.IdxTxnHash2BlockNum == nil)
+		log.Debug(fmt.Sprintf("%d,  %t, %t\n", sn.From, sn.IdxTxnHash == nil, sn.IdxTxnHash2BlockNum == nil))
 	}
 }
 func (s *RoSnapshots) ViewHeaders(blockNum uint64, f func(sn *HeaderSegment) error) (found bool, err error) {

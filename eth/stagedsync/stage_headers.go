@@ -1174,6 +1174,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 			hasInDB = binary.BigEndian.Uint64(k)
 		}
 		if cfg.snapshots.SegmentsMax() < hasInDB {
+			cfg.snapshots.PrintDebug()
 			return fmt.Errorf("not enough snapshots available: snapshots=%d, blockInDB=%d, expect=%d", cfg.snapshots.SegmentsMax(), hasInDB, expect)
 		} else {
 			log.Warn(fmt.Sprintf("not enough snapshots available: %d < %d, but we can re-generate them because DB has historical blocks up to: %d", cfg.snapshots.SegmentsMax(), expect, hasInDB))
