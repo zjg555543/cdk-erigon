@@ -389,7 +389,7 @@ func (cs *MultiClient) blockHeaders(ctx context.Context, pkt eth.BlockHeadersPac
 			highestBlock = number
 		}
 		csHeaders = append(csHeaders, headerdownload.ChainSegmentHeader{
-			Header:    header,
+			Header:    types.CopyHeader(header),
 			HeaderRaw: headerRaw,
 			Hash:      types.RawRlpHash(headerRaw),
 			Number:    number,
