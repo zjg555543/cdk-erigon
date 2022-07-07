@@ -24,7 +24,7 @@ require (
 	github.com/gofrs/flock v0.8.1
 	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/golang/snappy v0.0.4
-	github.com/google/btree v1.0.1
+	github.com/google/btree v1.1.2
 	github.com/google/gofuzz v1.1.1-0.20200604201612-c04b05f3adfa
 	github.com/gorilla/websocket v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
@@ -35,7 +35,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kevinburke/go-bindata v3.21.0+incompatible
-	github.com/ledgerwatch/erigon-lib v0.0.0-20220706054240-9e7f22667e55
+	github.com/ledgerwatch/erigon-lib v0.0.0-20220707044629-ca17471db2ad
 	github.com/ledgerwatch/log/v3 v3.4.1
 	github.com/ledgerwatch/secp256k1 v1.0.0
 	github.com/nxadm/tail v1.4.9-0.20211216163028-4472660a31a6
