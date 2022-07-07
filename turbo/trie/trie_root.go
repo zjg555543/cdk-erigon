@@ -231,72 +231,66 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 		if err != nil {
 			return EmptyRoot, err
 		}
-		if accTrie.SkipState {
-			goto SkipAccounts
-		}
-
-		for k, kHex, v, err1 := accs.Seek(accTrie.FirstNotCoveredPrefix()); k != nil; k, kHex, v, err1 = accs.Next() {
-			if err1 != nil {
-				return EmptyRoot, err1
-			}
-			if keyIsBefore(ihK, kHex) || !bytes.HasPrefix(kHex, prefix) { // read all accounts until next AccTrie
-				break
-			}
-			if err = l.accountValue.DecodeForStorage(v); err != nil {
-				return EmptyRoot, fmt.Errorf("fail DecodeForStorage: %w", err)
-			}
-			if err = l.receiver.Receive(AccountStreamItem, kHex, nil, &l.accountValue, nil, nil, false, 0); err != nil {
-				return EmptyRoot, err
-			}
-			if l.accountValue.Incarnation == 0 {
-				continue
-			}
-			copy(l.accAddrHashWithInc[:], k)
-			binary.BigEndian.PutUint64(l.accAddrHashWithInc[32:], l.accountValue.Incarnation)
-			accWithInc := l.accAddrHashWithInc[:]
-			for ihKS, ihVS, hasTreeS, err2 := storageTrie.SeekToAccount(accWithInc); ; ihKS, ihVS, hasTreeS, err2 = storageTrie.Next() {
-				if err2 != nil {
-					return EmptyRoot, err2
+		if !accTrie.SkipState {
+			for k, kHex, v, err1 := accs.Seek(accTrie.FirstNotCoveredPrefix()); k != nil; k, kHex, v, err1 = accs.Next() {
+				if err1 != nil {
+					return EmptyRoot, err1
 				}
-
-				if storageTrie.skipState {
-					goto SkipStorage
-				}
-
-				for vS, err3 := ss.SeekBothRange(accWithInc, storageTrie.FirstNotCoveredPrefix()); vS != nil; _, vS, err3 = ss.NextDup() {
-					if err3 != nil {
-						return EmptyRoot, err3
-					}
-					hexutil.DecompressNibbles(vS[:32], &l.kHexS)
-					if keyIsBefore(ihKS, l.kHexS) { // read until next AccTrie
-						break
-					}
-					if err = l.receiver.Receive(StorageStreamItem, accWithInc, l.kHexS, nil, vS[32:], nil, false, 0); err != nil {
-						return EmptyRoot, err
-					}
-				}
-
-			SkipStorage:
-				if ihKS == nil { // Loop termination
+				if keyIsBefore(ihK, kHex) || !bytes.HasPrefix(kHex, prefix) { // read all accounts until next AccTrie
 					break
 				}
-
-				if err = l.receiver.Receive(SHashStreamItem, accWithInc, ihKS, nil, nil, ihVS, hasTreeS, 0); err != nil {
+				if err = l.accountValue.DecodeForStorage(v); err != nil {
+					return EmptyRoot, fmt.Errorf("fail DecodeForStorage: %w", err)
+				}
+				if err = l.receiver.Receive(AccountStreamItem, kHex, nil, &l.accountValue, nil, nil, false, 0); err != nil {
 					return EmptyRoot, err
 				}
-				if len(ihKS) == 0 { // means we just sent acc.storageRoot
-					break
+				if l.accountValue.Incarnation == 0 {
+					continue
 				}
-			}
+				copy(l.accAddrHashWithInc[:], k)
+				binary.BigEndian.PutUint64(l.accAddrHashWithInc[32:], l.accountValue.Incarnation)
+				accWithInc := l.accAddrHashWithInc[:]
+				for ihKS, ihVS, hasTreeS, err2 := storageTrie.SeekToAccount(accWithInc); ; ihKS, ihVS, hasTreeS, err2 = storageTrie.Next() {
+					if err2 != nil {
+						return EmptyRoot, err2
+					}
 
-			select {
-			default:
-			case <-logEvery.C:
-				l.logProgress(k, ihK)
+					if !storageTrie.skipState {
+						for vS, err3 := ss.SeekBothRange(accWithInc, storageTrie.FirstNotCoveredPrefix()); vS != nil; _, vS, err3 = ss.NextDup() {
+							if err3 != nil {
+								return EmptyRoot, err3
+							}
+							hexutil.DecompressNibbles(vS[:32], &l.kHexS)
+							if keyIsBefore(ihKS, l.kHexS) { // read until next AccTrie
+								break
+							}
+							if err = l.receiver.Receive(StorageStreamItem, accWithInc, l.kHexS, nil, vS[32:], nil, false, 0); err != nil {
+								return EmptyRoot, err
+							}
+						}
+					}
+
+					if ihKS == nil { // Loop termination
+						break
+					}
+
+					if err = l.receiver.Receive(SHashStreamItem, accWithInc, ihKS, nil, nil, ihVS, hasTreeS, 0); err != nil {
+						return EmptyRoot, err
+					}
+					if len(ihKS) == 0 { // means we just sent acc.storageRoot
+						break
+					}
+				}
+
+				select {
+				default:
+				case <-logEvery.C:
+					l.logProgress(k, ihK)
+				}
 			}
 		}
 
-	SkipAccounts:
 		if ihK == nil { // Loop termination
 			break
 		}
@@ -1110,26 +1104,12 @@ func (c *StorageTrieCursor) _consume() (bool, error) {
 func (c *StorageTrieCursor) _seek(seek, withinPrefix []byte) (bool, error) {
 	var k, v []byte
 	var err error
-	if len(seek) == 40 {
-		//c.is++
-		k, v, err = c.c.Seek(seek)
-	} else {
-		// optimistic .Next call, can use result in 2 cases:
-		// - no child found, means: len(k) <= c.lvl
-		// - looking for first child, means: c.childID[c.lvl] <= int8(bits.TrailingZeros16(c.hasTree[c.lvl]))
-		// otherwise do .Seek call
-		//k, v, err = c.c.Next()
-		//if err != nil {
-		//	return false, err
-		//}
-		//if len(k) > c.lvl && c.childID[c.lvl] > int8(bits.TrailingZeros16(c.hasTree[c.lvl])) {
-		// c.is++
-		k, v, err = c.c.Seek(seek)
-		//}
-	}
+
+	k, v, err = c.c.Seek(seek)
 	if err != nil {
 		return false, err
 	}
+	
 	if len(withinPrefix) > 0 { // seek within given prefix must not terminate overall process
 		if k == nil {
 			return false, nil

@@ -140,6 +140,7 @@ func Trie(tx kv.Tx, slowChecks bool, ctx context.Context) {
 			}
 		}
 	}
+
 	{
 		c, err := tx.Cursor(kv.TrieOfStorage)
 		if err != nil {
@@ -239,14 +240,21 @@ func Trie(tx kv.Tx, slowChecks bool, ctx context.Context) {
 				seek = seek[:40+len(buf2)]
 				copy(seek, k[:40])
 				copy(seek[40:], buf2)
+				var foundK []byte
 				if err := ethdb.Walk(storageC, seek, bitsToMatch, func(k, v []byte) (bool, error) {
+					foundK = k
 					found = true
 					return false, nil
 				}); err != nil {
 					panic(err)
 				}
 				if !found {
-					panic(fmt.Errorf("key %x has state %016b, but there is no child %d,%x in state", k, hasState, i, seek))
+					if foundK == nil {
+						panic(fmt.Errorf("key %x has state %016b, but there is no child %d,%x in state", k, hasState, i, seek))
+					} else {
+						panic(fmt.Errorf("key %x has state %016b, but there is no child %d,%x in state : found instead %x", k, hasState, i, seek, foundK))
+					}
+
 				}
 			}
 		}
