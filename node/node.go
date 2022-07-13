@@ -527,10 +527,12 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 			opts = opts.Exclusive()
 		}
 		if label == kv.ChainDB {
+			log.Error("[dbg] chaindata", "to", 7*datasize.TB)
 			opts = opts.AugumentLimit(config.MdbxAugumentLimit).MapSize(7 * datasize.TB)
 		}
 		db, err := opts.Open()
 		if err != nil {
+			panic(err)
 			return nil, err
 		}
 		info, _ := db.(*mdbx.MdbxKV).Env().Info(nil)
