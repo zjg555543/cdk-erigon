@@ -38,7 +38,6 @@ import (
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/rpc"
 	"github.com/ledgerwatch/log/v3"
-	mdbx2 "github.com/torquem-ch/mdbx-go/mdbx"
 )
 
 // Node is a container on which services can be registered.
@@ -522,13 +521,14 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 	var openFunc func(exclusive bool) (kv.RwDB, error)
 	log.Info("Opening Database", "label", name, "path", dbPath)
 	openFunc = func(exclusive bool) (kv.RwDB, error) {
-		opts := mdbx.NewMDBX(logger).Path(dbPath).Label(label).DBVerbosity(mdbx2.LogLvlDebug)
+		opts := mdbx.NewMDBX(logger).Path(dbPath).Label(label).DBVerbosity(config.DatabaseVerbosity)
 		if exclusive {
 			opts = opts.Exclusive()
 		}
 		if label == kv.ChainDB {
-			log.Error("[dbg] chaindata", "to", 7*datasize.TB)
-			opts = opts.AugumentLimit(config.MdbxAugumentLimit).MapSize(7 * datasize.TB)
+			limit := 8 * datasize.TB / 4096 * 4096 // must be power of pageSize, max 8
+			log.Error("[dbg] chaindata", "to", limit)
+			opts = opts.AugumentLimit(config.MdbxAugumentLimit).MapSize(limit)
 		}
 		db, err := opts.Open()
 		if err != nil {
