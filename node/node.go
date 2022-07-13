@@ -527,14 +527,14 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 			opts = opts.Exclusive()
 		}
 		if label == kv.ChainDB {
-			opts = opts.AugumentLimit(config.MdbxAugumentLimit).MapSize(8 * datasize.TB)
+			opts = opts.AugumentLimit(config.MdbxAugumentLimit).MapSize(7 * datasize.TB)
 		}
 		db, err := opts.Open()
 		if err != nil {
 			return nil, err
 		}
 		info, _ := db.(*mdbx.MdbxKV).Env().Info(nil)
-		log.Error("[dbg] Db", "upper", info.Geo.Upper, "current", info.Geo.Current, "grow", info.Geo.Grow, "mapsize", info.MapSize, "pagesize", info.PageSize)
+		log.Error("[dbg] Db", "label", label, "upper", info.Geo.Upper, "current", info.Geo.Current, "grow", info.Geo.Grow, "mapsize", info.MapSize, "pagesize", info.PageSize)
 		return db, nil
 	}
 	var err error
