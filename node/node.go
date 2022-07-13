@@ -526,7 +526,7 @@ func OpenDatabase(config *Config, logger log.Logger, label kv.Label) (kv.RwDB, e
 			opts = opts.Exclusive()
 		}
 		if label == kv.ChainDB {
-			limit := 8 * datasize.TB / 4096 * 4096 // must be power of pageSize, max 8
+			limit := 4 * datasize.TB / 4096 * 4096 // must be power of pageSize, max 8tb
 			log.Error("[dbg] chaindata", "to", limit)
 			opts = opts.AugumentLimit(config.MdbxAugumentLimit).MapSize(limit)
 		}
