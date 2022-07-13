@@ -1,4 +1,4 @@
-package tcommon
+package common
 
 import (
 	"encoding/hex"

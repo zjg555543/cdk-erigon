@@ -5,10 +5,11 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	tmtypes "github.com/ledgerwatch/erigon/core/vm/lightclient/tmtypes"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	lerr "github.com/tendermint/tendermint/lite/errors"
-	tmtypes "github.com/tendermint/tendermint/types"
+	//tmtypes "github.com/tendermint/tendermint/types"
 )
 
 const (
