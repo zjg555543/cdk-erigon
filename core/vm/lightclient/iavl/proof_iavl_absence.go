@@ -3,8 +3,8 @@ package iavl
 import (
 	"fmt"
 
+	cmn "github.com/ledgerwatch/erigon/core/vm/lightclient/tcommon"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
 const ProofOpIAVLAbsence = "iavl:a"

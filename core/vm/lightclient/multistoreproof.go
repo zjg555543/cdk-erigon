@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	iavl2 "github.com/ledgerwatch/erigon/core/vm/lightclient/iavl"
+	cmn "github.com/ledgerwatch/erigon/core/vm/lightclient/tcommon"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
 // MultiStoreProof defines a collection of store proofs in a multi-store

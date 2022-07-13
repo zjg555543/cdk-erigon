@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
+	cmn "github.com/ledgerwatch/erigon/core/vm/lightclient/tcommon"
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/crypto/tmhash"
-	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
 var (

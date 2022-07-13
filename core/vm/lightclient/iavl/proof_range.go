@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	cmn "github.com/ledgerwatch/erigon/core/vm/lightclient/tcommon"
 	"github.com/tendermint/tendermint/crypto/tmhash"
-	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
 type RangeProof struct {
