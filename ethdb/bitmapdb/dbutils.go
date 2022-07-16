@@ -14,7 +14,9 @@ import (
 	"github.com/ledgerwatch/erigon/ethdb"
 )
 
-const ChunkLimit = uint64(1950 * datasize.B) // threshold beyond which MDBX overflow pages appear: 4096 / 2 - (keySize + 8)
+// ChunkLimit beyond which MDBX overflow pages appear: 4096 / 2 - (keySize + 8) = 1950
+// but 1950 facing some edge-case in mdbx on pageSize=64kb, so - changing it to 1936
+const ChunkLimit = uint64(1936 * datasize.B)
 
 // CutLeft - cut from bitmap `targetSize` bytes from left
 // removing lft part from `bm`
