@@ -227,10 +227,20 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 	defer ss.Close()
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
+	var loops uint64
+
 	for ihK, ihV, hasTree, err := accTrie.AtPrefix(prefix); ; ihK, ihV, hasTree, err = accTrie.Next() { // no loop termination is at he end of loop
 		if err != nil {
 			return EmptyRoot, err
 		}
+
+		// log.Info("Tdata", "key", fmt.Sprintf("%x", ihK), "skip", fmt.Sprintf("%t", accTrie.SkipState), "uncovered", fmt.Sprintf("%x", accTrie.FirstNotCoveredPrefix()))
+		// loops += 1
+
+		// if loops > 512 {
+		// 	break
+		// }
+
 		if !accTrie.SkipState {
 			for k, kHex, v, err1 := accs.Seek(accTrie.FirstNotCoveredPrefix()); k != nil; k, kHex, v, err1 = accs.Next() {
 				if err1 != nil {
@@ -1109,7 +1119,7 @@ func (c *StorageTrieCursor) _seek(seek, withinPrefix []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	
+
 	if len(withinPrefix) > 0 { // seek within given prefix must not terminate overall process
 		if k == nil {
 			return false, nil
