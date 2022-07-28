@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/rawdb/rawdbreset"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/node/nodecfg/datadir"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync/snap"
 	"github.com/ledgerwatch/log/v3"
+	"go.uber.org/atomic"
 )
 
 var resetBlocks = Migration{
@@ -52,6 +54,7 @@ var resetBlocks = Migration{
 			return err
 		}
 
+		kv.ReadAhead(context.Background(), db, atomic.NewBool(false), kv.EthTx, nil, math.MaxInt32)
 		if err := rawdbreset.ResetBlocks(tx); err != nil {
 			return err
 		}
