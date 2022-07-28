@@ -4,14 +4,12 @@ import (
 	"context"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/rawdb/rawdbreset"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/node/nodecfg/datadir"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync/snap"
 	"github.com/ledgerwatch/log/v3"
-	"go.uber.org/atomic"
 )
 
 var resetBlocks = Migration{
@@ -53,8 +51,23 @@ var resetBlocks = Migration{
 		if err := snap.RemoveNonPreverifiedFiles(chainConfig.ChainName, dirs.Snap); err != nil {
 			return err
 		}
+		// warmup
+		go func() {
+			_ = db.View(context.Background(), func(tx kv.Tx) error {
+				c, err := tx.Cursor(kv.EthTx)
+				if err != nil {
+					return err
+				}
+				defer c.Close()
 
-		kv.ReadAhead(context.Background(), db, atomic.NewBool(false), kv.EthTx, nil, math.MaxInt32)
+				for k, _, err := c.Last(); k != nil; k, _, err = c.Prev() {
+					if err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+		}()
 		if err := rawdbreset.ResetBlocks(tx); err != nil {
 			return err
 		}
