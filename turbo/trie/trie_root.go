@@ -227,14 +227,13 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 	defer ss.Close()
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
-	var loops uint64
 
 	for ihK, ihV, hasTree, err := accTrie.AtPrefix(prefix); ; ihK, ihV, hasTree, err = accTrie.Next() { // no loop termination is at he end of loop
 		if err != nil {
 			return EmptyRoot, err
 		}
 
-		// log.Info("Tdata", "key", fmt.Sprintf("%x", ihK), "skip", fmt.Sprintf("%t", accTrie.SkipState), "uncovered", fmt.Sprintf("%x", accTrie.FirstNotCoveredPrefix()))
+		log.Info("Ta-data", "skip", fmt.Sprintf("%t", accTrie.SkipState), "key", fmt.Sprintf("%x", ihK), "hash", fmt.Sprintf("%x", ihV), "trie", fmt.Sprintf("%t", hasTree), "uncovered", fmt.Sprintf("%x", accTrie.FirstNotCoveredPrefix()))
 		// loops += 1
 
 		// if loops > 512 {
@@ -266,11 +265,16 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 						return EmptyRoot, err2
 					}
 
+					log.Info("Ts-data", "skip", fmt.Sprintf("%t", storageTrie.skipState), "key", fmt.Sprintf("%x", ihKS), "hash", fmt.Sprintf("%x", ihVS), "trie", fmt.Sprintf("%t", hasTreeS), "uncovered", fmt.Sprintf("%x", storageTrie.FirstNotCoveredPrefix()))
+
 					if !storageTrie.skipState {
 						for vS, err3 := ss.SeekBothRange(accWithInc, storageTrie.FirstNotCoveredPrefix()); vS != nil; _, vS, err3 = ss.NextDup() {
 							if err3 != nil {
 								return EmptyRoot, err3
 							}
+
+							log.Info("Hs-Data", "key", fmt.Sprintf("%x", accWithInc), "value", fmt.Sprintf("%x", vS))
+
 							hexutil.DecompressNibbles(vS[:32], &l.kHexS)
 							if keyIsBefore(ihKS, l.kHexS) { // read until next AccTrie
 								break

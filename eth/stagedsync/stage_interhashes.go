@@ -74,9 +74,12 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 	}
 
 	logPrefix := s.LogPrefix()
+	to = s.BlockNumber + 1
+
 	if to > s.BlockNumber+16 {
 		log.Info(fmt.Sprintf("[%s] Generating intermediate hashes", logPrefix), "from", s.BlockNumber, "to", to)
 	}
+
 	var root common.Hash
 	tooBigJump := to > s.BlockNumber && to-s.BlockNumber > 100_000 // RetainList is in-memory structure and it will OOM if jump is too big, such big jump anyway invalidate most of existing Intermediate hashes
 	if s.BlockNumber == 0 || tooBigJump {
@@ -180,7 +183,10 @@ func (p *HashPromoter) Promote(logPrefix string, s *StageState, from, to uint64,
 	decode := changeset.Mapper[changeSetBucket].Decode
 	var deletedAccounts [][]byte
 	extract := func(dbKey, dbValue []byte, next etl.ExtractNextFunc) error {
-		_, k, v := decode(dbKey, dbValue)
+		blockNumber, k, v := decode(dbKey, dbValue)
+		if blockNumber > to {
+			return nil
+		}
 		newK, err := transformPlainStateKey(k)
 		if err != nil {
 			return err
