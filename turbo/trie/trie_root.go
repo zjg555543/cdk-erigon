@@ -233,12 +233,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 			return EmptyRoot, err
 		}
 
-		log.Info("Ta-data", "skip", fmt.Sprintf("%t", accTrie.SkipState), "key", fmt.Sprintf("%x", ihK), "hash", fmt.Sprintf("%x", ihV), "trie", fmt.Sprintf("%t", hasTree), "uncovered", fmt.Sprintf("%x", accTrie.FirstNotCoveredPrefix()))
-		// loops += 1
-
-		// if loops > 512 {
-		// 	break
-		// }
+		// log.Info("Ta-data", "skip", fmt.Sprintf("%t", accTrie.SkipState), "key", fmt.Sprintf("%x", ihK), "hash", fmt.Sprintf("%x", ihV), "trie", fmt.Sprintf("%t", hasTree), "uncovered", fmt.Sprintf("%x", accTrie.FirstNotCoveredPrefix()))
 
 		if !accTrie.SkipState {
 			for k, kHex, v, err1 := accs.Seek(accTrie.FirstNotCoveredPrefix()); k != nil; k, kHex, v, err1 = accs.Next() {
@@ -265,7 +260,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 						return EmptyRoot, err2
 					}
 
-					log.Info("Ts-data", "skip", fmt.Sprintf("%t", storageTrie.skipState), "key", fmt.Sprintf("%x", ihKS), "hash", fmt.Sprintf("%x", ihVS), "trie", fmt.Sprintf("%t", hasTreeS), "uncovered", fmt.Sprintf("%x", storageTrie.FirstNotCoveredPrefix()))
+					//log.Info("Ts-data", "skip", fmt.Sprintf("%t", storageTrie.skipState), "key", fmt.Sprintf("%x", ihKS), "hash", fmt.Sprintf("%x", ihVS), "trie", fmt.Sprintf("%t", hasTreeS), "uncovered", fmt.Sprintf("%x", storageTrie.FirstNotCoveredPrefix()))
 
 					if !storageTrie.skipState {
 						for vS, err3 := ss.SeekBothRange(accWithInc, storageTrie.FirstNotCoveredPrefix()); vS != nil; _, vS, err3 = ss.NextDup() {
@@ -273,7 +268,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 								return EmptyRoot, err3
 							}
 
-							log.Info("Hs-Data", "key", fmt.Sprintf("%x", accWithInc), "value", fmt.Sprintf("%x", vS))
+							// log.Info("Hs-Data", "key", fmt.Sprintf("%x", accWithInc), "value", fmt.Sprintf("%x", vS))
 
 							hexutil.DecompressNibbles(vS[:32], &l.kHexS)
 							if keyIsBefore(ihKS, l.kHexS) { // read until next AccTrie
@@ -735,10 +730,17 @@ func (c *AccTrieCursor) _preOrderTraversalStepNoInDepth() error {
 	if ok {
 		return nil
 	}
-	err := c._nextSiblingInDB()
-	if err != nil {
-		return err
-	}
+
+	// If we get here we've traversed everything up to level 0 included
+	// As c.k[0] is ALWAYS empty (either found root or not found at all)
+	// there is no point in icrementing its key (would always return false)
+	// nor seeking into db
+	c.k[c.lvl] = nil
+
+	// err := c._nextSiblingInDB()
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
@@ -855,6 +857,9 @@ func (c *AccTrieCursor) _nextSiblingOfParentInMem() bool {
 
 	// Get to first parent which is NOT totally traversed
 	for c.lvl > 0 {
+		// Before leaving this level we reset it for future usage ...
+		c.k[c.lvl], c.hasState[c.lvl], c.hasTree[c.lvl], c.hasHash[c.lvl], c.hashID[c.lvl], c.childID[c.lvl], c.deleted[c.lvl] = nil, 0, 0, 0, 0, 0, false
+		// ... then go up
 		c.lvl--
 		if c.k[c.lvl] != nil {
 			if c._nextSiblingInMem() {
@@ -915,26 +920,30 @@ func (c *AccTrieCursor) _nextSiblingOfParentInMem() bool {
 
 }
 
-func (c *AccTrieCursor) _nextSiblingInDB() error {
-	ok := dbutils.NextNibblesSubtree(c.k[c.lvl], &c.next)
-	if !ok {
-		c.k[c.lvl] = nil
-		return nil
-	}
-	if _, err := c._seek(c.next); err != nil {
-		return err
-	}
-	return nil
-}
+// func (c *AccTrieCursor) _nextSiblingInDB() error {
+// 	ok := dbutils.NextNibblesSubtree(c.k[c.lvl], &c.next)
+// 	if !ok {
+// 		c.k[c.lvl] = nil
+// 		return nil
+// 	}
+// 	if _, err := c._seek(c.next); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (c *AccTrieCursor) _unmarshal(k, v []byte) {
-	from, to := c.lvl+1, len(k)
-	if c.lvl >= len(k) {
-		from, to = len(k)+1, c.lvl+2
-	}
-	for i := from; i < to; i++ { // if first meet key is not 0 length, then nullify all shorter metadata
-		c.k[i], c.hasState[i], c.hasTree[i], c.hasHash[i], c.hashID[i], c.childID[i], c.deleted[i] = nil, 0, 0, 0, 0, 0, false
-	}
+
+	// No need to do this tricky math
+	// we do reset nodes when we leave the level in c._nextSiblingOfParentInMem
+	// from, to := c.lvl+1, len(k)
+	// if c.lvl >= len(k) {
+	// 	from, to = len(k)+1, c.lvl+2
+	// }
+	// for i := from; i < to; i++ { // if first meet key is not 0 length, then nullify all shorter metadata
+	// 	c.k[i], c.hasState[i], c.hasTree[i], c.hasHash[i], c.hashID[i], c.childID[i], c.deleted[i] = nil, 0, 0, 0, 0, 0, false
+	// }
+
 	c.lvl = len(k)
 	c.k[c.lvl] = k
 	c.deleted[c.lvl] = false
@@ -1112,6 +1121,9 @@ func (c *StorageTrieCursor) Next() (k, v []byte, hasTree bool, err error) {
 	if err != nil {
 		return []byte{}, nil, false, err
 	}
+
+	// If at this point c.k[lvl] is null it means we've traversed the whole
+	// tree
 	if c.k[c.lvl] == nil {
 		c.skipState = c.skipState && !dbutils.NextNibblesSubtree(c.prev, &c.next)
 		c.cur = nil
@@ -1196,10 +1208,17 @@ func (c *StorageTrieCursor) _preOrderTraversalStepNoInDepth() error {
 	if ok {
 		return nil
 	}
-	err := c._nextSiblingInDB()
-	if err != nil {
-		return err
-	}
+
+	// If we get here we've traversed everything up to level 0 included
+	// As c.k[0] is ALWAYS empty (either found root or not found at all)
+	// there is no point in icrementing its key (would always return false)
+	// nor seeking into db
+	c.k[c.lvl] = nil
+
+	// err := c._nextSiblingInDB()
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
@@ -1231,6 +1250,9 @@ func (c *StorageTrieCursor) _nextSiblingOfParentInMem() bool {
 
 	// Get to first parent which is NOT totally traversed
 	for c.lvl > 0 {
+		// Before leaving this level we reset it for future usage ...
+		c.k[c.lvl], c.hasState[c.lvl], c.hasTree[c.lvl], c.hasHash[c.lvl], c.hashID[c.lvl], c.childID[c.lvl], c.deleted[c.lvl] = nil, 0, 0, 0, 0, 0, false
+		// ... and go up
 		c.lvl--
 		if c.k[c.lvl] != nil {
 			if c._nextSiblingInMem() {
@@ -1288,18 +1310,18 @@ func (c *StorageTrieCursor) _nextSiblingOfParentInMem() bool {
 	// return false
 }
 
-func (c *StorageTrieCursor) _nextSiblingInDB() error {
-	ok := dbutils.NextNibblesSubtree(c.k[c.lvl], &c.next)
-	if !ok {
-		c.k[c.lvl] = nil
-		return nil
-	}
-	c.seek = append(c.seek[:40], c.next...)
-	if _, err := c._seek(c.seek); err != nil {
-		return err
-	}
-	return nil
-}
+// func (c *StorageTrieCursor) _nextSiblingInDB() error {
+// 	ok := dbutils.NextNibblesSubtree(c.k[c.lvl], &c.next)
+// 	if !ok {
+// 		c.k[c.lvl] = nil
+// 		return nil
+// 	}
+// 	c.seek = append(c.seek[:40], c.next...)
+// 	if _, err := c._seek(c.seek); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (c *StorageTrieCursor) _next() (k, v []byte, hasTree bool, err error) {
 	var ok bool
@@ -1335,13 +1357,16 @@ func (c *StorageTrieCursor) _next() (k, v []byte, hasTree bool, err error) {
 }
 
 func (c *StorageTrieCursor) _unmarshal(k, v []byte) {
-	from, to := c.lvl+1, len(k)
-	if c.lvl >= len(k) {
-		from, to = len(k)+1, c.lvl+2
-	}
-	for i := from; i < to; i++ { // if first meet key is not 0 length, then nullify all shorter metadata
-		c.k[i], c.hasState[i], c.hasTree[i], c.hasHash[i], c.hashID[i], c.childID[i], c.deleted[i] = nil, 0, 0, 0, 0, 0, false
-	}
+
+	// No need to do this tricky math
+	// we do reset nodes when we leave the level in c._nextSiblingOfParentInMem
+	// from, to := c.lvl+1, len(k)
+	// if c.lvl >= len(k) {
+	// 	from, to = len(k)+1, c.lvl+2
+	// }
+	// for i := from; i < to; i++ { // if first meet key is not 0 length, then nullify all shorter metadata
+	// 	c.k[i], c.hasState[i], c.hasTree[i], c.hasHash[i], c.hashID[i], c.childID[i], c.deleted[i] = nil, 0, 0, 0, 0, 0, false
+	// }
 
 	c.lvl = len(k) - 40
 	c.k[c.lvl] = k[40:]
