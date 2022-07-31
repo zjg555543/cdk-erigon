@@ -718,7 +718,7 @@ func AccTrie(canUse func([]byte) (bool, []byte), hc HashCollector2, c kv.Cursor,
 func (c *AccTrieCursor) _preOrderTraversalStep() error {
 	if c._hasTree() {
 		c.next = append(append(c.next[:0], c.k[c.lvl]...), byte(c.childID[c.lvl]))
-		ok, err := c._seek(c.next, c.next)
+		ok, err := c._seek(c.next)
 		if err != nil {
 			return err
 		}
@@ -752,7 +752,7 @@ func (c *AccTrieCursor) AtPrefix(prefix []byte) (k, v []byte, hasTree bool, err 
 	_, c.nextCreated = c.canUse([]byte{})
 	c.prev = append(c.prev[:0], c.cur...)
 	c.prefix = prefix
-	ok, err := c._seek(prefix, []byte{})
+	ok, err := c._seek(prefix)
 	if err != nil {
 		return []byte{}, nil, false, err
 	}
@@ -795,7 +795,7 @@ func (c *AccTrieCursor) Next() (k, v []byte, hasTree bool, err error) {
 	return c._next()
 }
 
-func (c *AccTrieCursor) _seek(seek []byte, withinPrefix []byte) (bool, error) {
+func (c *AccTrieCursor) _seek(seek []byte) (bool, error) {
 	var k, v []byte
 	var err error
 	if len(seek) == 0 {
@@ -818,23 +818,17 @@ func (c *AccTrieCursor) _seek(seek []byte, withinPrefix []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(withinPrefix) > 0 { // seek within given prefix must not terminate overall process, even if k==nil
-		if k == nil {
-			return false, nil
-		}
-		if !bytes.HasPrefix(k, withinPrefix) {
-			return false, nil
-		}
-	} else { // seek over global prefix does terminate overall process
-		if k == nil {
-			c.k[c.lvl] = nil
-			return false, nil
-		}
-		if !bytes.HasPrefix(k, c.prefix) {
-			c.k[c.lvl] = nil
-			return false, nil
-		}
+
+	// seek over global prefix does terminate overall process
+	if k == nil {
+		c.k[c.lvl] = nil
+		return false, nil
 	}
+	if !bytes.HasPrefix(k, c.prefix) {
+		c.k[c.lvl] = nil
+		return false, nil
+	}
+
 	c._unmarshal(k, v)
 	c._nextSiblingInMem()
 	return true, nil
@@ -858,31 +852,67 @@ func (c *AccTrieCursor) _nextSiblingInMem() bool {
 }
 
 func (c *AccTrieCursor) _nextSiblingOfParentInMem() bool {
-	for c.lvl > 1 {
-		if c.k[c.lvl-1] == nil {
-			nonNilLvl := c.lvl - 1
-			for c.k[nonNilLvl] == nil && nonNilLvl > 1 {
-				nonNilLvl--
-			}
-			c.next = append(append(c.next[:0], c.k[c.lvl]...), uint8(c.childID[c.lvl]))
-			c.kBuf = append(append(c.kBuf[:0], c.k[nonNilLvl]...), uint8(c.childID[nonNilLvl]))
-			ok, err := c._seek(c.next, c.kBuf)
-			if err != nil {
-				panic(err)
-			}
-			if ok {
+
+	// Get to first parent which is NOT totally traversed
+	for c.lvl > 0 {
+		c.lvl--
+		if c.k[c.lvl] != nil {
+			if c._nextSiblingInMem() {
 				return true
 			}
-
-			c.lvl = nonNilLvl + 1
-			continue
-		}
-		c.lvl--
-		if c._nextSiblingInMem() {
-			return true
 		}
 	}
 	return false
+
+	// Code below is totally nonsense:
+	// a seek on current c.k[c.lvl] + uint8(c.childID[c.lvl]) is always meant to fail. The reason is
+	// due to the fact that if we get here this childID has NO tree (it would have been intercepted by
+	// previous c._nextSiblingInMem()). Basically if we get here all childIDs of current node have been
+	// traversed so another search of children is a total waste: there should be none if trie is intact
+	//
+	// the "hack" to limit the search within the boundaries of key derived from nearest parent with non
+	// nil key is evidently a forcing : as the lofgic of the cursor sets c.lvl on behalf of length of found
+	// key it happens that there might be jumps of 2 slots. E.g. key 0x060f might have child 0x060f0103
+	//
+	// bottom line : this loop achieves the same result of the smallest loop above which has no db lookups
+	// sample :
+	// c.lvl = 5
+	// c.k[c.lvl-1 == 4] == nil
+	// nonNilLvl = 3 (with a jump back of 2 wrt c.lvl)
+	// seek fails (as it's meant)
+	// c.lvl = nonNilLvl + 1 = 4
+	// continue inner loop
+	// c.k[c.lvl-1 == 3] != nil
+	// hence move c.lvl to 3 (c.lvl--)
+	// test c._nextSiblingInMem (returns true if NOT completely traversed)
+	// or begin a new loop
+
+	// for c.lvl > 1 {
+	// 	if c.k[c.lvl-1] == nil {
+	// 		nonNilLvl := c.lvl - 1
+	// 		for c.k[nonNilLvl] == nil && nonNilLvl > 1 {
+	// 			nonNilLvl--
+	// 		}
+	// 		c.next = append(append(c.next[:0], c.k[c.lvl]...), uint8(c.childID[c.lvl]))
+	// 		c.kBuf = append(append(c.kBuf[:0], c.k[nonNilLvl]...), uint8(c.childID[nonNilLvl]))
+	// 		ok, err := c._seek(c.next, c.kBuf)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 		if ok {
+	// 			return true
+	// 		}
+
+	// 		c.lvl = nonNilLvl + 1
+	// 		continue
+	// 	}
+	// 	c.lvl--
+	// 	if c._nextSiblingInMem() {
+	// 		return true
+	// 	}
+	// }
+	// return false
+
 }
 
 func (c *AccTrieCursor) _nextSiblingInDB() error {
@@ -891,7 +921,7 @@ func (c *AccTrieCursor) _nextSiblingInDB() error {
 		c.k[c.lvl] = nil
 		return nil
 	}
-	if _, err := c._seek(c.next, []byte{}); err != nil {
+	if _, err := c._seek(c.next); err != nil {
 		return err
 	}
 	return nil
@@ -1030,11 +1060,12 @@ func (c *StorageTrieCursor) SeekToAccount(accWithInc []byte) (k, v []byte, hasTr
 	c.skipState = true
 	c.accWithInc = accWithInc
 	hexutil.DecompressNibbles(c.accWithInc, &c.kBuf)
-	_, c.nextCreated = c.canUse(c.kBuf)
+	var okCanUse bool
+	okCanUse, c.nextCreated = c.canUse(c.kBuf)
 	c.seek = append(c.seek[:0], c.accWithInc...)
 	c.prev = c.cur
 	var ok bool
-	ok, err = c._seek(accWithInc, []byte{})
+	ok, err = c._seek(accWithInc)
 	if err != nil {
 		return []byte{}, nil, false, err
 	}
@@ -1044,19 +1075,19 @@ func (c *StorageTrieCursor) SeekToAccount(accWithInc []byte) (k, v []byte, hasTr
 		return nil, nil, false, nil
 	}
 	if c.root != nil { // check if acc.storageRoot can be used
-		root := c.root
-		c.root = nil
-		ok1, nextCreated := c.canUse(c.kBuf)
-		if ok1 {
-			c.skipState = true
-			c.nextCreated = nextCreated
+		if okCanUse {
 			c.cur = c.k[c.lvl]
-			return c.cur, root, false, nil
+			return c.cur, c.root, false, nil
 		}
+
+		// This root node has changes hence it must be rebuilt
+		// Collect its key for deletion
 		err = c._deleteCurrent()
 		if err != nil {
 			return []byte{}, nil, false, err
 		}
+
+		// Find next child_id with hash - on root there MUST be at least one
 		err = c._preOrderTraversalStepNoInDepth()
 		if err != nil {
 			return []byte{}, nil, false, err
@@ -1115,7 +1146,7 @@ func (c *StorageTrieCursor) _consume() (bool, error) {
 	return false, nil
 }
 
-func (c *StorageTrieCursor) _seek(seek, withinPrefix []byte) (bool, error) {
+func (c *StorageTrieCursor) _seek(seek []byte) (bool, error) {
 	var k, v []byte
 	var err error
 
@@ -1124,27 +1155,23 @@ func (c *StorageTrieCursor) _seek(seek, withinPrefix []byte) (bool, error) {
 		return false, err
 	}
 
-	if len(withinPrefix) > 0 { // seek within given prefix must not terminate overall process
-		if k == nil {
-			return false, nil
-		}
-		if !bytes.HasPrefix(k, c.accWithInc) || !bytes.HasPrefix(k[40:], withinPrefix) {
-			return false, nil
-		}
-	} else {
-		if k == nil {
-			c.k[c.lvl] = nil
-			return false, nil
-		}
-		if !bytes.HasPrefix(k, c.accWithInc) {
-			c.k[c.lvl] = nil
-			return false, nil
-		}
+	if k == nil {
+		c.k[c.lvl] = nil
+		return false, nil
 	}
+	if !bytes.HasPrefix(k, seek) {
+		c.k[c.lvl] = nil
+		return false, nil
+	}
+
 	c._unmarshal(k, v)
-	if c.lvl > 0 { // root record, firstly storing root hash
+
+	// If what is found is NOT a root record proceed to
+	// next valid hash
+	if c.root == nil {
 		c._nextSiblingInMem()
 	}
+
 	return true, nil
 }
 
@@ -1152,7 +1179,7 @@ func (c *StorageTrieCursor) _seek(seek, withinPrefix []byte) (bool, error) {
 func (c *StorageTrieCursor) _preOrderTraversalStep() error {
 	if c._hasTree() {
 		c.seek = append(append(c.seek[:40], c.k[c.lvl]...), byte(c.childID[c.lvl]))
-		ok, err := c._seek(c.seek, []byte{})
+		ok, err := c._seek(c.seek)
 		if err != nil {
 			return err
 		}
@@ -1201,30 +1228,64 @@ func (c *StorageTrieCursor) _nextSiblingInMem() bool {
 }
 
 func (c *StorageTrieCursor) _nextSiblingOfParentInMem() bool {
+
+	// Get to first parent which is NOT totally traversed
 	for c.lvl > 0 {
-		if c.k[c.lvl-1] == nil {
-			nonNilLvl := c.lvl - 1
-			for ; c.k[nonNilLvl] == nil && nonNilLvl > 0; nonNilLvl-- {
-			}
-			c.seek = append(append(c.seek[:40], c.k[c.lvl]...), uint8(c.childID[c.lvl]))
-			c.next = append(append(c.next[:0], c.k[nonNilLvl]...), uint8(c.childID[nonNilLvl]))
-			ok, err := c._seek(c.seek, c.next)
-			if err != nil {
-				panic(err)
-			}
-			if ok {
+		c.lvl--
+		if c.k[c.lvl] != nil {
+			if c._nextSiblingInMem() {
 				return true
 			}
-
-			c.lvl = nonNilLvl + 1
-			continue
-		}
-		c.lvl--
-		if c._nextSiblingInMem() {
-			return true
 		}
 	}
 	return false
+
+	// Code below is totally nonsense:
+	// a seek on current c.k[c.lvl] + uint8(c.childID[c.lvl]) is always meant to fail. The reason is
+	// due to the fact that if we get here this childID has NO tree (it would have been intercepted by
+	// previous c._nextSiblingInMem()). Basically if we get here all childIDs of current node have been
+	// traversed so another search of children is a total waste: there should be none if trie is intact
+	//
+	// the "hack" to limit the search within the boundaries of key derived from nearest parent with non
+	// nil key is evidently a forcing : as the lofgic of the cursor sets c.lvl on behalf of length of found
+	// key it happens that there might be jumps of 2 slots. E.g. key 0x060f might have child 0x060f0103
+	//
+	// bottom line : this loop achieves the same result of the smallest loop above which has no db lookups
+	// sample :
+	// c.lvl = 5
+	// c.k[c.lvl-1 == 4] == nil
+	// nonNilLvl = 3 (with a jump back of 2 wrt c.lvl)
+	// seek fails (as it's meant)
+	// c.lvl = nonNilLvl + 1 = 4
+	// continue inner loop
+	// c.k[c.lvl-1 == 3] != nil
+	// hence move c.lvl to 3 (c.lvl--)
+	// test c._nextSiblingInMem (returns true if NOT completely traversed)
+	// or begin a new loop
+
+	// for c.lvl > 0 {
+	// 	if c.k[c.lvl-1] == nil {
+	// 		nonNilLvl := c.lvl - 1
+	// 		for ; c.k[nonNilLvl] == nil && nonNilLvl > 0; nonNilLvl-- {
+	// 		}
+	// 		c.seek = append(append(c.seek[:40], c.k[c.lvl]...), uint8(c.childID[c.lvl]))
+	// 		c.next = append(append(c.next[:0], c.k[nonNilLvl]...), uint8(c.childID[nonNilLvl]))
+	// 		ok, err := c._seek(c.seek, c.next)
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 		if ok {
+	// 			return true
+	// 		}
+	// 		c.lvl = nonNilLvl + 1
+	// 		continue
+	// 	}
+	// 	c.lvl--
+	// 	if c._nextSiblingInMem() {
+	// 		return true
+	// 	}
+	// }
+	// return false
 }
 
 func (c *StorageTrieCursor) _nextSiblingInDB() error {
@@ -1234,7 +1295,7 @@ func (c *StorageTrieCursor) _nextSiblingInDB() error {
 		return nil
 	}
 	c.seek = append(c.seek[:40], c.next...)
-	if _, err := c._seek(c.seek, []byte{}); err != nil {
+	if _, err := c._seek(c.seek); err != nil {
 		return err
 	}
 	return nil
