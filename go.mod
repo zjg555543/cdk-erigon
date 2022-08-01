@@ -2,6 +2,8 @@ module github.com/ledgerwatch/erigon
 
 go 1.18
 
+replace github.com/anacrolix/torrent v1.46.1-0.20220713100403-caa9400c52fe => github.com/AskAlexSharov/torrent v1.40.2-0.20220801054621-83a4670a1e07
+
 require (
 	github.com/ledgerwatch/erigon-lib v0.0.0-20220801053710-127d1bac5b66
 	github.com/ledgerwatch/erigon-snapshot v1.0.0
