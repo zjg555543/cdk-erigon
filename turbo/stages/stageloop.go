@@ -247,6 +247,9 @@ func MiningStep(ctx context.Context, kv kv.RwDB, mining *stagedsync.Sync) (err e
 	return nil
 }
 
+var tot int64
+var c int64
+
 func StateStep(ctx context.Context, batch kv.RwTx, stateSync *stagedsync.Sync, headerReader services.FullBlockReader, header *types.Header, body *types.RawBody, unwindPoint uint64, headersChain []*types.Header, bodiesChain []*types.RawBody) (err error) {
 
 	defer func() {
@@ -318,10 +321,15 @@ func StateStep(ctx context.Context, batch kv.RwTx, stateSync *stagedsync.Sync, h
 			return err
 		}
 	}
+	t := time.Now()
 	// Run state sync
 	if err = stateSync.Run(nil, batch, false); err != nil {
 		return err
 	}
+	elapsed := time.Since(t)
+	tot += elapsed.Nanoseconds()
+	c += 1
+	fmt.Printf("new A: %d\n", tot/c)
 	return nil
 }
 

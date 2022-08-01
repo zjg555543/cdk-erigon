@@ -203,7 +203,11 @@ func newStateReaderWriter(
 	return stateReader, stateWriter, nil
 }
 
+var totS int64
+var countS int64
+
 func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx context.Context, cfg ExecuteBlockCfg, initialCycle bool) (err error) {
+	t := time.Now()
 	quit := ctx.Done()
 	useExternalTx := tx != nil
 	if !useExternalTx {
@@ -377,6 +381,11 @@ Loop:
 			return err
 		}
 	}
+
+	elapsed := time.Since(t)
+	totS += elapsed.Nanoseconds()
+	countS += 1
+	fmt.Printf("Execution Elapsed %d\n", totS/countS)
 
 	log.Info(fmt.Sprintf("[%s] Completed on", logPrefix), "block", stageProgress)
 	return stoppedErr

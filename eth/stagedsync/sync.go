@@ -209,10 +209,10 @@ func (s *Sync) RunUnwind(db kv.RwDB, tx kv.RwTx) error {
 	}
 	return nil
 }
+
 func (s *Sync) Run(db kv.RwDB, tx kv.RwTx, firstCycle bool) error {
 	s.prevUnwindPoint = nil
 	s.timings = s.timings[:0]
-
 	for !s.IsDone() {
 		var badBlockUnwind bool
 		if s.unwindPoint != nil {

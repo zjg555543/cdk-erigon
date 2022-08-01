@@ -32,7 +32,11 @@ func StageHashStateCfg(db kv.RwDB, tmpDir string) HashStateCfg {
 	}
 }
 
+var totE int64
+var countE int64
+
 func SpawnHashStateStage(s *StageState, tx kv.RwTx, cfg HashStateCfg, ctx context.Context) error {
+	t := time.Now()
 	useExternalTx := tx != nil
 	if !useExternalTx {
 		var err error
@@ -80,6 +84,11 @@ func SpawnHashStateStage(s *StageState, tx kv.RwTx, cfg HashStateCfg, ctx contex
 			return err
 		}
 	}
+	elapsed := time.Since(t)
+	totE += elapsed.Nanoseconds()
+	countE += 1
+	fmt.Printf("Hashstate Elapsed %d\n", totE/countE)
+
 	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/bits"
 	"os"
+	"time"
 
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
@@ -45,7 +46,11 @@ func StageTrieCfg(db kv.RwDB, checkRoot, saveNewHashesToDB, badBlockHalt bool, t
 	}
 }
 
+var totH int64
+var countH int64
+
 func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg TrieCfg, ctx context.Context) (common.Hash, error) {
+	t := time.Now()
 	quit := ctx.Done()
 	useExternalTx := tx != nil
 	if !useExternalTx {
@@ -121,6 +126,11 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 			return trie.EmptyRoot, err
 		}
 	}
+
+	elapsed := time.Since(t)
+	totH += elapsed.Nanoseconds()
+	countH += 1
+	fmt.Printf("Merkle trie Elapsed %d\n", totH/countH)
 
 	return root, err
 }

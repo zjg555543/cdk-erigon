@@ -63,7 +63,11 @@ func StageSendersCfg(db kv.RwDB, chainCfg *params.ChainConfig, badBlockHalt bool
 	}
 }
 
+var tot int64
+var count int64
+
 func SpawnRecoverSendersStage(cfg SendersCfg, s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx context.Context) error {
+	t := time.Now()
 	if cfg.blockRetire != nil && cfg.blockRetire.Snapshots() != nil && cfg.blockRetire.Snapshots().Cfg().Enabled && s.BlockNumber < cfg.blockRetire.Snapshots().BlocksAvailable() {
 		s.BlockNumber = cfg.blockRetire.Snapshots().BlocksAvailable()
 	}
@@ -287,6 +291,10 @@ Loop:
 			return err
 		}
 	}
+	elapsed := time.Since(t)
+	tot += elapsed.Nanoseconds()
+	count += 1
+	fmt.Printf("Senders Elapsed %d\n", tot/count)
 	return nil
 }
 
