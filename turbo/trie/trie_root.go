@@ -233,7 +233,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 			return EmptyRoot, err
 		}
 
-		// log.Info("Ta-data", "skip", fmt.Sprintf("%t", accTrie.SkipState), "key", fmt.Sprintf("%x", ihK), "hash", fmt.Sprintf("%x", ihV), "trie", fmt.Sprintf("%t", hasTree), "uncovered", fmt.Sprintf("%x", accTrie.FirstNotCoveredPrefix()))
+		//log.Info("Ta-data", "skip", fmt.Sprintf("%t", accTrie.SkipState), "key", fmt.Sprintf("%x", ihK), "hash", fmt.Sprintf("%x", ihV), "trie", fmt.Sprintf("%t", hasTree), "uncovered", fmt.Sprintf("%x", accTrie.FirstNotCoveredPrefix()))
 
 		if !accTrie.SkipState {
 			for k, kHex, v, err1 := accs.Seek(accTrie.FirstNotCoveredPrefix()); k != nil; k, kHex, v, err1 = accs.Next() {
@@ -268,7 +268,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, quit <-chan str
 								return EmptyRoot, err3
 							}
 
-							// log.Info("Hs-Data", "key", fmt.Sprintf("%x", accWithInc), "value", fmt.Sprintf("%x", vS))
+							//log.Info("Hs-Data", "key", fmt.Sprintf("%x", accWithInc), "value", fmt.Sprintf("%x", vS))
 
 							hexutil.DecompressNibbles(vS[:32], &l.kHexS)
 							if keyIsBefore(ihKS, l.kHexS) { // read until next AccTrie
@@ -717,9 +717,16 @@ func (c *AccTrieCursor) _preOrderTraversalStep() error {
 		if err != nil {
 			return err
 		}
-		if ok {
-			return nil
+		if !ok {
+			return fmt.Errorf("missing child for key %x", c.next)
 		}
+		return nil
+		// This is dangerous. If no child found it continues
+		// but it should not be as if c._hasTree() == true then
+		// a child MUST exist
+		// if ok {
+		// 	return nil
+		// }
 	}
 	return c._preOrderTraversalStepNoInDepth()
 }
@@ -781,11 +788,16 @@ func (c *AccTrieCursor) Next() (k, v []byte, hasTree bool, err error) {
 	if err != nil {
 		return []byte{}, nil, false, err
 	}
+
+	// Have we traversed everything up to top ?
+	// c.k[c.lvl] == nil marks the end of tree
 	if c.k[c.lvl] == nil {
 		c.cur = nil
 		c.SkipState = c.SkipState && !dbutils.NextNibblesSubtree(c.prev, &c.next)
 		return nil, nil, false, nil
 	}
+
+	// If has hash try to consume it
 	ok, err := c._consume()
 	if err != nil {
 		return []byte{}, nil, false, err
@@ -953,13 +965,12 @@ func (c *AccTrieCursor) _unmarshal(k, v []byte) {
 }
 
 func (c *AccTrieCursor) _deleteCurrent() error {
-	if c.hc == nil || c.deleted[c.lvl] {
-		return nil
+	if c.hc != nil && !c.deleted[c.lvl] {
+		if err := c.hc(c.k[c.lvl], 0, 0, 0, nil, nil); err != nil {
+			return err
+		}
+		c.deleted[c.lvl] = true
 	}
-	if err := c.hc(c.k[c.lvl], 0, 0, 0, nil, nil); err != nil {
-		return err
-	}
-	c.deleted[c.lvl] = true
 	return nil
 }
 
@@ -1195,9 +1206,17 @@ func (c *StorageTrieCursor) _preOrderTraversalStep() error {
 		if err != nil {
 			return err
 		}
-		if ok {
-			return nil
+		if !ok {
+			return fmt.Errorf("missing child for key %x", c.seek)
 		}
+		return nil
+
+		// This is dangerous. If no child found it continues
+		// but it should not be as if c._hasTree() == true then
+		// a child MUST exist
+		// if ok {
+		// 	return nil
+		// }
 	}
 	return c._preOrderTraversalStepNoInDepth()
 }
@@ -1377,9 +1396,6 @@ func (c *StorageTrieCursor) _unmarshal(k, v []byte) {
 }
 
 func (c *StorageTrieCursor) _deleteCurrent() error {
-	if c.shc == nil {
-		return nil
-	}
 	if c.shc == nil || c.deleted[c.lvl] {
 		return nil
 	}
