@@ -322,7 +322,7 @@ func OpenDatabase(config *nodecfg.Config, logger log.Logger, label kv.Label) (kv
 		if label == kv.ChainDB {
 			opts = opts.PageSize(config.MdbxPageSize.Bytes()).MapSize(8 * datasize.TB).
 				Flags(func(f uint) uint { return f ^ mdbx2.Durable | mdbx2.SafeNoSync }).
-				SyncPeriod(15 * time.Second)
+				SyncPeriod(10 * time.Second)
 		}
 		return opts.Open()
 	}
