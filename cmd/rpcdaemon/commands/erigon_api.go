@@ -23,6 +23,9 @@ type ErigonAPI interface {
 	GetBlockByTimestamp(ctx context.Context, timeStamp rpc.Timestamp, fullTx bool) (map[string]interface{}, error)
 	GetBalanceChangesInBlock(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (map[common.Address]*hexutil.Big, error)
 
+	// Account related (see ./erigon_accounts.go)
+	GetContractCreationInfo(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) ([]*common.Hash, error)
+
 	// Receipt related (see ./erigon_receipts.go)
 	GetLogsByHash(ctx context.Context, hash common.Hash) ([][]*types.Log, error)
 	//GetLogsByNumber(ctx context.Context, number rpc.BlockNumber) ([][]*types.Log, error)
