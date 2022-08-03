@@ -42,6 +42,7 @@ import (
 	stages2 "github.com/ledgerwatch/erigon/turbo/stages"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/spf13/cobra"
+	"github.com/torquem-ch/mdbx-go/mdbx"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -336,12 +337,12 @@ func Erigon22(genesis *core.Genesis, logger log.Logger) error {
 	}
 	dir.MustExist(reconDbPath)
 	limiter := semaphore.NewWeighted(int64(runtime.NumCPU() + 1))
-	db, err := kv2.NewMDBX(logger).Path(reconDbPath).RoTxsLimiter(limiter).Open()
+	db, err := kv2.NewMDBX(logger).Path(reconDbPath).RoTxsLimiter(limiter).WriteMap().Flags(func(flags uint) uint { return flags | mdbx.NoMemInit }).Open()
 	if err != nil {
 		return err
 	}
 	chainDbPath := path.Join(datadir, "chaindata")
-	chainDb, err := kv2.NewMDBX(logger).Path(chainDbPath).RoTxsLimiter(limiter).Readonly().Open()
+	chainDb, err := kv2.NewMDBX(logger).Path(chainDbPath).RoTxsLimiter(limiter).Readonly().WriteMap().Open()
 	if err != nil {
 		return err
 	}
