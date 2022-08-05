@@ -3,7 +3,6 @@ package commands
 import (
 	"container/heap"
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -42,7 +41,6 @@ import (
 	stages2 "github.com/ledgerwatch/erigon/turbo/stages"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/spf13/cobra"
-	"github.com/torquem-ch/mdbx-go/mdbx"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -326,23 +324,19 @@ func Erigon22(genesis *core.Genesis, logger log.Logger) error {
 	var err error
 	ctx := context.Background()
 	reconDbPath := path.Join(datadir, "db22")
-	if reset {
-		if _, err = os.Stat(reconDbPath); err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				return err
-			}
-		} else if err = os.RemoveAll(reconDbPath); err != nil {
+	if reset && dir.Exist(reconDbPath) {
+		if err = os.RemoveAll(reconDbPath); err != nil {
 			return err
 		}
 	}
 	dir.MustExist(reconDbPath)
 	limiter := semaphore.NewWeighted(int64(runtime.NumCPU() + 1))
-	db, err := kv2.NewMDBX(logger).Path(reconDbPath).RoTxsLimiter(limiter).WriteMap().Flags(func(flags uint) uint { return flags | mdbx.NoMemInit }).Open()
+	db, err := kv2.NewMDBX(logger).Path(reconDbPath).RoTxsLimiter(limiter).Open()
 	if err != nil {
 		return err
 	}
 	chainDbPath := path.Join(datadir, "chaindata")
-	chainDb, err := kv2.NewMDBX(logger).Path(chainDbPath).RoTxsLimiter(limiter).Readonly().WriteMap().Open()
+	chainDb, err := kv2.NewMDBX(logger).Path(chainDbPath).RoTxsLimiter(limiter).Readonly().Open()
 	if err != nil {
 		return err
 	}
@@ -417,16 +411,12 @@ func Erigon22(genesis *core.Genesis, logger log.Logger) error {
 
 	rs := state.NewState22()
 	aggDir := path.Join(datadir, "agg22")
-	if reset {
-		if _, err = os.Stat(aggDir); err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				return err
-			}
-		} else if err = os.RemoveAll(aggDir); err != nil {
+	if reset && dir.Exist(aggDir) {
+		if err = os.RemoveAll(aggDir); err != nil {
 			return err
 		}
 	}
-	dir.MustExist(reconDbPath)
+	dir.MustExist(aggDir)
 	agg, err := libstate.NewAggregator22(aggDir, AggregationStep)
 	if err != nil {
 		return err
