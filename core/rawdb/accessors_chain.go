@@ -1207,6 +1207,7 @@ func DeleteAncientBlocks(tx kv.RwTx, blockTo uint64, blocksDeleteLimit int) (del
 
 		n := binary.BigEndian.Uint64(k)
 		if n >= stopAtBlock { // [from, to)
+			log.Warn("alex5: ", "n", n, "stopAtBlock", stopAtBlock)
 			break
 		}
 
@@ -1221,7 +1222,7 @@ func DeleteAncientBlocks(tx kv.RwTx, blockTo uint64, blocksDeleteLimit int) (del
 			return
 		}
 		if b == nil {
-			log.Debug("DeleteAncientBlocks: block body not found", "height", n)
+			log.Warn("DeleteAncientBlocks: block body not found", "height", n)
 		} else {
 			txIDBytes := make([]byte, 8)
 			for txID := b.BaseTxId; txID < b.BaseTxId+uint64(b.TxAmount); txID++ {
@@ -1238,6 +1239,7 @@ func DeleteAncientBlocks(tx kv.RwTx, blockTo uint64, blocksDeleteLimit int) (del
 		// Copying k because otherwise the same memory will be reused
 		// for the next key and Delete below will end up deleting 1 more record than required
 		kCopy := common.CopyBytes(k)
+		log.Warn("alex3: ", "kCopy", fmt.Sprintf("%x", kCopy))
 		if err = tx.Delete(kv.Headers, kCopy); err != nil {
 			return
 		}
@@ -1248,6 +1250,7 @@ func DeleteAncientBlocks(tx kv.RwTx, blockTo uint64, blocksDeleteLimit int) (del
 
 	k, _, _ = c.Current()
 	deletedTo = binary.BigEndian.Uint64(k)
+	log.Warn("alex4: ", "deletedTo", deletedTo)
 
 	return
 }

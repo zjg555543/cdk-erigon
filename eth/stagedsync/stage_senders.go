@@ -385,6 +385,7 @@ func PruneSendersStage(s *PruneState, tx kv.RwTx, cfg SendersCfg, ctx context.Co
 
 	sn := cfg.blockRetire.Snapshots()
 	// With snapsync - can prune old data only after snapshot for this data created: CanDeleteTo()
+	log.Warn("alex1: ", "a", sn.Cfg().Enabled, "b", sn.Cfg().Produce)
 	if sn != nil && sn.Cfg().Enabled && sn.Cfg().Produce {
 		if err := cfg.blockRetire.PruneAncientBlocks(tx); err != nil {
 			return err
