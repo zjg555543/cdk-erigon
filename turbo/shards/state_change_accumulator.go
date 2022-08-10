@@ -2,6 +2,7 @@ package shards
 
 import (
 	"context"
+	"fmt"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
@@ -38,7 +39,7 @@ func (a *Accumulator) Reset(viewID uint64) {
 }
 func (a *Accumulator) ChainConfig() *params.ChainConfig { return a.chainConfig }
 func (a *Accumulator) SendAndReset(ctx context.Context, c StateChangeConsumer, pendingBaseFee uint64, blockGasLimit uint64) {
-	log.Error("aaa5", "a", a == nil, "b", c == nil, "c", len(a.changes) == 0)
+	log.Error("aaa5", "a", a == nil, "b", c == nil, "c", len(a.changes) == 0, "e", fmt.Sprintf("%T", c))
 	if a == nil || c == nil || len(a.changes) == 0 {
 		return
 	}
