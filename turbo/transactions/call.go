@@ -97,6 +97,7 @@ func DoCall(
 	}()
 
 	gp := new(core.GasPool).AddGas(msg.Gas())
+	defer func(t time.Time) { fmt.Printf("call.go:98: %s\n", time.Since(t)) }(time.Now())
 	result, err := core.ApplyMessage(evm, msg, gp, true /* refunds */, false /* gasBailout */)
 	if err != nil {
 		return nil, err
