@@ -23,6 +23,7 @@ import (
 	"github.com/ledgerwatch/erigon/rpc"
 	"github.com/ledgerwatch/erigon/turbo/rpchelper"
 	"github.com/ledgerwatch/erigon/turbo/services"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // EthAPI is a collection of functions that are exposed in the
@@ -138,6 +139,7 @@ func (api *BaseAPI) txnLookup(ctx context.Context, tx kv.Tx, txnHash common.Hash
 func (api *BaseAPI) blockByNumberWithSenders(tx kv.Tx, number uint64) (*types.Block, error) {
 	hash, hashErr := rawdb.ReadCanonicalHash(tx, number)
 	if hashErr != nil {
+		log.Warn("Debug: No blockByNumberWithSenders.ReadCanonicalHash")
 		return nil, hashErr
 	}
 	return api.blockWithSenders(tx, hash, number)
@@ -157,11 +159,15 @@ func (api *BaseAPI) blockByHashWithSenders(tx kv.Tx, hash common.Hash) (*types.B
 func (api *BaseAPI) blockWithSenders(tx kv.Tx, hash common.Hash, number uint64) (*types.Block, error) {
 	if api.blocksLRU != nil {
 		if it, ok := api.blocksLRU.Get(hash); ok && it != nil {
+			if it == nil {
+				log.Warn("Debug: No blockWithSenders.blocksLRU.Get")
+			}
 			return it.(*types.Block), nil
 		}
 	}
 	block, _, err := api._blockReader.BlockWithSenders(context.Background(), tx, hash, number)
 	if err != nil {
+		log.Warn("Debug: No blockWithSenders.BlockWithSenders")
 		return nil, err
 	}
 	if block == nil { // don't save nil's to cache
@@ -215,10 +221,14 @@ func (api *BaseAPI) pendingBlock() *types.Block {
 func (api *BaseAPI) blockByRPCNumber(number rpc.BlockNumber, tx kv.Tx) (*types.Block, error) {
 	n, _, _, err := rpchelper.GetBlockNumber(rpc.BlockNumberOrHashWithNumber(number), tx, api.filters)
 	if err != nil {
+		log.Warn("Debug: No blockByRPCNumber.GetBlockNumber")
 		return nil, err
 	}
 
 	block, err := api.blockByNumberWithSenders(tx, n)
+	if block == nil {
+		log.Warn("Debug: No blockByRPCNumber.blockByNumberWithSenders")
+	}
 	return block, err
 }
 

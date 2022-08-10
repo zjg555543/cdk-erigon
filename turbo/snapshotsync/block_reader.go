@@ -15,6 +15,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/rlp"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // BlockReader can read blocks from db and snapshots
@@ -432,6 +433,9 @@ func (back *BlockReaderWithSnapshots) BlockWithSenders(ctx context.Context, tx k
 	if err != nil {
 		return nil, nil, err
 	}
+	if h == nil {
+		log.Warn("Debug: No BlockWithSenders.headerFromSnapshot")
+	}
 	if ok && h != nil {
 		var b *types.Body
 		var baseTxnId uint64
@@ -445,6 +449,9 @@ func (back *BlockReaderWithSnapshots) BlockWithSenders(ctx context.Context, tx k
 		})
 		if err != nil {
 			return nil, nil, err
+		}
+		if b == nil {
+			log.Warn("Debug: No BlockWithSenders.bodyFromSnapshot")
 		}
 		if ok && b != nil {
 			if txsAmount == 0 {
@@ -486,9 +493,19 @@ func (back *BlockReaderWithSnapshots) BlockWithSenders(ctx context.Context, tx k
 		if err != nil {
 			return nil, nil, err
 		}
+		if block == nil {
+			log.Warn("Debug: No BlockWithSenders.ReadBlockWithSenders")
+		}
 		return block, senders, nil
 	}
-	return rawdb.NonCanonicalBlockWithSenders(tx, hash, blockHeight)
+	block, senders, err = rawdb.NonCanonicalBlockWithSenders(tx, hash, blockHeight)
+	if err != nil {
+		return nil, nil, err
+	}
+	if block == nil {
+		log.Warn("Debug: No BlockWithSenders.NonCanonicalBlockWithSenders")
+	}
+	return nil, nil, nil
 }
 
 func (back *BlockReaderWithSnapshots) headerFromSnapshot(blockHeight uint64, sn *HeaderSegment, buf []byte) (*types.Header, []byte, error) {

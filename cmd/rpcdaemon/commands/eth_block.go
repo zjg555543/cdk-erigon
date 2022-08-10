@@ -198,6 +198,7 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber
 	defer tx.Rollback()
 	b, err := api.blockByRPCNumber(number, tx)
 	if err != nil {
+		log.Warn("Debug: No block")
 		return nil, err
 	}
 	if b == nil {
@@ -206,6 +207,7 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber
 	additionalFields := make(map[string]interface{})
 	td, err := rawdb.ReadTd(tx, b.Hash(), b.NumberU64())
 	if err != nil {
+		log.Warn("Debug: No td")
 		return nil, err
 	}
 	if td != nil {
@@ -214,6 +216,7 @@ func (api *APIImpl) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber
 
 	chainConfig, err := api.chainConfig(tx)
 	if err != nil {
+		log.Warn("Debug: No chain config")
 		return nil, err
 	}
 	var borTx types.Transaction
