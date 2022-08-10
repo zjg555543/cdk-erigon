@@ -36,6 +36,7 @@ func DoCall(
 	contractHasTEVM func(hash common.Hash) (bool, error),
 	headerReader services.HeaderReader,
 ) (*core.ExecutionResult, error) {
+	defer func(t time.Time) { fmt.Printf("call.go:39: %s\n", time.Since(t)) }(time.Now())
 	// todo: Pending state is only known by the miner
 	/*
 		if blockNrOrHash.BlockNumber != nil && *blockNrOrHash.BlockNumber == rpc.PendingBlockNumber {
@@ -58,7 +59,7 @@ func DoCall(
 		}
 
 	}
-
+	defer func(t time.Time) { fmt.Printf("call.go:62: %s\n", time.Since(t)) }(time.Now())
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
 	var cancel context.CancelFunc
