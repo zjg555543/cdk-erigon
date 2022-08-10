@@ -3,6 +3,7 @@ package rpchelper
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcache"
@@ -102,10 +103,12 @@ func GetAccount(tx kv.Tx, blockNumber uint64, address common.Address) (*accounts
 }
 
 func CreateStateReader(ctx context.Context, tx kv.Tx, blockNrOrHash rpc.BlockNumberOrHash, filters *Filters, stateCache kvcache.Cache) (state.StateReader, error) {
+	defer func(t time.Time) { fmt.Printf("helper.go:106: %s\n", time.Since(t)) }(time.Now())
 	blockNumber, _, latest, err := _GetBlockNumber(true, blockNrOrHash, tx, filters)
 	if err != nil {
 		return nil, err
 	}
+	defer func(t time.Time) { fmt.Printf("helper.go:111: %s\n", time.Since(t)) }(time.Now())
 	var stateReader state.StateReader
 	if latest {
 		cacheView, err := stateCache.View(ctx, tx)
