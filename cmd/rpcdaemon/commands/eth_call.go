@@ -64,6 +64,7 @@ func (api *APIImpl) Call(ctx context.Context, args ethapi.CallArgs, blockNrOrHas
 		return nil, nil
 	}
 
+	defer func(t time.Time) { fmt.Printf("eth_call.go:67: %s\n", time.Since(t)) }(time.Now())
 	result, err := transactions.DoCall(ctx, args, tx, blockNrOrHash, block, overrides, api.GasCap, chainConfig, api.filters, api.stateCache, contractHasTEVM, api._blockReader)
 	if err != nil {
 		return nil, err
