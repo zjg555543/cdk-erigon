@@ -71,7 +71,7 @@ func DoCall(
 	// Make sure the context is cancelled when the call has completed
 	// this makes sure resources are cleaned up.
 	defer cancel()
-
+	defer func(t time.Time) { fmt.Printf("call.go:74: %s\n", time.Since(t)) }(time.Now())
 	// Get a new instance of the EVM.
 	var baseFee *uint256.Int
 	if header != nil && header.BaseFee != nil {
@@ -85,6 +85,7 @@ func DoCall(
 	if err != nil {
 		return nil, err
 	}
+	defer func(t time.Time) { fmt.Printf("call.go:88: %s\n", time.Since(t)) }(time.Now())
 	blockCtx, txCtx := GetEvmContext(msg, header, blockNrOrHash.RequireCanonical, tx, contractHasTEVM, headerReader)
 
 	evm := vm.NewEVM(blockCtx, txCtx, state, chainConfig, vm.Config{NoBaseFee: true})

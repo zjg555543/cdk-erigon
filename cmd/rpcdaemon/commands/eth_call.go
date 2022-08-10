@@ -38,7 +38,6 @@ func (api *APIImpl) Call(ctx context.Context, args ethapi.CallArgs, blockNrOrHas
 		return nil, err
 	}
 	defer tx.Rollback()
-	defer func(t time.Time) { fmt.Printf("eth_call.go:41: %s\n", time.Since(t)) }(time.Now())
 	chainConfig, err := api.chainConfig(tx)
 	if err != nil {
 		return nil, err
@@ -57,7 +56,6 @@ func (api *APIImpl) Call(ctx context.Context, args ethapi.CallArgs, blockNrOrHas
 	if err != nil {
 		return nil, err
 	}
-	defer func(t time.Time) { fmt.Printf("eth_call.go:60: %s\n", time.Since(t)) }(time.Now())
 	block, err := api.BaseAPI.blockWithSenders(tx, hash, blockNumber)
 	if err != nil {
 		return nil, err
@@ -66,7 +64,6 @@ func (api *APIImpl) Call(ctx context.Context, args ethapi.CallArgs, blockNrOrHas
 		return nil, nil
 	}
 
-	defer func(t time.Time) { fmt.Printf("eth_call.go:60: %s\n", time.Since(t)) }(time.Now())
 	result, err := transactions.DoCall(ctx, args, tx, blockNrOrHash, block, overrides, api.GasCap, chainConfig, api.filters, api.stateCache, contractHasTEVM, api._blockReader)
 	if err != nil {
 		return nil, err
