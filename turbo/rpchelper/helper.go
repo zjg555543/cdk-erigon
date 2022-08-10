@@ -103,12 +103,10 @@ func GetAccount(tx kv.Tx, blockNumber uint64, address common.Address) (*accounts
 }
 
 func CreateStateReader(ctx context.Context, tx kv.Tx, blockNrOrHash rpc.BlockNumberOrHash, filters *Filters, stateCache kvcache.Cache) (state.StateReader, error) {
-	defer func(t time.Time) { fmt.Printf("helper.go:106: %s\n", time.Since(t)) }(time.Now())
 	blockNumber, _, latest, err := _GetBlockNumber(true, blockNrOrHash, tx, filters)
 	if err != nil {
 		return nil, err
 	}
-	defer func(t time.Time) { fmt.Printf("helper.go:111: %s\n", time.Since(t)) }(time.Now())
 	var stateReader state.StateReader
 	if latest {
 		defer func(t time.Time) { fmt.Printf("helper.go:114: %s\n", time.Since(t)) }(time.Now())
@@ -119,7 +117,6 @@ func CreateStateReader(ctx context.Context, tx kv.Tx, blockNrOrHash rpc.BlockNum
 		defer func(t time.Time) { fmt.Printf("helper.go:119: %s\n", time.Since(t)) }(time.Now())
 		stateReader = state.NewCachedReader2(cacheView, tx)
 	} else {
-		defer func(t time.Time) { fmt.Printf("helper.go:122: %s\n", time.Since(t)) }(time.Now())
 		stateReader = state.NewPlainState(tx, blockNumber+1)
 	}
 	return stateReader, nil
