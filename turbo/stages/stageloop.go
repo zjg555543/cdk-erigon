@@ -204,9 +204,12 @@ func StageLoopStep(
 		}
 		updateHead(ctx, head, headHash, headTd256)
 	}
+	log.Error("aaa1", "a", notifications == nil)
 	if notifications != nil {
+		log.Error("aaa2", "a", notifications.Accumulator == nil)
 		if notifications.Accumulator != nil {
 			header := rawdb.ReadCurrentHeader(rotx)
+			log.Error("aaa2", "a", header == nil)
 			if header != nil {
 				pendingBaseFee := misc.CalcBaseFee(notifications.Accumulator.ChainConfig(), header)
 				if header.Number.Uint64() == 0 {
