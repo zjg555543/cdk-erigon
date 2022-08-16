@@ -15,6 +15,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/rlp"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // BlockReader can read blocks from db and snapshots
@@ -417,6 +418,9 @@ func (back *BlockReaderWithSnapshots) Body(ctx context.Context, tx kv.Getter, ha
 }
 
 func (back *BlockReaderWithSnapshots) BlockWithSenders(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64) (block *types.Block, senders []common.Address, err error) {
+	log.Warn("dbg: BlockWithSenders. begin", "sn.files()", back.sn.Files(), "blockHeight", blockHeight, "back.sn.BlocksAvailable()", back.sn.BlocksAvailable(),
+		"back.sn.SegmentsMax()", back.sn.Files(), "back.sn.IndicesMax()", back.sn.IndicesMax(),
+	)
 	var buf []byte
 	var h *types.Header
 	ok, err := back.sn.ViewHeaders(blockHeight, func(seg *HeaderSegment) error {
@@ -476,36 +480,50 @@ func (back *BlockReaderWithSnapshots) BlockWithSenders(ctx context.Context, tx k
 	}
 	canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
 	if err != nil {
+		log.Warn("dbg: BlockWithSenders. rawdb.ReadCanonicalHash", "err", err)
 		return nil, nil, fmt.Errorf("requested non-canonical hash %x. canonical=%x", hash, canonicalHash)
 	}
 	if canonicalHash == hash {
 		block, senders, err = rawdb.ReadBlockWithSenders(tx, hash, blockHeight)
 		if err != nil {
+			log.Warn("dbg: BlockWithSenders. rawdb.ReadBlockWithSenders", "err", err)
 			return nil, nil, err
 		}
 		return block, senders, nil
 	}
-	return rawdb.NonCanonicalBlockWithSenders(tx, hash, blockHeight)
+	block, senders, err = rawdb.NonCanonicalBlockWithSenders(tx, hash, blockHeight)
+	if err != nil {
+		log.Warn("dbg: BlockWithSenders. rawdb.NonCanonicalBlockWithSenders", "err", err, "blockHeight", blockHeight, "back.sn.BlocksAvailable()", back.sn.BlocksAvailable())
+		return nil, nil, err
+	}
+	log.Warn("dbg: BlockWithSenders. rawdb.NonCanonicalBlockWithSenders", "block==nil", block == nil, "blockHeight", blockHeight, "back.sn.BlocksAvailable()", back.sn.BlocksAvailable(),
+		"back.sn.SegmentsMax()", back.sn.SegmentsMax(), "back.sn.IndicesMax()", back.sn.IndicesMax(),
+	)
+	return block, senders, nil
 }
 
 func (back *BlockReaderWithSnapshots) headerFromSnapshot(blockHeight uint64, sn *HeaderSegment, buf []byte) (*types.Header, []byte, error) {
 	if sn.idxHeaderHash == nil {
+		log.Warn("dbg: headerFromSnapshot sn.idxHeaderHash == nil ")
 		return nil, buf, nil
 	}
 	headerOffset := sn.idxHeaderHash.OrdinalLookup(blockHeight - sn.idxHeaderHash.BaseDataID())
 	gg := sn.seg.MakeGetter()
 	gg.Reset(headerOffset)
 	if !gg.HasNext() {
+		log.Warn("dbg: headerFromSnapshot !gg.HasNext()")
 		return nil, nil, nil
 	}
 	buf, _ = gg.Next(buf[:0])
 	if len(buf) == 0 {
+		log.Warn("dbg: headerFromSnapshot len(buf) == 0 ")
 		return nil, buf, nil
 	}
 	h := &types.Header{}
 	if err := rlp.DecodeBytes(buf[1:], h); err != nil {
 		return nil, buf, err
 	}
+	log.Warn("dbg: headerFromSnapshot", "res", h == nil)
 	return h, buf, nil
 }
 
@@ -569,6 +587,7 @@ func (back *BlockReaderWithSnapshots) bodyForStorageFromSnapshot(blockHeight uin
 	}() // avoid crash because Erigon's core does many things
 
 	if sn.idxBodyNumber == nil {
+		log.Warn("dbg: bodyForStorageFromSnapshot sn.idxBodyNumber == nil", "blockHeight", blockHeight, "seg", sn.ranges)
 		return nil, buf, nil
 	}
 	bodyOffset := sn.idxBodyNumber.OrdinalLookup(blockHeight - sn.idxBodyNumber.BaseDataID())
@@ -576,10 +595,12 @@ func (back *BlockReaderWithSnapshots) bodyForStorageFromSnapshot(blockHeight uin
 	gg := sn.seg.MakeGetter()
 	gg.Reset(bodyOffset)
 	if !gg.HasNext() {
+		log.Warn("dbg: bodyForStorageFromSnapshot !gg.HasNext()", "blockHeight", blockHeight, "seg", sn.ranges)
 		return nil, nil, nil
 	}
 	buf, _ = gg.Next(buf[:0])
 	if len(buf) == 0 {
+		log.Warn("dbg: bodyForStorageFromSnapshot len(buf) == 0 ", "blockHeight", blockHeight, "seg", sn.ranges)
 		return nil, nil, nil
 	}
 	b := &types.BodyForStorage{}
@@ -591,6 +612,7 @@ func (back *BlockReaderWithSnapshots) bodyForStorageFromSnapshot(blockHeight uin
 	if b.BaseTxId < sn.idxBodyNumber.BaseDataID() {
 		return nil, buf, fmt.Errorf(".idx file has wrong baseDataID? %d<%d, %s", b.BaseTxId, sn.idxBodyNumber.BaseDataID(), sn.seg.FilePath())
 	}
+	log.Warn("dbg: bodyForStorageFromSnapshot ", "res", b == nil, "blockHeight", blockHeight, "seg", sn.ranges)
 	return b, buf, nil
 }
 
@@ -602,6 +624,7 @@ func (back *BlockReaderWithSnapshots) txsFromSnapshot(baseTxnID uint64, txsAmoun
 	}() // avoid crash because Erigon's core does many things
 
 	if txsSeg.IdxTxnHash == nil {
+		log.Warn("dbg: txsFromSnapshot   txsSeg.IdxTxnHash == nil  ")
 		return nil, nil, nil
 	}
 	if baseTxnID < txsSeg.IdxTxnHash.BaseDataID() {
@@ -612,6 +635,7 @@ func (back *BlockReaderWithSnapshots) txsFromSnapshot(baseTxnID uint64, txsAmoun
 	senders = make([]common.Address, txsAmount)
 	reader := bytes.NewReader(buf)
 	if txsAmount == 0 {
+		log.Warn("dbg: txsFromSnapshot  txsAmount == 0  ", "txsAmount", txsAmount)
 		return txs, senders, nil
 	}
 	txnOffset := txsSeg.IdxTxnHash.OrdinalLookup(baseTxnID - txsSeg.IdxTxnHash.BaseDataID())
@@ -620,6 +644,7 @@ func (back *BlockReaderWithSnapshots) txsFromSnapshot(baseTxnID uint64, txsAmoun
 	stream := rlp.NewStream(reader, 0)
 	for i := uint32(0); i < txsAmount; i++ {
 		if !gg.HasNext() {
+			log.Warn("dbg: txsFromSnapshot  !gg.HasNext() ", "txsAmount", txsAmount)
 			return nil, nil, nil
 		}
 		buf, _ = gg.Next(buf[:0])
@@ -636,6 +661,7 @@ func (back *BlockReaderWithSnapshots) txsFromSnapshot(baseTxnID uint64, txsAmoun
 		}
 		txs[i].SetSender(senders[i])
 	}
+	log.Warn("dbg: txsFromSnapshot ", "res", len(txs))
 
 	return txs, senders, nil
 }
