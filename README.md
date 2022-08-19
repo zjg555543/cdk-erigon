@@ -175,19 +175,19 @@ C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin
   **Please also note the default WSL2 environment has its own IP address which does not match the one of the network
   interface of Windows host: take this into account when configuring NAT for port 30303 on your router.**
 
-### Using TOML or YAML Config Files
+## Using TOML or YAML Config Files
 
 You can set Erigon flags through a YAML or TOML configuration file with the flag `--config`. The flags set in the configuration
 file can be overwritten by writing the flags directly on Erigon command line
 
-## Example
+### Example
 
 `./build/bin/erigon --config ./config.yaml --chain=goerli
 
 Assuming we have `chain : "mainnet" in our configuration file, by adding `--chain=goerli` allows the overwrite of the flag inside
 of the yaml configuration file and sets the chain to goerli
 
-## TOML 
+### TOML 
 
 Example of setting up TOML config file
 
@@ -201,7 +201,7 @@ http = "true"
 "http.api" = ["eth","debug","net"]
 ```
 
-## YAML 
+### YAML 
 
 Example of setting up a YAML config file
 
@@ -217,20 +217,20 @@ http.api : ["eth","debug","net"]
 
 
 
-### Beacon Chain (Consensus Layer)
+## Beacon Chain (Consensus Layer)
 
 Erigon can be used as an Execution Layer (EL) for Consensus Layer clients (CL). Default configuration is OK. CL
 relies on availability of receipts – don't prune them: don't add character `r` to `--prune` flag. However, old receipts
  are not needed for CL and you can safely prune them with `--prune htc`.
 
- ## ETH2 Deposit Contract Block Number
+ ### ETH2 Deposit Contract Block Number
 
  - Mainnnet: 11052984
  - Sepolia: 1273020
  - Goerli: 4367322
 
 
- ## ETH2 Deposit Contract Address
+ ### ETH2 Deposit Contract Address
 
  - Mainnet: 0x00000000219ab540356cBB839Cbe05303d7705Fa
  - Sepolia: 0x7f02C3E3c98b133055B8B348B2Ac625669Ed295D
