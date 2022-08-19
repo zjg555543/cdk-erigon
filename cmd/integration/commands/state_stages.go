@@ -323,8 +323,7 @@ func syncBySmallSteps(db kv.RwDB, miningConfig params.MiningConfig, ctx context.
 				miner.MiningBlock.Header.GasLimit = nextBlock.GasLimit()
 				miner.MiningBlock.Header.Difficulty = nextBlock.Difficulty()
 				miner.MiningBlock.Header.Nonce = nextBlock.Nonce()
-				miner.MiningBlock.LocalTxs = types.NewTransactionsFixedOrder(nextBlock.Transactions())
-				miner.MiningBlock.RemoteTxs = types.NewTransactionsFixedOrder(nil)
+				miner.MiningBlock.RemoteTxs = types.NewTransactionsFixedOrder(nextBlock.Transactions())
 				//debugprint.Headers(miningWorld.Block.Header, nextBlock.Header())
 				return err
 			})

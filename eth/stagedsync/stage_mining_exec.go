@@ -66,7 +66,6 @@ func SpawnMiningExecStage(s *StageState, tx kv.RwTx, cfg MiningExecCfg, quit <-c
 	cfg.vmConfig.NoReceipts = false
 	logPrefix := s.LogPrefix()
 	current := cfg.miningState.MiningBlock
-	localTxs := current.LocalTxs
 	remoteTxs := current.RemoteTxs
 	noempty := true
 
@@ -91,31 +90,17 @@ func SpawnMiningExecStage(s *StageState, tx kv.RwTx, cfg MiningExecCfg, quit <-c
 	// Short circuit if there is no available pending transactions.
 	// But if we disable empty precommit already, ignore it. Since
 	// empty block is necessary to keep the liveness of the network.
-	if noempty {
-		if !localTxs.Empty() {
-			logs, err := addTransactionsToMiningBlock(logPrefix, current, cfg.chainConfig, cfg.vmConfig, getHeader, contractHasTEVM, cfg.engine, localTxs, cfg.miningState.MiningConfig.Etherbase, ibs, quit, cfg.interrupt)
-			if err != nil {
-				return err
-			}
-			// We don't push the pendingLogsEvent while we are mining. The reason is that
-			// when we are mining, the worker will regenerate a mining block every 3 seconds.
-			// In order to avoid pushing the repeated pendingLog, we disable the pending log pushing.
-			//if !w.isRunning() {
-			NotifyPendingLogs(logPrefix, cfg.notifier, logs)
-			//}
+	if noempty && !remoteTxs.Empty() {
+		logs, err := addTransactionsToMiningBlock(logPrefix, current, cfg.chainConfig, cfg.vmConfig, getHeader, contractHasTEVM, cfg.engine, remoteTxs, cfg.miningState.MiningConfig.Etherbase, ibs, quit, cfg.interrupt)
+		if err != nil {
+			return err
 		}
-		if !remoteTxs.Empty() {
-			logs, err := addTransactionsToMiningBlock(logPrefix, current, cfg.chainConfig, cfg.vmConfig, getHeader, contractHasTEVM, cfg.engine, remoteTxs, cfg.miningState.MiningConfig.Etherbase, ibs, quit, cfg.interrupt)
-			if err != nil {
-				return err
-			}
-			// We don't push the pendingLogsEvent while we are mining. The reason is that
-			// when we are mining, the worker will regenerate a mining block every 3 seconds.
-			// In order to avoid pushing the repeated pendingLog, we disable the pending log pushing.
-			//if !w.isRunning() {
-			NotifyPendingLogs(logPrefix, cfg.notifier, logs)
-			//}
-		}
+		// We don't push the pendingLogsEvent while we are mining. The reason is that
+		// when we are mining, the worker will regenerate a mining block every 3 seconds.
+		// In order to avoid pushing the repeated pendingLog, we disable the pending log pushing.
+		//if !w.isRunning() {
+		NotifyPendingLogs(logPrefix, cfg.notifier, logs)
+		//}
 	}
 
 	if current.Uncles == nil {
@@ -202,12 +187,12 @@ func addTransactionsToMiningBlock(logPrefix string, current *MiningBlock, chainC
 		}
 
 		if interrupt != nil && atomic.LoadInt32(interrupt) != 0 {
-			log.Debug("Transaction adding was interrupted")
+			log.Warn("Transaction adding was interrupted")
 			break
 		}
 		// If we don't have enough gas for any further transactions then we're done
 		if gasPool.Gas() < params.TxGas {
-			log.Debug(fmt.Sprintf("[%s] Not enough gas for further transactions", logPrefix), "have", gasPool, "want", params.TxGas)
+			log.Warn(fmt.Sprintf("[%s] Not enough gas for further transactions", logPrefix), "have", gasPool, "want", params.TxGas)
 			break
 		}
 		// Retrieve the next transaction and abort if all done
@@ -223,7 +208,7 @@ func addTransactionsToMiningBlock(logPrefix string, current *MiningBlock, chainC
 		// Check whether the txn is replay protected. If we're not in the EIP155 (Spurious Dragon) hf
 		// phase, start ignoring the sender until we do.
 		if txn.Protected() && !chainConfig.IsSpuriousDragon(header.Number.Uint64()) {
-			log.Debug(fmt.Sprintf("[%s] Ignoring replay protected transaction", logPrefix), "hash", txn.Hash(), "eip155", chainConfig.SpuriousDragonBlock)
+			log.Warn(fmt.Sprintf("[%s] Ignoring replay protected transaction", logPrefix), "hash", txn.Hash(), "eip155", chainConfig.SpuriousDragonBlock)
 
 			txs.Pop()
 			continue
@@ -236,17 +221,17 @@ func addTransactionsToMiningBlock(logPrefix string, current *MiningBlock, chainC
 		switch err {
 		case core.ErrGasLimitReached:
 			// Pop the env out-of-gas transaction without shifting in the next from the account
-			log.Debug(fmt.Sprintf("[%s] Gas limit exceeded for env block", logPrefix), "sender", from)
+			log.Warn(fmt.Sprintf("[%s] Gas limit exceeded for env block", logPrefix), "sender", from)
 			txs.Pop()
 
 		case core.ErrNonceTooLow:
 			// New head notification data race between the transaction pool and miner, shift
-			log.Debug(fmt.Sprintf("[%s] Skipping transaction with low nonce", logPrefix), "sender", from, "nonce", txn.GetNonce())
+			log.Warn(fmt.Sprintf("[%s] Skipping transaction with low nonce", logPrefix), "sender", from, "nonce", txn.GetNonce())
 			txs.Shift()
 
 		case core.ErrNonceTooHigh:
 			// Reorg notification data race between the transaction pool and miner, skip account =
-			log.Debug(fmt.Sprintf("[%s] Skipping account with hight nonce", logPrefix), "sender", from, "nonce", txn.GetNonce())
+			log.Warn(fmt.Sprintf("[%s] Skipping account with hight nonce", logPrefix), "sender", from, "nonce", txn.GetNonce())
 			txs.Pop()
 
 		case nil:
@@ -258,7 +243,7 @@ func addTransactionsToMiningBlock(logPrefix string, current *MiningBlock, chainC
 		default:
 			// Strange error, discard the transaction and get the next in line (note, the
 			// nonce-too-high clause will prevent us from executing in vain).
-			log.Debug(fmt.Sprintf("[%s] Transaction failed, account skipped", logPrefix), "hash", txn.Hash(), "err", err)
+			log.Warn(fmt.Sprintf("[%s] Transaction failed, account skipped", logPrefix), "hash", txn.Hash(), "err", err)
 			txs.Shift()
 		}
 	}

@@ -33,7 +33,6 @@ type MiningBlock struct {
 	Txs      types.Transactions
 	Receipts types.Receipts
 
-	LocalTxs  types.TransactionsStream
 	RemoteTxs types.TransactionsStream
 }
 
@@ -158,7 +157,6 @@ func SpawnMiningCreateBlockStage(s *StageState, tx kv.RwTx, cfg MiningCreateBloc
 	}
 	current.RemoteTxs = types.NewTransactionsFixedOrder(txs)
 	// txpool v2 - doesn't prioritise local txs over remote
-	current.LocalTxs = types.NewTransactionsFixedOrder(nil)
 	log.Debug(fmt.Sprintf("[%s] Candidate txs", logPrefix), "amount", len(txs))
 	localUncles, remoteUncles, err := readNonCanonicalHeaders(tx, blockNum, cfg.engine, coinbase, txPoolLocals)
 	if err != nil {
