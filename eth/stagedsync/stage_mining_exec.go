@@ -246,6 +246,9 @@ func addTransactionsToMiningBlock(logPrefix string, current *MiningBlock, chainC
 			log.Warn(fmt.Sprintf("[%s] Transaction failed, account skipped", logPrefix), "hash", txn.Hash(), "err", err)
 			txs.Shift()
 		}
+		if err != nil {
+			break
+		}
 	}
 
 	/*
