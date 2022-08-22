@@ -6,6 +6,7 @@ import (
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/txpool"
 	"github.com/ledgerwatch/erigon/turbo/services"
 	"github.com/ledgerwatch/log/v3"
 
@@ -33,6 +34,7 @@ type MiningExecCfg struct {
 	blockReader services.FullBlockReader
 	vmConfig    *vm.Config
 	tmpdir      string
+	txPool2     *txpool.TxPool
 	interrupt   *int32
 }
 
@@ -44,6 +46,7 @@ func StageMiningExecCfg(
 	engine consensus.Engine,
 	vmConfig *vm.Config,
 	tmpdir string,
+	txPool2 *txpool.TxPool,
 	interrupt *int32,
 ) MiningExecCfg {
 	return MiningExecCfg{
@@ -55,6 +58,7 @@ func StageMiningExecCfg(
 		blockReader: snapshotsync.NewBlockReader(),
 		vmConfig:    vmConfig,
 		tmpdir:      tmpdir,
+		txPool2:     txPool2,
 		interrupt:   interrupt,
 	}
 }
@@ -91,7 +95,7 @@ func SpawnMiningExecStage(s *StageState, tx kv.RwTx, cfg MiningExecCfg, quit <-c
 	// But if we disable empty precommit already, ignore it. Since
 	// empty block is necessary to keep the liveness of the network.
 	if noempty && !remoteTxs.Empty() {
-		logs, err := addTransactionsToMiningBlock(logPrefix, current, cfg.chainConfig, cfg.vmConfig, getHeader, contractHasTEVM, cfg.engine, remoteTxs, cfg.miningState.MiningConfig.Etherbase, ibs, quit, cfg.interrupt)
+		logs, err := addTransactionsToMiningBlock(logPrefix, current, cfg.chainConfig, cfg.txPool2, cfg.vmConfig, getHeader, contractHasTEVM, cfg.engine, remoteTxs, cfg.miningState.MiningConfig.Etherbase, ibs, quit, cfg.interrupt)
 		if err != nil {
 			return err
 		}
@@ -154,7 +158,7 @@ func SpawnMiningExecStage(s *StageState, tx kv.RwTx, cfg MiningExecCfg, quit <-c
 	return nil
 }
 
-func addTransactionsToMiningBlock(logPrefix string, current *MiningBlock, chainConfig params.ChainConfig, vmConfig *vm.Config, getHeader func(hash common.Hash, number uint64) *types.Header, contractHasTEVM func(common.Hash) (bool, error), engine consensus.Engine, txs types.TransactionsStream, coinbase common.Address, ibs *state.IntraBlockState, quit <-chan struct{}, interrupt *int32) (types.Logs, error) {
+func addTransactionsToMiningBlock(logPrefix string, current *MiningBlock, chainConfig params.ChainConfig, txPool2 *txpool.TxPool, vmConfig *vm.Config, getHeader func(hash common.Hash, number uint64) *types.Header, contractHasTEVM func(common.Hash) (bool, error), engine consensus.Engine, txs types.TransactionsStream, coinbase common.Address, ibs *state.IntraBlockState, quit <-chan struct{}, interrupt *int32) (types.Logs, error) {
 	header := current.Header
 	tcount := 0
 	gasPool := new(core.GasPool).AddGas(current.Header.GasLimit)
@@ -245,7 +249,7 @@ func addTransactionsToMiningBlock(logPrefix string, current *MiningBlock, chainC
 			txs.Shift()
 		}
 		if err != nil {
-			break
+			txPool2.MarkBadTransaction(txn.Hash())
 		}
 	}
 
