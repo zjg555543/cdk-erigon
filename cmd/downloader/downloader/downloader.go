@@ -140,6 +140,7 @@ func (d *Downloader) ReCalcStats(interval time.Duration) {
 	stats.DownloadRate = (stats.BytesDownload - prevStats.BytesDownload) / uint64(interval.Seconds())
 	stats.UploadRate = (stats.BytesUpload - prevStats.BytesUpload) / uint64(interval.Seconds())
 
+	log.Info("DBG: ReCalcStats", "len(torrents)", len(torrents), "mb_complete", stats.BytesCompleted/1024/1024, "mb_total", stats.BytesTotal/1024/1024)
 	if stats.BytesTotal == 0 {
 		stats.Progress = 0
 	} else {

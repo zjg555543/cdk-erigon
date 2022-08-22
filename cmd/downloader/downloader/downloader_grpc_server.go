@@ -34,6 +34,7 @@ func (s *GrpcServer) Download(ctx context.Context, request *proto_downloader.Dow
 
 	torrentClient := s.d.Torrent()
 	snapDir := s.d.SnapDir()
+	log.Info("DBG: Download", "amount", len(request.Items), "already_have", len(torrentClient.Torrents()))
 	for i, it := range request.Items {
 		select {
 		case <-logEvery.C:
@@ -61,7 +62,9 @@ func (s *GrpcServer) Download(ctx context.Context, request *proto_downloader.Dow
 			return nil, err
 		}
 	}
+	log.Info("DBG: Download end", "already_have", len(torrentClient.Torrents()))
 	s.d.ReCalcStats(10 * time.Second) // immediately call ReCalc to set stat.Complete flag
+	log.Info("DBG: Download end stats" + fmt.Sprintf("%+v", s.d.stats))
 	return &emptypb.Empty{}, nil
 }
 

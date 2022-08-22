@@ -1325,6 +1325,7 @@ func WaitForDownloader(ctx context.Context, cfg HeadersCfg, tx kv.RwTx) error {
 	}
 
 	log.Info("[Snapshots] Fetching torrent files metadata")
+	log.Info("DBG: " + fmt.Sprintf("missing=%+v, preverified=%+v", missingSnapshots, preverified))
 	for {
 		select {
 		case <-ctx.Done():
