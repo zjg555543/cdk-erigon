@@ -95,12 +95,12 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 	rules := chainConfig.Rules(block.NumberU64())
 	stream.WriteArrayStart()
 	for idx, txn := range block.Transactions() {
+		if idx > 0 {
+			stream.WriteMore()
+		}
 		ibs.Prepare(txn.Hash(), block.Hash(), idx)
 		msg, err := txn.AsMessage(*signer, block.BaseFee(), rules)
 		if err != nil {
-			if idx > 0 {
-				stream.WriteMore()
-			}
 			stream.WriteObjectStart()
 			rpc.HandleError(err, stream)
 			stream.WriteObjectEnd()
@@ -113,9 +113,6 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 		}
 
 		if err := transactions.TraceTx(ctx, msg, blockCtx, txCtx, ibs, config, chainConfig, stream); err != nil {
-			if idx > 0 {
-				stream.WriteMore()
-			}
 			stream.WriteObjectStart()
 			rpc.HandleError(err, stream)
 			stream.WriteObjectEnd()
@@ -123,16 +120,10 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 		}
 		err = ibs.FinalizeTx(rules, reader)
 		if err != nil {
-			if idx > 0 {
-				stream.WriteMore()
-			}
 			stream.WriteObjectStart()
 			rpc.HandleError(err, stream)
 			stream.WriteObjectEnd()
 			continue
-		}
-		if idx != len(block.Transactions())-1 {
-			stream.WriteMore()
 		}
 		stream.Flush()
 	}
