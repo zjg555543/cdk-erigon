@@ -117,9 +117,12 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 		stream.WriteObjectStart()
 		stream.WriteObjectField("result")
 		if err := transactions.TraceTx(ctx, msg, blockCtx, txCtx, ibs, config, chainConfig, stream); err != nil {
+			stream.WriteObjectStart()
 			stream.WriteObjectField("error")
 			stream.WriteString(fmt.Sprintf("%v", err))
 			//rpc.HandleError(err, stream)
+			stream.WriteObjectEnd()
+
 			stream.WriteObjectEnd()
 			continue
 		}
