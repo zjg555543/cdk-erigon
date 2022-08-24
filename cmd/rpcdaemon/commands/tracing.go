@@ -102,7 +102,9 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 		msg, err := txn.AsMessage(*signer, block.BaseFee(), rules)
 		if err != nil {
 			stream.WriteObjectStart()
-			rpc.HandleError(err, stream)
+			stream.WriteObjectField("error")
+			stream.WriteString(fmt.Sprintf("%v", err))
+			//rpc.HandleError(err, stream)
 			stream.WriteObjectEnd()
 			continue
 		}
@@ -114,14 +116,18 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 
 		if err := transactions.TraceTx(ctx, msg, blockCtx, txCtx, ibs, config, chainConfig, stream); err != nil {
 			stream.WriteObjectStart()
-			rpc.HandleError(err, stream)
+			stream.WriteObjectField("error")
+			stream.WriteString(fmt.Sprintf("%v", err))
+			//rpc.HandleError(err, stream)
 			stream.WriteObjectEnd()
 			continue
 		}
 		err = ibs.FinalizeTx(rules, reader)
 		if err != nil {
 			stream.WriteObjectStart()
-			rpc.HandleError(err, stream)
+			stream.WriteObjectField("error")
+			stream.WriteString(fmt.Sprintf("%v", err))
+			//rpc.HandleError(err, stream)
 			stream.WriteObjectEnd()
 			continue
 		}
