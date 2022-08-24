@@ -39,7 +39,6 @@ func (api *PrivateDebugAPIImpl) TraceBlockByHash(ctx context.Context, hash commo
 func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash, config *tracers.TraceConfig, stream *jsoniter.Stream) error {
 	tx, err := api.db.BeginRo(ctx)
 	if err != nil {
-		stream.WriteNil()
 		return err
 	}
 	defer tx.Rollback()
@@ -59,7 +58,6 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 	}
 
 	if err != nil {
-		stream.WriteNil()
 		return err
 	}
 
@@ -72,7 +70,6 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 
 	chainConfig, err := api.chainConfig(tx)
 	if err != nil {
-		stream.WriteNil()
 		return err
 	}
 
@@ -91,30 +88,49 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 
 	_, blockCtx, _, ibs, reader, err := transactions.ComputeTxEnv(ctx, block, chainConfig, getHeader, contractHasTEVM, ethash.NewFaker(), tx, block.Hash(), 0)
 	if err != nil {
-		stream.WriteNil()
 		return err
 	}
 
 	signer := types.MakeSigner(chainConfig, block.NumberU64())
 	rules := chainConfig.Rules(block.NumberU64())
 	stream.WriteArrayStart()
-	for idx, tx := range block.Transactions() {
-		select {
-		default:
-		case <-ctx.Done():
-			stream.WriteNil()
-			return ctx.Err()
+	for idx, txn := range block.Transactions() {
+		ibs.Prepare(txn.Hash(), block.Hash(), idx)
+		msg, err := txn.AsMessage(*signer, block.BaseFee(), rules)
+		if err != nil {
+			if idx != len(block.Transactions())-1 {
+				stream.WriteMore()
+			}
+			stream.WriteObjectStart()
+			rpc.HandleError(err, stream)
+			stream.WriteObjectEnd()
+			continue
 		}
-		ibs.Prepare(tx.Hash(), block.Hash(), idx)
-		msg, _ := tx.AsMessage(*signer, block.BaseFee(), rules)
 		txCtx := vm.TxContext{
-			TxHash:   tx.Hash(),
+			TxHash:   txn.Hash(),
 			Origin:   msg.From(),
 			GasPrice: msg.GasPrice().ToBig(),
 		}
 
-		transactions.TraceTx(ctx, msg, blockCtx, txCtx, ibs, config, chainConfig, stream)
-		_ = ibs.FinalizeTx(rules, reader)
+		if err := transactions.TraceTx(ctx, msg, blockCtx, txCtx, ibs, config, chainConfig, stream); err != nil {
+			if idx != len(block.Transactions())-1 {
+				stream.WriteMore()
+			}
+			stream.WriteObjectStart()
+			rpc.HandleError(err, stream)
+			stream.WriteObjectEnd()
+			continue
+		}
+		err = ibs.FinalizeTx(rules, reader)
+		if err != nil {
+			if idx != len(block.Transactions())-1 {
+				stream.WriteMore()
+			}
+			stream.WriteObjectStart()
+			rpc.HandleError(err, stream)
+			stream.WriteObjectEnd()
+			continue
+		}
 		if idx != len(block.Transactions())-1 {
 			stream.WriteMore()
 		}

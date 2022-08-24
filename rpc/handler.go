@@ -78,7 +78,7 @@ type callProc struct {
 	notifiers []*Notifier
 }
 
-func HandleError(err error, stream *jsoniter.Stream) error {
+func HandleError(err error, stream *jsoniter.Stream) {
 	if err != nil {
 		//return msg.errorResponse(err)
 		stream.WriteObjectField("error")
@@ -106,8 +106,6 @@ func HandleError(err error, stream *jsoniter.Stream) error {
 		}
 		stream.WriteObjectEnd()
 	}
-
-	return nil
 }
 
 func newHandler(connCtx context.Context, conn jsonWriter, idgen func() ID, reg *serviceRegistry, allowList AllowList, maxBatchConcurrency uint, traceRequests bool) *handler {

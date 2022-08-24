@@ -133,7 +133,6 @@ func SpawnMiningCreateBlockStage(s *StageState, tx kv.RwTx, cfg MiningCreateBloc
 
 		for i := range txSlots.Txs {
 			s := rlp.NewStream(bytes.NewReader(txSlots.Txs[i]), uint64(len(txSlots.Txs[i])))
-
 			transaction, err := types.DecodeTransaction(s)
 			if err == io.EOF {
 				continue
