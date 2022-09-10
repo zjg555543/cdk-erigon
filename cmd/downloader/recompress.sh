@@ -13,8 +13,8 @@ do
    a=$(du -h $from | awk '{print $1;}')
    b=$(du -h $to | awk '{print $1;}')
    echo "size: $a -> $b"
-   mv $from $from.old
-   mv $from.new $from
+#   mv $from $from.old
+#   mv $from.new $from
    
 done
 
