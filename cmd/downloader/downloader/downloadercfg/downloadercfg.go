@@ -102,6 +102,7 @@ func New(snapDir string, verbosity lg.Level, dbg bool, natif nat.Interface, down
 			log.Info("[torrent] Public IP", "ip", ip)
 		}
 	}
+	log.Info("torrent rate", "download", downloadRate.String(), "upload", uploadRate.String())
 	// rates are divided by 2 - I don't know why it works, maybe bug inside torrent lib accounting
 	torrentConfig.UploadRateLimiter = rate.NewLimiter(rate.Limit(uploadRate.Bytes()), 4*DefaultNetworkChunkSize) // default: unlimited
 	if downloadRate.Bytes() < 500_000_000 {
