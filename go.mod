@@ -173,4 +173,4 @@ require (
 	modernc.org/token v1.0.0 // indirect
 )
 
-replace github.com/anacrolix/torrent => github.com/AskAlexSharov/torrent v1.46.1-0.20220919055449-b26351069f5d
+replace github.com/anacrolix/torrent => github.com/AskAlexSharov/torrent v1.46.1-0.20220919060323-d8070843f5ef
