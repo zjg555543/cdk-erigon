@@ -326,8 +326,9 @@ func startHandlingForkChoice(
 	cfg.hd.BeaconRequestList.Remove(requestId)
 
 	headerNumber := header.Number.Uint64()
-
-	if cfg.memoryOverlay && headerHash == cfg.forkValidator.ExtendingForkHeadHash() {
+	// We flush memory overlay if the headerHash is the same as the forkHeadHash
+	// memory overlay has and we have yet to execute that block
+	if cfg.memoryOverlay && headerHash == cfg.forkValidator.ExtendingForkHeadHash() && s.BlockNumber < headerNumber {
 		log.Info("Flushing in-memory state")
 		if err := cfg.forkValidator.FlushExtendingFork(tx); err != nil {
 			return nil, err
