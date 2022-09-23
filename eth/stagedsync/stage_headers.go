@@ -328,7 +328,7 @@ func startHandlingForkChoice(
 	headerNumber := header.Number.Uint64()
 	// We flush memory overlay if the headerHash is the same as the forkHeadHash
 	// memory overlay has and we have yet to execute that block
-	if cfg.memoryOverlay && headerHash == cfg.forkValidator.ExtendingForkHeadHash() && s.BlockNumber < headerNumber {
+	if cfg.memoryOverlay && headerHash == cfg.forkValidator.ExtendingForkHeadHash() {
 		log.Info("Flushing in-memory state")
 		if err := cfg.forkValidator.FlushExtendingFork(tx); err != nil {
 			return nil, err
@@ -339,7 +339,7 @@ func startHandlingForkChoice(
 			log.Warn(fmt.Sprintf("[%s] Fork choice err", s.LogPrefix()), "err", err)
 			return nil, err
 		}
-		if canonical {
+		if canonical && s.BlockNumber < headerNumber {
 			cfg.hd.SetPendingPayloadHash(headerHash)
 			return nil, nil
 		} else {
