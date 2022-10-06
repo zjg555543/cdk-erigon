@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sync"
-	"unsafe"
 
 	"github.com/google/btree"
 	"github.com/holiman/uint256"
@@ -86,18 +85,17 @@ type State22 struct {
 	triggerLock  sync.RWMutex
 	queue        TxTaskQueue
 	queueLock    sync.Mutex
-	changes      map[string]*btree.BTreeG[StateItem]
+	changes      map[string]*btree.BTreeG[pair]
 	sizeEstimate uint64
 	txsDone      uint64
 	finished     bool
 }
 
-type StateItem struct {
-	key []byte
-	val []byte
-}
+type pair struct{ key, val []byte }
 
-func stateItemLess(i, j StateItem) bool {
+const sizeOfPair = uint64(48) //unsafe.Sizeof(pair{})
+
+func stateItemLess(i, j pair) bool {
 	return bytes.Compare(i.key, j.key) < 0
 }
 
@@ -105,7 +103,7 @@ func NewState22() *State22 {
 	rs := &State22{
 		triggers:     map[uint64]*TxTask{},
 		senderTxNums: map[common.Address]uint64{},
-		changes:      map[string]*btree.BTreeG[StateItem]{},
+		changes:      map[string]*btree.BTreeG[pair]{},
 	}
 	rs.receiveWork = sync.NewCond(&rs.queueLock)
 	return rs
@@ -114,12 +112,12 @@ func NewState22() *State22 {
 func (rs *State22) put(table string, key, val []byte) {
 	t, ok := rs.changes[table]
 	if !ok {
-		t = btree.NewG[StateItem](32, stateItemLess)
+		t = btree.NewG[pair](32, stateItemLess)
 		rs.changes[table] = t
 	}
-	item := StateItem{key: key, val: val}
+	item := pair{key: key, val: val}
 	t.ReplaceOrInsert(item)
-	rs.sizeEstimate += uint64(unsafe.Sizeof(item)) + uint64(len(key)) + uint64(len(val))
+	rs.sizeEstimate += sizeOfPair + uint64(len(key)) + uint64(len(val))
 }
 
 func (rs *State22) Get(table string, key []byte) []byte {
@@ -133,7 +131,7 @@ func (rs *State22) get(table string, key []byte) []byte {
 	if !ok {
 		return nil
 	}
-	if i, ok := t.Get(StateItem{key: key}); ok {
+	if i, ok := t.Get(pair{key: key}); ok {
 		return i.val
 	}
 	return nil
@@ -144,7 +142,7 @@ func (rs *State22) Flush(rwTx kv.RwTx) error {
 	defer rs.lock.Unlock()
 	for table, t := range rs.changes {
 		var err error
-		t.Ascend(func(item StateItem) bool {
+		t.Ascend(func(item pair) bool {
 			if len(item.val) == 0 {
 				if err = rwTx.Delete(table, item.key); err != nil {
 					return false
@@ -242,12 +240,18 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
 	agg.SetTxNum(txTask.TxNum)
+	plainStateCursor, err := roTx.Cursor(kv.PlainState)
+	if err != nil {
+		return err
+	}
+	defer plainStateCursor.Close()
+
 	for addr := range txTask.BalanceIncreaseSet {
 		increase := txTask.BalanceIncreaseSet[addr]
 		enc0 := rs.get(kv.PlainState, addr.Bytes())
 		if enc0 == nil {
 			var err error
-			enc0, err = roTx.GetOne(kv.PlainState, addr.Bytes())
+			_, enc0, err = plainStateCursor.SeekExact(addr.Bytes()) //get from plain state
 			if err != nil {
 				return err
 			}
@@ -274,9 +278,10 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 			return err
 		}
 	}
+
+	addr1 := make([]byte, 20+8)
 	for addrS, original := range txTask.AccountDels {
 		addr := []byte(addrS)
-		addr1 := make([]byte, len(addr)+8)
 		copy(addr1, addr)
 		binary.BigEndian.PutUint64(addr1[len(addr):], original.Incarnation)
 		prev := accounts.Serialise2(original)
@@ -295,14 +300,8 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 			return err
 		}
 		// Iterate over storage
-		cursor, err := roTx.Cursor(kv.PlainState)
+		k, v, e := plainStateCursor.Seek(addr1)
 		if err != nil {
-			return err
-		}
-		defer cursor.Close()
-		var k, v []byte
-		var e error
-		if k, v, e = cursor.Seek(addr1); err != nil {
 			return e
 		}
 		if !bytes.HasPrefix(k, addr1) {
@@ -310,11 +309,11 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 		}
 		psChanges := rs.changes[kv.PlainState]
 		if psChanges != nil {
-			psChanges.AscendGreaterOrEqual(StateItem{key: addr1}, func(item StateItem) bool {
+			psChanges.AscendGreaterOrEqual(pair{key: addr1}, func(item pair) bool {
 				if !bytes.HasPrefix(item.key, addr1) {
 					return false
 				}
-				for ; e == nil && k != nil && bytes.HasPrefix(k, addr1) && bytes.Compare(k, item.key) <= 0; k, v, e = cursor.Next() {
+				for ; e == nil && k != nil && bytes.HasPrefix(k, addr1) && bytes.Compare(k, item.key) <= 0; k, v, e = plainStateCursor.Next() {
 					if !bytes.Equal(k, item.key) {
 						// Skip the cursor item when the key is equal, i.e. prefer the item from the changes tree
 						if e = agg.AddStoragePrev(addr, k[28:], v); e != nil {
@@ -331,7 +330,7 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 				return true
 			})
 		}
-		for ; e == nil && k != nil && bytes.HasPrefix(k, addr1); k, v, e = cursor.Next() {
+		for ; e == nil && k != nil && bytes.HasPrefix(k, addr1); k, v, e = plainStateCursor.Next() {
 			if e = agg.AddStoragePrev(addr, k[28:], v); e != nil {
 				return e
 			}
@@ -528,7 +527,7 @@ func (rs *State22) ReadsValid(readLists map[string]*KvList) bool {
 	//fmt.Printf("ValidReads\n")
 	for table, list := range readLists {
 		//fmt.Printf("Table %s\n", table)
-		var t *btree.BTreeG[StateItem]
+		var t *btree.BTreeG[pair]
 		var ok bool
 		if table == CodeSizeTable {
 			t, ok = rs.changes[kv.Code]
@@ -540,7 +539,7 @@ func (rs *State22) ReadsValid(readLists map[string]*KvList) bool {
 		}
 		for i, key := range list.Keys {
 			val := list.Vals[i]
-			if item, ok := t.Get(StateItem{key: key}); ok {
+			if item, ok := t.Get(pair{key: key}); ok {
 				//fmt.Printf("key [%x] => [%x] vs [%x]\n", key, val, rereadVal)
 				if table == CodeSizeTable {
 					if binary.BigEndian.Uint64(val) != uint64(len(item.val)) {
