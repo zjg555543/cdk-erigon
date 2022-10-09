@@ -25,6 +25,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 )
 
 func convertToInterfacePubkey(pubkey *ecdsa.PublicKey) (crypto.PubKey, error) {
@@ -101,9 +102,14 @@ func convertToMultiAddr(nodes []*enode.Node) []multiaddr.Multiaddr {
 }
 
 // will iterate onto randoms nodes until our sentinel connects to one
-func connectToRandomPeer(s *Sentinel) (node *enode.Node, peerInfo *peer.AddrInfo, err error) {
+func connectToRandomPeer(s *Sentinel, isLightClient bool) (node *enode.Node, peerInfo *peer.AddrInfo, err error) {
 	iterator := s.listener.RandomNodes()
 	defer iterator.Close()
+
+	lightClientPeers := append(s.GetTopicPeers(LightClientFinalityUpdateSsz), s.GetTopicPeers(LightClientOptimisticUpdateSsz)...)
+	if len(lightClientPeers) == 0 && isLightClient {
+		return nil, nil, fmt.Errorf("there are no lightclient peers")
+	}
 
 	connectedPeer := false
 	for !connectedPeer {
@@ -116,6 +122,10 @@ func connectToRandomPeer(s *Sentinel) (node *enode.Node, peerInfo *peer.AddrInfo
 		peerInfo, _, err = convertToAddrInfo(node)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error converting to addres info, err=%s", err)
+		}
+
+		if slices.Index(lightClientPeers, peerInfo.ID) == -1 {
+			continue
 		}
 
 		if err := s.connectWithPeer(s.ctx, *peerInfo); err != nil {

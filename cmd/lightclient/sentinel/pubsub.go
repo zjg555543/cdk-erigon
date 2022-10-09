@@ -26,6 +26,7 @@ import (
 	"github.com/ledgerwatch/erigon/cmd/lightclient/sentinel/communication"
 	"github.com/ledgerwatch/erigon/cmd/lightclient/sentinel/communication/ssz_snappy"
 	"github.com/ledgerwatch/log/v3"
+	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -188,4 +189,9 @@ func (s *Sentinel) getTopic(topic GossipTopic) string {
 		log.Error("[Gossip] Failed to calculate fork choice", "err", err)
 	}
 	return fmt.Sprintf("/eth2/%x/%s/%s", o, topic.Name, topic.CodecStr)
+}
+
+func (s *Sentinel) GetTopicPeers(topic GossipTopic) []peer.ID {
+	topicName := s.getTopic(topic)
+	return s.pubsub.ListPeers(topicName)
 }

@@ -34,20 +34,35 @@ func (s *Sentinel) SendPingReqV1() (communication.Packet, error) {
 		Id: s.metadataV1.SeqNumber,
 	}
 	responsePacket := &p2p.Ping{}
-	return sendRequest(s, requestPacket, responsePacket, handlers.PingProtocolV1)
+	return sendRequest(s, requestPacket, responsePacket, handlers.PingProtocolV1, false /* isLightClient */)
 }
 
 func (s *Sentinel) SendMetadataReqV1() (communication.Packet, error) {
 	requestPacket := &lightrpc.MetadataV1{}
 	responsePacket := &lightrpc.MetadataV1{}
 
-	return sendRequest(s, requestPacket, responsePacket, handlers.MetadataProtocolV1)
+	return sendRequest(s, requestPacket, responsePacket, handlers.MetadataProtocolV1, false /* isLightClient */)
+}
+
+// Lightclient requests
+func (s *Sentinel) SendLightClientFinalityUpdate() (communication.Packet, error) {
+	requestPacket := &lightrpc.LightClientFinalityUpdate{}
+	responsePacket := &lightrpc.LightClientFinalityUpdate{}
+
+	return sendRequest(s, requestPacket, responsePacket, handlers.FinalityUpdateProtocolV1, true /* isLightClient */)
+}
+
+func (s *Sentinel) SendLightClientOptimisticUpdate() (communication.Packet, error) {
+	requestPacket := &lightrpc.LightClientOptimisticUpdate{}
+	responsePacket := &lightrpc.LightClientOptimisticUpdate{}
+
+	return sendRequest(s, requestPacket, responsePacket, handlers.OptimisticUpdateProtocolV1, true /* isLightClient */)
 }
 
 // TODO: add the rest of the request topics
 
-func sendRequest(s *Sentinel, requestPacket communication.Packet, responsePacket communication.Packet, topic string) (communication.Packet, error) {
-	_, peerInfo, err := connectToRandomPeer(s)
+func sendRequest(s *Sentinel, requestPacket communication.Packet, responsePacket communication.Packet, topic string, isLightClient bool) (communication.Packet, error) {
+	_, peerInfo, err := connectToRandomPeer(s, isLightClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to a random peer err=%s", err)
 	}
