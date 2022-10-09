@@ -88,6 +88,12 @@ func main() {
 				if _, err := sent.SendMetadataReqV1(); err != nil {
 					log.Debug("failed to send metadata request", "err", err)
 				}
+				if _, err := sent.SendLightClientFinalityUpdate(); err != nil {
+					log.Info("failed light client", "err", err)
+				}
+				if _, err := sent.SendLightClientOptimisticUpdate(); err != nil {
+					log.Info("failed light client", "err", err)
+				}
 			}()
 		}
 	}

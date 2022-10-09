@@ -28,6 +28,10 @@ const GoodbyeTopic = "/goodbye"
 const BeaconBlockByRangeTopic = "/beacon_block_by_range"
 const BeaconBlockByRootTopic = "/beacon_block_by_root"
 
+// Lightclient request and response topics
+const LightclientFinalityUpdate = "/light_client_finality_update"
+const LightclientOptimisticUpdate = "/light_client_optimistic_update"
+
 // Request and Response protocol ids
 var (
 	PingProtocolV1    = ProtocolPrefix + PingTopic + Schema1 + EncodingProtocol
@@ -40,4 +44,7 @@ var (
 
 	BeaconBlockByRangeProtocolV1 = ProtocolPrefix + BeaconBlockByRangeTopic + Schema1 + EncodingProtocol
 	BeaconBlockByRootProtocolV1  = ProtocolPrefix + BeaconBlockByRootTopic + Schema1 + EncodingProtocol
+
+	FinalityUpdateProtocolV1   = ProtocolPrefix + LightclientFinalityUpdate + Schema1 + EncodingProtocol
+	OptimisticUpdateProtocolV1 = ProtocolPrefix + LightclientOptimisticUpdate + Schema1 + EncodingProtocol
 )
