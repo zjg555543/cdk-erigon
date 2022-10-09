@@ -616,6 +616,8 @@ func New(stack *node.Node, config *ethconfig.Config, logger log.Logger) (*Ethere
 		return nil, err
 	}
 
+	backend.agg.IterateAll()
+
 	var borDb kv.RoDB
 	if casted, ok := backend.engine.(*bor.Bor); ok {
 		borDb = casted.DB
