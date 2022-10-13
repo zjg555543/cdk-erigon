@@ -244,10 +244,10 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 	agg.SetTxNum(txTask.TxNum)
 	for addr := range txTask.BalanceIncreaseSet {
 		increase := txTask.BalanceIncreaseSet[addr]
-		enc0 := rs.get(kv.PlainState, addr.Bytes())
+		enc0 := rs.get(kv.PlainState, addr[:])
 		if enc0 == nil {
 			var err error
-			enc0, err = roTx.GetOne(kv.PlainState, addr.Bytes())
+			enc0, err = roTx.GetOne(kv.PlainState, addr[:])
 			if err != nil {
 				return err
 			}
@@ -269,8 +269,8 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 			enc1 = make([]byte, l)
 			a.EncodeForStorage(enc1)
 		}
-		rs.put(kv.PlainState, addr.Bytes(), enc1)
-		if err := agg.AddAccountPrev(addr.Bytes(), enc0); err != nil {
+		rs.put(kv.PlainState, addr[:], enc1)
+		if err := agg.AddAccountPrev(addr[:], enc0); err != nil {
 			return err
 		}
 	}
@@ -379,14 +379,14 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 	}
 	if txTask.TraceFroms != nil {
 		for addr := range txTask.TraceFroms {
-			if err := agg.AddTraceFrom(addr.Bytes()); err != nil {
+			if err := agg.AddTraceFrom(addr[:]); err != nil {
 				return err
 			}
 		}
 	}
 	if txTask.TraceTos != nil {
 		for addr := range txTask.TraceTos {
-			if err := agg.AddTraceTo(addr.Bytes()); err != nil {
+			if err := agg.AddTraceTo(addr[:]); err != nil {
 				return err
 			}
 		}
