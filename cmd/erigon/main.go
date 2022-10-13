@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ledgerwatch/erigon-lib/compress"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/pelletier/go-toml"
 	"github.com/urfave/cli"
@@ -22,6 +23,7 @@ import (
 )
 
 func main() {
+	compress.SetDecompressionTableCondensity(6)
 	defer func() {
 		panicResult := recover()
 		if panicResult == nil {
