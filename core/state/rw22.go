@@ -244,10 +244,10 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 	agg.SetTxNum(txTask.TxNum)
 	for addr := range txTask.BalanceIncreaseSet {
 		increase := txTask.BalanceIncreaseSet[addr]
-		enc0 := rs.get(kv.PlainState, addr[:])
+		enc0 := rs.get(kv.PlainState, addr.Bytes())
 		if enc0 == nil {
 			var err error
-			enc0, err = roTx.GetOne(kv.PlainState, addr[:])
+			enc0, err = roTx.GetOne(kv.PlainState, addr.Bytes())
 			if err != nil {
 				return err
 			}
@@ -269,8 +269,8 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 			enc1 = make([]byte, l)
 			a.EncodeForStorage(enc1)
 		}
-		rs.put(kv.PlainState, addr[:], enc1)
-		if err := agg.AddAccountPrev(addr[:], enc0); err != nil {
+		rs.put(kv.PlainState, addr.Bytes(), enc1)
+		if err := agg.AddAccountPrev(addr.Bytes(), enc0); err != nil {
 			return err
 		}
 	}
@@ -379,14 +379,14 @@ func (rs *State22) Apply(roTx kv.Tx, txTask *TxTask, agg *libstate.Aggregator22)
 	}
 	if txTask.TraceFroms != nil {
 		for addr := range txTask.TraceFroms {
-			if err := agg.AddTraceFrom(addr[:]); err != nil {
+			if err := agg.AddTraceFrom(addr.Bytes()); err != nil {
 				return err
 			}
 		}
 	}
 	if txTask.TraceTos != nil {
 		for addr := range txTask.TraceTos {
-			if err := agg.AddTraceTo(addr[:]); err != nil {
+			if err := agg.AddTraceTo(addr.Bytes()); err != nil {
 				return err
 			}
 		}
@@ -628,13 +628,13 @@ func (w *StateWriter22) UpdateAccountData(address common.Address, original, acco
 	value := make([]byte, account.EncodingLengthForStorage())
 	account.EncodeForStorage(value)
 	//fmt.Printf("account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x} txNum: %d\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash, w.txNum)
-	w.writeLists[kv.PlainState].Keys = append(w.writeLists[kv.PlainState].Keys, address[:])
+	w.writeLists[kv.PlainState].Keys = append(w.writeLists[kv.PlainState].Keys, address.Bytes())
 	w.writeLists[kv.PlainState].Vals = append(w.writeLists[kv.PlainState].Vals, value)
 	var prev []byte
 	if original.Initialised {
 		prev = accounts.Serialise2(original)
 	}
-	w.accountPrevs[string(address[:])] = prev
+	w.accountPrevs[string(address.Bytes())] = prev
 	return nil
 }
 
@@ -646,21 +646,21 @@ func (w *StateWriter22) UpdateAccountCode(address common.Address, incarnation ui
 		w.writeLists[kv.PlainContractCode].Keys = append(w.writeLists[kv.PlainContractCode].Keys, dbutils.PlainGenerateStoragePrefix(address[:], incarnation))
 		w.writeLists[kv.PlainContractCode].Vals = append(w.writeLists[kv.PlainContractCode].Vals, codeHash.Bytes())
 	}
-	w.codePrevs[string(address[:])] = incarnation
+	w.codePrevs[string(address.Bytes())] = incarnation
 	return nil
 }
 
 func (w *StateWriter22) DeleteAccount(address common.Address, original *accounts.Account) error {
-	w.writeLists[kv.PlainState].Keys = append(w.writeLists[kv.PlainState].Keys, address[:])
+	w.writeLists[kv.PlainState].Keys = append(w.writeLists[kv.PlainState].Keys, address.Bytes())
 	w.writeLists[kv.PlainState].Vals = append(w.writeLists[kv.PlainState].Vals, []byte{})
 	if original.Incarnation > 0 {
 		var b [8]byte
 		binary.BigEndian.PutUint64(b[:], original.Incarnation)
-		w.writeLists[kv.IncarnationMap].Keys = append(w.writeLists[kv.IncarnationMap].Keys, address[:])
+		w.writeLists[kv.IncarnationMap].Keys = append(w.writeLists[kv.IncarnationMap].Keys, address.Bytes())
 		w.writeLists[kv.IncarnationMap].Vals = append(w.writeLists[kv.IncarnationMap].Vals, b[:])
 	}
 	if original.Initialised {
-		w.accountDels[string(address[:])] = original
+		w.accountDels[string(address.Bytes())] = original
 	}
 	return nil
 }
@@ -669,7 +669,7 @@ func (w *StateWriter22) WriteAccountStorage(address common.Address, incarnation 
 	if *original == *value {
 		return nil
 	}
-	composite := dbutils.PlainGenerateCompositeStorageKey(address[:], incarnation, key.Bytes())
+	composite := dbutils.PlainGenerateCompositeStorageKey(address.Bytes(), incarnation, key.Bytes())
 	w.writeLists[kv.PlainState].Keys = append(w.writeLists[kv.PlainState].Keys, composite)
 	w.writeLists[kv.PlainState].Vals = append(w.writeLists[kv.PlainState].Vals, value.Bytes())
 	//fmt.Printf("storage [%x] [%x] => [%x], txNum: %d\n", address, *key, v, w.txNum)
@@ -728,15 +728,15 @@ func (r *StateReader22) SetTrace(trace bool) {
 }
 
 func (r *StateReader22) ReadAccountData(address common.Address) (*accounts.Account, error) {
-	enc := r.rs.Get(kv.PlainState, address[:])
+	enc := r.rs.Get(kv.PlainState, address.Bytes())
 	if enc == nil {
 		var err error
-		enc, err = r.tx.GetOne(kv.PlainState, address[:])
+		enc, err = r.tx.GetOne(kv.PlainState, address.Bytes())
 		if err != nil {
 			return nil, err
 		}
 	}
-	r.readLists[kv.PlainState].Keys = append(r.readLists[kv.PlainState].Keys, address[:])
+	r.readLists[kv.PlainState].Keys = append(r.readLists[kv.PlainState].Keys, address.Bytes())
 	r.readLists[kv.PlainState].Vals = append(r.readLists[kv.PlainState].Vals, common2.Copy(enc))
 	if len(enc) == 0 {
 		return nil, nil
@@ -757,7 +757,7 @@ func (r *StateReader22) ReadAccountStorage(address common.Address, incarnation u
 	} else if len(r.composite) != 20+8+32 {
 		r.composite = r.composite[:20+8+32]
 	}
-	copy(r.composite, address[:])
+	copy(r.composite, address.Bytes())
 	binary.BigEndian.PutUint64(r.composite[20:], incarnation)
 	copy(r.composite[20+8:], key.Bytes())
 
@@ -793,7 +793,7 @@ func (r *StateReader22) ReadAccountCode(address common.Address, incarnation uint
 			return nil, err
 		}
 	}
-	r.readLists[kv.Code].Keys = append(r.readLists[kv.Code].Keys, address[:])
+	r.readLists[kv.Code].Keys = append(r.readLists[kv.Code].Keys, address.Bytes())
 	r.readLists[kv.Code].Vals = append(r.readLists[kv.Code].Vals, common2.Copy(enc))
 	if r.trace {
 		fmt.Printf("ReadAccountCode [%x] => [%x], txNum: %d\n", address, enc, r.txNum)
@@ -812,7 +812,7 @@ func (r *StateReader22) ReadAccountCodeSize(address common.Address, incarnation 
 	}
 	var sizebuf [8]byte
 	binary.BigEndian.PutUint64(sizebuf[:], uint64(len(enc)))
-	r.readLists[CodeSizeTable].Keys = append(r.readLists[CodeSizeTable].Keys, address[:])
+	r.readLists[CodeSizeTable].Keys = append(r.readLists[CodeSizeTable].Keys, address.Bytes())
 	r.readLists[CodeSizeTable].Vals = append(r.readLists[CodeSizeTable].Vals, sizebuf[:])
 	size := len(enc)
 	if r.trace {
@@ -822,15 +822,15 @@ func (r *StateReader22) ReadAccountCodeSize(address common.Address, incarnation 
 }
 
 func (r *StateReader22) ReadAccountIncarnation(address common.Address) (uint64, error) {
-	enc := r.rs.Get(kv.IncarnationMap, address[:])
+	enc := r.rs.Get(kv.IncarnationMap, address.Bytes())
 	if enc == nil {
 		var err error
-		enc, err = r.tx.GetOne(kv.IncarnationMap, address[:])
+		enc, err = r.tx.GetOne(kv.IncarnationMap, address.Bytes())
 		if err != nil {
 			return 0, err
 		}
 	}
-	r.readLists[kv.IncarnationMap].Keys = append(r.readLists[kv.IncarnationMap].Keys, address[:])
+	r.readLists[kv.IncarnationMap].Keys = append(r.readLists[kv.IncarnationMap].Keys, address.Bytes())
 	r.readLists[kv.IncarnationMap].Vals = append(r.readLists[kv.IncarnationMap].Vals, common2.Copy(enc))
 	if len(enc) == 0 {
 		return 0, nil
