@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	compress.SetDecompressionTableCondensity(6)
+	compress.SetDecompressionTableCondensity(3)
 	defer func() {
 		panicResult := recover()
 		if panicResult == nil {
