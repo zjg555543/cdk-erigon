@@ -27,54 +27,56 @@ func (hr *HistoryReader22) SetTxNum(txNum uint64) { hr.txNum = txNum }
 func (hr *HistoryReader22) SetTrace(trace bool)   { hr.trace = trace }
 
 func (hr *HistoryReader22) ReadAccountData(address common.Address) (*accounts.Account, error) {
-	enc, ok, err := hr.ac.ReadAccountDataNoStateWithRecent(address.Bytes(), hr.txNum)
+	addr := address.Bytes()
+	enc, ok, err := hr.ac.ReadAccountDataNoStateWithRecent(addr, hr.txNum)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
 		if len(enc) == 0 {
 			if hr.trace {
-				fmt.Printf("ReadAccountData [%x] => []\n", address)
+				fmt.Printf("ReadAccountData [%x] => []\n", addr)
 			}
 			return nil, nil
 		}
 		var a accounts.Account
 		if err := accounts.Deserialise2(&a, enc); err != nil {
-			return nil, fmt.Errorf("ReadAccountData(%x): %w", address, err)
+			return nil, fmt.Errorf("ReadAccountData(%x): %w", addr, err)
 		}
 		if hr.trace {
-			fmt.Printf("ReadAccountData [%x] => [nonce: %d, balance: %d, codeHash: %x]\n", address, a.Nonce, &a.Balance, a.CodeHash)
+			fmt.Printf("ReadAccountData [%x] => [nonce: %d, balance: %d, codeHash: %x]\n", addr, a.Nonce, &a.Balance, a.CodeHash)
 		}
 		return &a, nil
 	}
-	enc, err = hr.tx.GetOne(kv.PlainState, address.Bytes())
+	enc, err = hr.tx.GetOne(kv.PlainState, addr)
 	if err != nil {
 		return nil, err
 	}
 	if len(enc) == 0 {
 		if hr.trace {
-			fmt.Printf("ReadAccountData [%x] => []\n", address)
+			fmt.Printf("ReadAccountData [%x] => []\n", addr)
 		}
 		return nil, nil
 	}
 	var a accounts.Account
 	if err := a.DecodeForStorage(enc); err != nil {
-		return nil, fmt.Errorf("ReadAccountData(%x): %w", address, err)
+		return nil, fmt.Errorf("ReadAccountData(%x): %w", addr, err)
 	}
 
 	if hr.trace {
-		fmt.Printf("ReadAccountData [%x] => [nonce: %d, balance: %d, codeHash: %x]\n", address, a.Nonce, &a.Balance, a.CodeHash)
+		fmt.Printf("ReadAccountData [%x] => [nonce: %d, balance: %d, codeHash: %x]\n", addr, a.Nonce, &a.Balance, a.CodeHash)
 	}
 	return &a, nil
 }
 
 func (hr *HistoryReader22) ReadAccountStorage(address common.Address, incarnation uint64, key *common.Hash) ([]byte, error) {
-	enc, ok, err := hr.ac.ReadAccountStorageNoStateWithRecent(address.Bytes(), key.Bytes(), hr.txNum)
+	addr, keyBytes := address.Bytes(), key.Bytes()
+	enc, ok, err := hr.ac.ReadAccountStorageNoStateWithRecent(addr, keyBytes, hr.txNum)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
-		k := dbutils.PlainGenerateCompositeStorageKey(address[:], incarnation, key.Bytes())
+		k := dbutils.PlainGenerateCompositeStorageKey(addr, incarnation, keyBytes)
 		enc, err = hr.tx.GetOne(kv.PlainState, k)
 		if err != nil {
 			return nil, err
@@ -82,9 +84,9 @@ func (hr *HistoryReader22) ReadAccountStorage(address common.Address, incarnatio
 	}
 	if hr.trace {
 		if enc == nil {
-			fmt.Printf("ReadAccountStorage [%x] [%x] => []\n", address, key.Bytes())
+			fmt.Printf("ReadAccountStorage [%x] [%x] => []\n", addr, keyBytes)
 		} else {
-			fmt.Printf("ReadAccountStorage [%x] [%x] => [%x]\n", address, key.Bytes(), enc)
+			fmt.Printf("ReadAccountStorage [%x] [%x] => [%x]\n", addr, keyBytes, enc)
 		}
 	}
 	if enc == nil {
