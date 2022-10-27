@@ -65,28 +65,34 @@ func SpawnTxLookup(s *StageState, tx kv.RwTx, toBlock uint64, cfg TxLookupCfg, c
 	}
 
 	startBlock := s.BlockNumber
+	log.Info("txLookup dbg1", "startBlock", startBlock)
 	if cfg.prune.TxIndex.Enabled() {
 		pruneTo := cfg.prune.TxIndex.PruneTo(endBlock)
 		if startBlock < pruneTo {
 			startBlock = pruneTo
+			log.Info("txLookup dbg1.1", "startBlock", startBlock)
 			if err = s.UpdatePrune(tx, pruneTo); err != nil { // prune func of this stage will use this value to prevent all ancient blocks traversal
 				return err
 			}
 		}
 	}
+	log.Info("txLookup dbg2", "startBlock", startBlock)
 	if cfg.snapshots != nil && cfg.snapshots.Cfg().Enabled {
 		if cfg.snapshots.BlocksAvailable() > startBlock {
 			// Snapshot .idx files already have TxLookup index - then no reason iterate over them here
 			startBlock = cfg.snapshots.BlocksAvailable()
+			log.Info("txLookup dbg2.1", "startBlock", startBlock)
 			if err = s.UpdatePrune(tx, startBlock); err != nil { // prune func of this stage will use this value to prevent all ancient blocks traversal
 				return err
 			}
 		}
 	}
+	log.Info("txLookup dbg3", "startBlock", startBlock)
 
 	if startBlock > 0 {
 		startBlock++
 	}
+	log.Info("txLookup dbg4", "startBlock", startBlock)
 	// etl.Transform uses ExtractEndKey as exclusive bound, therefore endBlock + 1
 	if err = txnLookupTransform(logPrefix, tx, startBlock, endBlock+1, quitCh, cfg); err != nil {
 		return fmt.Errorf("txnLookupTransform: %w", err)
