@@ -714,9 +714,6 @@ Logs:
 			if !match {
 				continue Logs
 			}
-			if !match {
-				break
-			}
 		}
 		result = append(result, logItem)
 	}
