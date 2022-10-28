@@ -404,7 +404,6 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 			logIndex++
 		}
 		filtered := filterLogs(rawLogs, addrMap, crit.Topics)
-		log.Info("dbg2", "err", err, "rawLogs", len(rawLogs), "filtered", len(filtered))
 		for _, log := range filtered {
 			log.BlockNumber = blockNum
 			log.BlockHash = lastBlockHash
@@ -412,7 +411,6 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 		}
 		logs = append(logs, filtered...)
 	}
-	log.Info("dbg10", "logs", fmt.Sprintf("%+v", logs))
 
 	//stats := api._agg.GetAndResetStats()
 	//log.Info("Finished", "duration", time.Since(start), "history queries", stats.HistoryQueries, "ef search duration", stats.EfSearchTime)
