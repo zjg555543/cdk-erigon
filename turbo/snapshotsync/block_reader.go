@@ -390,9 +390,17 @@ func (back *BlockReaderWithSnapshots) BodyWithTransactions(ctx context.Context, 
 	return body, nil
 }
 
+const (
+	minBitSize = 6 // 2**6=64 is a CPU cache line size
+	steps      = 20
+
+	minSize = 1 << minBitSize
+	maxSize = 1 << (minBitSize + steps - 1)
+)
+
 var bufPool = sync.Pool{
 	New: func() any {
-		return make([]byte, 0, 16)
+		return make([]byte, 0, minSize)
 	},
 }
 
@@ -401,7 +409,11 @@ func get() []byte {
 	buf = buf[:0]
 	return buf
 }
-func put(buf []byte) { bufPool.Put(buf) }
+func put(buf []byte) {
+	if len(buf) < maxSize {
+		bufPool.Put(buf)
+	}
+}
 
 func (back *BlockReaderWithSnapshots) BodyRlp(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64) (bodyRlp rlp.RawValue, err error) {
 	body, err := back.BodyWithTransactions(ctx, tx, hash, blockHeight)
