@@ -223,8 +223,7 @@ func (h *handler) handleMsg(msg *jsonrpcMessage, stream *jsoniter.Stream) {
 		answer := h.handleCallMsg(cp, msg, stream)
 		h.addSubscriptions(cp.notifiers)
 		if answer != nil {
-			buffer, _ := jsoniter.ConfigDefault.Marshal(answer)
-			//buffer, _ := json.Marshal(answer)
+			buffer, _ := json.Marshal(answer)
 			stream.Write(buffer)
 		}
 		if needWriteStream {
