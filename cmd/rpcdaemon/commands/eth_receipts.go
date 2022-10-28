@@ -359,11 +359,6 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 				return nil, err
 			}
 		}
-		_, blockNum2, _ := rawdb.TxNums.FindBlockNum(tx, txNum)
-		log.Info("dbg11", "got", blockNum, "expect", blockNum2)
-		if blockNum != blockNum2 {
-			panic(1)
-		}
 		if !ok {
 			return nil, nil
 		}
