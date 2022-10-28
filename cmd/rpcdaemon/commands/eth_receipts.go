@@ -293,6 +293,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 	txNumbers := roaring64.New()
 	txNumbers.AddRange(fromTxNum, toTxNum) // [min,max)
 
+	log.Info("dbg1", "fromTxNum", fromTxNum, "toTxNum", toTxNum)
 	ac := api._agg.MakeContext()
 	ac.SetTx(tx)
 
@@ -344,6 +345,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 	for _, v := range crit.Addresses {
 		addrMap[v] = struct{}{}
 	}
+	log.Info("dbg2", "txNumbers.ToArray()", txNumbers.ToArray())
 	for iter.HasNext() {
 		txNum := iter.Next()
 		// Find block number
