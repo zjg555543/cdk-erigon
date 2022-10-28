@@ -705,7 +705,7 @@ func (back *BlockReaderWithSnapshots) TxnByIdxInBlock(ctx context.Context, tx kv
 		return nil, err
 	}
 
-	log.Info("dbg2", "ok", ok)
+	log.Info("dbg2", "back.sn.BlocksAvailable()", back.sn.BlocksAvailable(), "back.sn.SegmentsReady()", back.sn.SegmentsReady(), "back.sn.IndicesReady()", back.sn.IndicesReady(), "ok", ok)
 
 	if ok {
 		log.Info("dbg2", "b.TxAmount", b.TxAmount, "i", i)
