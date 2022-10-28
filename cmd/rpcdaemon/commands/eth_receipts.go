@@ -406,6 +406,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 			logIndex++
 		}
 		filtered := filterLogs(rawLogs, addrMap, crit.Topics)
+		log.Info("dbg2", "err", err, "rawLogs", len(rawLogs), "filtered", len(filtered))
 		for _, log := range filtered {
 			log.BlockNumber = blockNum
 			log.BlockHash = lastBlockHash
