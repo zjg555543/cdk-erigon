@@ -29,6 +29,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/ledgerwatch/log/v3"
+	"github.com/valyala/bytebufferpool"
 )
 
 // handler handles JSON-RPC messages. There is one handler per connection. Note that
@@ -223,8 +224,10 @@ func (h *handler) handleMsg(msg *jsonrpcMessage, stream *jsoniter.Stream) {
 		answer := h.handleCallMsg(cp, msg, stream)
 		h.addSubscriptions(cp.notifiers)
 		if answer != nil {
-			buffer, _ := json.Marshal(answer)
-			stream.Write(buffer)
+			bb := bytebufferpool.Get()
+			defer bytebufferpool.Put(bb)
+			_ = json.NewEncoder(bb).Encode(answer)
+			stream.Write(bb.Bytes())
 		}
 		if needWriteStream {
 			h.conn.writeJSON(cp.ctx, json.RawMessage(stream.Buffer()))
