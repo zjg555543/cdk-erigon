@@ -188,6 +188,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) (t
 				logIndex++
 			}
 			filtered := filterLogs(logs, addrMap, crit.Topics)
+			log.Info("dbg1", "logs", len(logs), "filtered", len(filtered))
 			if len(filtered) == 0 {
 				return nil
 			}
@@ -695,7 +696,6 @@ Logs:
 		}
 		// If the to filtered topics is greater than the amount of topics in logs, skip.
 		if len(topics) > len(logItem.Topics) {
-			log.Info("dbg3", "len(logItem.Topics)", len(logItem.Topics), "len(topics)", len(topics))
 			continue
 		}
 		for i, sub := range topics {
