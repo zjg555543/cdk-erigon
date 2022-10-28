@@ -159,6 +159,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) (t
 	if len(rx) > 0 {
 		blockNumbers.And(addrBitmap)
 	}
+	log.Info("dbg2", "blockNumbers", blockNumbers.GetCardinality())
 
 	if blockNumbers.GetCardinality() == 0 {
 		return logs, nil
