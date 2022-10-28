@@ -15,7 +15,6 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/rlp"
-	"github.com/ledgerwatch/log/v3"
 )
 
 // BlockReader can read blocks from db and snapshots
@@ -705,17 +704,13 @@ func (back *BlockReaderWithSnapshots) TxnByIdxInBlock(ctx context.Context, tx kv
 		return nil, err
 	}
 
-	log.Info("dbg2", "back.sn.BlocksAvailable()", back.sn.BlocksAvailable(), "back.sn.SegmentsReady()", back.sn.SegmentsReady(), "back.sn.IndicesReady()", back.sn.IndicesReady(), "ok", ok)
-
 	if ok {
-		log.Info("dbg2", "b.TxAmount", b.TxAmount, "i", i)
 		// if block has no transactions, or requested txNum out of non-system transactions length
 		if b.TxAmount == 2 || i == -1 || i >= int(b.TxAmount-2) {
 			return nil, nil
 		}
 
 		ok, err = back.sn.Txs.ViewSegment(blockNum, func(segment *TxnSegment) error {
-			log.Info("dbg3", "b.BaseTxId+1+uint64(i)", b.BaseTxId+1+uint64(i))
 			// +1 because block has system-txn in the beginning of block
 			txn, err = back.txnByID(b.BaseTxId+1+uint64(i), segment, nil)
 			if err != nil {

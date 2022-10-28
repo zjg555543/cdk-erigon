@@ -399,6 +399,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 			return nil, fmt.Errorf("%w: blockNum=%d, txNum=%d", err, blockNum, txNum)
 		}
 		rawLogs := ibs.GetLogs(txHash)
+		log.Info("dbg2", "err", err, "rawLogs", rawLogs)
 		var logIndex uint
 		for _, log := range rawLogs {
 			log.Index = logIndex
