@@ -159,7 +159,6 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) (t
 	if len(rx) > 0 {
 		blockNumbers.And(addrBitmap)
 	}
-	log.Info("dbg2", "blockNumbers", blockNumbers.GetCardinality())
 
 	if blockNumbers.GetCardinality() == 0 {
 		return logs, nil
@@ -333,6 +332,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 	var lastHeader *types.Header
 	var lastSigner *types.Signer
 	var lastRules *params.Rules
+	var skipAnalysis bool
 	stateReader := state.NewHistoryReader22(ac)
 	stateReader.SetTx(tx)
 	//stateReader.SetTrace(true)
@@ -346,12 +346,23 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 	for _, v := range crit.Addresses {
 		addrMap[v] = struct{}{}
 	}
+
+	var minTxNum, maxTxNum uint64 // end is an inclusive bound
+	var blockNum uint64
+	var ok bool
 	for iter.HasNext() {
 		txNum := iter.Next()
-		// Find block number
-		ok, blockNum, err := rawdb.TxNums.FindBlockNum(tx, txNum)
-		if err != nil {
-			return nil, err
+		if maxTxNum == 0 || txNum > maxTxNum {
+			// Find block number
+			ok, blockNum, err = rawdb.TxNums.FindBlockNum(tx, txNum)
+			if err != nil {
+				return nil, err
+			}
+		}
+		_, blockNum2, _ := rawdb.TxNums.FindBlockNum(tx, txNum)
+		log.Info("dbg11", "got", blockNum, "expect", blockNum2)
+		if blockNum != blockNum2 {
+			panic(1)
 		}
 		if !ok {
 			return nil, nil
@@ -364,16 +375,20 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 			lastBlockHash = lastHeader.Hash()
 			lastSigner = types.MakeSigner(chainConfig, blockNum)
 			lastRules = chainConfig.Rules(blockNum)
+			skipAnalysis = core.SkipAnalysis(chainConfig, blockNum)
 		}
-		var startTxNum uint64
 		if blockNum > 0 {
-			startTxNum, err = rawdb.TxNums.Min(tx, blockNum) // end is an inclusive bound
+			minTxNum, err = rawdb.TxNums.Min(tx, blockNum)
+			if err != nil {
+				return nil, err
+			}
+			maxTxNum, err = rawdb.TxNums.Max(tx, blockNum)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		txIndex := int(txNum) - int(startTxNum) - 1
+		txIndex := int(txNum) - int(minTxNum) - 1
 		//fmt.Printf("txNum=%d, blockNum=%d, txIndex=%d\n", txNum, blockNum, txIndex)
 		txn, err := api._txnReader.TxnByIdxInBlock(ctx, tx, blockNum, txIndex)
 		if err != nil {
@@ -389,7 +404,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 			return nil, err
 		}
 		blockCtx, txCtx := transactions.GetEvmContext(msg, lastHeader, true /* requireCanonical */, tx, api._blockReader)
-		vmConfig := vm.Config{SkipAnalysis: core.SkipAnalysis(chainConfig, blockNum)}
+		vmConfig := vm.Config{SkipAnalysis: skipAnalysis}
 		ibs := state.New(stateReader)
 		evm := vm.NewEVM(blockCtx, txCtx, ibs, chainConfig, vmConfig)
 
