@@ -15,6 +15,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/rlp"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // BlockReader can read blocks from db and snapshots
@@ -703,6 +704,8 @@ func (back *BlockReaderWithSnapshots) TxnByIdxInBlock(ctx context.Context, tx kv
 	if err != nil {
 		return nil, err
 	}
+
+	log.Info("dbg2", " b.TxAmount", b.TxAmount)
 
 	if ok {
 		// if block has no transactions, or requested txNum out of non-system transactions length

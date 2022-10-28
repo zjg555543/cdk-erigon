@@ -293,7 +293,6 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 	txNumbers := roaring64.New()
 	txNumbers.AddRange(fromTxNum, toTxNum) // [min,max)
 
-	log.Info("dbg1", "fromTxNum", fromTxNum, "toTxNum", toTxNum)
 	ac := api._agg.MakeContext()
 	ac.SetTx(tx)
 
@@ -345,7 +344,6 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 	for _, v := range crit.Addresses {
 		addrMap[v] = struct{}{}
 	}
-	log.Info("dbg2", "txNumbers.ToArray()", txNumbers.ToArray())
 	for iter.HasNext() {
 		txNum := iter.Next()
 		// Find block number
@@ -379,6 +377,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 		if err != nil {
 			return nil, err
 		}
+		log.Info("dbg1", "blockNum", blockNum, "txIndex", txIndex, "tx==nil", tx == nil)
 		if txn == nil {
 			continue
 		}
@@ -413,6 +412,8 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 		}
 		logs = append(logs, filtered...)
 	}
+	log.Info("dbg10", "logs", fmt.Sprintf("%+v", logs))
+
 	//stats := api._agg.GetAndResetStats()
 	//log.Info("Finished", "duration", time.Since(start), "history queries", stats.HistoryQueries, "ef search duration", stats.EfSearchTime)
 	return logs, nil
