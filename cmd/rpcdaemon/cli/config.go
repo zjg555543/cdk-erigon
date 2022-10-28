@@ -345,6 +345,8 @@ func RemoteServices(ctx context.Context, cfg httpcfg.HttpCfg, logger log.Logger,
 		if cfg.Snap.Enabled {
 
 			allSnapshots := snapshotsync.NewRoSnapshots(cfg.Snap, cfg.Dirs.Snap)
+			allSnapshots.OptimisticalyReopenFolder()
+
 			// To povide good UX - immediatly can read snapshots after RPCDaemon start, even if Erigon is down
 			// Erigon does store list of snapshots in db: means RPCDaemon can read this list now, but read by `kvClient.Snapshots` after establish grpc connection
 			allSnapshots.OptimisticReopenWithDB(db)
@@ -353,8 +355,10 @@ func RemoteServices(ctx context.Context, cfg httpcfg.HttpCfg, logger log.Logger,
 			if agg, err = libstate.NewAggregator22(cfg.Dirs.SnapHistory, cfg.Dirs.Tmp, ethconfig.HistoryV3AggregationStep, db); err != nil {
 				return nil, nil, nil, nil, nil, nil, nil, ff, nil, fmt.Errorf("create aggregator: %w", err)
 			}
-			_ = agg.ReopenFiles()
-
+			err = agg.ReopenFiles()
+			if err != nil {
+				log.Warn("agg.ReopenFiles", "err", err)
+			}
 			db.View(context.Background(), func(tx kv.Tx) error {
 				agg.LogStats(tx, func(endTxNumMinimax uint64) uint64 {
 					_, histBlockNumProgress, _ := rawdb.TxNums.FindBlockNum(tx, endTxNumMinimax)
