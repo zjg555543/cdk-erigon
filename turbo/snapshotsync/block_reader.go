@@ -689,9 +689,10 @@ func (back *BlockReaderWithSnapshots) txnByHash(txnHash common.Hash, segments []
 // TxnByIdxInBlock - doesn't include system-transactions in the begin/end of block
 // return nil if 0 < i < body.TxAmoun
 func (back *BlockReaderWithSnapshots) TxnByIdxInBlock(ctx context.Context, tx kv.Getter, blockNum uint64, i int) (txn types.Transaction, err error) {
+	var buf []byte
 	var b *types.BodyForStorage
 	ok, err := back.sn.ViewBodies(blockNum, func(segment *BodySegment) error {
-		b, _, err = back.bodyForStorageFromSnapshot(blockNum, segment, nil)
+		b, buf, err = back.bodyForStorageFromSnapshot(blockNum, segment, buf)
 		if err != nil {
 			return err
 		}
@@ -712,7 +713,7 @@ func (back *BlockReaderWithSnapshots) TxnByIdxInBlock(ctx context.Context, tx kv
 
 		ok, err = back.sn.Txs.ViewSegment(blockNum, func(segment *TxnSegment) error {
 			// +1 because block has system-txn in the beginning of block
-			txn, err = back.txnByID(b.BaseTxId+1+uint64(i), segment, nil)
+			txn, err = back.txnByID(b.BaseTxId+1+uint64(i), segment, buf)
 			if err != nil {
 				return err
 			}
