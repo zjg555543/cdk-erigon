@@ -377,7 +377,6 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.Tx, begin, end uint64, 
 		if err != nil {
 			return nil, err
 		}
-		log.Info("dbg1", "blockNum", blockNum, "txIndex", txIndex, "tx==nil", tx == nil)
 		if txn == nil {
 			continue
 		}
