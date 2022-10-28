@@ -391,11 +391,8 @@ func (back *BlockReaderWithSnapshots) BodyWithTransactions(ctx context.Context, 
 }
 
 const (
-	minBitSize = 6 // 2**6=64 is a CPU cache line size
-	steps      = 20
-
-	minSize = 1 << minBitSize
-	maxSize = 1 << (minBitSize + steps - 1)
+	minSize = 64      // 64 is a CPU cache line size
+	maxSize = 1 << 25 // 32Mb
 )
 
 var bufPool = sync.Pool{
