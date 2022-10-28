@@ -188,7 +188,6 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) (t
 				logIndex++
 			}
 			filtered := filterLogs(logs, addrMap, crit.Topics)
-			log.Info("dbg1", "logs", len(logs), "filtered", len(filtered))
 			if len(filtered) == 0 {
 				return nil
 			}
