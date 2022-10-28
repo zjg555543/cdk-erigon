@@ -687,6 +687,7 @@ Logs:
 func filterLogs(logs []*types.Log, addresses map[common.Address]struct{}, topics [][]common.Hash) []*types.Log {
 	result := make(types.Logs, 0, len(logs))
 	// populate a set of addresses
+Logs:
 	for _, logItem := range logs {
 		// empty address list means no filter
 		if len(addresses) > 0 {
@@ -697,12 +698,11 @@ func filterLogs(logs []*types.Log, addresses map[common.Address]struct{}, topics
 		}
 		// If the to filtered topics is greater than the amount of topics in logs, skip.
 		if len(topics) > len(logItem.Topics) {
-			log.Info("dbg3", "len(logItem.Topics)", len(logItem.Topics))
+			log.Info("dbg3", "len(logItem.Topics)", len(logItem.Topics), "len(topics)", len(topics))
 			continue
 		}
-		var match bool
 		for i, sub := range topics {
-			match = len(sub) == 0 // empty rule set == wildcard
+			match := len(sub) == 0 // empty rule set == wildcard
 			// iterate over the subtopics and look for any match.
 			for _, topic := range sub {
 				if logItem.Topics[i] == topic {
@@ -712,11 +712,11 @@ func filterLogs(logs []*types.Log, addresses map[common.Address]struct{}, topics
 			}
 			// there was no match, so this log is invalid.
 			if !match {
+				continue Logs
+			}
+			if !match {
 				break
 			}
-		}
-		if !match {
-			continue
 		}
 		result = append(result, logItem)
 	}
