@@ -856,15 +856,15 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 					"alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 				if sizeEstimate >= commitThreshold {
 					err := func() error {
-						log.Info("[recon] commit: start")
-						defer log.Info("[recon] commit: end")
+						fmt.Printf("[recon] commit: start\n")
+						defer fmt.Printf("[recon] commit: end\n")
 						lock.Lock()
 						defer lock.Unlock()
-						log.Info("[recon] commit: ro.rollback")
+						fmt.Printf("[recon] commit: ro.rollback\n")
 						for i := 0; i < workerCount; i++ {
 							roTxs[i].Rollback()
 						}
-						log.Info("[recon] commit: rs.flush")
+						fmt.Printf("[recon] commit: rs.flush\n")
 						if err := db.Update(ctx, func(tx kv.RwTx) error {
 							if err = rs.Flush(tx); err != nil {
 								return err
@@ -876,7 +876,7 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 						}); err != nil {
 							return err
 						}
-						log.Info("[recon] commit: ro.begin")
+						fmt.Printf("[recon] commit: ro.begin\n")
 						for i := 0; i < workerCount; i++ {
 							if roTxs[i], err = db.BeginRo(ctx); err != nil {
 								return err
