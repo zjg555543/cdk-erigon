@@ -187,6 +187,9 @@ func Exec3(ctx context.Context,
 	if parallel {
 		applyWg := sync.WaitGroup{} // to wait for finishing of applyLoop after applyCtx cancel
 		applyLoop := func(ctx context.Context) {
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+
 			defer applyWg.Done()
 			tx, err := chainDb.BeginRo(ctx)
 			if err != nil {
