@@ -252,8 +252,10 @@ func Exec3(ctx context.Context,
 					err := func() error {
 						log.Info("[exec] commit: start")
 						defer log.Info("[exec] commit: end")
+						fmt.Printf("[exec] commit: start")
 						rwsLock.Lock()
 						defer rwsLock.Unlock()
+						fmt.Printf("[exec] commit: process last")
 						log.Info("[exec] commit: process last")
 						// Drain results (and process) channel because read sets do not carry over
 						for {
@@ -273,9 +275,11 @@ func Exec3(ctx context.Context,
 							}
 						}
 						rwsReceiveCond.Signal()
+						fmt.Printf("[exec] commit: drain")
 						log.Info("[exec] commit: drain")
 						lock.Lock() // This is to prevent workers from starting work on any new txTask
 						defer lock.Unlock()
+						fmt.Printf("[exec] commit: drain2")
 						log.Info("[exec] commit: drain2")
 						// Drain results channel because read sets do not carry over
 						var drained bool
