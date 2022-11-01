@@ -558,6 +558,8 @@ github.com/leanovate/gopter v0.2.9 h1:fQjYxZaynp97ozCzfOyOuAGOU4aU/z37zf/tOujFk7
 github.com/leanovate/gopter v0.2.9/go.mod h1:U2L/78B+KVFIx2VmW6onHJQzXtFb+p5y3y2Sh+Jxxv8=
 github.com/ledgerwatch/erigon-lib v0.0.0-20221031052947-db6fb1f089f9 h1:PN25P8lFeRRASRf379/7lNckdy2jc+t5o6D9Tq7G8lM=
 github.com/ledgerwatch/erigon-lib v0.0.0-20221031052947-db6fb1f089f9/go.mod h1:IP/aYFvEPlHJ1THh03i+qbHFil+N3enYhTEPVQLFJBw=
+github.com/ledgerwatch/erigon-lib v0.0.0-20221101021358-2f6681d11ba3 h1:DB7CQms5+lzEKZdIGE0+SYPeoD+GvfA78vISeK0KwD8=
+github.com/ledgerwatch/erigon-lib v0.0.0-20221101021358-2f6681d11ba3/go.mod h1:/0oJaeiRAfVezx8Ocu/HK4hV+uXbFcD+Y2toUk0S06E=
 github.com/ledgerwatch/erigon-snapshot v1.1.1-0.20221026024915-f6abfe5c120e h1:VRfm6Ylg0WTnjzFs7mU5qOyZGZTPhnlpwtMPrcD7n+U=
 github.com/ledgerwatch/erigon-snapshot v1.1.1-0.20221026024915-f6abfe5c120e/go.mod h1:3AuPxZc85jkehh/HA9h8gabv5MSi3kb/ddtzBsTVJFo=
 github.com/ledgerwatch/log/v3 v3.6.0 h1:JBUSK1epPyutUrz7KYDTcJtQLEHnehECRpKbM1ugy5M=
@@ -944,6 +946,8 @@ github.com/tinylib/msgp v1.1.2/go.mod h1:+d+yLhGm8mzTaHzB+wgMYrodPfmZrzkirds8fDW
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/torquem-ch/mdbx-go v0.26.2 h1:9qpMNjZQICYVJzp3ic/9d8gfxnLA800mCY6+jkqtju4=
 github.com/torquem-ch/mdbx-go v0.26.2/go.mod h1:T2fsoJDVppxfAPTLd1svUgH1kpPmeXdPESmroSHcL1E=
+github.com/torquem-ch/mdbx-go v0.26.3-0.20221101014539-68e33a5c0dc1 h1:5PfWdo1b1Q27yf92d77eF6tRTOgViegASHZS5JKNXks=
+github.com/torquem-ch/mdbx-go v0.26.3-0.20221101014539-68e33a5c0dc1/go.mod h1:T2fsoJDVppxfAPTLd1svUgH1kpPmeXdPESmroSHcL1E=
 github.com/ugorji/go v1.1.13/go.mod h1:jxau1n+/wyTGLQoCkjok9r5zFa/FxT6eI5HiHKQszjc=
 github.com/ugorji/go/codec v1.1.13 h1:013LbFhocBoIqgHeIHKlV4JWYhqogATYWZhIcH0WHn4=
 github.com/ugorji/go/codec v1.1.13/go.mod h1:oNVt3Dq+FO91WNQ/9JnHKQP2QJxTzoN7wCBFCq1OeuU=
