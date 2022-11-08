@@ -605,7 +605,7 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 	blockReader services.FullBlockReader,
 	logger log.Logger, agg *state2.Aggregator22, engine consensus.Engine,
 	chainConfig *params.ChainConfig, genesis *core.Genesis) (err error) {
-	defer agg.EnableMadvNormal().DisableReadAhead()
+	defer agg.EnableMadvWillNeed().DisableReadAhead()
 	blockSnapshots := blockReader.(WithSnapshots).Snapshots()
 
 	var ok bool
