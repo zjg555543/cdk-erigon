@@ -575,6 +575,7 @@ Loop:
 			log.Warn("invalid segment name", "err", err, "name", fName)
 			continue
 		}
+		fmt.Printf("dbg3: files: %s\n", fName)
 
 		switch f.T {
 		case snap.Headers:
@@ -721,7 +722,6 @@ func (s *RoSnapshots) ReopenFolder() error {
 	list := make([]string, 0, len(files))
 	for _, f := range files {
 		_, fName := filepath.Split(f.Path)
-		fmt.Printf("dbg: files: %s\n", fName)
 		list = append(list, fName)
 	}
 	return s.ReopenList(list, false)
