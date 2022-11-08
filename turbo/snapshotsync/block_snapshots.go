@@ -91,7 +91,7 @@ func (sn *HeaderSegment) reopenSeg(dir string) (err error) {
 	sn.closeSeg()
 	fileName := snap.SegmentFileName(sn.ranges.from, sn.ranges.to, snap.Headers)
 	sn.seg, err = compress.NewDecompressor(path.Join(dir, fileName))
-	fmt.Printf("dbg2: files: %s\n", fileName)
+	fmt.Printf("dbg2: files: %s, %s, %t\n", fileName, err, sn.seg == nil)
 	if err != nil {
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
 	}
