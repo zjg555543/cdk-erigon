@@ -92,6 +92,7 @@ func (sn *HeaderSegment) reopenSeg(dir string) (err error) {
 	fileName := snap.SegmentFileName(sn.ranges.from, sn.ranges.to, snap.Headers)
 	sn.seg, err = compress.NewDecompressor(path.Join(dir, fileName))
 	if err != nil {
+		panic(err)
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
 	}
 	return nil
@@ -154,6 +155,7 @@ func (sn *BodySegment) reopenSeg(dir string) (err error) {
 	fileName := snap.SegmentFileName(sn.ranges.from, sn.ranges.to, snap.Bodies)
 	sn.seg, err = compress.NewDecompressor(path.Join(dir, fileName))
 	if err != nil {
+		panic(err)
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
 	}
 	return nil
@@ -239,6 +241,7 @@ func (sn *TxnSegment) reopenSeg(dir string) (err error) {
 	fileName := snap.SegmentFileName(sn.ranges.from, sn.ranges.to, snap.Transactions)
 	sn.Seg, err = compress.NewDecompressor(path.Join(dir, fileName))
 	if err != nil {
+		panic(err)
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
 	}
 	return nil
