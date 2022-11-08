@@ -102,8 +102,7 @@ func (sn *HeaderSegment) reopenIdxIfNeed(dir string, optimistic bool) (err error
 	}
 	err = sn.reopenIdx(dir)
 	if err != nil {
-		fmt.Printf("dbg2: files: %s, %s\n", err, sn.seg.FileName())
-
+		panic(err)
 		if !errors.Is(err, os.ErrNotExist) {
 			if optimistic {
 				log.Warn("[snapshots] open index", "err", err)
@@ -122,6 +121,7 @@ func (sn *HeaderSegment) reopenIdx(dir string) (err error) {
 	fileName := snap.IdxFileName(sn.ranges.from, sn.ranges.to, snap.Headers.String())
 	sn.idxHeaderHash, err = recsplit.OpenIndex(path.Join(dir, fileName))
 	if err != nil {
+		panic(err)
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
 	}
 	if sn.idxHeaderHash.ModTime().Before(sn.seg.ModTime()) {
@@ -183,6 +183,7 @@ func (sn *BodySegment) reopenIdx(dir string) (err error) {
 	fileName := snap.IdxFileName(sn.ranges.from, sn.ranges.to, snap.Bodies.String())
 	sn.idxBodyNumber, err = recsplit.OpenIndex(path.Join(dir, fileName))
 	if err != nil {
+		panic(err)
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
 	}
 	if sn.idxBodyNumber.ModTime().Before(sn.seg.ModTime()) {
@@ -250,6 +251,7 @@ func (sn *TxnSegment) reopenIdx(dir string) (err error) {
 	fileName := snap.IdxFileName(sn.ranges.from, sn.ranges.to, snap.Transactions.String())
 	sn.IdxTxnHash, err = recsplit.OpenIndex(path.Join(dir, fileName))
 	if err != nil {
+		panic(err)
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
 	}
 	if sn.IdxTxnHash.ModTime().Before(sn.Seg.ModTime()) {
