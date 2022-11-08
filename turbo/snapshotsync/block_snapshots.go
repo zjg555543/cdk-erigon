@@ -714,6 +714,7 @@ func (s *RoSnapshots) ReopenFolder() error {
 	list := make([]string, 0, len(files))
 	for _, f := range files {
 		_, fName := filepath.Split(f.Path)
+		fmt.Printf("dbg: files: %s\n", fName)
 		list = append(list, fName)
 	}
 	return s.ReopenList(list, false)
