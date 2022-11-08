@@ -575,6 +575,7 @@ Loop:
 			log.Warn("invalid segment name", "err", err, "name", fName)
 			continue
 		}
+
 		fmt.Printf("dbg3: files: %s\n", fName)
 
 		switch f.T {
@@ -615,6 +616,7 @@ Loop:
 			if err := sn.reopenIdxIfNeed(s.dir, optimistic); err != nil {
 				return err
 			}
+			fmt.Printf("dbg3: files: %s, %t, %t\n", fName, sn.seg == nil, sn.idxHeaderHash == nil)
 		case snap.Bodies:
 			for _, sn := range s.Bodies.segments {
 				if sn.seg == nil {
@@ -649,6 +651,7 @@ Loop:
 			if err := sn.reopenIdxIfNeed(s.dir, optimistic); err != nil {
 				return err
 			}
+			fmt.Printf("dbg3: files: %s, %t, %t\n", fName, sn.seg == nil, sn.idxBodyNumber == nil)
 		case snap.Transactions:
 			for _, sn := range s.Txs.segments {
 				if sn.Seg == nil {
@@ -683,6 +686,7 @@ Loop:
 			if err := sn.reopenIdxIfNeed(s.dir, optimistic); err != nil {
 				return err
 			}
+			fmt.Printf("dbg3: files: %s, %t, %t, %t\n", fName, sn.Seg == nil, sn.IdxTxnHash == nil, sn.IdxTxnHash2BlockNum == nil)
 		}
 
 		if f.To > 0 {
