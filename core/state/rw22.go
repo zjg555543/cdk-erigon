@@ -120,11 +120,13 @@ func (rs *State22) put(table string, key, val []byte) {
 		rs.changes[table] = t
 	}
 	old, ok := t.ReplaceOrInsert(statePair{key: key, val: val})
-	rs.sizeEstimate += uint64(len(key)) + uint64(len(val))
+	rs.sizeEstimate += btreeOverhead + uint64(len(key)) + uint64(len(val))
 	if ok {
-		rs.sizeEstimate -= uint64(len(old.key)) + uint64(len(old.val))
+		rs.sizeEstimate -= btreeOverhead + uint64(len(old.key)) + uint64(len(old.val))
 	}
 }
+
+const btreeOverhead = 16
 
 func (rs *State22) Get(table string, key []byte) []byte {
 	rs.lock.RLock()
@@ -147,15 +149,18 @@ func (rs *State22) Flush(rwTx kv.RwTx) error {
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
 	for table, t := range rs.changes {
-		var err error
+		c, err := rwTx.RwCursor(table)
+		if err != nil {
+			return err
+		}
 		t.Ascend(func(item statePair) bool {
 			if len(item.val) == 0 {
-				if err = rwTx.Delete(table, item.key); err != nil {
+				if err = c.Delete(item.key); err != nil {
 					return false
 				}
 				//fmt.Printf("Flush [%x]=>\n", ks)
 			} else {
-				if err = rwTx.Put(table, item.key, item.val); err != nil {
+				if err = c.Put(item.key, item.val); err != nil {
 					return false
 				}
 				//fmt.Printf("Flush [%x]=>[%x]\n", ks, val)

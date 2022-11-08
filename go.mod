@@ -3,7 +3,7 @@ module github.com/ledgerwatch/erigon
 go 1.18
 
 require (
-	github.com/ledgerwatch/erigon-lib v0.0.0-20221101033109-ed81eb5dc943
+	github.com/ledgerwatch/erigon-lib v0.0.0-20221107051656-19804fd97122
 	github.com/ledgerwatch/erigon-snapshot v1.1.1-0.20221026024915-f6abfe5c120e
 	github.com/ledgerwatch/log/v3 v3.6.0
 	github.com/ledgerwatch/secp256k1 v1.0.0
@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/Giulio2002/bls v0.0.0-20221103221031-e1945063d0cf
 	github.com/RoaringBitmap/roaring v1.2.1
 	github.com/VictoriaMetrics/fastcache v1.12.0
 	github.com/VictoriaMetrics/metrics v1.22.2
@@ -63,7 +64,6 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.0
-	github.com/supranational/blst v0.3.10
 	github.com/tendermint/go-amino v0.14.1
 	github.com/tendermint/tendermint v0.31.12
 	github.com/torquem-ch/mdbx-go v0.26.2
@@ -84,7 +84,7 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.19.2
+	modernc.org/sqlite v1.19.3
 	pgregory.net/rapid v0.5.3
 )
 
@@ -153,6 +153,7 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
+	github.com/supranational/blst v0.3.10 // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
 	go.opentelemetry.io/otel v1.8.0 // indirect
 	go.opentelemetry.io/otel/trace v1.8.0 // indirect
@@ -244,8 +245,8 @@ require (
 	gotest.tools/v3 v3.3.0 // indirect
 	lukechampine.com/uint128 v1.2.0 // indirect
 	modernc.org/cc/v3 v3.40.0 // indirect
-	modernc.org/ccgo/v3 v3.16.12 // indirect
-	modernc.org/libc v1.20.3 // indirect
+	modernc.org/ccgo/v3 v3.16.13-0.20221017192402-261537637ce8 // indirect
+	modernc.org/libc v1.21.2 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.4.0 // indirect
 	modernc.org/opt v0.1.3 // indirect
