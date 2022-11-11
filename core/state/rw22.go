@@ -116,7 +116,7 @@ func NewState22() *State22 {
 func (rs *State22) put(table string, key, val []byte) {
 	t, ok := rs.changes[table]
 	if !ok {
-		t = btree.NewG[statePair](64, stateItemLess)
+		t = btree.NewG[statePair](16, stateItemLess)
 		rs.changes[table] = t
 	}
 	old, ok := t.ReplaceOrInsert(statePair{key: key, val: val})
