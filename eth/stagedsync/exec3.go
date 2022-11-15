@@ -134,7 +134,7 @@ func Exec3(ctx context.Context,
 	// will improve it in future versions
 	interruptCh := ctx.Done()
 	ctx = context.Background()
-	queueSize := workerCount * 4
+	queueSize := workerCount * 1024
 	var wg sync.WaitGroup
 	reconWorkers, resultCh, clear := exec3.NewWorkersPool(lock.RLocker(), parallel, chainDb, &wg, rs, blockReader, chainConfig, logger, genesis, engine, workerCount)
 	defer clear()
