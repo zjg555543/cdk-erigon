@@ -1,12 +1,13 @@
 package downloadernat
 
 import (
-	"github.com/ledgerwatch/erigon-lib/downloader/downloadercfg"
+	"net"
+
 	"github.com/ledgerwatch/erigon/p2p/nat"
 	"github.com/ledgerwatch/log/v3"
 )
 
-func DoNat(natif nat.Interface, cfg *downloadercfg.Cfg) {
+func ExtIp(natif nat.Interface) (ipv4 net.IP, ipv6 net.IP) {
 	switch natif.(type) {
 	case nil:
 		// No NAT interface, do nothing.
@@ -15,9 +16,9 @@ func DoNat(natif nat.Interface, cfg *downloadercfg.Cfg) {
 		ip, _ := natif.ExternalIP()
 		if ip != nil {
 			if ip.To4() != nil {
-				cfg.PublicIp4 = ip
+				return ip, nil
 			} else {
-				cfg.PublicIp6 = ip
+				return nil, ip
 			}
 		}
 		log.Info("[torrent] Public IP", "ip", ip)
@@ -28,12 +29,13 @@ func DoNat(natif nat.Interface, cfg *downloadercfg.Cfg) {
 		if ip, err := natif.ExternalIP(); err == nil {
 			if ip != nil {
 				if ip.To4() != nil {
-					cfg.PublicIp4 = ip
+					return ip, nil
 				} else {
-					cfg.PublicIp6 = ip
+					return nil, ip
 				}
 			}
 			log.Info("[torrent] Public IP", "ip", ip)
 		}
 	}
+	return nil, nil
 }

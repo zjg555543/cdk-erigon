@@ -107,7 +107,15 @@ var rootCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		_ = logging2.GetLoggerCmd("downloader", cmd)
-		if err := Downloader(cmd.Context()); err != nil {
+
+		natif, err := nat.Parse(natSetting)
+		if err != nil {
+			return fmt.Errorf("invalid nat option %s: %w", natSetting, err)
+		}
+		extIPv4, extIPv6 := downloadernat.ExtIp(natif)
+		version := "erigon: " + params.VersionWithCommit(params.GitCommit, "")
+
+		if err := Downloader(cmd.Context(), extIPv4, extIPv6, version); err != nil {
 			log.Error("Downloader", "err", err)
 			return nil
 		}
@@ -115,7 +123,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func Downloader(ctx context.Context) error {
+func Downloader(ctx context.Context, extIPv4, extIPv6 net.IP, version string) error {
 	dirs := datadir.New(datadirCli)
 	torrentLogLevel, _, err := downloadercfg2.Int2LogLevel(torrentVerbosity)
 	if err != nil {
@@ -131,17 +139,11 @@ func Downloader(ctx context.Context) error {
 	}
 
 	log.Info("Run snapshot downloader", "addr", downloaderApiAddr, "datadir", dirs.DataDir, "download.rate", downloadRate.String(), "upload.rate", uploadRate.String())
-	natif, err := nat.Parse(natSetting)
-	if err != nil {
-		return fmt.Errorf("invalid nat option %s: %w", natSetting, err)
-	}
 
-	version := "erigon: " + params.VersionWithCommit(params.GitCommit, "")
-	cfg, err := downloadercfg2.New(dirs.Snap, version, torrentLogLevel, downloadRate, uploadRate, torrentPort, torrentConnsPerFile, torrentDownloadSlots)
+	cfg, err := downloadercfg2.New(dirs.Snap, version, torrentLogLevel, downloadRate, uploadRate, torrentPort, torrentConnsPerFile, torrentDownloadSlots, extIPv4, extIPv6)
 	if err != nil {
 		return err
 	}
-	downloadernat.DoNat(natif, cfg)
 
 	d, err := downloader.New(cfg)
 	if err != nil {
