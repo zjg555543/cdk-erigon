@@ -49,7 +49,6 @@ require (
 	github.com/libp2p/go-libp2p v0.23.2
 	github.com/libp2p/go-libp2p-core v0.20.1
 	github.com/libp2p/go-libp2p-pubsub v0.8.1
-	github.com/libp2p/go-nat v0.1.0
 	github.com/multiformats/go-multiaddr v0.7.0
 	github.com/nxadm/tail v1.4.9-0.20211216163028-4472660a31a6
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
@@ -119,6 +118,7 @@ require (
 	github.com/libp2p/go-libp2p-asn-util v0.2.0 // indirect
 	github.com/libp2p/go-mplex v0.7.0 // indirect
 	github.com/libp2p/go-msgio v0.2.0 // indirect
+	github.com/libp2p/go-nat v0.1.0 // indirect
 	github.com/libp2p/go-netroute v0.2.0 // indirect
 	github.com/libp2p/go-openssl v0.1.0 // indirect
 	github.com/libp2p/go-reuseport v0.2.0 // indirect
