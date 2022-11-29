@@ -106,6 +106,10 @@ func Exec3(ctx context.Context,
 	maxBlockNum uint64, chainConfig *params.ChainConfig,
 	genesis *core.Genesis,
 ) (err error) {
+	if blockReader.(WithSnapshots).Snapshots().Cfg().Enabled {
+		defer blockReader.(WithSnapshots).Snapshots().EnableMadvNormal().DisableReadAhead()
+	}
+
 	useExternalTx := applyTx != nil
 	if !useExternalTx && !parallel {
 		applyTx, err = chainDb.BeginRw(ctx)
@@ -113,9 +117,6 @@ func Exec3(ctx context.Context,
 			return err
 		}
 		defer applyTx.Rollback()
-	}
-	if blockReader.(WithSnapshots).Snapshots().Cfg().Enabled {
-		defer blockReader.(WithSnapshots).Snapshots().EnableMadvNormal().DisableReadAhead()
 	}
 
 	var block, stageProgress uint64
