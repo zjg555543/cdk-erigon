@@ -113,10 +113,9 @@ func Exec3(ctx context.Context,
 			return err
 		}
 		defer applyTx.Rollback()
-	} else {
-		if blockReader.(WithSnapshots).Snapshots().Cfg().Enabled {
-			defer blockReader.(WithSnapshots).Snapshots().EnableMadvNormal().DisableReadAhead()
-		}
+	}
+	if blockReader.(WithSnapshots).Snapshots().Cfg().Enabled {
+		defer blockReader.(WithSnapshots).Snapshots().EnableMadvNormal().DisableReadAhead()
 	}
 
 	var block, stageProgress uint64
