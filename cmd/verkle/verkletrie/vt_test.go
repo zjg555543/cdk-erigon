@@ -65,7 +65,12 @@ func Test_VerkeExternal_ResetThenSingularUpdates(t *testing.T) {
 	require.NoError(t, err)
 
 	for i, pk := range plainKeys {
-		hashedKeys[i] = vtree.GetTreeKeyVersion(pk)
+		switch len(pk) {
+		case length.Addr:
+			hashedKeys[i] = vtree.GetTreeKeyVersion(pk)
+		case length.Hash + length.Addr:
+			hashedKeys[i] = vtree.GetTreeKeyStorage(pk[:length.Addr], pk[length.Addr:])
+		}
 	}
 
 	firstRootHash, branchNodeUpdates, err := hph.ReviewKeys(plainKeys, hashedKeys)
@@ -82,10 +87,19 @@ func Test_VerkeExternal_ResetThenSingularUpdates(t *testing.T) {
 	hph.Reset()
 	//hph.SetTrace(false)
 	plainKeys, hashedKeys, updates = NewUpdateBuilder().
-		Storage("03", "58", "050505").
+		Storage("eb73939a81802cc30228acd1e2309045f6195c8d", "949ff47d5a3377174e14ac3326aab0344a524654911581c04e78792a4804394d", "050505").
 		Build()
 	err = ms.applyPlainUpdates(plainKeys, updates)
 	require.NoError(t, err)
+
+	for i, pk := range plainKeys {
+		switch len(pk) {
+		case length.Addr:
+			hashedKeys[i] = vtree.GetTreeKeyVersion(pk)
+		case length.Hash + length.Addr:
+			hashedKeys[i] = vtree.GetTreeKeyStorage(pk[:length.Addr], pk[length.Addr:])
+		}
+	}
 
 	secondRootHash, branchNodeUpdates, err := hph.ReviewKeys(plainKeys, hashedKeys)
 	require.NoError(t, err)
@@ -95,21 +109,21 @@ func Test_VerkeExternal_ResetThenSingularUpdates(t *testing.T) {
 	fmt.Printf("2. Generated single update\n")
 	//renderUpdates(branchNodeUpdates)
 
-	// More updates
-	hph.Reset()
-	//hph.SetTrace(false)
-	plainKeys, hashedKeys, updates = NewUpdateBuilder().
-		Storage("03", "58", "070807").
-		Build()
-	err = ms.applyPlainUpdates(plainKeys, updates)
-	require.NoError(t, err)
-
-	thirdRootHash, branchNodeUpdates, err := hph.ReviewKeys(plainKeys, hashedKeys)
-	require.NoError(t, err)
-	require.NotEqualValues(t, secondRootHash, thirdRootHash)
-
-	ms.applyBranchNodeUpdates(branchNodeUpdates)
-	fmt.Printf("3. Generated single update\n")
+	//// More updates
+	//hph.Reset()
+	////hph.SetTrace(false)
+	//plainKeys, hashedKeys, updates = NewUpdateBuilder().
+	//	Storage("649abfa413c8b2012982041bb7ab3eea8effff50", "be5f3102a9752cdd5db255b111a1dfb848d86e86bfe06645a020d87096eee258", "070807").
+	//	Build()
+	//err = ms.applyPlainUpdates(plainKeys, updates)
+	//require.NoError(t, err)
+	//
+	//thirdRootHash, branchNodeUpdates, err := hph.ReviewKeys(plainKeys, hashedKeys)
+	//require.NoError(t, err)
+	//require.NotEqualValues(t, secondRootHash, thirdRootHash)
+	//
+	//ms.applyBranchNodeUpdates(branchNodeUpdates)
+	//fmt.Printf("3. Generated single update\n")
 	//renderUpdates(branchNodeUpdates)
 }
 

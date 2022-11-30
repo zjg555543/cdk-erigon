@@ -105,6 +105,10 @@ func GetTreeKeyCodeChunk(address []byte, chunk *uint256.Int) []byte {
 	return GetTreeKey(address, treeIndex, subIndex)
 }
 
+func GetTreeKeyStorage(address, loc []byte) []byte {
+	return GetTreeKeyStorageSlot(address, new(uint256.Int).SetBytes(loc))
+}
+
 func GetTreeKeyStorageSlot(address []byte, storageKey *uint256.Int) []byte {
 	pos := storageKey.Clone()
 	if storageKey.Cmp(codeStorageDelta) < 0 {

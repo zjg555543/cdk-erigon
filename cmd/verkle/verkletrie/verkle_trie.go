@@ -8,12 +8,16 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/log/v3"
 
+	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 )
 
 type VerkleExternal struct {
 	//tx *kv.RwTx
 	vt *VerkleTreeWriter
+
+	hasPrev  bool
+	prevRoot common.Hash
 
 	// Function used to load branch node and fill up the cells
 	// For each cell, it sets the cell type, clears the modified flag, fills the hash,
@@ -83,10 +87,18 @@ func (vt *VerkleExternal) ReviewKeys(pk, hk [][]byte) (rootHash []byte, branchNo
 		}
 	}
 
-	rh, err := vt.vt.CommitVerkleTreeFromScratch()
+	var rh common.Hash
+	switch {
+	case !vt.hasPrev:
+		rh, err = vt.vt.CommitVerkleTreeFromScratch()
+	default:
+		rh, err = vt.vt.CommitVerkleTree(vt.prevRoot)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
+	vt.prevRoot = rh
+	vt.hasPrev = true
 	return rh[:], nil, nil
 }
 
