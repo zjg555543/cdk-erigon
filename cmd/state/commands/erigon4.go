@@ -45,6 +45,7 @@ func init() {
 	withDataDir(erigon4Cmd)
 	withChain(erigon4Cmd)
 
+	erigon4Cmd.Flags().Uint64Var(&userAggStepSize, "step-size", ethconfig.HistoryV3AggregationStep, "defines amount of tx to process before doing aggregation")
 	erigon4Cmd.Flags().IntVar(&commitmentFrequency, "commfreq", 25000, "how many blocks to skip between calculating commitment")
 	erigon4Cmd.Flags().BoolVar(&commitments, "commitments", false, "set to true to calculate commitments")
 	erigon4Cmd.Flags().StringVar(&commitmentsMode, "commitments.mode", "direct", "defines the way to calculate commitments: 'direct' mode reads from state directly, 'update' accumulate updates before commitment")
@@ -111,7 +112,7 @@ func Erigon4(genesis *core.Genesis, chainConfig *params.ChainConfig, logger log.
 		return err
 	}
 
-	agg, err3 := libstate.NewAggregator(aggPath, dirs.Tmp, ethconfig.HistoryV3AggregationStep)
+	agg, err3 := libstate.NewAggregator(aggPath, dirs.Tmp, userAggStepSize)
 	if err3 != nil {
 		return fmt.Errorf("create aggregator: %w", err3)
 	}
@@ -154,10 +155,10 @@ func Erigon4(genesis *core.Genesis, chainConfig *params.ChainConfig, logger log.
 		if err != nil {
 			return err
 		}
-		if err = agg.FinishTx(); err != nil {
+		err = agg.FinishTx()
+		if err != nil {
 			return err
 		}
-
 		genesisRootHash := genBlock.Root()
 		if !bytes.Equal(blockRootHash, genesisRootHash[:]) {
 			return fmt.Errorf("genesis root hash mismatch: expected %x got %x", genesisRootHash, blockRootHash)
@@ -239,7 +240,7 @@ func Erigon4(genesis *core.Genesis, chainConfig *params.ChainConfig, logger log.
 		return nil
 	}
 
-	agg.SetCommitFn(commitFn)
+	mergedRoots := agg.AggregatedRoots()
 
 	for !interrupt {
 		blockNum++
@@ -268,7 +269,11 @@ func Erigon4(genesis *core.Genesis, chainConfig *params.ChainConfig, logger log.
 		select {
 		case interrupt = <-interruptCh:
 			// Commit transaction only when interrupted or just before computing commitment (so it can be re-done)
-			log.Info(fmt.Sprintf("interrupted, please wait for cleanup, next time start with --block %d", blockNum))
+			log.Info(fmt.Sprintf("interrupted, please wait for cleanup, next time start with --tx %d", txNum))
+			//if err := commitFn(txnum); err != nil {
+			//	log.Error("db commit", "err", err)
+			//}
+		case <-mergedRoots:
 			if err := commitFn(txNum); err != nil {
 				log.Error("db commit", "err", err)
 			}
