@@ -97,7 +97,7 @@ func (vt *VerkleExternal) ReviewKeys(pk, hk [][]byte) (rootHash []byte, branchNo
 	if err != nil {
 		return nil, nil, err
 	}
-	vt.prevRoot = rh
+	copy(vt.prevRoot[:], rh[:])
 	vt.hasPrev = true
 	return rh[:], nil, nil
 }

@@ -81,7 +81,6 @@ func Test_VerkeExternal_ResetThenSingularUpdates(t *testing.T) {
 	ms.applyBranchNodeUpdates(branchNodeUpdates)
 
 	fmt.Printf("1. Generated updates\n")
-	//renderUpdates(branchNodeUpdates)
 
 	// More updates
 	hph.Reset()
@@ -107,24 +106,6 @@ func Test_VerkeExternal_ResetThenSingularUpdates(t *testing.T) {
 
 	ms.applyBranchNodeUpdates(branchNodeUpdates)
 	fmt.Printf("2. Generated single update\n")
-	//renderUpdates(branchNodeUpdates)
-
-	//// More updates
-	//hph.Reset()
-	////hph.SetTrace(false)
-	//plainKeys, hashedKeys, updates = NewUpdateBuilder().
-	//	Storage("649abfa413c8b2012982041bb7ab3eea8effff50", "be5f3102a9752cdd5db255b111a1dfb848d86e86bfe06645a020d87096eee258", "070807").
-	//	Build()
-	//err = ms.applyPlainUpdates(plainKeys, updates)
-	//require.NoError(t, err)
-	//
-	//thirdRootHash, branchNodeUpdates, err := hph.ReviewKeys(plainKeys, hashedKeys)
-	//require.NoError(t, err)
-	//require.NotEqualValues(t, secondRootHash, thirdRootHash)
-	//
-	//ms.applyBranchNodeUpdates(branchNodeUpdates)
-	//fmt.Printf("3. Generated single update\n")
-	//renderUpdates(branchNodeUpdates)
 }
 
 // In memory commitment and state to use with the tests
