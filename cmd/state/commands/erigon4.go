@@ -236,7 +236,6 @@ func Erigon4(genesis *core.Genesis, chainConfig *params.ChainConfig, logger log.
 		}
 		agg.SetTx(rwTx)
 		readWrapper.roTx = rwTx
-		readWrapper.ac = agg.MakeContext()
 		return nil
 	}
 
@@ -322,8 +321,10 @@ func (s *stat23) delta(aStats libstate.FilesStats, blockNum, txNum uint64) *stat
 	s.prevBlock = blockNum
 	s.prevTxNum = txNum
 	s.prevTime = currentTime
+	s.hits = aStats.TotalReads - aStats.HistoryReads
+	s.misses = aStats.HistoryReads
 
-	total := s.hits + s.misses
+	total := aStats.TotalReads
 	if total > 0 {
 		s.hitMissRatio = float64(s.hits) / float64(total)
 	}
@@ -365,6 +366,9 @@ func processBlock23(startTxNum uint64, trace bool, txNumStart uint64, rw *Reader
 	if err := ww.w.FinishTx(); err != nil {
 		return 0, nil, fmt.Errorf("finish pre-block tx %d (block %d) has failed: %w", txNum, block.NumberU64(), err)
 	}
+
+	txNum++ // update tx num after pre-block
+	ww.w.SetTxNum(txNum)
 
 	getHashFn := core.GetHashFn(header, getHeader)
 
