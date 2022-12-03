@@ -470,23 +470,24 @@ Loop:
 		}
 		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
 
-		if parallel {
-			func() {
-				rwsLock.RLock()
-				needWait := rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold
-				rwsLock.RUnlock()
-				if !needWait {
-					return
-				}
-				rwsLock.Lock()
-				defer rwsLock.Unlock()
-				for rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold {
-					rwsReceiveCond.Wait()
-				}
-			}()
-		}
 		var gasUsed uint64
 		for txIndex := -1; txIndex <= len(txs); txIndex++ {
+			if parallel {
+				func() {
+					rwsLock.RLock()
+					needWait := rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold
+					rwsLock.RUnlock()
+					if !needWait {
+						return
+					}
+					rwsLock.Lock()
+					defer rwsLock.Unlock()
+					for rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold {
+						rwsReceiveCond.Wait()
+					}
+				}()
+			}
+
 			// Do not oversend, wait for the result heap to go under certain size
 			txTask := &exec22.TxTask{
 				BlockNum:        blockNum,
