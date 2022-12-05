@@ -218,6 +218,9 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 		}
 		txTask.ReadLists = rw.stateReader.ReadSet()
 		txTask.WriteLists = rw.stateWriter.WriteSet()
+
+		log.Info("rw list len", "rl", len(txTask.ReadLists[kv.PlainState].Keys), "wl", len(txTask.WriteLists[kv.PlainState].Keys))
+
 		txTask.AccountPrevs, txTask.AccountDels, txTask.StoragePrevs, txTask.CodePrevs = rw.stateWriter.PrevAndDels()
 		size := (20 + 32) * len(txTask.BalanceIncreaseSet)
 		for _, list := range txTask.ReadLists {
