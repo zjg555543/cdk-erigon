@@ -219,7 +219,10 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 		txTask.ReadLists = rw.stateReader.ReadSet()
 		txTask.WriteLists = rw.stateWriter.WriteSet()
 
-		if len(txTask.ReadLists[kv.PlainState].Keys) > 256 {
+		if len(txTask.ReadLists[kv.PlainState].Keys) > 512 {
+			log.Warn("rw list len", "rl", len(txTask.ReadLists[kv.PlainState].Keys), "wl", len(txTask.WriteLists[kv.PlainState].Keys))
+		}
+		if len(txTask.WriteLists[kv.PlainState].Keys) > 128 {
 			log.Warn("rw list len", "rl", len(txTask.ReadLists[kv.PlainState].Keys), "wl", len(txTask.WriteLists[kv.PlainState].Keys))
 		}
 		txTask.AccountPrevs, txTask.AccountDels, txTask.StoragePrevs, txTask.CodePrevs = rw.stateWriter.PrevAndDels()
