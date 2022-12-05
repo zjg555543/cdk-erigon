@@ -21,6 +21,7 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/shards"
 	btree2 "github.com/tidwall/btree"
 	atomic2 "go.uber.org/atomic"
+	"golang.org/x/exp/maps"
 )
 
 const CodeSizeTable = "CodeSize"
@@ -635,10 +636,10 @@ func (w *StateWriter22) ResetWriteSet() {
 		kv.PlainContractCode: {},
 		kv.IncarnationMap:    {},
 	}
-	w.accountPrevs = map[string][]byte{}
-	w.accountDels = map[string]*accounts.Account{}
-	w.storagePrevs = map[string][]byte{}
-	w.codePrevs = map[string]uint64{}
+	maps.Clear(w.accountPrevs)
+	maps.Clear(w.accountDels)
+	maps.Clear(w.storagePrevs)
+	maps.Clear(w.codePrevs)
 }
 
 func (w *StateWriter22) WriteSet() map[string]*exec22.KvList {
@@ -646,7 +647,7 @@ func (w *StateWriter22) WriteSet() map[string]*exec22.KvList {
 }
 
 func (w *StateWriter22) PrevAndDels() (map[string][]byte, map[string]*accounts.Account, map[string][]byte, map[string]uint64) {
-	return w.accountPrevs, w.accountDels, w.storagePrevs, w.codePrevs
+	return maps.Clone(w.accountPrevs), maps.Clone(w.accountDels), maps.Clone(w.storagePrevs), maps.Clone(w.codePrevs)
 }
 
 func (w *StateWriter22) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
