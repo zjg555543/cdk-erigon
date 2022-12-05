@@ -111,7 +111,7 @@ func (s *Step) doCalibrate() {
 
 // optCalibrate Calibrates the AuRa step number according to the current time.
 func (s *Step) optCalibrate() bool {
-	now := time.Now().Second()
+	now := time.Now().Unix()
 	var info StepDurationInfo
 	i := 0
 	for _, d := range s.durations {
@@ -338,6 +338,7 @@ type AuRa struct {
 	EpochManager      *EpochManager // Mutex<EpochManager>,
 
 	certifier *common.Address // certifies service transactions
+	certifierLock sync.RWMutex
 }
 
 type GasLimitOverride struct {
@@ -388,11 +389,8 @@ func NewAuRa(config *params.AuRaConfig, db kv.RwDB, ourSigningAddress common.Add
 	}
 	for _, v := range auraParams.StepDurations {
 		if v == 0 {
-			return nil, fmt.Errorf("authority Round step 0 duration is undefined")
+			return nil, fmt.Errorf("authority Round step duration cannot be 0")
 		}
-	}
-	if _, ok := auraParams.StepDurations[0]; !ok {
-		return nil, fmt.Errorf("authority Round step duration cannot be 0")
 	}
 	//shouldTimeout := auraParams.StartStep == nil
 	initialStep := uint64(0)
@@ -406,13 +404,10 @@ func NewAuRa(config *params.AuRaConfig, db kv.RwDB, ourSigningAddress common.Add
 		StepDuration:        auraParams.StepDurations[0],
 	}
 	durations = append(durations, durInfo)
-	var i = 0
-	for time, dur := range auraParams.StepDurations {
-		if i == 0 { // skip first
-			i++
-			continue
-		}
-
+	times := common.SortedKeys(auraParams.StepDurations)
+	for i := 1; i < len(auraParams.StepDurations); i++ { // skip first
+		time := times[i]
+		dur := auraParams.StepDurations[time]
 		step, t, ok := nextStepTimeDuration(durInfo, time)
 		if !ok {
 			return nil, fmt.Errorf("timestamp overflow")
@@ -490,6 +485,7 @@ func (c *AuRa) Type() params.ConsensusType {
 
 // Author implements consensus.Engine, returning the Ethereum address recovered
 // from the signature in the header's extra-data section.
+// This is thread-safe (only access the Coinbase of the header)
 func (c *AuRa) Author(header *types.Header) (common.Address, error) {
 	/*
 				 let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
@@ -773,11 +769,19 @@ func (c *AuRa) Prepare(chain consensus.ChainHeaderReader, header *types.Header, 
 	//return nil
 }
 
-func (c *AuRa) Initialize(config *params.ChainConfig, chain consensus.ChainHeaderReader, e consensus.EpochReader, header *types.Header, txs []types.Transaction, uncles []*types.Header, syscall consensus.SystemCall) {
+func (c *AuRa) Initialize(config *params.ChainConfig, chain consensus.ChainHeaderReader, e consensus.EpochReader, header *types.Header,
+	state *state.IntraBlockState, txs []types.Transaction, uncles []*types.Header, syscall consensus.SystemCall,
+) {
 	blockNum := header.Number.Uint64()
+	for address, rewrittenCode := range c.cfg.RewriteBytecode[blockNum] {
+		state.SetCode(address, rewrittenCode)
+	}
+
+	c.certifierLock.Lock()
 	if c.cfg.Registrar != nil && c.certifier == nil && config.IsLondon(blockNum) {
 		c.certifier = getCertifier(*c.cfg.Registrar, syscall)
 	}
+	c.certifierLock.Unlock()
 
 	if blockNum == 1 {
 		proof, err := c.GenesisEpochData(header, syscall)
@@ -815,8 +819,8 @@ func (c *AuRa) Initialize(config *params.ChainConfig, chain consensus.ChainHeade
 
 // word `signal epoch` == word `pending epoch`
 func (c *AuRa) Finalize(config *params.ChainConfig, header *types.Header, state *state.IntraBlockState,
-	txs types.Transactions, uncles []*types.Header, receipts types.Receipts, e consensus.EpochReader,
-	chain consensus.ChainHeaderReader, syscall consensus.SystemCall,
+	txs types.Transactions, uncles []*types.Header, receipts types.Receipts, withdrawals []*types.Withdrawal,
+	e consensus.EpochReader, chain consensus.ChainHeaderReader, syscall consensus.SystemCall,
 ) (types.Transactions, types.Receipts, error) {
 	// accumulateRewards retrieves rewards for a block and applies them to the coinbase accounts for miner and uncle miners
 	beneficiaries, _, rewards, err := AccumulateRewards(config, c, header, uncles, syscall)
@@ -961,16 +965,16 @@ func allHeadersUntil(chain consensus.ChainHeaderReader, from *types.Header, to c
 
 // FinalizeAndAssemble implements consensus.Engine
 func (c *AuRa) FinalizeAndAssemble(chainConfig *params.ChainConfig, header *types.Header, state *state.IntraBlockState,
-	txs types.Transactions, uncles []*types.Header, receipts types.Receipts, e consensus.EpochReader,
-	chain consensus.ChainHeaderReader, syscall consensus.SystemCall, call consensus.Call,
+	txs types.Transactions, uncles []*types.Header, receipts types.Receipts, withdrawals []*types.Withdrawal,
+	e consensus.EpochReader, chain consensus.ChainHeaderReader, syscall consensus.SystemCall, call consensus.Call,
 ) (*types.Block, types.Transactions, types.Receipts, error) {
-	outTxs, outReceipts, err := c.Finalize(chainConfig, header, state, txs, uncles, receipts, e, chain, syscall)
+	outTxs, outReceipts, err := c.Finalize(chainConfig, header, state, txs, uncles, receipts, withdrawals, e, chain, syscall)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, outTxs, uncles, outReceipts), outTxs, outReceipts, nil
+	return types.NewBlock(header, outTxs, uncles, outReceipts, withdrawals), outTxs, outReceipts, nil
 }
 
 // Authorize injects a private key into the consensus engine to mint new blocks
@@ -1216,7 +1220,10 @@ func (c *AuRa) SealHash(header *types.Header) common.Hash {
 }
 
 // See https://openethereum.github.io/Permissioning.html#gas-price
+// This is thread-safe: it only accesses the `certifier` which is used behind a RWLock
 func (c *AuRa) IsServiceTransaction(sender common.Address, syscall consensus.SystemCall) bool {
+	c.certifierLock.RLock()
+	defer c.certifierLock.RUnlock()
 	if c.certifier == nil {
 		return false
 	}
