@@ -61,6 +61,10 @@ func NewState22() *State22 {
 	return rs
 }
 
+func (rs *State22) Close() {
+	rs.receiveWork.Broadcast()
+}
+
 func (rs *State22) putHint(table string, key, val []byte, hint *btree2.PathHint) {
 	t, ok := rs.changes[table]
 	if !ok {
@@ -150,6 +154,7 @@ func (rs *State22) Flush(ctx context.Context, rwTx kv.RwTx) error {
 			case <-ctx.Done():
 				err = ctx.Err()
 				return false
+			default:
 			}
 			return true
 		})
