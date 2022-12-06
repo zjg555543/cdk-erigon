@@ -123,7 +123,7 @@ func (rs *State22) get(table string, key []byte) []byte {
 	return nil
 }
 
-func (rs *State22) Flush(rwTx kv.RwTx) error {
+func (rs *State22) Flush(ctx context.Context, rwTx kv.RwTx) error {
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
 	for table, t := range rs.changes {
@@ -144,6 +144,12 @@ func (rs *State22) Flush(rwTx kv.RwTx) error {
 					}
 					//fmt.Printf("Flush [%x]=>[%x]\n", item.key, item.val)
 				}
+			}
+
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return false
 			}
 			return true
 		})

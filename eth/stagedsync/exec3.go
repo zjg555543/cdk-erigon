@@ -182,11 +182,9 @@ func ExecV3(ctx context.Context,
 	// erigon3 execution doesn't support power-off shutdown yet. it need to do quite a lot of work on exit
 	// too keep consistency
 	// will improve it in future versions
-	interruptCh := ctx.Done()
-	ctx = context.Background()
 	queueSize := workerCount * 4
 	var wg sync.WaitGroup
-	execWorkers, resultCh, clear := exec3.NewWorkersPool(lock.RLocker(), parallel, chainDb, &wg, rs, blockReader, chainConfig, logger, genesis, engine, workerCount)
+	execWorkers, resultCh, clear := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, &wg, rs, blockReader, chainConfig, logger, genesis, engine, workerCount)
 	defer clear()
 
 	commitThreshold := batchSize.Bytes()
@@ -279,7 +277,7 @@ func ExecV3(ctx context.Context,
 						}
 
 						// rotate indices-WAL, execution will work on new WAL while rwTx-thread can flush indices-WAL to db or prune db.
-						if err := agg.Flush(tx); err != nil {
+						if err := agg.Flush(ctx, tx); err != nil {
 							panic(err)
 						}
 						break
@@ -334,13 +332,13 @@ func ExecV3(ctx context.Context,
 						}
 						t1 = time.Since(commitStart)
 						tt := time.Now()
-						if err := rs.Flush(tx); err != nil {
+						if err := rs.Flush(ctx, tx); err != nil {
 							return err
 						}
 						t2 = time.Since(tt)
 
 						tt = time.Now()
-						if err := agg.Flush(tx); err != nil {
+						if err := agg.Flush(ctx, tx); err != nil {
 							return err
 						}
 						t3 = time.Since(tt)
@@ -386,10 +384,10 @@ func ExecV3(ctx context.Context,
 					}
 				}
 			}
-			if err = rs.Flush(tx); err != nil {
+			if err = rs.Flush(ctx, tx); err != nil {
 				panic(err)
 			}
-			if err = agg.Flush(tx); err != nil {
+			if err = agg.Flush(ctx, tx); err != nil {
 				panic(err)
 			}
 			if err = execStage.Update(tx, outputBlockNum.Load()); err != nil {
@@ -471,19 +469,28 @@ Loop:
 		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
 
 		if parallel {
-			func() {
+			if err := func() error {
 				rwsLock.RLock()
 				needWait := rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold
 				rwsLock.RUnlock()
 				if !needWait {
-					return
+					return nil
 				}
 				rwsLock.Lock()
 				defer rwsLock.Unlock()
 				for rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold {
+					// Check for interrupts
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					default:
+					}
 					rwsReceiveCond.Wait()
 				}
-			}()
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		var gasUsed uint64
 		for txIndex := -1; txIndex <= len(txs); txIndex++ {
@@ -576,18 +583,17 @@ Loop:
 					break
 				}
 
-				var t1, t2, t3, t4 time.Duration
+				var t1, t2, t3 time.Duration
 				commitStart := time.Now()
 				if err := func() error {
-					t1 = time.Since(commitStart)
 					tt := time.Now()
-					if err := rs.Flush(applyTx); err != nil {
+					if err := rs.Flush(ctx, applyTx); err != nil {
 						return err
 					}
 					t2 = time.Since(tt)
 
 					tt = time.Now()
-					if err := agg.Flush(applyTx); err != nil {
+					if err := agg.Flush(ctx, applyTx); err != nil {
 						return err
 					}
 					t3 = time.Since(tt)
@@ -602,21 +608,19 @@ Loop:
 				}(); err != nil {
 					return err
 				}
-				log.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3, "tx.commit", t4)
+				log.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3)
 			default:
 			}
 		}
 		// Check for interrupts
 		select {
-		case <-interruptCh:
-			log.Info(fmt.Sprintf("interrupted, please wait for cleanup, next run will start with block %d", blockNum))
-			maxTxNum.Store(inputTxNum)
-			break Loop
+		case <-ctx.Done():
+			return ctx.Err()
 		default:
 		}
 
 		if blockSnapshots.Cfg().Produce {
-			if err := agg.BuildFilesInBackground(chainDb); err != nil {
+			if err := agg.BuildFilesInBackground(ctx, chainDb); err != nil {
 				return err
 			}
 		}
@@ -624,10 +628,10 @@ Loop:
 	if parallel {
 		wg.Wait()
 	} else {
-		if err = rs.Flush(applyTx); err != nil {
+		if err = rs.Flush(ctx, applyTx); err != nil {
 			return err
 		}
-		if err = agg.Flush(applyTx); err != nil {
+		if err = agg.Flush(ctx, applyTx); err != nil {
 			return err
 		}
 		if err = execStage.Update(applyTx, stageProgress); err != nil {
@@ -636,7 +640,7 @@ Loop:
 	}
 
 	if blockSnapshots.Cfg().Produce {
-		if err := agg.BuildFilesInBackground(chainDb); err != nil {
+		if err := agg.BuildFilesInBackground(ctx, chainDb); err != nil {
 			return err
 		}
 	}
