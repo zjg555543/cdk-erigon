@@ -710,6 +710,9 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 		txTask = heap.Pop(rws).(*exec22.TxTask)
 		resultsSize.Add(-txTask.ResultsSize)
 		if txTask.Error != nil || !rs.ReadsValid(txTask.ReadLists) {
+			if txTask.Error != nil {
+				log.Info("apply ,eerrrr", "err", txTask.Error)
+			}
 			rs.AddWork(txTask)
 			repeatCount.Inc()
 			continue
