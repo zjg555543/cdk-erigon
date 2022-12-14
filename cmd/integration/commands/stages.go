@@ -698,13 +698,14 @@ func stageExec(db kv.RwDB, ctx context.Context) error {
 	syncCfg.ExecWorkerCount = int(workers)
 	syncCfg.ReconWorkerCount = int(reconWorkers)
 
+	initialSync := workers > 1
 	genesis := core.DefaultGenesisBlockByChainName(chain)
 	cfg := stagedsync.StageExecuteBlocksCfg(db, pm, batchSize, nil, chainConfig, engine, vmConfig, nil,
 		/*stateStream=*/ false,
 		/*badBlockHalt=*/ false, historyV3, dirs, getBlockReader(db), nil, genesis, syncCfg, agg)
 	if unwind > 0 {
 		u := sync.NewUnwindState(stages.Execution, s.BlockNumber-unwind, s.BlockNumber)
-		err := stagedsync.UnwindExecutionStage(u, s, nil, ctx, cfg, true)
+		err := stagedsync.UnwindExecutionStage(u, s, nil, ctx, cfg, initialSync)
 		if err != nil {
 			return err
 		}
@@ -716,14 +717,14 @@ func stageExec(db kv.RwDB, ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		err = stagedsync.PruneExecutionStage(p, nil, cfg, ctx, true)
+		err = stagedsync.PruneExecutionStage(p, nil, cfg, ctx, initialSync)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
 
-	err := stagedsync.SpawnExecuteBlocksStage(s, sync, nil, block, ctx, cfg, true /* initialCycle */, false /* quiet */)
+	err := stagedsync.SpawnExecuteBlocksStage(s, sync, nil, block, ctx, cfg, initialSync /* initialCycle */, false /* quiet */)
 	if err != nil {
 		return err
 	}
