@@ -262,6 +262,7 @@ type MultiClient struct {
 	Engine        consensus.Engine
 	blockReader   services.HeaderAndCanonicalReader
 	logPeerInfo   bool
+	passivePeers  bool
 
 	historyV3 bool
 }
@@ -307,6 +308,7 @@ func NewMultiClient(
 		logPeerInfo:   logPeerInfo,
 		forkValidator: forkValidator,
 		historyV3:     historyV3,
+		passivePeers:  chainConfig.TerminalTotalDifficultyPassed,
 	}
 	cs.ChainConfig = chainConfig
 	cs.forks = forkid.GatherForks(cs.ChainConfig)
@@ -388,6 +390,17 @@ func (cs *MultiClient) blockHeaders66(ctx context.Context, in *proto_sentry.Inbo
 }
 
 func (cs *MultiClient) blockHeaders(ctx context.Context, pkt eth.BlockHeadersPacket, rlpStream *rlp.Stream, peerID *proto_types.H512, sentry direct.SentryClient) error {
+	if len(pkt) == 0 {
+		outreq := proto_sentry.PeerUselessRequest{
+			PeerId: peerID,
+		}
+		if _, err := sentry.PeerUseless(ctx, &outreq, &grpc.EmptyCallOption{}); err != nil {
+			return fmt.Errorf("sending peer useless request: %v", err)
+		}
+		log.Debug("Requested removal of peer for empty header response", "peerId", fmt.Sprintf("%x", ConvertH512ToPeerID(peerID)))
+		// No point processing empty response
+		return nil
+	}
 	// Stream is at the BlockHeadersPacket, which is list of headers
 	if _, err := rlpStream.List(); err != nil {
 		return fmt.Errorf("decode 2 BlockHeadersPacket66: %w", err)
@@ -529,12 +542,23 @@ func (cs *MultiClient) newBlock66(ctx context.Context, inreq *proto_sentry.Inbou
 	return nil
 }
 
-func (cs *MultiClient) blockBodies66(inreq *proto_sentry.InboundMessage, _ direct.SentryClient) error {
+func (cs *MultiClient) blockBodies66(ctx context.Context, inreq *proto_sentry.InboundMessage, sentry direct.SentryClient) error {
 	var request eth.BlockRawBodiesPacket66
 	if err := rlp.DecodeBytes(inreq.Data, &request); err != nil {
 		return fmt.Errorf("decode BlockBodiesPacket66: %w", err)
 	}
 	txs, uncles := request.BlockRawBodiesPacket.Unpack()
+	if len(txs) == 0 && len(uncles) == 0 {
+		outreq := proto_sentry.PeerUselessRequest{
+			PeerId: inreq.PeerId,
+		}
+		if _, err := sentry.PeerUseless(ctx, &outreq, &grpc.EmptyCallOption{}); err != nil {
+			return fmt.Errorf("sending peer useless request: %v", err)
+		}
+		log.Debug("Requested removal of peer for empty body response", "peerId", fmt.Sprintf("%x", ConvertH512ToPeerID(inreq.PeerId)))
+		// No point processing empty response
+		return nil
+	}
 	cs.Bd.DeliverBodies(&txs, &uncles, uint64(len(inreq.Data)), ConvertH512ToPeerID(inreq.PeerId))
 	return nil
 }
@@ -703,7 +727,7 @@ func (cs *MultiClient) handleInboundMessage(ctx context.Context, inreq *proto_se
 	case proto_sentry.MessageId_NEW_BLOCK_66:
 		return cs.newBlock66(ctx, inreq, sentry)
 	case proto_sentry.MessageId_BLOCK_BODIES_66:
-		return cs.blockBodies66(inreq, sentry)
+		return cs.blockBodies66(ctx, inreq, sentry)
 	case proto_sentry.MessageId_GET_BLOCK_HEADERS_66:
 		return cs.getBlockHeaders66(ctx, inreq, sentry)
 	case proto_sentry.MessageId_GET_BLOCK_BODIES_66:
@@ -758,6 +782,7 @@ func (cs *MultiClient) makeStatusData() *proto_sentry.StatusData {
 			Genesis: gointerfaces.ConvertHashToH256(s.genesisHash),
 			Forks:   s.forks,
 		},
+		PassivePeers: cs.passivePeers,
 	}
 }
 

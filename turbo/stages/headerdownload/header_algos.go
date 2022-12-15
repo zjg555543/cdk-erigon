@@ -456,7 +456,7 @@ func (hd *HeaderDownload) UpdateStats(req *HeaderRequest, skeleton bool) {
 			hd.stats.SkeletonReqMinBlock = req.Number
 		}
 		if req.Number+req.Length*req.Skip > hd.stats.SkeletonReqMaxBlock {
-			hd.stats.SkeletonReqMaxBlock = req.Number + req.Length*req.Skip
+			hd.stats.SkeletonReqMaxBlock = req.Number + req.Length*(req.Skip+1)
 		}
 	} else {
 		hd.stats.Requests++
@@ -488,10 +488,14 @@ func (hd *HeaderDownload) UpdateRetryTime(req *HeaderRequest, currentTime time.T
 func (hd *HeaderDownload) RequestSkeleton() *HeaderRequest {
 	hd.lock.RLock()
 	defer hd.lock.RUnlock()
+	if hd.topSeenHeightPoW < hd.highestInDb+192 {
+		// trying to prevent empty responses
+		return nil
+	}
 	log.Debug("[Downloader] Request skeleton", "anchors", len(hd.anchors), "top seen height", hd.topSeenHeightPoW, "highestInDb", hd.highestInDb)
 	stride := uint64(8 * 192)
-	strideHeight := hd.highestInDb + stride
 	var length uint64 = 192
+	strideHeight := hd.highestInDb + 1
 	return &HeaderRequest{Number: strideHeight, Length: length, Skip: stride - 1, Reverse: false}
 }
 
@@ -660,7 +664,7 @@ func (hd *HeaderDownload) ProcessHeadersPOS(csHeaders []ChainSegmentHeader, tx k
 
 		if headerHash != hd.posAnchor.parentHash {
 			if hd.posAnchor.blockHeight != 1 && sh.Number != hd.posAnchor.blockHeight-1 {
-				log.Info("[Downloader] posAnchor", "blockHeight", hd.posAnchor.blockHeight)
+				log.Debug("[Downloader] posAnchor", "blockHeight", hd.posAnchor.blockHeight)
 				return nil, nil
 			}
 			log.Debug("[Downloader] Unexpected header", "hash", headerHash, "expected", hd.posAnchor.parentHash, "peerID", common.Bytes2Hex(peerId[:]))
