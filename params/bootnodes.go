@@ -42,15 +42,6 @@ var SepoliaBootnodes = []string{
 	"enode://ec66ddcf1a974950bd4c782789a7e04f8aa7110a72569b6e65fcd51e937e74eed303b1ea734e4d19cfaec9fbff9b6ee65bf31dcb50ba79acce9dd63a6aca61c7@52.14.151.177:30303",
 }
 
-// RopstenBootnodes are the enode URLs of the P2P bootstrap nodes running on the
-// Ropsten test network.
-var RopstenBootnodes = []string{
-	"enode://30b7ab30a01c124a6cceca36863ece12c4f5fa68e3ba9b0b51407ccc002eeed3b3102d20a88f1c1d3c3154e2449317b8ef95090e77b312d5cc39354f86d5d606@52.176.7.10:30303",    // US-Azure geth
-	"enode://865a63255b3bb68023b6bffd5095118fcc13e79dcf014fe4e47e065c350c7cc72af2e53eff895f11ba1bbb6a2b33271c1116ee870f266618eadfc2e78aa7349c@52.176.100.77:30303",  // US-Azure parity
-	"enode://6332792c4a00e3e4ee0926ed89e0d27ef985424d97b6a45bf0f23e51f0dcb5e66b875777506458aea7af6f9e4ffb69f43f3778ee73c81ed9d34c51c4b16b0b0f@52.232.243.152:30303", // Parity
-	"enode://94c15d1b9e2fe7ce56e458b9a3b672ef11894ddedd0c6f247e0f1d3487f52b66208fb4aeb8179fce6e3a749ea93ed147c37976d67af557508d199d9594c35f09@192.81.208.223:30303", // @gpip
-}
-
 // RinkebyBootnodes are the enode URLs of the P2P bootstrap nodes running on the
 // Rinkeby test network.
 var RinkebyBootnodes = []string{
@@ -183,8 +174,6 @@ var SokolBootnodes = []string{
 	"enode://f11a0f80939b49a28bf99581da9b351a592ec1504b9d32a7dfda79b36510a891e96631239c4166e5c73368c21e9bb3241e7fd6929b899772e5a8fe9a7b7c3af6@45.77.52.149:30303",
 }
 
-var FermionBootnodes = []string{}
-
 var V5Bootnodes = []string{
 	// Teku team's bootnode
 	"enr:-KG4QOtcP9X1FbIMOe17QNMKqDxCpm14jcX5tiOE4_TyMrFqbmhPZHK_ZPG2Gxb1GE2xdtodOfx9-cgvNtxnRyHEmC0ghGV0aDKQ9aX9QgAAAAD__________4JpZIJ2NIJpcIQDE8KdiXNlY3AyNTZrMaEDhpehBDbZjM_L9ek699Y7vhUJ-eAdMyQW_Fil522Y0fODdGNwgiMog3VkcIIjKA",
@@ -214,14 +203,22 @@ var BorMainnetBootnodes = []string{
 }
 
 var GnosisBootnodes = []string{
-	"enode://172fd36d5ff1bf9db202e0646c90719cec55507a1fa231ce955f6882d2a9295e65841c885d94d23a020347e3169889cef0718eba5a5f5f58dd185f3d5fa0e9b7@147.28.151.154:30303",
-	"enode://ee4eb9844cbd8f684a734b839b4931e37124358cb17c632e7d5a44fd9ce6d457c4a126a914ea1366670d186b9236820c1e9b2cb2d3584eaf6c540fc10d77f00d@147.28.151.146:30303",
-	"enode://86f5849a24b158cef9c0f9b03554c918cd20f9e3397b63ae2744d6392a28beb9e0373299cfc4446d9f8b97c1598bc161fe7c6b8e84929f5dec8ea6865e9e7414@145.40.69.162:30303",
-	"enode://b6ba2a508682143d3159f36b9ce96cf62c711c2e9d47763fe846602a62acb15dc20112fac40c488ce42ce2c9ad28635255a9e47688c1a8f0611b5a38706fd771@147.28.147.242:30303",
-	"enode://389a625160876776946bfea5a6ce4f4c761bd2062cf8e45e510da77595399ee50a802060868d9bf4580431fc2248cadc9ce61826b3513e090bd1cdd4ce11a9d8@161.97.172.191:30303",
-	"enode://540a0bc258ba93e6fafc238f49eca0a2032b5d40b79c077dc9b9a304fd636af4167b638eb0f80aa455f5da1cf49b76c881f651ed301a1e28d6855a8a3fbe21a0@167.71.174.1:30303",
-	"enode://4175e9ffd9ac9819c9c596a60b7748cc1c1846cf7e8db47ee97f8aa57e42e8cb3dad4201726498d34af94505b2c1429f9d3a508594c521080e8cd1a3fa24a3d5@37.120.245.155:30303",
-	"enode://22e442bf7b7fa9bb5960344ef5aa907b920a931bce83e14620b0378318b7eb73753f7245f0a8252590a71ad9568bcfbb9e5f03bd88ab3feb9c1096227bb8704a@168.119.136.44:30303",
+	"enode://a8558c4449bdb4ed47b8fd0ceaee8cf56272cd308e98e693a838d58b9abd2411b71b9b7e2d63a50b140fd9b0a2e05e83f338c3906dd925e9f178f0feda0c4ca7@165.232.138.187:30303",
+	"enode://e52280c512cd1f023135d7f70f31904bda7bb699d4300346182a2e3fc5a07637c25cc4349b48101ffe2fe6229b3b165ed7929ad9db971d847d02e21192989ce5@143.198.156.24:30303",
+	"enode://8ed1893f617f1ed2c6a978fa92fa38ac19db6de5596c93bf21921c40ed34f63b63a93234ddedf9b385192dd7aa652e1d4b55efed299961b0ae5d4318ecb985ec@159.223.213.61:30303",
+	"enode://cc3f99a19360edd73f91f04c6fe728ff8da431f8445a35c02a0fd99fee2be5d9f5ea75a416b08f4a019e0a0d3afa8aece93a560bbe3ce0509eec54bbddc00bb8@178.62.194.136:30303",
+	"enode://8f3a63b270cd32692f5b825874b9f3acef3cf90dec40fe54848267f568b7275349efb830812c1b24f1781774f745fb00e595d2feef642fd6867e173f05108cc4@178.62.192.195:30303",
+	"enode://075d567bcc5b6bbcb5c9922bf7f17a706408bed141dcefb5d387cfe6e0c7c9407e450a5d17b9180b25fb07b3e82943639d011752ea44a2d868b3c37f48a318b9@167.99.209.14:30303",
+	"enode://bb19f1fcf0d0667d9752bec2f4230e24331a7764e5a73a41006378861ef79f9a4386f646e239e1842e4bb721ade9369be8f2fd81b407d9febec2e150ccb7f257@137.184.228.83:30303",
+	"enode://529cc11acd013d5e92aa38d4139636619285b2bb4221bcdf7c5dbf171e828d05b88934e6154b984f8164953d7d7530b49c6d0e030fade3a3737d28092a289704@164.92.96.111:30303",
+	"enode://9d41c6f8c77a1ac3069cc9326068c04465b9fc56abaaf84fa753fc723511f278dd1d65c22753eb60dfd95f60fe942d0f670c490660e3d6cd518ddafb986682d2@178.62.196.104:30303",
+	"enode://874ac7df642fc2abffcca71991c3646a5634a415a4a6513112a89429f7ae43914ad6f1d2ea73a96a19f302c17a7c5e07a0dd01fed70c9294a6fd5615b86710b7@159.223.213.166:30303",
+	"enode://5d1a11b5f19afb7d2d04406a4877ed7de92a4ca898ee0d36ff54729b99664e4ac787877e553043a38a38f878aab43fc0d757673e0c11ee8eb606f1ea4681ce3c@147.182.204.197:30303",
+	"enode://144d125c790100f6405d957dea8c3a1647199109d915889e90d7f6c2940c8737b16e68e2a3af57327971ec28ed77408f9bc96035b2589da6496f3112ec72e037@137.184.183.65:30303",
+	"enode://ac8e8a62f5b54c35f4d7eb565079e9c81e241a150c0d6b2bb5bb32b068e8e4930b14a5b504f77d34014c8e9f14ec0307cc6b239e8c56be85fdcc68d4956cce7c@159.223.213.157:30303",
+	"enode://20b0de013d851ae5b667f41a923f2856420161fe0a46030cdea6d81db8da3c5b04070834219a2a6ca41d8f2c6c813870414ce473ab25736742163b0be6191861@159.223.209.185:30303",
+	"enode://3c8de197987eb896488ed60037b44c5201878d7cb47d22a322d6d73b999b1d5482820e0456dc08676665ba1ce96906900a2b5f830b2eea73730ca7532c227c7b@159.223.217.249:30303",
+	"enode://644ad8205801f9dba1d6eff107590d49479d5276c8d078f8631f351a2077d70b7bed2822219cb1c7590ba68149b89751968a45236e7d02c1025e493d647dd776@159.223.213.162:30303",
 }
 
 var ChiadoBootnodes = []string{
@@ -242,8 +239,6 @@ func KnownDNSNetwork(genesis common.Hash, protocol string) string {
 	switch genesis {
 	case MainnetGenesisHash:
 		net = "mainnet"
-	case RopstenGenesisHash:
-		net = "ropsten"
 	case RinkebyGenesisHash:
 		net = "rinkeby"
 	case GoerliGenesisHash:
@@ -260,8 +255,6 @@ func BootnodeURLsOfChain(chain string) []string {
 		return MainnetBootnodes
 	case networkname.SepoliaChainName:
 		return SepoliaBootnodes
-	case networkname.RopstenChainName:
-		return RopstenBootnodes
 	case networkname.RinkebyChainName:
 		return RinkebyBootnodes
 	case networkname.GoerliChainName:
@@ -274,8 +267,6 @@ func BootnodeURLsOfChain(chain string) []string {
 		return RialtoBootnodes
 	case networkname.SokolChainName:
 		return SokolBootnodes
-	case networkname.FermionChainName:
-		return FermionBootnodes
 	case networkname.MumbaiChainName:
 		return MumbaiBootnodes
 	case networkname.BorMainnetChainName:
