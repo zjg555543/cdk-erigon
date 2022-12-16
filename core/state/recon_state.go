@@ -89,9 +89,10 @@ func (rs *ReconState) Put(table string, key1, key2, val []byte, txNum uint64) {
 		rs.hints[table] = &btree2.PathHint{}
 	}
 	old, ok := t.SetHint(reconPair{key1: key1, key2: key2, val: val, txNum: txNum}, rs.hints[table])
-	rs.sizeEstimate += btreeOverhead + uint64(len(key1)) + uint64(len(key2)) + uint64(len(val))
 	if ok {
-		rs.sizeEstimate -= btreeOverhead + uint64(len(old.key1)) + uint64(len(old.key2)) + uint64(len(old.val))
+		rs.sizeEstimate = rs.sizeEstimate + uint64(len(val)) - uint64(len(old.val))
+	} else {
+		rs.sizeEstimate += uint64(len(key1)) + uint64(len(key2)) + uint64(len(val))
 	}
 }
 
@@ -104,10 +105,9 @@ func (rs *ReconState) Delete(table string, key1, key2 []byte, txNum uint64) {
 		rs.changes[table] = t
 		rs.hints[table] = &btree2.PathHint{}
 	}
-	old, ok := t.SetHint(reconPair{key1: key1, key2: key2, val: nil, txNum: txNum}, rs.hints[table])
-	rs.sizeEstimate += btreeOverhead + uint64(len(key1)) + uint64(len(key2))
-	if ok {
-		rs.sizeEstimate -= btreeOverhead + uint64(len(old.key1)) + uint64(len(old.key2)) + uint64(len(old.val))
+	_, ok = t.SetHint(reconPair{key1: key1, key2: key2, val: nil, txNum: txNum}, rs.hints[table])
+	if !ok {
+		rs.sizeEstimate += uint64(len(key1)) + uint64(len(key2))
 	}
 }
 
@@ -118,7 +118,6 @@ func (rs *ReconState) RemoveAll(table string, key1 []byte) {
 	if !ok {
 		return
 	}
-	var itemsToDel []reconPair
 	t.Ascend(reconPair{key1: key1, key2: nil}, func(item reconPair) bool {
 		if !bytes.Equal(item.key1, key1) {
 			return false
@@ -126,12 +125,12 @@ func (rs *ReconState) RemoveAll(table string, key1 []byte) {
 		if item.key2 == nil {
 			return true
 		}
-		itemsToDel = append(itemsToDel, item)
+		item, ok = t.Delete(item)
+		if ok {
+			rs.sizeEstimate = rs.sizeEstimate - uint64(len(item.key1)) - uint64(len(item.key2))
+		}
 		return true
 	})
-	for _, item := range itemsToDel {
-		t.Delete(item)
-	}
 }
 
 func (rs *ReconState) Get(table string, key1, key2 []byte, txNum uint64) []byte {
