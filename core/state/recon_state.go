@@ -62,7 +62,6 @@ func NewReconState(workCh chan *exec22.TxTask) *ReconState {
 			triggers: map[uint64][]*exec22.TxTask{},
 		},
 		changes: map[string]*btree2.BTreeG[reconPair]{},
-		hints:   map[string]*btree2.PathHint{},
 	}
 	return rs
 }
@@ -89,8 +88,7 @@ func (rs *ReconState) Put(table string, key1, key2, val []byte, txNum uint64) {
 		rs.changes[table] = t
 		rs.hints[table] = &btree2.PathHint{}
 	}
-	item := reconPair{key1: key1, key2: key2, val: val, txNum: txNum}
-	old, ok := t.SetHint(item, rs.hints[table])
+	old, ok := t.SetHint(reconPair{key1: key1, key2: key2, val: val, txNum: txNum}, rs.hints[table])
 	rs.sizeEstimate += btreeOverhead + uint64(len(key1)) + uint64(len(key2)) + uint64(len(val))
 	if ok {
 		rs.sizeEstimate -= btreeOverhead + uint64(len(old.key1)) + uint64(len(old.key2)) + uint64(len(old.val))
@@ -106,8 +104,7 @@ func (rs *ReconState) Delete(table string, key1, key2 []byte, txNum uint64) {
 		rs.changes[table] = t
 		rs.hints[table] = &btree2.PathHint{}
 	}
-	item := reconPair{key1: key1, key2: key2, val: nil, txNum: txNum}
-	old, ok := t.SetHint(item, rs.hints[table])
+	old, ok := t.SetHint(reconPair{key1: key1, key2: key2, val: nil, txNum: txNum}, rs.hints[table])
 	rs.sizeEstimate += btreeOverhead + uint64(len(key1)) + uint64(len(key2))
 	if ok {
 		rs.sizeEstimate -= btreeOverhead + uint64(len(old.key1)) + uint64(len(old.key2)) + uint64(len(old.val))
@@ -121,6 +118,7 @@ func (rs *ReconState) RemoveAll(table string, key1 []byte) {
 	if !ok {
 		return
 	}
+	var itemsToDel []reconPair
 	t.Ascend(reconPair{key1: key1, key2: nil}, func(item reconPair) bool {
 		if !bytes.Equal(item.key1, key1) {
 			return false
@@ -128,9 +126,12 @@ func (rs *ReconState) RemoveAll(table string, key1 []byte) {
 		if item.key2 == nil {
 			return true
 		}
-		t.Delete(item)
+		itemsToDel = append(itemsToDel, item)
 		return true
 	})
+	for _, item := range itemsToDel {
+		t.Delete(item)
+	}
 }
 
 func (rs *ReconState) Get(table string, key1, key2 []byte, txNum uint64) []byte {
