@@ -250,9 +250,7 @@ func ExecV3(ctx context.Context,
 		defer applyLoopWg.Done()
 		defer close(applyHistoryCh)
 		if err := applyLoopInner(ctx, applyHistoryCh); err != nil {
-			if !errors.Is(err, context.Canceled) {
-				errCh <- err
-			}
+			errCh <- err
 		}
 	}
 
