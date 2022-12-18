@@ -384,11 +384,6 @@ func (rs *State22) ApplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 	returnReadList(txTask.ReadLists)
 	returnWriteList(txTask.WriteLists)
 
-	txTask.ReadLists, txTask.WriteLists = nil, nil
-	return nil
-}
-
-func (rs *State22) ApplyHistory(txTask *exec22.TxTask, agg *libstate.Aggregator22) error {
 	for addrS, enc0 := range txTask.AccountPrevs {
 		if err := agg.AddAccountPrev([]byte(addrS), enc0); err != nil {
 			return err
@@ -400,6 +395,12 @@ func (rs *State22) ApplyHistory(txTask *exec22.TxTask, agg *libstate.Aggregator2
 			return err
 		}
 	}
+
+	txTask.ReadLists, txTask.WriteLists = nil, nil
+	return nil
+}
+
+func (rs *State22) ApplyHistory(txTask *exec22.TxTask, agg *libstate.Aggregator22) error {
 	if txTask.TraceFroms != nil {
 		for addr := range txTask.TraceFroms {
 			if err := agg.AddTraceFrom(addr[:]); err != nil {
