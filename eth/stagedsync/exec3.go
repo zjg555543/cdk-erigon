@@ -749,6 +749,9 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 		triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 		outputTxNum.Inc()
 		onSuccess()
+		if len(applyHistoryCh) > cap(applyHistoryCh)-10 {
+			log.Info("applyHistoryCh full", "len", len(applyHistoryCh), "cap", cap(applyHistoryCh))
+		}
 		applyHistoryCh <- txTask
 		//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
 	}
