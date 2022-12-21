@@ -147,7 +147,7 @@ func TestAccountAndStorageTrie(t *testing.T) {
 
 	var s StageState
 	s.BlockNumber = 0
-	_, err = incrementIntermediateHashes("IH", &s, tx, 1 /* to */, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
+	_, err = incrementIntermediateHashes("IH", &s, tx, 1 /* to */, cfg, common.Hash{} /* expectedRootHash */, context.Background())
 	assert.Nil(t, err)
 
 	accountTrieB := make(map[string][]byte)
@@ -297,7 +297,7 @@ func TestStorageDeletion(t *testing.T) {
 
 	var s StageState
 	s.BlockNumber = 0
-	_, err = incrementIntermediateHashes("IH", &s, tx, 1 /* to */, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
+	_, err = incrementIntermediateHashes("IH", &s, tx, 1 /* to */, cfg, common.Hash{} /* expectedRootHash */, context.Background())
 	assert.Nil(t, err)
 
 	storageTrieB := make(map[string][]byte)
@@ -394,7 +394,7 @@ func TestHiveTrieRoot(t *testing.T) {
 
 	var s StageState
 	s.BlockNumber = 0
-	incrementalRoot, err := incrementIntermediateHashes("IH", &s, tx, 1 /* to */, cfg, common.Hash{} /* expectedRootHash */, nil /* quit */)
+	incrementalRoot, err := incrementIntermediateHashes("IH", &s, tx, 1 /* to */, cfg, common.Hash{} /* expectedRootHash */, context.Background())
 	require.Nil(t, err)
 
 	regeneratedRoot, err := RegenerateIntermediateHashes("IH", tx, cfg, common.Hash{} /* expectedRootHash */, ctx)
