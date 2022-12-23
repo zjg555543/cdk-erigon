@@ -77,9 +77,10 @@ func StageLoop(
 	loopMinTime time.Duration,
 ) {
 	defer close(waitForDone)
+
 	initialCycle := true
 
-	for {
+	for cycle := 0; ; cycle++ {
 		start := time.Now()
 
 		select {
@@ -89,6 +90,7 @@ func StageLoop(
 			// continue
 		}
 
+		fmt.Printf("dbg: cycle=%d\n", cycle)
 		// Estimate the current top height seen from the peer
 		headBlockHash, err := StageLoopStep(ctx, chainConfig, db, sync, notifications, initialCycle, updateHead)
 
@@ -107,7 +109,7 @@ func StageLoop(
 			continue
 		}
 
-		initialCycle = false
+		initialCycle = cycle < 2
 		hd.EnableRequestChaining()
 
 		if loopMinTime != 0 {
