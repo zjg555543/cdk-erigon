@@ -15,6 +15,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	"github.com/ledgerwatch/erigon-lib/common/dir"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/ledgerwatch/secp256k1"
@@ -49,270 +50,259 @@ import (
 var cmdStageSnapshots = &cobra.Command{
 	Use:   "stage_snapshots",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageSnapshots(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdStageHeaders = &cobra.Command{
 	Use:   "stage_headers",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageHeaders(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdStageBodies = &cobra.Command{
 	Use:   "stage_bodies",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageBodies(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdStageSenders = &cobra.Command{
 	Use:   "stage_senders",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageSenders(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdStageExec = &cobra.Command{
 	Use:   "stage_exec",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
-		if err := stageExec(db, ctx); err != nil {
+		if err := stageExec(db, cmd.Context()); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdStageTrie = &cobra.Command{
 	Use:   "stage_trie",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageTrie(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdStageHashState = &cobra.Command{
 	Use:   "stage_hash_state",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageHashState(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdStageHistory = &cobra.Command{
 	Use:   "stage_history",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageHistory(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdLogIndex = &cobra.Command{
 	Use:   "stage_log_index",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageLogIndex(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdCallTraces = &cobra.Command{
 	Use:   "stage_call_traces",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageCallTraces(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdStageTxLookup = &cobra.Command{
 	Use:   "stage_tx_lookup",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 
 		if err := stageTxLookup(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 var cmdPrintStages = &cobra.Command{
 	Use:   "print_stages",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata).Readonly(), false)
 		defer db.Close()
 
 		if err := printAllStages(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdPrintMigrations = &cobra.Command{
 	Use:   "print_migrations",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), false)
 		defer db.Close()
 		if err := printAppliedMigrations(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdRemoveMigration = &cobra.Command{
 	Use:   "remove_migration",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _ := common2.RootContext()
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
 		db := openDB(dbCfg(kv.ChainDB, chaindata), false)
 		defer db.Close()
 		if err := removeMigration(db, ctx); err != nil {
 			log.Error("Error", "err", err)
-			return err
+			return
 		}
-		return nil
 	},
 }
 
 var cmdRunMigrations = &cobra.Command{
 	Use:   "run_migrations",
 	Short: "",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 		// Nothing to do, migrations will be applied automatically
-		return nil
 	},
 }
 
 var cmdSetPrune = &cobra.Command{
 	Use:   "force_set_prune",
 	Short: "Override existing --prune flag value (if you know what you are doing)",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
-		return overrideStorageMode(db)
+		if err := overrideStorageMode(db); err != nil {
+			log.Error("Error", "err", err)
+		}
 	},
 }
 
 var cmdSetSnap = &cobra.Command{
 	Use:   "force_set_snapshot",
 	Short: "Override existing --snapshots flag value (if you know what you are doing)",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
 		snapshots, _ := allSnapshots(db)
 		if err := db.Update(context.Background(), func(tx kv.RwTx) error {
 			return snap.ForceSetFlags(tx, snapshots.Cfg())
 		}); err != nil {
-			return err
+			log.Error("Error", "err", err)
+			return
 		}
-		return nil
 	},
 }
 
 var cmdForceSetHistoryV3 = &cobra.Command{
 	Use:   "force_set_history_v3",
 	Short: "Override existing --history.v3 flag value (if you know what you are doing)",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		db := openDB(dbCfg(kv.ChainDB, chaindata), true)
 		defer db.Close()
-		return db.Update(context.Background(), func(tx kv.RwTx) error {
-			return rawdb.HistoryV3.ForceWrite(tx, _forceSetHistoryV3)
-		})
+		if err := db.Update(context.Background(), func(tx kv.RwTx) error {
+			return kvcfg.HistoryV3.ForceWrite(tx, _forceSetHistoryV3)
+		}); err != nil {
+			log.Error("Error", "err", err)
+			return
+		}
 	},
 }
 
@@ -550,7 +540,7 @@ func stageHeaders(db kv.RwDB, ctx context.Context) error {
 
 func stageBodies(db kv.RwDB, ctx context.Context) error {
 	_, _, sync, _, _ := newSync(ctx, db, nil)
-	chainConfig, historyV3 := fromdb.ChainConfig(db), fromdb.HistoryV3(db)
+	chainConfig, historyV3 := fromdb.ChainConfig(db), kvcfg.HistoryV3.FromDB(db)
 	sn, _ := allSnapshots(db)
 
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
@@ -676,7 +666,7 @@ func stageSenders(db kv.RwDB, ctx context.Context) error {
 }
 
 func stageExec(db kv.RwDB, ctx context.Context) error {
-	chainConfig, historyV3, pm := fromdb.ChainConfig(db), fromdb.HistoryV3(db), fromdb.PruneMode(db)
+	chainConfig, historyV3, pm := fromdb.ChainConfig(db), kvcfg.HistoryV3.FromDB(db), fromdb.PruneMode(db)
 	dirs := datadir.New(datadirCli)
 	engine, vmConfig, sync, _, _ := newSync(ctx, db, nil)
 	must(sync.SetCurrentStage(stages.Execution))
@@ -742,13 +732,16 @@ func stageExec(db kv.RwDB, ctx context.Context) error {
 }
 
 func stageTrie(db kv.RwDB, ctx context.Context) error {
-	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), fromdb.HistoryV3(db)
+	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), kvcfg.HistoryV3.FromDB(db)
 	_, _, sync, _, _ := newSync(ctx, db, nil)
 	must(sync.SetCurrentStage(stages.IntermediateHashes))
 	_, agg := allSnapshots(db)
 
+	if warmup {
+		return reset2.Warmup(ctx, db, stages.IntermediateHashes)
+	}
 	if reset {
-		return reset2.ResetIH(ctx, db)
+		return reset2.Reset(ctx, db, stages.IntermediateHashes)
 	}
 	tx, err := db.BeginRw(ctx)
 	if err != nil {
@@ -793,13 +786,16 @@ func stageTrie(db kv.RwDB, ctx context.Context) error {
 }
 
 func stageHashState(db kv.RwDB, ctx context.Context) error {
-	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), fromdb.HistoryV3(db)
+	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), kvcfg.HistoryV3.FromDB(db)
 	_, _, sync, _, _ := newSync(ctx, db, nil)
 	must(sync.SetCurrentStage(stages.HashState))
 	_, agg := allSnapshots(db)
 
+	if warmup {
+		return reset2.Warmup(ctx, db, stages.HashState)
+	}
 	if reset {
-		return reset2.ResetHashState(ctx, db)
+		return reset2.Reset(ctx, db, stages.HashState)
 	}
 
 	tx, err := db.BeginRw(ctx)
@@ -844,14 +840,17 @@ func stageHashState(db kv.RwDB, ctx context.Context) error {
 }
 
 func stageLogIndex(db kv.RwDB, ctx context.Context) error {
-	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), fromdb.HistoryV3(db)
+	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), kvcfg.HistoryV3.FromDB(db)
 	if historyV3 {
 		return fmt.Errorf("this stage is disable in --history.v3=true")
 	}
 	_, _, sync, _, _ := newSync(ctx, db, nil)
 	must(sync.SetCurrentStage(stages.LogIndex))
 	if reset {
-		return reset2.ResetLogIndex(ctx, db)
+		return reset2.Warmup(ctx, db, stages.LogIndex)
+	}
+	if reset {
+		return reset2.Reset(ctx, db, stages.LogIndex)
 	}
 	tx, err := db.BeginRw(ctx)
 	if err != nil {
@@ -896,15 +895,18 @@ func stageLogIndex(db kv.RwDB, ctx context.Context) error {
 }
 
 func stageCallTraces(db kv.RwDB, ctx context.Context) error {
-	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), fromdb.HistoryV3(db)
+	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), kvcfg.HistoryV3.FromDB(db)
 	if historyV3 {
 		return fmt.Errorf("this stage is disable in --history.v3=true")
 	}
 	_, _, sync, _, _ := newSync(ctx, db, nil)
 	must(sync.SetCurrentStage(stages.CallTraces))
 
+	if warmup {
+		return reset2.Warmup(ctx, db, stages.CallTraces)
+	}
 	if reset {
-		return reset2.ResetCallTraces(ctx, db)
+		return reset2.Reset(ctx, db, stages.CallTraces)
 	}
 
 	tx, err := db.BeginRw(ctx)
@@ -956,15 +958,18 @@ func stageCallTraces(db kv.RwDB, ctx context.Context) error {
 }
 
 func stageHistory(db kv.RwDB, ctx context.Context) error {
-	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), fromdb.HistoryV3(db)
+	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), kvcfg.HistoryV3.FromDB(db)
 	if historyV3 {
 		return fmt.Errorf("this stage is disable in --history.v3=true")
 	}
 	_, _, sync, _, _ := newSync(ctx, db, nil)
 	must(sync.SetCurrentStage(stages.AccountHistoryIndex))
 
+	if warmup {
+		return reset2.Warmup(ctx, db, stages.AccountHistoryIndex, stages.StorageHistoryIndex)
+	}
 	if reset {
-		return reset2.ResetHistory(ctx, db)
+		return reset2.Reset(ctx, db, stages.AccountHistoryIndex, stages.StorageHistoryIndex)
 	}
 	tx, err := db.BeginRw(ctx)
 	if err != nil {
@@ -1164,7 +1169,7 @@ func getBlockReader(db kv.RoDB) (blockReader services.FullBlockReader) {
 
 func newSync(ctx context.Context, db kv.RwDB, miningConfig *params.MiningConfig) (consensus.Engine, *vm.Config, *stagedsync.Sync, *stagedsync.Sync, stagedsync.MiningState) {
 	logger := log.New()
-	dirs, historyV3, pm := datadir.New(datadirCli), fromdb.HistoryV3(db), fromdb.PruneMode(db)
+	dirs, historyV3, pm := datadir.New(datadirCli), kvcfg.HistoryV3.FromDB(db), fromdb.PruneMode(db)
 
 	vmConfig := &vm.Config{}
 

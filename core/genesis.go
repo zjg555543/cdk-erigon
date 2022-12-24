@@ -183,16 +183,16 @@ func (e *GenesisMismatchError) Error() string {
 //
 // The returned chain configuration is never nil.
 func CommitGenesisBlock(db kv.RwDB, genesis *Genesis) (*params.ChainConfig, *types.Block, error) {
-	return CommitGenesisBlockWithOverride(db, genesis, nil, nil)
+	return CommitGenesisBlockWithOverride(db, genesis, nil)
 }
 
-func CommitGenesisBlockWithOverride(db kv.RwDB, genesis *Genesis, overrideMergeNetsplitBlock, overrideTerminalTotalDifficulty *big.Int) (*params.ChainConfig, *types.Block, error) {
+func CommitGenesisBlockWithOverride(db kv.RwDB, genesis *Genesis, overrideShanghaiTime *big.Int) (*params.ChainConfig, *types.Block, error) {
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
 	defer tx.Rollback()
-	c, b, err := WriteGenesisBlock(tx, genesis, overrideMergeNetsplitBlock, overrideTerminalTotalDifficulty)
+	c, b, err := WriteGenesisBlock(tx, genesis, overrideShanghaiTime)
 	if err != nil {
 		return c, b, err
 	}
@@ -211,7 +211,7 @@ func MustCommitGenesisBlock(db kv.RwDB, genesis *Genesis) (*params.ChainConfig, 
 	return c, b
 }
 
-func WriteGenesisBlock(db kv.RwTx, genesis *Genesis, overrideMergeNetsplitBlock, overrideTerminalTotalDifficulty *big.Int) (*params.ChainConfig, *types.Block, error) {
+func WriteGenesisBlock(db kv.RwTx, genesis *Genesis, overrideShanghaiTime *big.Int) (*params.ChainConfig, *types.Block, error) {
 	if genesis != nil && genesis.Config == nil {
 		return params.AllProtocolChanges, nil, ErrGenesisNoConfig
 	}
@@ -222,11 +222,8 @@ func WriteGenesisBlock(db kv.RwTx, genesis *Genesis, overrideMergeNetsplitBlock,
 	}
 
 	applyOverrides := func(config *params.ChainConfig) {
-		if overrideMergeNetsplitBlock != nil {
-			config.MergeNetsplitBlock = overrideMergeNetsplitBlock
-		}
-		if overrideTerminalTotalDifficulty != nil {
-			config.TerminalTotalDifficulty = overrideTerminalTotalDifficulty
+		if overrideShanghaiTime != nil {
+			config.ShanghaiTime = overrideShanghaiTime
 		}
 	}
 
@@ -270,7 +267,7 @@ func WriteGenesisBlock(db kv.RwTx, genesis *Genesis, overrideMergeNetsplitBlock,
 		return newCfg, nil, err
 	}
 	storedCfg, storedErr := rawdb.ReadChainConfig(db, storedHash)
-	if storedErr != nil {
+	if storedErr != nil && newCfg.Bor == nil {
 		return newCfg, nil, storedErr
 	}
 	if storedCfg == nil {
@@ -361,6 +358,11 @@ func (g *Genesis) ToBlock() (*types.Block, *state.IntraBlockState, error) {
 		}
 	}
 
+	var withdrawals []*types.Withdrawal
+	if g.Config != nil && (g.Config.IsShanghai(g.Timestamp)) {
+		withdrawals = []*types.Withdrawal{}
+	}
+
 	var root common.Hash
 	var statedb *state.IntraBlockState
 	wg := sync.WaitGroup{}
@@ -431,7 +433,7 @@ func (g *Genesis) ToBlock() (*types.Block, *state.IntraBlockState, error) {
 
 	head.Root = root
 
-	return types.NewBlock(head, nil, nil, nil, nil), statedb, nil
+	return types.NewBlock(head, nil, nil, nil, withdrawals), statedb, nil
 }
 
 func (g *Genesis) WriteGenesisState(tx kv.RwTx) (*types.Block, *state.IntraBlockState, error) {
@@ -603,18 +605,6 @@ func DefaultSepoliaGenesisBlock() *Genesis {
 	}
 }
 
-// DefaultRopstenGenesisBlock returns the Ropsten network genesis block.
-func DefaultRopstenGenesisBlock() *Genesis {
-	return &Genesis{
-		Config:     params.RopstenChainConfig,
-		Nonce:      66,
-		ExtraData:  hexutil.MustDecode("0x3535353535353535353535353535353535353535353535353535353535353535"),
-		GasLimit:   16777216,
-		Difficulty: big.NewInt(1048576),
-		Alloc:      readPrealloc("allocs/ropsten.json"),
-	}
-}
-
 // DefaultRinkebyGenesisBlock returns the Rinkeby network genesis block.
 func DefaultRinkebyGenesisBlock() *Genesis {
 	return &Genesis{
@@ -698,17 +688,6 @@ func DefaultRialtoGenesisBlock() *Genesis {
 		Alloc:      readPrealloc("allocs/bsc.json"),
 		Number:     0x00,
 		GasUsed:    0x00,
-	}
-}
-
-func DefaultFermionGenesisBlock() *Genesis {
-	return &Genesis{
-		Config:     params.FermionChainConfig,
-		Timestamp:  0x0,
-		ExtraData:  hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000003a03f6d88437328ce8623ef5e80c67383704ebc13ec60da1858ec7fa8edd0dc736611dba9ab4399942d5d120ad9c1692c5fa72dca20657254bbaa08d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
-		GasLimit:   0x5B8D80,
-		Difficulty: big.NewInt(0x20000),
-		Alloc:      readPrealloc("allocs/fermion.json"),
 	}
 }
 
@@ -818,16 +797,12 @@ func DefaultGenesisBlockByChainName(chain string) *Genesis {
 		return DefaultGenesisBlock()
 	case networkname.SepoliaChainName:
 		return DefaultSepoliaGenesisBlock()
-	case networkname.RopstenChainName:
-		return DefaultRopstenGenesisBlock()
 	case networkname.RinkebyChainName:
 		return DefaultRinkebyGenesisBlock()
 	case networkname.GoerliChainName:
 		return DefaultGoerliGenesisBlock()
 	case networkname.SokolChainName:
 		return DefaultSokolGenesisBlock()
-	case networkname.FermionChainName:
-		return DefaultFermionGenesisBlock()
 	case networkname.BSCChainName:
 		return DefaultBSCGenesisBlock()
 	case networkname.ChapelChainName:

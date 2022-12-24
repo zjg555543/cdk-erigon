@@ -95,7 +95,7 @@ func Main(ctx *cli.Context) error {
 		err     error
 		baseDir = ""
 	)
-	var getTracer func(txIndex int, txHash common.Hash) (vm.Tracer, error)
+	var getTracer func(txIndex int, txHash common.Hash) (vm.EVMLogger, error)
 
 	// If user specified a basedir, make sure it exists
 	if ctx.IsSet(OutputBasedir.Name) {
@@ -122,7 +122,7 @@ func Main(ctx *cli.Context) error {
 				prevFile.Close()
 			}
 		}()
-		getTracer = func(txIndex int, txHash common.Hash) (vm.Tracer, error) {
+		getTracer = func(txIndex int, txHash common.Hash) (vm.EVMLogger, error) {
 			if prevFile != nil {
 				prevFile.Close()
 			}
@@ -134,7 +134,7 @@ func Main(ctx *cli.Context) error {
 			return vm.NewJSONLogger(logConfig, traceFile), nil
 		}
 	} else {
-		getTracer = func(txIndex int, txHash common.Hash) (tracer vm.Tracer, err error) {
+		getTracer = func(txIndex int, txHash common.Hash) (tracer vm.EVMLogger, err error) {
 			return nil, nil
 		}
 	}
@@ -235,7 +235,7 @@ func Main(ctx *cli.Context) error {
 		return NewError(ErrorVMConfig, errors.New("can only apply RANDOM on top of London chain rules"))
 	}
 
-	if chainConfig.IsShanghai(prestate.Env.Number) && prestate.Env.Withdrawals == nil {
+	if chainConfig.IsShanghai(prestate.Env.Timestamp) && prestate.Env.Withdrawals == nil {
 		return NewError(ErrorVMConfig, errors.New("Shanghai config but missing 'withdrawals' in env section"))
 	}
 
@@ -286,7 +286,7 @@ func Main(ctx *cli.Context) error {
 	}
 	defer tx.Rollback()
 
-	reader, writer := MakePreState(chainConfig.Rules(0), tx, prestate.Pre)
+	reader, writer := MakePreState(chainConfig.Rules(0, 0), tx, prestate.Pre)
 	engine := ethash.NewFaker()
 
 	result, err := core.ExecuteBlockEphemerally(chainConfig, &vmConfig, getHash, engine, block, reader, writer, nil, nil, getTracer)

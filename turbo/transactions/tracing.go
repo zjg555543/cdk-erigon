@@ -3,6 +3,7 @@ package transactions
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -19,6 +20,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/core/vm"
 	"github.com/ledgerwatch/erigon/core/vm/evmtypes"
+	"github.com/ledgerwatch/erigon/eth/stagedsync"
 	"github.com/ledgerwatch/erigon/eth/tracers"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/rpchelper"
@@ -36,7 +38,7 @@ type BlockGetter interface {
 // ComputeTxEnv returns the execution environment of a certain transaction.
 func ComputeTxEnv(ctx context.Context, engine consensus.EngineReader, block *types.Block, cfg *params.ChainConfig, headerReader services.HeaderReader, dbtx kv.Tx, txIndex uint64, agg *state2.Aggregator22, historyV3 bool) (core.Message, evmtypes.BlockContext, evmtypes.TxContext, *state.IntraBlockState, state.StateReader, error) {
 	header := block.HeaderNoCopy()
-	reader, err := rpchelper.CreateHistoryStateReader(dbtx, block.NumberU64(), txIndex, agg, historyV3)
+	reader, err := rpchelper.CreateHistoryStateReader(dbtx, block.NumberU64(), txIndex, agg, historyV3, cfg.ChainName)
 	if err != nil {
 		return nil, evmtypes.BlockContext{}, evmtypes.TxContext{}, nil, nil, err
 	}
@@ -50,7 +52,7 @@ func ComputeTxEnv(ctx context.Context, engine consensus.EngineReader, block *typ
 		}
 		txn := block.Transactions()[txIndex]
 		signer := types.MakeSigner(cfg, block.NumberU64())
-		msg, _ := txn.AsMessage(*signer, header.BaseFee, cfg.Rules(block.NumberU64()))
+		msg, _ := txn.AsMessage(*signer, header.BaseFee, cfg.Rules(block.NumberU64(), block.Time()))
 		blockCtx := NewEVMBlockContext(engine, header, true /* requireCanonical */, dbtx, headerReader)
 		txCtx := core.NewEVMTxContext(msg)
 		return msg, blockCtx, txCtx, ibs, reader, nil
@@ -74,6 +76,11 @@ func ComputeTxEnv(ctx context.Context, engine consensus.EngineReader, block *typ
 	BlockContext := core.NewEVMBlockContext(header, core.GetHashFn(header, getHeader), engine, nil)
 	vmenv := vm.NewEVM(BlockContext, evmtypes.TxContext{}, statedb, cfg, vm.Config{})
 	rules := vmenv.ChainRules()
+
+	consensusHeaderReader := stagedsync.NewChainReaderImpl(cfg, dbtx, nil)
+
+	core.InitializeBlockExecution(engine.(consensus.Engine), consensusHeaderReader, nil, header, block.Transactions(), block.Uncles(), cfg, statedb)
+
 	for idx, tx := range block.Transactions() {
 		select {
 		default:
@@ -84,6 +91,13 @@ func ComputeTxEnv(ctx context.Context, engine consensus.EngineReader, block *typ
 
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(*signer, block.BaseFee(), rules)
+		if msg.FeeCap().IsZero() && engine != nil {
+			syscall := func(contract common.Address, data []byte) ([]byte, error) {
+				return core.SysCallContract(contract, data, *cfg, statedb, header, engine, true /* constCall */)
+			}
+			msg.SetIsFree(engine.IsServiceTransaction(msg.From(), syscall))
+		}
+
 		TxContext := core.NewEVMTxContext(msg)
 		if idx == int(txIndex) {
 			return msg, BlockContext, TxContext, statedb, reader, nil
@@ -121,7 +135,7 @@ func TraceTx(
 ) error {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
-		tracer vm.Tracer
+		tracer vm.EVMLogger
 		err    error
 	)
 	var streaming bool
@@ -138,7 +152,7 @@ func TraceTx(
 		// Construct the JavaScript tracer to execute with
 		if tracer, err = tracers.New(*config.Tracer, &tracers.Context{
 			TxHash: txCtx.TxHash,
-		}); err != nil {
+		}, json.RawMessage{}); err != nil {
 			stream.WriteNil()
 			return err
 		}
@@ -146,7 +160,7 @@ func TraceTx(
 		deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
 		go func() {
 			<-deadlineCtx.Done()
-			tracer.(*tracers.Tracer).Stop(errors.New("execution timeout"))
+			tracer.(tracers.Tracer).Stop(errors.New("execution timeout"))
 		}()
 		defer cancel()
 		streaming = false
@@ -197,7 +211,7 @@ func TraceTx(
 		stream.WriteString(returnVal)
 		stream.WriteObjectEnd()
 	} else {
-		if r, err1 := tracer.(*tracers.Tracer).GetResult(); err1 == nil {
+		if r, err1 := tracer.(tracers.Tracer).GetResult(); err1 == nil {
 			stream.Write(r)
 		} else {
 			return err1
@@ -223,6 +237,7 @@ type JsonStreamLogger struct {
 	logs      []vm.StructLog
 	output    []byte //nolint
 	err       error  //nolint
+	env       *vm.EVM
 }
 
 // NewStructLogger returns a new logger
@@ -239,14 +254,22 @@ func NewJsonStreamLogger(cfg *vm.LogConfig, ctx context.Context, stream *jsonite
 	return logger
 }
 
+func (l *JsonStreamLogger) CaptureTxStart(gasLimit uint64) {}
+
+func (l *JsonStreamLogger) CaptureTxEnd(restGas uint64) {}
+
 // CaptureStart implements the Tracer interface to initialize the tracing operation.
-func (l *JsonStreamLogger) CaptureStart(env *vm.EVM, depth int, from common.Address, to common.Address, precompile bool, create bool, callType vm.CallType, input []byte, gas uint64, value *uint256.Int, code []byte) {
+func (l *JsonStreamLogger) CaptureStart(env *vm.EVM, from common.Address, to common.Address, precompile bool, create bool, input []byte, gas uint64, value *uint256.Int, code []byte) {
+	l.env = env
+}
+
+func (l *JsonStreamLogger) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, precompile bool, create bool, input []byte, gas uint64, value *uint256.Int, code []byte) {
 }
 
 // CaptureState logs a new structured log message and pushes it out to the environment
 //
 // CaptureState also tracks SLOAD/SSTORE ops to track storage change.
-func (l *JsonStreamLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
+func (l *JsonStreamLogger) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
 	contract := scope.Contract
 	memory := scope.Memory
 	stack := scope.Stack
@@ -278,7 +301,7 @@ func (l *JsonStreamLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, ga
 				address = common.Hash(stack.Data[stack.Len()-1].Bytes32())
 				value   uint256.Int
 			)
-			env.IntraBlockState().GetState(contract.Address(), &address, &value)
+			l.env.IntraBlockState().GetState(contract.Address(), &address, &value)
 			l.storage[contract.Address()][address] = value.Bytes32()
 			outputStorage = true
 		}
@@ -372,11 +395,14 @@ func (l *JsonStreamLogger) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, ga
 
 // CaptureFault implements the Tracer interface to trace an execution fault
 // while running an opcode.
-func (l *JsonStreamLogger) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
+func (l *JsonStreamLogger) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
 }
 
 // CaptureEnd is called after the call finishes to finalize the tracing.
-func (l *JsonStreamLogger) CaptureEnd(depth int, output []byte, startGas, endGas uint64, t time.Duration, err error) {
+func (l *JsonStreamLogger) CaptureEnd(output []byte, usedGas uint64, err error) {
+}
+
+func (l *JsonStreamLogger) CaptureExit(output []byte, usedGas uint64, err error) {
 }
 
 func (l *JsonStreamLogger) CaptureSelfDestruct(from common.Address, to common.Address, value *uint256.Int) {

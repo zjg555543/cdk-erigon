@@ -44,11 +44,12 @@ var stateTestCommand = cli.Command{
 // StatetestResult contains the execution status after running a state test, any
 // error that might have occurred and a dump of the final state if requested.
 type StatetestResult struct {
-	Name  string      `json:"name"`
-	Pass  bool        `json:"pass"`
-	Fork  string      `json:"fork"`
-	Error string      `json:"error,omitempty"`
-	State *state.Dump `json:"state,omitempty"`
+	Name  string       `json:"name"`
+	Pass  bool         `json:"pass"`
+	Root  *common.Hash `json:"stateRoot,omitempty"`
+	Fork  string       `json:"fork"`
+	Error string       `json:"error,omitempty"`
+	State *state.Dump  `json:"state,omitempty"`
 }
 
 func stateTestCmd(ctx *cli.Context) error {
@@ -66,7 +67,7 @@ func stateTestCmd(ctx *cli.Context) error {
 		DisableReturnData: ctx.Bool(DisableReturnDataFlag.Name),
 	}
 	var (
-		tracer   vm.Tracer
+		tracer   vm.EVMLogger
 		debugger *vm.StructLogger
 	)
 	switch {
@@ -104,7 +105,7 @@ func stateTestCmd(ctx *cli.Context) error {
 func aggregateResultsFromStateTests(
 	ctx *cli.Context,
 	stateTests map[string]tests.StateTest,
-	tracer vm.Tracer,
+	tracer vm.EVMLogger,
 	debugger *vm.StructLogger,
 ) ([]StatetestResult, error) {
 	// Iterate over all the stateTests, run them and aggregate the results
@@ -156,13 +157,15 @@ func aggregateResultsFromStateTests(
 			*/
 
 			// print state root for evmlab tracing
-			if ctx.Bool(MachineFlag.Name) && statedb != nil {
-				_, printErr := fmt.Fprintf(os.Stderr, "{\"stateRoot\": \"%x\"}\n", root.Bytes())
-				if printErr != nil {
-					log.Warn("Failed to write to stderr", "err", printErr)
+			if statedb != nil {
+				result.Root = &root
+				if ctx.Bool(MachineFlag.Name) {
+					_, printErr := fmt.Fprintf(os.Stderr, "{\"stateRoot\": \"%#x\"}\n", root.Bytes())
+					if printErr != nil {
+						log.Warn("Failed to write to stderr", "err", printErr)
+					}
 				}
 			}
-
 			results = append(results, *result)
 
 			// Print any structured logs collected

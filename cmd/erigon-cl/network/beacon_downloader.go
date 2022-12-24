@@ -3,7 +3,6 @@ package network
 import (
 	"sync"
 
-	"github.com/ledgerwatch/erigon-lib/gointerfaces/sentinel"
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/cl/rpc"
 	"github.com/ledgerwatch/erigon/common"
@@ -25,7 +24,7 @@ type ForwardBeaconDownloader struct {
 	highestSlotProcessed      uint64
 	highestBlockRootProcessed common.Hash
 	targetSlot                uint64
-	sentinel                  sentinel.SentinelClient // Sentinel
+	rpc                       *rpc.BeaconRpcP2P
 	process                   ProcessFn
 	isDownloading             bool // Should be set to true to set the blocks to download
 	limitSegmentsLength       int  // Limit how many blocks we store in the downloader without processing
@@ -34,11 +33,11 @@ type ForwardBeaconDownloader struct {
 	mu       sync.Mutex
 }
 
-func NewForwardBeaconDownloader(ctx context.Context, sentinel sentinel.SentinelClient) *ForwardBeaconDownloader {
+func NewForwardBeaconDownloader(ctx context.Context, rpc *rpc.BeaconRpcP2P) *ForwardBeaconDownloader {
 	return &ForwardBeaconDownloader{
 		ctx:           ctx,
 		segments:      []*cltypes.SignedBeaconBlockBellatrix{},
-		sentinel:      sentinel,
+		rpc:           rpc,
 		isDownloading: false,
 	}
 }
@@ -79,11 +78,25 @@ func (f *ForwardBeaconDownloader) SetProcessFunction(fn ProcessFn) {
 	f.process = fn
 }
 
-// SetHighestProcessSlot sets the highest processed slot so far.
-func (f *ForwardBeaconDownloader) SetHighestProcessSlot(highestSlotProcessed uint64) {
+// SetHighestProcessedSlot sets the highest processed slot so far.
+func (f *ForwardBeaconDownloader) SetHighestProcessedSlot(highestSlotProcessed uint64) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.highestSlotProcessed = highestSlotProcessed
+}
+
+// SetHighestProcessedRoot sets the highest processed block root so far.
+func (f *ForwardBeaconDownloader) SetHighestProcessedRoot(root common.Hash) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.highestBlockRootProcessed = root
+}
+
+// HighestProcessedRoot returns the highest processed block root so far.
+func (f *ForwardBeaconDownloader) HighestProcessedRoot() common.Hash {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.highestBlockRootProcessed
 }
 
 // addSegment process new block segment.
@@ -99,30 +112,18 @@ func (f *ForwardBeaconDownloader) addSegment(block *cltypes.SignedBeaconBlockBel
 }
 
 func (f *ForwardBeaconDownloader) RequestMore() {
-	go func() {
-		count := uint64(10)
-		if f.highestSlotProcessed-1 >= f.targetSlot {
-			return
+	count := uint64(10)
+
+	responses, err := f.rpc.SendBeaconBlocksByRangeReq(f.highestSlotProcessed+1, count)
+	if err != nil {
+		return
+	}
+	for _, response := range responses {
+		if segment, ok := response.(*cltypes.SignedBeaconBlockBellatrix); ok {
+			f.addSegment(segment)
 		}
-		// count must match the target slot
-		if f.highestSlotProcessed+count+1 > f.targetSlot {
-			count = f.targetSlot - f.highestSlotProcessed
-		}
-		responses, err := rpc.SendBeaconBlocksByRangeReq(
-			f.ctx,
-			f.highestSlotProcessed+1,
-			count,
-			f.sentinel,
-		)
-		if err != nil {
-			return
-		}
-		for _, response := range responses {
-			if segment, ok := response.(*cltypes.SignedBeaconBlockBellatrix); ok {
-				f.addSegment(segment)
-			}
-		}
-	}()
+	}
+
 }
 
 // ProcessBlocks processes blocks we accumulated.
