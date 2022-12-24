@@ -288,7 +288,7 @@ func (s *Sync) RunPrune(db kv.RwDB, tx kv.RwTx, firstCycle bool) error {
 	return nil
 }
 
-func (s *Sync) PrintTimings() []interface{} {
+func (s *Sync) PrintTimings() ([]interface{}, int) {
 	var logCtx []interface{}
 	count := 0
 	for i := range s.timings {
@@ -307,7 +307,7 @@ func (s *Sync) PrintTimings() []interface{} {
 			logCtx = append(logCtx, string(s.timings[i].stage), s.timings[i].took.Truncate(time.Millisecond).String())
 		}
 	}
-	return logCtx
+	return logCtx, len(s.timings)
 }
 
 func PrintTables(db kv.RoDB, tx kv.RwTx) []interface{} {
