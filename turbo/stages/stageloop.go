@@ -168,7 +168,7 @@ func StageLoopStep(ctx context.Context, chainConfig *params.ChainConfig, db kv.R
 	}
 
 	logCtx, amount := sync.PrintTimings()
-	fmt.Printf("timings amount: %d\n", amount)
+	log.Warn("dbg: timings amount", amount)
 	var tableSizes []interface{}
 	var commitTime time.Duration
 	if canRunCycleInOneTransaction {
