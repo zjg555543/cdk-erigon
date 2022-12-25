@@ -242,6 +242,7 @@ func BodiesForward(
 					return false, err
 				}
 				blockHeight := header.Number.Uint64()
+				log.Warn("Bodies stage", "requestedLow", requestedLow, "i", i, "blockHeight", blockHeight, "nextBlock", nextBlock, "toProcess", toProcess)
 				if blockHeight != nextBlock {
 					return false, fmt.Errorf("[%s] Header block unexpected when matching body, got %v, expected %v", logPrefix, blockHeight, nextBlock)
 				}

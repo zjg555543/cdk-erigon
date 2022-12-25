@@ -670,7 +670,7 @@ func WriteRawBody(db kv.RwTx, hash common.Hash, number uint64, body *types.RawBo
 	if err = WriteBodyForStorage(db, hash, number, &data); err != nil {
 		return false, 0, fmt.Errorf("WriteBodyForStorage: %w", err)
 	}
-	lastTxnNum = baseTxId + uint64(len(body.Transactions)) + 2
+	lastTxnNum = baseTxId + uint64(data.TxAmount)
 	if err = WriteRawTransactions(db, body.Transactions, baseTxId+1); err != nil {
 		return false, 0, fmt.Errorf("WriteRawTransactions: %w", err)
 	}
