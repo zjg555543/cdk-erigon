@@ -96,24 +96,37 @@ func printStages(tx kv.Tx, snapshots *snapshotsync.RoSnapshots) error {
 	fmt.Fprintf(w, "sequence: EthTx=%d, NonCanonicalTx=%d\n\n", s1, s2)
 
 	{
-		firstNonGenesis, err := rawdb.SecondKey(tx, kv.Headers)
+		firstNonGenesisHeader, err := rawdb.SecondKey(tx, kv.Headers)
 		if err != nil {
 			return err
 		}
-		if firstNonGenesis != nil {
-			fmt.Fprintf(w, "first header in db: %d\n", binary.BigEndian.Uint64(firstNonGenesis))
-		} else {
-			fmt.Fprintf(w, "no headers in db\n")
-		}
-		firstNonGenesis, err = rawdb.SecondKey(tx, kv.BlockBody)
+		lastHeaders, err := rawdb.LastKey(tx, kv.Headers)
 		if err != nil {
 			return err
 		}
-		if firstNonGenesis != nil {
-			fmt.Fprintf(w, "first body in db: %d\n\n", binary.BigEndian.Uint64(firstNonGenesis))
-		} else {
-			fmt.Fprintf(w, "no bodies in db\n\n")
+		var fstHeader, lstHeader, fstBody, lstBody uint64
+		if firstNonGenesisHeader != nil {
+			fstHeader = binary.BigEndian.Uint64(firstNonGenesisHeader)
 		}
+		if lastHeaders != nil {
+			lstHeader = binary.BigEndian.Uint64(lastHeaders)
+		}
+
+		firstNonGenesisBody, err := rawdb.SecondKey(tx, kv.BlockBody)
+		if err != nil {
+			return err
+		}
+		if firstNonGenesisBody != nil {
+			fstBody = binary.BigEndian.Uint64(firstNonGenesisBody)
+		}
+		lastBody, err := rawdb.LastKey(tx, kv.BlockBody)
+		if err != nil {
+			return err
+		}
+		if lastBody != nil {
+			lstBody = binary.BigEndian.Uint64(lastBody)
+		}
+		fmt.Fprintf(w, "in db: first header %d, last header %d, first body %d, last body %d\n", fstHeader, lstHeader, fstBody, lstBody)
 	}
 
 	fmt.Fprintf(w, "--\n")
