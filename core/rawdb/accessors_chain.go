@@ -666,6 +666,7 @@ func WriteRawBody(db kv.RwTx, hash common.Hash, number uint64, body *types.RawBo
 		Uncles:      body.Uncles,
 		Withdrawals: body.Withdrawals,
 	}
+	log.Warn("WriteRawBody", "blkNumber", number, "amount", data.TxAmount, "baseTxId", baseTxId)
 	if err = WriteBodyForStorage(db, hash, number, &data); err != nil {
 		return false, 0, fmt.Errorf("WriteBodyForStorage: %w", err)
 	}
