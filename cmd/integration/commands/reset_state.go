@@ -83,7 +83,11 @@ func printStages(tx kv.Tx, snapshots *snapshotsync.RoSnapshots) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "history.v3: %t, idx steps: %.02f\n\n", h3, rawdbhelpers.IdxStepsCountV3(tx))
+	lastK, lastV, err := rawdb.Last(tx, kv.MaxTxNum)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "history.v3: %t, idx steps: %.02f, lastMaxTxNum=%d->%d\n\n", h3, rawdbhelpers.IdxStepsCountV3(tx), u64or0(lastK), u64or0(lastV))
 
 	s1, err := tx.ReadSequence(kv.EthTx)
 	if err != nil {
@@ -104,28 +108,18 @@ func printStages(tx kv.Tx, snapshots *snapshotsync.RoSnapshots) error {
 		if err != nil {
 			return err
 		}
-		var fstHeader, lstHeader, fstBody, lstBody uint64
-		if firstNonGenesisHeader != nil {
-			fstHeader = binary.BigEndian.Uint64(firstNonGenesisHeader)
-		}
-		if lastHeaders != nil {
-			lstHeader = binary.BigEndian.Uint64(lastHeaders)
-		}
-
 		firstNonGenesisBody, err := rawdb.SecondKey(tx, kv.BlockBody)
 		if err != nil {
 			return err
-		}
-		if firstNonGenesisBody != nil {
-			fstBody = binary.BigEndian.Uint64(firstNonGenesisBody)
 		}
 		lastBody, err := rawdb.LastKey(tx, kv.BlockBody)
 		if err != nil {
 			return err
 		}
-		if lastBody != nil {
-			lstBody = binary.BigEndian.Uint64(lastBody)
-		}
+		fstHeader := u64or0(firstNonGenesisHeader)
+		lstHeader := u64or0(lastHeaders)
+		fstBody := u64or0(firstNonGenesisBody)
+		lstBody := u64or0(lastBody)
 		fmt.Fprintf(w, "in db: first header %d, last header %d, first body %d, last body %d\n", fstHeader, lstHeader, fstBody, lstBody)
 	}
 
@@ -153,4 +147,10 @@ func printStages(tx kv.Tx, snapshots *snapshotsync.RoSnapshots) error {
 	//	return nil
 	//})
 	return nil
+}
+func u64or0(in []byte) (v uint64) {
+	if len(in) > 0 {
+		v = binary.BigEndian.Uint64(in)
+	}
+	return v
 }

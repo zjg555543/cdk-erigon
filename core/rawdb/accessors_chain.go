@@ -1266,7 +1266,7 @@ func DeleteAncientBlocks(tx kv.RwTx, blockTo uint64, blocksDeleteLimit int) (del
 	return
 }
 
-// LastKey - candidate on move to kv.Tx interface
+// LastKey
 func LastKey(tx kv.Tx, table string) ([]byte, error) {
 	c, err := tx.Cursor(table)
 	if err != nil {
@@ -1278,6 +1278,20 @@ func LastKey(tx kv.Tx, table string) ([]byte, error) {
 		return nil, err
 	}
 	return k, nil
+}
+
+// Last - candidate on move to kv.Tx interface
+func Last(tx kv.Tx, table string) ([]byte, []byte, error) {
+	c, err := tx.Cursor(table)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer c.Close()
+	k, v, err := c.Last()
+	if err != nil {
+		return nil, nil, err
+	}
+	return k, v, nil
 }
 
 // SecondKey - useful if table always has zero-key (for example genesis block)
