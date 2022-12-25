@@ -1772,7 +1772,34 @@ func (txNums) Append(tx kv.RwTx, blockNum, maxTxNum uint64) (err error) {
 	if len(lastK) != 0 {
 		lastBlockNum := binary.BigEndian.Uint64(lastK)
 		if lastBlockNum > 1 && lastBlockNum+1 != blockNum { //allow genesis
-			return fmt.Errorf("txNums.Append with gap blockNum=%d, but current heigh=%d %s", blockNum, lastBlockNum, dbg.Stack())
+			for n := lastBlockNum + 1; n < blockNum-1; n++ {
+				h, err := ReadCanonicalHash(tx, n)
+				if err != nil {
+					return err
+				}
+				if h == (common.Hash{}) {
+					break
+				}
+
+				data := ReadStorageBodyRLP(tx, h, n)
+				if len(data) == 0 {
+					break
+				}
+
+				bodyForStorage := new(types.BodyForStorage)
+				if err := rlp.DecodeBytes(data, bodyForStorage); err != nil {
+					return err
+				}
+
+				var k, v [8]byte
+				binary.BigEndian.PutUint64(k[:], n)
+				lastTxnNum := bodyForStorage.BaseTxId + uint64(bodyForStorage.TxAmount)
+				binary.BigEndian.PutUint64(v[:], lastTxnNum)
+				log.Warn("fix missed MaxTxNum val", "blk", n, "uint64(bodyForStorage.TxAmount)", uint64(bodyForStorage.TxAmount))
+				if err := tx.Append(kv.MaxTxNum, k[:], v[:]); err != nil {
+					return err
+				}
+			}
 		}
 	}
 

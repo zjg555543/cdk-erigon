@@ -112,7 +112,6 @@ func BodiesForward(
 			if err := rawdb.TxNums.Append(tx, blockNum, lastTxnNum); err != nil {
 				return err
 			}
-			//cfg.txNums.Append(blockNum, lastTxnNum)
 		}
 		return nil
 	}); err != nil {
