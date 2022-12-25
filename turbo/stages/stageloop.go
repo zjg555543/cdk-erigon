@@ -167,18 +167,11 @@ func StageLoopStep(ctx context.Context, chainConfig *params.ChainConfig, db kv.R
 		return headBlockHash, err
 	}
 
-	logCtx, amount := sync.PrintTimings()
-	log.Warn("dbg: timings amount", "amount", amount)
-	var tableSizes []interface{}
-	var commitTime time.Duration
 	if canRunCycleInOneTransaction {
-		tableSizes = stagedsync.PrintTables(db, tx) // Need to do this before commit to access tx
-		commitStart := time.Now()
 		errTx := tx.Commit()
 		if errTx != nil {
 			return headBlockHash, errTx
 		}
-		commitTime = time.Since(commitStart)
 	}
 
 	// -- send notifications START
@@ -209,15 +202,15 @@ func StageLoopStep(ctx context.Context, chainConfig *params.ChainConfig, db kv.R
 		}
 		notifications.Accumulator.SetStateID(plainStateVersion)
 
-		if canRunCycleInOneTransaction && (head != finishProgressBefore || commitTime > 500*time.Millisecond) {
-			log.Info("Commit cycle", "in", commitTime)
-		}
-		if head != finishProgressBefore && len(logCtx) > 0 { // No printing of timings or table sizes if there were no progress
-			log.Info("Timings (slower than 50ms)", logCtx...)
-			if len(tableSizes) > 0 {
-				log.Info("Tables", tableSizes...)
-			}
-		}
+		//if canRunCycleInOneTransaction && (head != finishProgressBefore || commitTime > 500*time.Millisecond) {
+		//	log.Info("Commit cycle", "in", commitTime)
+		//}
+		//if head != finishProgressBefore && len(logCtx) > 0 { // No printing of timings or table sizes if there were no progress
+		//	log.Info("Timings (slower than 50ms)", logCtx...)
+		//	if len(tableSizes) > 0 {
+		//		log.Info("Tables", tableSizes...)
+		//	}
+		//}
 
 		if headTd != nil && headHeader != nil {
 			headTd256, overflow := uint256.FromBig(headTd)
@@ -249,10 +242,27 @@ func StageLoopStep(ctx context.Context, chainConfig *params.ChainConfig, db kv.R
 	// -- send notifications END
 
 	// -- Prune+commit(sync)
-	if err := db.Update(ctx, func(tx kv.RwTx) error { return sync.RunPrune(db, tx, initialCycle) }); err != nil {
+	var commitStart time.Time
+	if err := db.Update(ctx, func(tx kv.RwTx) error {
+		if err := sync.RunPrune(db, tx, initialCycle); err != nil {
+			return err
+		}
+
+		if tableSizes := stagedsync.PrintTables(db, tx); len(tableSizes) > 0 {
+			log.Info("Tables", tableSizes...)
+		}
+		commitStart = time.Now()
+		return nil
+	}); err != nil {
 		return headBlockHash, err
 	}
-
+	commitTime := time.Since(commitStart)
+	if canRunCycleInOneTransaction && commitTime > 500*time.Millisecond {
+		log.Info("Commit cycle", "in", commitTime)
+	}
+	if logCtx := sync.PrintTimings(); len(logCtx) > 0 { // No printing of timings or table sizes if there were no progress
+		log.Info("Timings (slower than 50ms)", logCtx...)
+	}
 	return headBlockHash, nil
 }
 
