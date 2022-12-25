@@ -763,6 +763,7 @@ func MakeBodiesCanonical(tx kv.RwTx, from uint64, ctx context.Context, logPrefix
 		}
 		if cb != nil {
 			lastTxnNum := bodyForStorage.BaseTxId + uint64(bodyForStorage.TxAmount)
+			log.Warn("see", "blockNum", blockNum, "txAmount", bodyForStorage.TxAmount)
 			if err = cb(blockNum, lastTxnNum); err != nil {
 				return err
 			}
@@ -1770,7 +1771,7 @@ func (txNums) Append(tx kv.RwTx, blockNum, maxTxNum uint64) (err error) {
 	if len(lastK) != 0 {
 		lastBlockNum := binary.BigEndian.Uint64(lastK)
 		if lastBlockNum > 1 && lastBlockNum+1 != blockNum { //allow genesis
-			return fmt.Errorf("append with gap blockNum=%d, but current heigh=%d %s", blockNum, lastBlockNum, dbg.Stack())
+			return fmt.Errorf("txNums.Append with gap blockNum=%d, but current heigh=%d %s", blockNum, lastBlockNum, dbg.Stack())
 		}
 	}
 
