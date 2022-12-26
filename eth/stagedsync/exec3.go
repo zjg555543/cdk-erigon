@@ -217,6 +217,7 @@ func ExecV3(ctx context.Context,
 				return
 			case txTask := <-in2:
 				r := state.NewStateReader22(rs)
+				r.SetTx(tx)
 				if txTask.Sender != nil {
 					a, _ := r.ReadAccountData(*txTask.Sender)
 					if a.CodeHash != emptyCodeHash {
@@ -323,9 +324,9 @@ func ExecV3(ctx context.Context,
 						//	}
 						//}
 						//
-						//if err = agg.Flush(ctx, tx); err != nil {
-						//	return err
-						//}
+						if err = agg.Flush(ctx, tx); err != nil {
+							return err
+						}
 						//if err = agg.PruneWithTiemout(ctx, 1*time.Second); err != nil {
 						//	return err
 						//}
