@@ -251,7 +251,7 @@ func ExecV3(ctx context.Context,
 					//rs.AddWork(txTask)
 					//continue
 				}
-				if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
+				if err := rs.ApplyState(tx, txTask, agg); err != nil {
 					return fmt.Errorf("State22.Apply: %w", err)
 				}
 				outputTxNum.Inc()
@@ -351,7 +351,7 @@ func ExecV3(ctx context.Context,
 								//continue
 							}
 
-							if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
+							if err := rs.ApplyState(tx, txTask, agg); err != nil {
 								return fmt.Errorf("State22.Apply: %w", err)
 							}
 							outputTxNum.Inc()
