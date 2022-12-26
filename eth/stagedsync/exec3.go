@@ -181,7 +181,6 @@ func ExecV3(ctx context.Context,
 
 	var inputBlockNum, outputBlockNum = atomic2.NewUint64(0), atomic2.NewUint64(0)
 	var count uint64
-	var repeatCount, triggerCount = atomic2.NewUint64(0), atomic2.NewUint64(0)
 	var lock sync.RWMutex
 
 	var rwsLock sync.RWMutex
@@ -227,7 +226,6 @@ func ExecV3(ctx context.Context,
 				if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
 					return fmt.Errorf("State22.Apply: %w", err)
 				}
-				triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 				outputTxNum.Inc()
 				if err := rs.ApplyHistory(txTask, agg); err != nil {
 					return fmt.Errorf("State22.Apply: %w", err)
@@ -281,7 +279,7 @@ func ExecV3(ctx context.Context,
 				case <-logEvery.C:
 					rwsLen := 0
 					stepsInDB := rawdbhelpers.IdxStepsCountV3(tx)
-					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), 0, resultCh, stepsInDB)
+					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), 0, 0, resultCh, stepsInDB)
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
 						// too much steps in db will slow-down everything: flush and prune
@@ -324,7 +322,6 @@ func ExecV3(ctx context.Context,
 							if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
 								return fmt.Errorf("State22.Apply: %w", err)
 							}
-							triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 							outputTxNum.Inc()
 							if err := rs.ApplyHistory(txTask, agg); err != nil {
 								return fmt.Errorf("State22.Apply: %w", err)
@@ -552,7 +549,6 @@ Loop:
 				if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
 					return fmt.Errorf("State22.Apply: %w", err)
 				}
-				triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 				outputTxNum.Inc()
 				outputBlockNum.Store(txTask.BlockNum)
 				if err := rs.ApplyHistory(txTask, agg); err != nil {
@@ -570,7 +566,7 @@ Loop:
 			select {
 			case <-logEvery.C:
 				stepsInDB := rawdbhelpers.IdxStepsCountV3(applyTx)
-				progress.Log(rs, 0, uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), 0, resultCh, stepsInDB)
+				progress.Log(rs, 0, uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), 0, 0, resultCh, stepsInDB)
 			case <-pruneEvery.C:
 				if rs.SizeEstimate() < commitThreshold {
 					// too much steps in db will slow-down everything: flush and prune
