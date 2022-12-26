@@ -105,6 +105,61 @@ func (rw *Worker) Run() {
 	}
 }
 
+func (rw *Worker) RunTxTask2(txTask *exec22.TxTask) {
+	if rw.background && rw.chainTx == nil {
+		var err error
+		if rw.chainTx, err = rw.chainDb.BeginRo(rw.ctx); err != nil {
+			panic(err)
+		}
+		rw.stateReader.SetTx(rw.chainTx)
+		rw.epoch = EpochReader{tx: rw.chainTx}
+		rw.chain = ChainReader{config: rw.chainConfig, tx: rw.chainTx, blockReader: rw.blockReader}
+	}
+	txTask.Error = nil
+	rw.stateReader.SetTxNum(txTask.TxNum)
+	rw.stateWriter.SetTxNum(txTask.TxNum)
+	rw.stateReader.ResetReadSet()
+	rw.stateWriter.ResetWriteSet()
+	rw.ibs.Reset()
+	ibs := rw.ibs
+
+	header := txTask.Header
+	if txTask.BlockNum == 0 && txTask.TxIndex == -1 {
+		return
+	} else if txTask.TxIndex == -1 {
+	} else if txTask.Final {
+	} else {
+		//fmt.Printf("txNum=%d, blockNum=%d, txIndex=%d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
+		if rw.isPoSA {
+			if isSystemTx, err := rw.posa.IsSystemTransaction(txTask.Tx, header); err != nil {
+				panic(err)
+			} else if isSystemTx {
+				//fmt.Printf("System tx\n")
+				return
+			}
+		}
+		txHash := txTask.Tx.Hash()
+		gp := new(core.GasPool).AddGas(txTask.Tx.GetGas())
+		vmConfig := vm.Config{Debug: false, SkipAnalysis: txTask.SkipAnalysis}
+		ibs.Prepare(txHash, txTask.BlockHash, txTask.TxIndex)
+		msg := txTask.TxAsMessage
+
+		var vmenv vm.VMInterface
+		if txTask.Tx.IsStarkNet() {
+			rw.starkNetEvm.Reset(evmtypes.TxContext{}, ibs)
+			vmenv = rw.starkNetEvm
+		} else {
+			blockContext := txTask.EvmBlockContext
+			if !rw.background {
+				getHashFn := core.GetHashFn(header, rw.getHeader)
+				blockContext = core.NewEVMBlockContext(header, getHashFn, rw.engine, nil /* author */)
+			}
+			rw.evm.ResetBetweenBlocks(blockContext, core.NewEVMTxContext(msg), ibs, vmConfig, txTask.Rules)
+			vmenv = rw.evm
+		}
+		_, _ = core.ApplyMessage(vmenv, msg, gp, true /* refunds */, false /* gasBailout */)
+	}
+}
 func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 	rw.lock.Lock()
 	defer rw.lock.Unlock()
@@ -197,7 +252,7 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 				getHashFn := core.GetHashFn(header, rw.getHeader)
 				blockContext = core.NewEVMBlockContext(header, getHashFn, rw.engine, nil /* author */)
 			}
-			rw.evm.ResetBetweenBlocks(blockContext, core.NewEVMTxContext(msg), ibs, vmConfig, txTask.Rules)
+			rw.evm.ResetBetweenBlocks(blockContext, core.NewEVMTxContext(msg), ibs, vmConfig, rules)
 			vmenv = rw.evm
 		}
 		applyRes, err := core.ApplyMessage(vmenv, msg, gp, true /* refunds */, false /* gasBailout */)

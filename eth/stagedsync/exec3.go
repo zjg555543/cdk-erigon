@@ -34,7 +34,6 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb/rawdbhelpers"
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
-	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/params"
@@ -190,7 +189,7 @@ func ExecV3(ctx context.Context,
 	queueSize := workerCount * 4
 	in := make(chan *exec22.TxTask, 4096)
 	in2 := make(chan *exec22.TxTask, 4096)
-	_, applyWorker, resultCh, stopWorkers := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, rs, blockReader, chainConfig, logger, genesis, engine, workerCount+1)
+	execWorkers, applyWorker, resultCh, stopWorkers := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, rs, blockReader, chainConfig, logger, genesis, engine, workerCount+1)
 	defer stopWorkers()
 
 	commitThreshold := batchSize.Bytes()
@@ -204,31 +203,28 @@ func ExecV3(ctx context.Context,
 	defer applyLoopWg.Wait()
 
 	warmupLoop := func(ctx context.Context) {
-		defer applyLoopWg.Done()
-		tx, err := chainDb.BeginRo(ctx)
-		if err != nil {
-			return
-		}
-		defer tx.Rollback()
-		var emptyCodeHash = crypto.Keccak256Hash(nil)
-		for outputTxNum.Load() < maxTxNum.Load() {
-			select {
-			case <-ctx.Done():
-				return
-			case txTask := <-in2:
-				r := state.NewStateReader22(rs)
-				r.SetTx(tx)
-				if txTask.Sender != nil {
-					a, _ := r.ReadAccountData(*txTask.Sender)
-					if a != nil && a.CodeHash != emptyCodeHash {
-						code, _ := r.ReadAccountCode(*txTask.Sender, a.Incarnation, a.CodeHash)
-						if len(code) > 0 {
-							_, _ = code[0], code[len(code)-1]
+		for i := 0; i < workerCount; i++ {
+			go func(w *exec3.Worker) {
+				defer applyLoopWg.Done()
+				tx, err := chainDb.BeginRo(ctx)
+				if err != nil {
+					return
+				}
+				defer tx.Rollback()
+				w.ResetTx(tx)
+
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case txTask, ok := <-in2:
+						if !ok {
+							return
 						}
-						r.ReadAccountStorage(*txTask.Sender, a.Incarnation, &common2.Hash{})
+						w.RunTxTask2(txTask)
 					}
 				}
-			}
+			}(execWorkers[i])
 		}
 	}
 	applyLoopInner := func(ctx context.Context) error {
@@ -300,10 +296,7 @@ func ExecV3(ctx context.Context,
 			defer cancelApplyCtx()
 			applyLoopWg.Add(1)
 			go applyLoop(applyCtx, rwLoopErrCh)
-			for i := 0; i < 3; i++ {
-				applyLoopWg.Add(1)
-				go warmupLoop(applyCtx)
-			}
+			warmupLoop(applyCtx)
 
 			for outputTxNum.Load() < maxTxNum.Load() {
 				select {
@@ -406,10 +399,7 @@ func ExecV3(ctx context.Context,
 					defer cancelApplyCtx()
 					applyLoopWg.Add(1)
 					go applyLoop(applyCtx, rwLoopErrCh)
-					for i := 0; i < 3; i++ {
-						applyLoopWg.Add(1)
-						go warmupLoop(applyCtx)
-					}
+					warmupLoop(applyCtx)
 
 					log.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3, "tx.commit", t4)
 				}
