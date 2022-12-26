@@ -183,11 +183,8 @@ func ExecV3(ctx context.Context,
 	var inputBlockNum, outputBlockNum = atomic2.NewUint64(0), atomic2.NewUint64(0)
 	var count uint64
 	var repeatCount, triggerCount = atomic2.NewUint64(0), atomic2.NewUint64(0)
-	var resultsSize = atomic2.NewInt64(0)
 	var lock sync.RWMutex
 
-	rws := &exec22.TxTaskQueue{}
-	heap.Init(rws)
 	var rwsLock sync.RWMutex
 	rwsReceiveCond := sync.NewCond(&rwsLock)
 
@@ -197,7 +194,6 @@ func ExecV3(ctx context.Context,
 	defer stopWorkers()
 
 	commitThreshold := batchSize.Bytes()
-	resultsThreshold := int64(batchSize.Bytes())
 	progress := NewProgress(block, commitThreshold, workerCount, execStage.LogPrefix())
 	logEvery := time.NewTicker(20 * time.Second)
 	defer logEvery.Stop()
@@ -284,12 +280,9 @@ func ExecV3(ctx context.Context,
 					return ctx.Err()
 
 				case <-logEvery.C:
-					rwsLock.RLock()
-					rwsLen := rws.Len()
-					rwsLock.RUnlock()
-
+					rwsLen := 0
 					stepsInDB := rawdbhelpers.IdxStepsCountV3(tx)
-					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
+					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), 0, resultCh, stepsInDB)
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
 						// too much steps in db will slow-down everything: flush and prune
@@ -318,8 +311,6 @@ func ExecV3(ctx context.Context,
 					commitStart := time.Now()
 					log.Info("Committing...")
 					if err := func() error {
-						rwsLock.Lock()
-						defer rwsLock.Unlock()
 						// Drain results (and process) channel because read sets do not carry over
 						select {
 						case txTask := <-in:
@@ -484,26 +475,6 @@ Loop:
 		}
 		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
 
-		if parallel {
-			func() {
-				rwsLock.RLock()
-				needWait := rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold
-				rwsLock.RUnlock()
-				if !needWait {
-					return
-				}
-				rwsLock.Lock()
-				defer rwsLock.Unlock()
-				for rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold {
-					select {
-					case <-ctx.Done():
-						return
-					default:
-					}
-					rwsReceiveCond.Wait()
-				}
-			}()
-		}
 		rules := chainConfig.Rules(blockNum, b.Time())
 		var gasUsed uint64
 		for txIndex := -1; txIndex <= len(txs); txIndex++ {
@@ -600,7 +571,7 @@ Loop:
 			select {
 			case <-logEvery.C:
 				stepsInDB := rawdbhelpers.IdxStepsCountV3(applyTx)
-				progress.Log(rs, rws.Len(), uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
+				progress.Log(rs, 0, uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), 0, resultCh, stepsInDB)
 			case <-pruneEvery.C:
 				if rs.SizeEstimate() < commitThreshold {
 					// too much steps in db will slow-down everything: flush and prune
