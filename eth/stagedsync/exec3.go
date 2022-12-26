@@ -34,6 +34,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb/rawdbhelpers"
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
+	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/params"
@@ -212,7 +213,9 @@ func ExecV3(ctx context.Context,
 				}
 				defer tx.Rollback()
 				w.ResetTx(tx)
-
+				r := state.NewStateReader22(rs)
+				r.SetTx(tx)
+				var emptyCodeHash = crypto.Keccak256Hash(nil)
 				for {
 					select {
 					case <-ctx.Done():
@@ -220,6 +223,16 @@ func ExecV3(ctx context.Context,
 					case txTask, ok := <-in2:
 						if !ok {
 							return
+						}
+						if txTask.Sender != nil {
+							a, _ := r.ReadAccountData(*txTask.Sender)
+							if a != nil && a.CodeHash != emptyCodeHash {
+								code, _ := r.ReadAccountCode(*txTask.Sender, a.Incarnation, a.CodeHash)
+								if len(code) > 0 {
+									_, _ = code[0], code[len(code)-1]
+								}
+								r.ReadAccountStorage(*txTask.Sender, a.Incarnation, &common2.Hash{})
+							}
 						}
 						w.RunTxTask2(txTask)
 					}
