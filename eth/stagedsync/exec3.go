@@ -2,7 +2,6 @@ package stagedsync
 
 import (
 	"bytes"
-	"container/heap"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -683,41 +682,6 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 		return nil, err
 	}
 	return b, nil
-}
-
-func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs *state.State22, agg *state2.Aggregator22, applyTx kv.Tx, triggerCount, outputBlockNum, repeatCount *atomic2.Uint64, resultsSize *atomic2.Int64, onSuccess func(), applyWorker *exec3.Worker) error {
-	var txTask *exec22.TxTask
-	for rws.Len() > 0 && (*rws)[0].TxNum == outputTxNum.Load() {
-		txTask = heap.Pop(rws).(*exec22.TxTask)
-		resultsSize.Add(-txTask.ResultsSize)
-		if txTask.Error != nil || !rs.ReadsValid(txTask.ReadLists) {
-			repeatCount.Inc()
-
-			// immediately retry once
-			applyWorker.RunTxTask(txTask)
-			if txTask.Error != nil {
-				return txTask.Error
-				//log.Info("second fail", "blk", txTask.BlockNum, "txn", txTask.BlockNum)
-				//rs.AddWork(txTask)
-				//continue
-			}
-		}
-
-		if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
-			return fmt.Errorf("State22.Apply: %w", err)
-		}
-		triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
-		outputTxNum.Inc()
-		onSuccess()
-		if err := rs.ApplyHistory(txTask, agg); err != nil {
-			return fmt.Errorf("State22.Apply: %w", err)
-		}
-		//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
-	}
-	if txTask != nil {
-		outputBlockNum.Store(txTask.BlockNum)
-	}
-	return nil
 }
 
 func reconstituteStep(last bool,
