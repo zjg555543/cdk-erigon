@@ -261,6 +261,7 @@ func ExecV3(ctx context.Context,
 				}
 				//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
 				outputBlockNum.Store(txTask.BlockNum)
+				syncMetrics[stages.Execution].Set(txTask.BlockNum)
 			}
 		}
 		return nil
