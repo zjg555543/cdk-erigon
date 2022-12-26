@@ -220,7 +220,7 @@ func ExecV3(ctx context.Context,
 				r.SetTx(tx)
 				if txTask.Sender != nil {
 					a, _ := r.ReadAccountData(*txTask.Sender)
-					if a.CodeHash != emptyCodeHash {
+					if a != nil && a.CodeHash != emptyCodeHash {
 						code, _ := r.ReadAccountCode(*txTask.Sender, a.Incarnation, a.CodeHash)
 						if len(code) > 0 {
 							_, _ = code[0], code[len(code)-1]
