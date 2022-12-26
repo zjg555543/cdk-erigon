@@ -225,6 +225,7 @@ func ExecV3(ctx context.Context,
 						if len(code) > 0 {
 							_, _ = code[0], code[len(code)-1]
 						}
+						r.ReadAccountStorage(*txTask.Sender, a.Incarnation, &common2.Hash{})
 					}
 				}
 			}
