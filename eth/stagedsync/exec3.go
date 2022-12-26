@@ -188,8 +188,8 @@ func ExecV3(ctx context.Context,
 	rwsReceiveCond := sync.NewCond(&rwsLock)
 
 	queueSize := workerCount * 4
-	in := make(chan *exec22.TxTask, 1024)
-	in2 := make(chan *exec22.TxTask, 1024)
+	in := make(chan *exec22.TxTask, 4096)
+	in2 := make(chan *exec22.TxTask, 4096)
 	_, applyWorker, resultCh, stopWorkers := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, rs, blockReader, chainConfig, logger, genesis, engine, workerCount+1)
 	defer stopWorkers()
 
@@ -204,6 +204,7 @@ func ExecV3(ctx context.Context,
 	defer applyLoopWg.Wait()
 
 	warmupLoop := func(ctx context.Context) {
+		defer applyLoopWg.Done()
 		tx, err := chainDb.BeginRo(ctx)
 		if err != nil {
 			return
@@ -297,7 +298,10 @@ func ExecV3(ctx context.Context,
 			defer cancelApplyCtx()
 			applyLoopWg.Add(1)
 			go applyLoop(applyCtx, rwLoopErrCh)
-			go warmupLoop(applyCtx)
+			for i := 0; i < 3; i++ {
+				applyLoopWg.Add(1)
+				go warmupLoop(applyCtx)
+			}
 
 			for outputTxNum.Load() < maxTxNum.Load() {
 				select {
@@ -400,7 +404,10 @@ func ExecV3(ctx context.Context,
 					defer cancelApplyCtx()
 					applyLoopWg.Add(1)
 					go applyLoop(applyCtx, rwLoopErrCh)
-					go warmupLoop(applyCtx)
+					for i := 0; i < 3; i++ {
+						applyLoopWg.Add(1)
+						go warmupLoop(applyCtx)
+					}
 
 					log.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3, "tx.commit", t4)
 				}
