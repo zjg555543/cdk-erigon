@@ -232,6 +232,7 @@ func HeadersPOS(
 			cfg.hd.SetPendingPayloadStatus(payloadStatus)
 		}
 	}
+	log.Warn("Headers 10")
 
 	return nil
 }
