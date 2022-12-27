@@ -135,6 +135,7 @@ func SpawnStageHeaders(
 		}
 	}
 
+	log.Warn("transitionedToPoS", "transitionedToPoS", transitionedToPoS)
 	if transitionedToPoS {
 		libcommon.SafeClose(cfg.hd.QuitPoWMining)
 		return HeadersPOS(s, u, ctx, tx, cfg, initialCycle, test, useExternalTx, preProgress)
@@ -172,6 +173,7 @@ func HeadersPOS(
 	if !syncing {
 		log.Info(fmt.Sprintf("[%s] Waiting for Consensus Layer...", s.LogPrefix()))
 	}
+	log.Warn("WaitForRequest")
 	interrupt, requestId, requestWithStatus := cfg.hd.BeaconRequestList.WaitForRequest(syncing, test)
 
 	cfg.hd.SetHeaderReader(&ChainReaderImpl{config: &cfg.chainConfig, tx: tx, blockReader: cfg.blockReader})
