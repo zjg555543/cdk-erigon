@@ -53,7 +53,7 @@ func (s *Sentinel) connectWithAllPeers(multiAddrs []multiaddr.Multiaddr) error {
 	}
 	for _, peerInfo := range addrInfos {
 		go func(peerInfo peer.AddrInfo) {
-			if err := s.connectWithPeer(s.ctx, peerInfo, true); err != nil {
+			if err := s.connectWithPeer(s.ctx, peerInfo, true); err != nil && !errors.Is(err, context.Canceled) {
 				log.Trace("[Sentinel] Could not connect with peer", "err", err)
 			}
 		}(peerInfo)
