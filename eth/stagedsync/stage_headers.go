@@ -179,14 +179,17 @@ func HeadersPOS(
 
 	interrupted, err := handleInterrupt(interrupt, cfg, tx, headerInserter, useExternalTx)
 	if err != nil {
+		log.Warn("Headers 6")
 		return err
 	}
 
 	if interrupted {
+		log.Warn("Headers 7")
 		return nil
 	}
 
 	if requestWithStatus == nil {
+		log.Warn("Headers 8")
 		log.Warn(fmt.Sprintf("[%s] Nil beacon request. Should only happen in tests", s.LogPrefix()))
 		return nil
 	}
@@ -208,6 +211,7 @@ func HeadersPOS(
 	}
 
 	if err != nil {
+		log.Warn("Headers 9", "err", err)
 		if requestStatus == engineapi.New {
 			cfg.hd.PayloadStatusCh <- engineapi.PayloadStatus{CriticalError: err}
 		}
