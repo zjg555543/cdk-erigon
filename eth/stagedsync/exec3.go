@@ -502,6 +502,7 @@ Loop:
 			select {
 			case err := <-rwLoopErrCh:
 				if err != nil {
+					log.Error("err", "err", err)
 					return err
 				}
 			default:
