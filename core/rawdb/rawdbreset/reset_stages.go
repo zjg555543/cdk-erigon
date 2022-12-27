@@ -294,12 +294,12 @@ func clearTables(ctx context.Context, db kv.RoDB, tx kv.RwTx, tables ...string) 
 }
 
 func clearTable(ctx context.Context, db kv.RoDB, tx kv.RwTx, table string) error {
-	ctx, cancel := context.WithCancel(ctx)
-	clean := warmup(ctx, db, table)
-	defer func() {
-		cancel()
-		clean()
-	}()
+	//ctx, cancel := context.WithCancel(ctx)
+	//clean := warmup(ctx, db, table)
+	//defer func() {
+	//	cancel()
+	//	clean()
+	//}()
 	log.Info("Clear", "table", table)
 	return tx.ClearBucket(table)
 }
