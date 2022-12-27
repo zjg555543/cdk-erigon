@@ -10,6 +10,7 @@ import (
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/cl/utils"
 	"github.com/ledgerwatch/log/v3"
+	"github.com/pkg/errors"
 )
 
 // ChainTipSubscriber tells us what are the newly received gossip arguments
@@ -55,13 +56,15 @@ func (c *ChainTipSubscriber) StartLoop() {
 	for {
 		data, err := stream.Recv()
 		if err != nil {
-
-			log.Debug("[Lightclient] could not read gossip :/", "reason", err)
+			if !errors.Is(err, context.Canceled) {
+				log.Debug("[Lightclient] could not read gossip :/", "reason", err)
+			}
 			continue
 		}
 		if err := c.handleGossipData(data); err != nil {
-			log.Warn("could not process new gossip",
-				"gossipType", data.Type, "reason", err)
+			if !errors.Is(err, context.Canceled) {
+				log.Warn("could not process new gossip", "gossipType", data.Type, "reason", err)
+			}
 		}
 	}
 }
