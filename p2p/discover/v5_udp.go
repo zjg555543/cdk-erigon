@@ -607,11 +607,11 @@ func (t *UDPv5) send(toID enode.ID, toAddr *net.UDPAddr, packet v5wire.Packet, c
 	addr := toAddr.String()
 	enc, nonce, err := t.codec.Encode(toID, addr, packet, c)
 	if err != nil {
-		t.log.Warn(">> "+packet.Name(), "id", toID, "addr", addr, "err", err)
+		//t.log.Warn(">> "+packet.Name(), "id", toID, "addr", addr, "err", err)
 		return nonce, err
 	}
 	_, err = t.conn.WriteToUDP(enc, toAddr)
-	t.log.Trace(">> "+packet.Name(), "id", toID, "addr", addr)
+	//t.log.Trace(">> "+packet.Name(), "id", toID, "addr", addr)
 	return nonce, err
 }
 
@@ -662,7 +662,7 @@ func (t *UDPv5) handlePacket(rawpacket []byte, fromAddr *net.UDPAddr) error {
 	}
 	if packet.Kind() != v5wire.WhoareyouPacket {
 		// WHOAREYOU logged separately to report errors.
-		t.log.Trace("<< "+packet.Name(), "id", fromID, "addr", addr)
+		//t.log.Trace("<< "+packet.Name(), "id", fromID, "addr", addr)
 	}
 	t.handle(packet, fromID, fromAddr)
 	return nil
@@ -748,7 +748,7 @@ func (t *UDPv5) handleWhoareyou(p *v5wire.Whoareyou, fromID enode.ID, fromAddr *
 	}
 
 	// Resend the call that was answered by WHOAREYOU.
-	t.log.Trace("<< "+p.Name(), "id", c.node.ID(), "addr", fromAddr)
+	//t.log.Trace("<< "+p.Name(), "id", c.node.ID(), "addr", fromAddr)
 	c.handshakeCount++
 	c.challenge = p
 	p.Node = c.node
