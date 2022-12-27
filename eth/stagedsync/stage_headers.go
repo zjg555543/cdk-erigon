@@ -180,6 +180,7 @@ func HeadersPOS(
 	cfg.hd.SetHeaderReader(&ChainReaderImpl{config: &cfg.chainConfig, tx: tx, blockReader: cfg.blockReader})
 	headerInserter := headerdownload.NewHeaderInserter(s.LogPrefix(), nil, s.BlockNumber, cfg.blockReader)
 
+	log.Warn("handleInterrupt")
 	interrupted, err := handleInterrupt(interrupt, cfg, tx, headerInserter, useExternalTx)
 	if err != nil {
 		log.Warn("Headers 6")
@@ -229,7 +230,7 @@ func HeadersPOS(
 
 	if requestStatus == engineapi.New && payloadStatus != nil {
 		if payloadStatus.Status == remote.EngineStatus_SYNCING || payloadStatus.Status == remote.EngineStatus_ACCEPTED || !useExternalTx {
-			log.Warn("Headers 10.1")
+			log.Warn("Headers 10.1", "payloadStatus.Status", payloadStatus.Status)
 			cfg.hd.PayloadStatusCh <- *payloadStatus
 		} else {
 			log.Warn("Headers 10.2")
