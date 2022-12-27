@@ -120,6 +120,7 @@ func SpawnStageHeaders(
 
 	unsettledForkChoice, headHeight := cfg.hd.GetUnsettledForkChoice()
 	if notBorAndParlia && unsettledForkChoice != nil { // some work left to do after unwind
+		log.Warn("finishHandlingForkChoice")
 		return finishHandlingForkChoice(unsettledForkChoice, headHeight, s, tx, cfg, useExternalTx)
 	}
 

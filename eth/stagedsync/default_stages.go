@@ -6,6 +6,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/ethdb/prune"
+	"github.com/ledgerwatch/log/v3"
 )
 
 func DefaultStages(ctx context.Context, sm prune.Mode, snapshots SnapshotsCfg, headers HeadersCfg, cumulativeIndex CumulativeIndexCfg, blockHashCfg BlockHashesCfg, bodies BodiesCfg, issuance IssuanceCfg, senders SendersCfg, exec ExecuteBlockCfg, hashState HashStateCfg, trieCfg TrieCfg, history HistoryCfg, logIndex LogIndexCfg, callTraces CallTracesCfg, txLookup TxLookupCfg, finish FinishCfg, test bool) []*Stage {
@@ -33,6 +34,8 @@ func DefaultStages(ctx context.Context, sm prune.Mode, snapshots SnapshotsCfg, h
 				if badBlockUnwind {
 					return nil
 				}
+				log.Warn("sth")
+
 				return SpawnStageHeaders(s, u, ctx, tx, headers, firstCycle, test)
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx) error {
@@ -59,6 +62,7 @@ func DefaultStages(ctx context.Context, sm prune.Mode, snapshots SnapshotsCfg, h
 			ID:          stages.BlockHashes,
 			Description: "Write block hashes",
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, quiet bool) error {
+				log.Warn("blkh")
 				return SpawnBlockHashStage(s, tx, blockHashCfg, ctx)
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx) error {
@@ -72,6 +76,7 @@ func DefaultStages(ctx context.Context, sm prune.Mode, snapshots SnapshotsCfg, h
 			ID:          stages.Bodies,
 			Description: "Download block bodies",
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, quiet bool) error {
+				log.Warn("bod")
 				return BodiesForward(s, u, ctx, tx, bodies, test, firstCycle)
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx) error {
@@ -85,6 +90,7 @@ func DefaultStages(ctx context.Context, sm prune.Mode, snapshots SnapshotsCfg, h
 			ID:          stages.Senders,
 			Description: "Recover senders from tx signatures",
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, quiet bool) error {
+				log.Warn("rec")
 				return SpawnRecoverSendersStage(senders, s, u, tx, 0, ctx, quiet)
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx) error {
@@ -98,6 +104,7 @@ func DefaultStages(ctx context.Context, sm prune.Mode, snapshots SnapshotsCfg, h
 			ID:          stages.Execution,
 			Description: "Execute blocks w/o hash checks",
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, quiet bool) error {
+				log.Warn("ex")
 				return SpawnExecuteBlocksStage(s, u, tx, 0, ctx, exec, firstCycle, quiet)
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx) error {
