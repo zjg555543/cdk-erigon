@@ -226,8 +226,10 @@ func HeadersPOS(
 
 	if requestStatus == engineapi.New && payloadStatus != nil {
 		if payloadStatus.Status == remote.EngineStatus_SYNCING || payloadStatus.Status == remote.EngineStatus_ACCEPTED || !useExternalTx {
+			log.Warn("Headers 10.1")
 			cfg.hd.PayloadStatusCh <- *payloadStatus
 		} else {
+			log.Warn("Headers 10.2")
 			// Let the stage loop run to the end so that the transaction is committed prior to replying to CL
 			cfg.hd.SetPendingPayloadStatus(payloadStatus)
 		}
@@ -717,16 +719,21 @@ func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, 
 	if interrupt != engineapi.None {
 		if interrupt == engineapi.Stopping {
 			close(cfg.hd.ShutdownCh)
+			log.Warn("handleInterrupt 1")
 			return false, fmt.Errorf("server is stopping")
 		}
 		if interrupt == engineapi.Synced && cfg.hd.HeadersCollector() != nil {
+			log.Warn("handleInterrupt 2")
 			saveDownloadedPoSHeaders(tx, cfg, headerInserter, false /* validate */)
 		}
 		if !useExternalTx {
+			log.Warn("handleInterrupt 3")
 			return true, tx.Commit()
 		}
+		log.Warn("handleInterrupt 4")
 		return true, nil
 	}
+	log.Warn("handleInterrupt 5")
 	return false, nil
 }
 
