@@ -500,6 +500,7 @@ func handleNewPayload(
 				time.Sleep(10 * time.Millisecond)
 				if cfg.hd.PosStatus() == headerdownload.Synced {
 					success = true
+					log.Warn("break1")
 					break
 				}
 			}
@@ -800,6 +801,7 @@ Loop:
 			if err := s.Update(tx, headerProgress); err != nil {
 				return err
 			}
+			log.Warn("break2")
 			break
 		}
 
@@ -861,15 +863,18 @@ Loop:
 			noProgressCounter = 0
 			wasProgress = true
 			if !initialCycle {
+				log.Warn("break3")
 				// if this is not an initial cycle, we need to react quickly when new headers are coming in
 				break
 			}
 			// if this is initial cycle, we want to make sure we insert all known headers (inSync)
 			if inSync {
+				log.Warn("break4")
 				break
 			}
 		}
 		if test {
+			log.Warn("break5")
 			break
 		}
 		timer := time.NewTimer(1 * time.Second)
@@ -889,6 +894,7 @@ Loop:
 					cfg.hd.LogAnchorState()
 					if wasProgress {
 						log.Warn("Looks like chain is not progressing, moving to the next stage")
+						log.Warn("break6")
 						break Loop
 					}
 				}
