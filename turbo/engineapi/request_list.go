@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/emirpasic/gods/maps/treemap"
+	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/remote"
 	"github.com/ledgerwatch/erigon/common"
@@ -127,10 +128,12 @@ func (rl *RequestList) WaitForRequest(onlyNew bool, noWait bool) (interrupt Inte
 				// clear the interrupt
 				rl.interrupt = None
 			}
+			log.Warn("WaitForRequest 1")
 			return
 		}
 		id, request = rl.firstRequest(onlyNew)
 		if request != nil || noWait {
+			log.Warn("WaitForRequest 2")
 			return
 		}
 		rl.syncCond.Wait()
