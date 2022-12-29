@@ -120,7 +120,6 @@ func SpawnStageHeaders(
 
 	unsettledForkChoice, headHeight := cfg.hd.GetUnsettledForkChoice()
 	if notBorAndParlia && unsettledForkChoice != nil { // some work left to do after unwind
-		log.Warn("finishHandlingForkChoice")
 		return finishHandlingForkChoice(unsettledForkChoice, headHeight, s, tx, cfg, useExternalTx)
 	}
 
@@ -136,7 +135,6 @@ func SpawnStageHeaders(
 		}
 	}
 
-	log.Warn("transitionedToPoS", "transitionedToPoS", transitionedToPoS)
 	if transitionedToPoS {
 		libcommon.SafeClose(cfg.hd.QuitPoWMining)
 		return HeadersPOS(s, u, ctx, tx, cfg, initialCycle, test, useExternalTx, preProgress)
