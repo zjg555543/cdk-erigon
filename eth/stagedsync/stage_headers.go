@@ -139,6 +139,7 @@ func SpawnStageHeaders(
 		libcommon.SafeClose(cfg.hd.QuitPoWMining)
 		return HeadersPOS(s, u, ctx, tx, cfg, initialCycle, test, useExternalTx, preProgress)
 	} else {
+		log.Warn("pow?")
 		return HeadersPOW(s, u, ctx, tx, cfg, initialCycle, test, useExternalTx)
 	}
 }
@@ -486,12 +487,14 @@ func handleNewPayload(
 
 	log.Info(fmt.Sprintf("[%s] Handling new payload", s.LogPrefix()), "height", headerNumber, "hash", headerHash)
 	cfg.hd.UpdateTopSeenHeightPoS(headerNumber)
-
+	log.Warn("here1")
 	parent, err := cfg.blockReader.HeaderByHash(ctx, tx, header.ParentHash)
 	if err != nil {
+		log.Warn("here2")
 		return nil, err
 	}
 	if parent == nil {
+		log.Warn("here3")
 		log.Debug(fmt.Sprintf("[%s] New payload: need to download parent", s.LogPrefix()), "height", headerNumber, "hash", headerHash, "parentHash", header.ParentHash)
 		if test {
 			cfg.hd.BeaconRequestList.Remove(requestId)
@@ -517,9 +520,11 @@ func handleNewPayload(
 				// If we downloaded the headers in time, then save them and proceed with the new header
 				saveDownloadedPoSHeaders(tx, cfg, headerInserter, true /* validate */)
 			} else {
+				log.Warn("here4")
 				return &engineapi.PayloadStatus{Status: remote.EngineStatus_SYNCING}, nil
 			}
 		} else {
+			log.Warn("here5")
 			return &engineapi.PayloadStatus{Status: remote.EngineStatus_SYNCING}, nil
 		}
 	}
@@ -530,6 +535,7 @@ func handleNewPayload(
 	response, success, err := verifyAndSaveNewPoSHeader(requestStatus, s, ctx, tx, cfg, block, headerInserter)
 	log.Debug(fmt.Sprintf("[%s] New payload verification ended", s.LogPrefix()), "success", success, "err", err)
 	if err != nil || !success {
+		log.Warn("here6")
 		return response, err
 	}
 
