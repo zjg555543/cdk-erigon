@@ -231,7 +231,7 @@ Start:
 			// Let the stage loop run to the end so that the transaction is committed prior to replying to CL
 			cfg.hd.SetPendingPayloadStatus(payloadStatus)
 		}
-		if payloadStatus.Status == remote.EngineStatus_SYNCING {
+		if !forkChoiceInsteadOfNewPayload || payloadStatus.Status == remote.EngineStatus_SYNCING {
 			log.Warn("hd", " cfg.hd.TopSeenHeight()", cfg.hd.TopSeenHeight(), "cfg.hd.Progress()", cfg.hd.Progress())
 			goto Start
 		} else {
