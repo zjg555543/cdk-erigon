@@ -18,6 +18,7 @@ import (
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
+	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/ethdb/privateapi"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/rlp"
@@ -741,6 +742,8 @@ func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, 
 		}
 		if !useExternalTx {
 			log.Warn("handleInterrupt 3")
+			h, _ := stages.GetStageProgress(tx, stages.Headers)
+			log.Warn("header progress before commi", "n", h)
 			return true, tx.Commit()
 		}
 		log.Warn("handleInterrupt 4")

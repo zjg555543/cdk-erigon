@@ -88,6 +88,7 @@ func BodiesForward(
 	if err != nil {
 		return err
 	}
+	log.Warn("bodies", " h progress", headerProgress, "b progress", s.BlockNumber)
 	bodyProgress = s.BlockNumber
 	if bodyProgress >= headerProgress {
 		return nil
