@@ -221,12 +221,6 @@ Start:
 		return err
 	}
 
-	if !useExternalTx {
-		if err = tx.Commit(); err != nil {
-			return err
-		}
-	}
-
 	if requestStatus == engineapi.New && payloadStatus != nil {
 		if payloadStatus.Status == remote.EngineStatus_SYNCING || payloadStatus.Status == remote.EngineStatus_ACCEPTED || !useExternalTx {
 			log.Warn("Headers 10.1", "payloadStatus.Status", payloadStatus.Status)
@@ -242,6 +236,11 @@ Start:
 	}
 	log.Warn("Headers 10")
 
+	if !useExternalTx {
+		if err = tx.Commit(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
