@@ -188,7 +188,7 @@ Start:
 	}
 
 	if interrupted {
-		log.Warn("Headers 7")
+		log.Warn("interrupted")
 		return nil
 	}
 
@@ -235,7 +235,7 @@ Start:
 			log.Warn("hd", " cfg.hd.TopSeenHeight()", cfg.hd.TopSeenHeight(), "cfg.hd.Progress()", cfg.hd.Progress(), "forkChoiceInsteadOfNewPayload", forkChoiceInsteadOfNewPayload)
 			goto Start
 		} else {
-			log.Warn("no goto", "payloadStatus.Status", payloadStatus.Status)
+			log.Warn("no goto", "payloadStatus.Status", payloadStatus.Status, "forkChoiceInsteadOfNewPayload", forkChoiceInsteadOfNewPayload)
 		}
 	}
 	log.Warn("Headers 10")
@@ -739,6 +739,7 @@ func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, 
 		if interrupt == engineapi.Synced && cfg.hd.HeadersCollector() != nil {
 			log.Warn("handleInterrupt 2")
 			saveDownloadedPoSHeaders(tx, cfg, headerInserter, false /* validate */)
+			return false, nil
 		}
 		if !useExternalTx {
 			log.Warn("handleInterrupt 3")
