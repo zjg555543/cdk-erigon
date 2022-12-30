@@ -181,13 +181,20 @@ Start:
 	headerInserter := headerdownload.NewHeaderInserter(s.LogPrefix(), nil, s.BlockNumber, cfg.blockReader)
 
 	log.Warn("handleInterrupt")
-	interrupted, err := handleInterrupt(interrupt, cfg, tx, headerInserter, useExternalTx)
+	interrupted, err := handleInterrupt(interrupt, cfg, tx, headerInserter)
 	if err != nil {
 		log.Warn("Headers 6")
 		return err
 	}
 
 	if interrupted {
+		if !useExternalTx {
+			log.Warn("handleInterrupt 3")
+			h, _ := stages.GetStageProgress(tx, stages.Headers)
+			log.Warn("header progress before commi", "n", h)
+			return tx.Commit()
+		}
+
 		log.Warn("interrupted")
 		return nil
 	}
@@ -729,28 +736,25 @@ func forkingPoint(
 	return headerInserter.ForkingPoint(tx, header, parent)
 }
 
-func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, headerInserter *headerdownload.HeaderInserter, useExternalTx bool) (bool, error) {
+func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, headerInserter *headerdownload.HeaderInserter) (bool, error) {
 	if interrupt != engineapi.None {
-		if interrupt == engineapi.Stopping {
-			close(cfg.hd.ShutdownCh)
-			log.Warn("handleInterrupt 1")
-			return false, fmt.Errorf("server is stopping")
-		}
-		if interrupt == engineapi.Synced && cfg.hd.HeadersCollector() != nil {
+		log.Warn("handleInterrupt 5")
+		return false, nil
+	}
+	if interrupt == engineapi.Stopping {
+		close(cfg.hd.ShutdownCh)
+		log.Warn("handleInterrupt 1")
+		return false, fmt.Errorf("server is stopping")
+	}
+	if interrupt == engineapi.Synced {
+		if cfg.hd.HeadersCollector() != nil {
 			log.Warn("handleInterrupt 2")
 			saveDownloadedPoSHeaders(tx, cfg, headerInserter, false /* validate */)
 			return false, nil
 		}
-		if !useExternalTx {
-			log.Warn("handleInterrupt 3")
-			h, _ := stages.GetStageProgress(tx, stages.Headers)
-			log.Warn("header progress before commi", "n", h)
-			return true, tx.Commit()
-		}
-		log.Warn("handleInterrupt 4")
-		return true, nil
+		return false, nil
 	}
-	log.Warn("handleInterrupt 5")
+	log.Warn("handleInterrupt 4")
 	return false, nil
 }
 
