@@ -307,6 +307,7 @@ func BodiesForward(
 			return true, nil
 		}
 		if !firstCycle && s.BlockNumber > 0 && noProgressCount >= 5 {
+			log.Warn("bodies should break", "firstCycle", firstCycle, "noProgressCount", noProgressCount)
 			return true, nil
 		}
 		timer.Stop()
