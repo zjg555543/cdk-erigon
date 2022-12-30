@@ -232,7 +232,7 @@ Start:
 			cfg.hd.SetPendingPayloadStatus(payloadStatus)
 		}
 		if !forkChoiceInsteadOfNewPayload || payloadStatus.Status == remote.EngineStatus_SYNCING {
-			log.Warn("hd", " cfg.hd.TopSeenHeight()", cfg.hd.TopSeenHeight(), "cfg.hd.Progress()", cfg.hd.Progress())
+			log.Warn("hd", " cfg.hd.TopSeenHeight()", cfg.hd.TopSeenHeight(), "cfg.hd.Progress()", cfg.hd.Progress(), "forkChoiceInsteadOfNewPayload", forkChoiceInsteadOfNewPayload)
 			goto Start
 		} else {
 			log.Warn("no goto", "payloadStatus.Status", payloadStatus.Status)
