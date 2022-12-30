@@ -79,7 +79,9 @@ func StageLoop(
 	defer close(waitForDone)
 	initialCycle := true
 
-	for {
+	for cycle := 0; ; cycle++ {
+		log.Warn("cycle", "cycle", cycle)
+
 		start := time.Now()
 
 		select {
