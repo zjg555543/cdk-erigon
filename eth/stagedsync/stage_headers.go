@@ -750,7 +750,6 @@ func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, 
 		if cfg.hd.HeadersCollector() != nil {
 			log.Warn("handleInterrupt 2")
 			saveDownloadedPoSHeaders(tx, cfg, headerInserter, false /* validate */)
-			return false, nil
 		}
 		return false, nil
 	}

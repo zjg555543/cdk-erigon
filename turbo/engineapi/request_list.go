@@ -123,14 +123,14 @@ func (rl *RequestList) WaitForRequest(onlyNew bool, noWait bool) (interrupt Inte
 
 	for {
 		interrupt = rl.interrupt
-		if interrupt != None {
-			if interrupt != Stopping {
-				// clear the interrupt
-				rl.interrupt = None
-			}
-			log.Warn("WaitForRequest 1")
-			return
-		}
+		//if interrupt != None {
+		//	if interrupt != Stopping {
+		//		// clear the interrupt
+		//		rl.interrupt = None
+		//	}
+		//	log.Warn("WaitForRequest 1")
+		//	return
+		//}
 		id, request = rl.firstRequest(onlyNew)
 		if request != nil || noWait {
 			log.Warn("WaitForRequest 2")
