@@ -233,6 +233,8 @@ Start:
 		if payloadStatus.Status == remote.EngineStatus_SYNCING {
 			log.Warn("hd", " cfg.hd.TopSeenHeight()", cfg.hd.TopSeenHeight(), "cfg.hd.Progress()", cfg.hd.Progress())
 			goto Start
+		} else {
+			log.Warn("no goto", "payloadStatus.Status", payloadStatus.Status)
 		}
 	}
 	log.Warn("Headers 10")
