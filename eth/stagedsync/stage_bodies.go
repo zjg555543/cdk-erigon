@@ -216,6 +216,7 @@ func BodiesForward(
 
 			loopCount++
 			if loopCount >= requestLoopCutOff {
+				log.Warn("bodies requestLoopCutOff")
 				break
 			}
 		}
@@ -331,6 +332,7 @@ func BodiesForward(
 			log.Trace("bodyLoop woken up by the incoming request")
 		}
 		d6 += time.Since(start)
+		log.Warn("bodies loopBody end")
 
 		return false, nil
 	}
