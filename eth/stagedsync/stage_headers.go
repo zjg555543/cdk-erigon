@@ -167,7 +167,7 @@ func HeadersPOS(
 			}
 		}
 	*/
-
+Start:
 	cfg.hd.SetPOSSync(true)
 	syncing := cfg.hd.PosStatus() != headerdownload.Idle
 	if !syncing {
@@ -235,6 +235,9 @@ func HeadersPOS(
 			log.Warn("Headers 10.2")
 			// Let the stage loop run to the end so that the transaction is committed prior to replying to CL
 			cfg.hd.SetPendingPayloadStatus(payloadStatus)
+		}
+		if payloadStatus.Status == remote.EngineStatus_SYNCING {
+			goto Start
 		}
 	}
 	log.Warn("Headers 10")
