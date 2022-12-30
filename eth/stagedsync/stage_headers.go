@@ -231,6 +231,7 @@ Start:
 			cfg.hd.SetPendingPayloadStatus(payloadStatus)
 		}
 		if payloadStatus.Status == remote.EngineStatus_SYNCING {
+			log.Warn("hd", " cfg.hd.TopSeenHeight()", cfg.hd.TopSeenHeight(), "cfg.hd.Progress()", cfg.hd.Progress())
 			goto Start
 		}
 	}
