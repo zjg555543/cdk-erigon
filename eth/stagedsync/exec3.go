@@ -1211,6 +1211,7 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 	startTime := time.Now()
 	defer agg.EnableMadvNormal().DisableReadAhead()
 	blockSnapshots := blockReader.(WithSnapshots).Snapshots()
+	defer blockSnapshots.EnableReadAhead().DisableReadAhead()
 
 	if err := agg.MergeLoop(ctx, estimate.CompressSnapshot.Workers()); err != nil {
 		return err
@@ -1265,7 +1266,7 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 	defer os.RemoveAll(reconDbPath)
 
 	// Incremental reconstitution, step by step (snapshot range by snapshot range)
-	defer blockSnapshots.EnableReadAhead().DisableReadAhead()
+
 	aggSteps, err := agg.MakeSteps()
 	if err != nil {
 		return err
