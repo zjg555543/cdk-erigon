@@ -7,6 +7,7 @@ import (
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/cl/utils"
 	"github.com/ledgerwatch/erigon/cmd/erigon-cl/core/state"
+	"github.com/ledgerwatch/erigon/common"
 )
 
 var (
@@ -39,14 +40,14 @@ func getTestState(t *testing.T) *state.BeaconState {
 	})
 }
 
-func getTestBlock(t *testing.T) *cltypes.BeaconBlockBellatrix {
+func getTestBlock(t *testing.T) *cltypes.BeaconBlock {
 	header, err := hex.DecodeString("56bdd539e5c03fe53cff0f4af01d459c30f88818a2541339000c1f2a329e84bc")
 	if err != nil {
 		t.Fatalf("unable to decode test header: %v", err)
 	}
 	headerArr := [32]byte{}
 	copy(headerArr[:], header)
-	return &cltypes.BeaconBlockBellatrix{
+	return cltypes.NewBeaconBlock(&cltypes.BeaconBlockBellatrix{
 		Slot:          19,
 		ProposerIndex: 1947,
 		ParentRoot:    headerArr,
@@ -61,7 +62,7 @@ func getTestBlock(t *testing.T) *cltypes.BeaconBlockBellatrix {
 				BaseFeePerGas: make([]byte, 32),
 			},
 		},
-	}
+	})
 }
 
 func TestComputeShuffledIndex(t *testing.T) {
@@ -256,16 +257,16 @@ func TestProcessBlockHeader(t *testing.T) {
 	testBlock := getTestBlock(t)
 
 	badBlockSlot := getTestBlock(t)
-	badBlockSlot.Slot = testStateSuccess.Slot() + 1
+	badBlockSlot.Slot = 0
 
 	badLatestSlot := getTestState(t)
 	badLatestSlot.SetLatestBlockHeader(&cltypes.BeaconBlockHeader{Slot: testBlock.Slot})
 
 	badProposerInd := getTestBlock(t)
-	badProposerInd.ProposerIndex += 1
+	badProposerInd.ProposerIndex = 0
 
 	badParentRoot := getTestBlock(t)
-	badParentRoot.ParentRoot[0] += 1
+	badParentRoot.ParentRoot = common.Hash{}
 
 	badBlockBodyHash := getTestBlock(t)
 	badBlockBodyHash.Body.Attestations = append(badBlockBodyHash.Body.Attestations, &cltypes.Attestation{})
@@ -276,7 +277,7 @@ func TestProcessBlockHeader(t *testing.T) {
 	testCases := []struct {
 		description string
 		state       *state.BeaconState
-		block       *cltypes.BeaconBlockBellatrix
+		block       *cltypes.BeaconBlock
 		wantErr     bool
 	}{
 		{
@@ -363,7 +364,7 @@ func TestProcessRandao(t *testing.T) {
 	testCases := []struct {
 		description string
 		state       *state.BeaconState
-		body        *cltypes.BeaconBodyBellatrix
+		body        *cltypes.BeaconBody
 		wantErr     bool
 	}{
 		{
@@ -409,6 +410,82 @@ func TestProcessRandao(t *testing.T) {
 			for i := range tc.state.RandaoMixes()[0] {
 				if randaoOut[i] != randaoExpected[i] {
 					t.Errorf("unexpected output randao byte: got %x, want %x", randaoOut[i], randaoExpected[i])
+				}
+			}
+		})
+	}
+}
+
+func TestProcessEth1Data(t *testing.T) {
+	Eth1DataA := &cltypes.Eth1Data{
+		Root:         [32]byte{1, 2, 3},
+		DepositCount: 42,
+		BlockHash:    [32]byte{4, 5, 6},
+	}
+	eth1dataAHash, err := Eth1DataA.HashTreeRoot()
+	if err != nil {
+		t.Fatalf("unable to hash expected eth1data: %v", err)
+	}
+	Eth1DataB := &cltypes.Eth1Data{
+		Root:         [32]byte{3, 2, 1},
+		DepositCount: 43,
+		BlockHash:    [32]byte{6, 5, 4},
+	}
+	eth1dataBHash, err := Eth1DataB.HashTreeRoot()
+	if err != nil {
+		t.Fatalf("unable to hash expected eth1data: %v", err)
+	}
+	successState := state.FromBellatrixState(&cltypes.BeaconStateBellatrix{
+		Eth1DataVotes: []*cltypes.Eth1Data{},
+		Eth1Data:      Eth1DataB,
+	})
+	// Fill all votes.
+	for i := 0; i < int(EPOCHS_PER_ETH1_VOTING_PERIOD)*int(SLOTS_PER_EPOCH)-1; i++ {
+		successState.SetEth1DataVotes(append(successState.Eth1DataVotes(), Eth1DataA))
+	}
+	successBody := &cltypes.BeaconBody{
+		Eth1Data: Eth1DataA,
+	}
+
+	noUpdateState := state.FromBellatrixState(&cltypes.BeaconStateBellatrix{
+		Eth1DataVotes: []*cltypes.Eth1Data{},
+		Eth1Data:      Eth1DataB,
+	})
+
+	testCases := []struct {
+		description  string
+		state        *state.BeaconState
+		body         *cltypes.BeaconBody
+		expectedHash [32]byte
+	}{
+		{
+			description:  "success_update",
+			state:        successState,
+			body:         successBody,
+			expectedHash: eth1dataAHash,
+		},
+		{
+			description:  "success_no_update",
+			state:        noUpdateState,
+			body:         successBody,
+			expectedHash: eth1dataBHash,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			err := ProcessEth1Data(tc.state, tc.body)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			gotEth1Data := tc.state.Eth1Data()
+			gotHash, err := gotEth1Data.HashTreeRoot()
+			if err != nil {
+				t.Fatalf("unable to hash output eth1data: %v", err)
+			}
+			for i := 0; i < len(tc.expectedHash); i++ {
+				if gotHash[i] != tc.expectedHash[i] {
+					t.Errorf("unexpected output byte: got %x, want %x", gotHash[i], tc.expectedHash[i])
 				}
 			}
 		})

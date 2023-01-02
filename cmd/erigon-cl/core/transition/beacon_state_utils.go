@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	SHUFFLE_ROUND_COUNT          = uint8(90)
-	EPOCHS_PER_HISTORICAL_VECTOR = uint64(1 << 16)
-	MIN_SEED_LOOKAHEAD           = uint64(1)
-	SLOTS_PER_EPOCH              = uint64(1 << 5)
+	SHUFFLE_ROUND_COUNT           = uint8(90)
+	EPOCHS_PER_HISTORICAL_VECTOR  = uint64(1 << 16)
+	MIN_SEED_LOOKAHEAD            = uint64(1)
+	SLOTS_PER_EPOCH               = uint64(1 << 5)
+	EPOCHS_PER_ETH1_VOTING_PERIOD = uint64(1 << 6)
 )
 
 func ComputeShuffledIndex(ind, ind_count uint64, seed [32]byte) (uint64, error) {
@@ -170,7 +171,7 @@ func GetBeaconProposerIndex(state *state.BeaconState) (uint64, error) {
 	return ComputeProposerIndex(state, indices, seedArray)
 }
 
-func ProcessBlockHeader(state *state.BeaconState, block *cltypes.BeaconBlockBellatrix) error {
+func ProcessBlockHeader(state *state.BeaconState, block *cltypes.BeaconBlock) error {
 	if block.Slot != state.Slot() {
 		return fmt.Errorf("state slot: %d, not equal to block slot: %d", state.Slot(), block.Slot)
 	}
@@ -209,7 +210,7 @@ func ProcessBlockHeader(state *state.BeaconState, block *cltypes.BeaconBlockBell
 	return nil
 }
 
-func ProcessRandao(state *state.BeaconState, body *cltypes.BeaconBodyBellatrix) error {
+func ProcessRandao(state *state.BeaconState, body *cltypes.BeaconBody) error {
 	epoch := GetEpochAtSlot(state.Slot())
 	propInd, err := GetBeaconProposerIndex(state)
 	if err != nil {
@@ -238,5 +239,37 @@ func ProcessRandao(state *state.BeaconState, body *cltypes.BeaconBodyBellatrix) 
 		mix[i] = randaoMixes[i] ^ randaoHash[i]
 	}
 	state.RandaoMixes()[epoch%EPOCHS_PER_HISTORICAL_VECTOR] = mix
+	return nil
+}
+
+func ProcessEth1Data(state *state.BeaconState, body *cltypes.BeaconBody) error {
+	newVotes := append(state.Eth1DataVotes(), body.Eth1Data)
+	state.SetEth1DataVotes(newVotes)
+
+	ethDataHash, err := body.Eth1Data.HashTreeRoot()
+	if err != nil {
+		return fmt.Errorf("unable to get hash tree root of eth1data: %v", err)
+	}
+	// Count how many times body.Eth1Data appears in the votes by comparing their hashes.
+	numVotes := 0
+	for i := 0; i < len(newVotes); i++ {
+		candidateHash, err := newVotes[i].HashTreeRoot()
+		if err != nil {
+			return fmt.Errorf("unable to get hash tree root of eth1data: %v", err)
+		}
+		// Check if hash bytes are equal.
+		match := true
+		for i := 0; i < len(candidateHash); i++ {
+			if candidateHash[i] != ethDataHash[i] {
+				match = false
+			}
+		}
+		if match {
+			numVotes += 1
+		}
+	}
+	if uint64(numVotes*2) > EPOCHS_PER_ETH1_VOTING_PERIOD*SLOTS_PER_EPOCH {
+		state.SetEth1Data(body.Eth1Data)
+	}
 	return nil
 }
