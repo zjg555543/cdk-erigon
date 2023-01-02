@@ -36,6 +36,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
+	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/services"
@@ -1210,6 +1211,10 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 	startTime := time.Now()
 	defer agg.EnableMadvNormal().DisableReadAhead()
 	blockSnapshots := blockReader.(WithSnapshots).Snapshots()
+
+	if err := agg.MergeLoop(ctx, estimate.CompressSnapshot.Workers()); err != nil {
+		return err
+	}
 
 	var ok bool
 	var blockNum uint64 // First block which is not covered by the history snapshot files
