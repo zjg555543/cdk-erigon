@@ -587,9 +587,9 @@ Loop:
 						gasUsed = 0
 					} else {
 						gasUsed += txTask.UsedGas
-						//if txTask.Tx != nil {
-						//	fmt.Printf("gas: %x, %d, cum=%d\n", txTask.Tx.Hash(), txTask.UsedGas, gasUsed)
-						//}
+						if txTask.Tx != nil {
+							fmt.Printf("gas: %x, %d, cum=%d\n", txTask.Tx.Hash(), txTask.UsedGas, gasUsed)
+						}
 					}
 					return nil
 				}(); err != nil {
