@@ -153,7 +153,6 @@ func PromoteHashedStateCleanly(logPrefix string, tx kv.RwTx, cfg HashStateCfg, c
 		logPrefix,
 		tx,
 		cfg.dirs.Tmp,
-		etl.IdentityLoadFunc,
 		ctx,
 	); err != nil {
 		return err
@@ -177,7 +176,6 @@ func promotePlainState(
 	logPrefix string,
 	tx kv.RwTx,
 	tmpdir string,
-	loadFunc etl.LoadFunc,
 	ctx context.Context,
 ) error {
 	bufferSize := etl.BufferOptimalSize
@@ -235,9 +233,10 @@ func promotePlainState(
 						e.k = newK
 					}
 					select {
-					case out <- e:
 					case <-ctx.Done():
+						fmt.Printf("ex?\n")
 						return ctx.Err()
+					case out <- e:
 					}
 				}
 				return nil
@@ -247,63 +246,26 @@ func promotePlainState(
 			}
 			return nil
 		})
-		//f := flow.New()
-		//f.Add(
-		//	f.Parallel(10, func(ctx context.Context, in chan interface{}) (out chan interface{}, runFn func() error) {
-		//		out = make(chan interface{}, 100) // example of non-async handler
-		//		runFn = func() error {
-		//			defer close(out)
-		//			for e := range inCh {
-		//				if len(e.k) == 20 {
-		//					newK, err := convertAccFunc(e.k)
-		//					if err != nil {
-		//						return err
-		//					}
-		//					e.k = newK
-		//				} else {
-		//					newK, err := convertStorageFunc(e.k)
-		//					if err != nil {
-		//						return err
-		//					}
-		//					e.k = newK
-		//				}
-		//				select {
-		//				case out <- e:
-		//				case <-ctx.Done():
-		//					return ctx.Err()
-		//				}
-		//			}
-		//			return nil
-		//		}
-		//
-		//		return out, nil // no runnable function for non-async handler
-		//	}),
-		//	func(ctx context.Context, in chan interface{}) (out chan interface{}, runFn func() error) {
-		//		runFn = func() error {
-		//			defer close(out)
-		//			for e := range in {
-		//				it := e.(pair)
-		//				if len(it.k) == 32 {
-		//					if err := accCollector.Collect(it.k, it.v); err != nil {
-		//						return err
-		//					}
-		//				} else {
-		//					if err := storageCollector.Collect(it.k, it.v); err != nil {
-		//						return err
-		//					}
-		//				}
-		//				select {
-		//				case <-ctx.Done():
-		//					return ctx.Err()
-		//				default:
-		//				}
-		//			}
-		//			return nil
-		//		}
-		//		return out, runFn
-		//	})
-		//
-		//f.Go() // activate flow
+		g.Go(func() error {
+			for it := range out {
+				if len(it.k) == 32 {
+					if err := accCollector.Collect(it.k, it.v); err != nil {
+						return err
+					}
+				} else {
+					if err := storageCollector.Collect(it.k, it.v); err != nil {
+						return err
+					}
+				}
+				select {
+				case <-ctx.Done():
+					fmt.Printf("ex?\n")
+					return ctx.Err()
+				default:
+				}
+			}
+			return nil
+		})
 
 		if err := func() error {
 			defer close(inCh)
@@ -323,6 +285,7 @@ func promotePlainState(
 
 				select {
 				case <-ctx.Done():
+					fmt.Printf("ex?\n")
 					return ctx.Err()
 				case <-logEvery.C:
 					dbg.ReadMemStats(&m)
@@ -336,7 +299,7 @@ func promotePlainState(
 			return err
 		}
 
-		if err := g.Wait(); err == nil {
+		if err := g.Wait(); err != nil {
 			return err
 		}
 	}
@@ -347,14 +310,20 @@ func promotePlainState(
 	}(time.Now())
 
 	args := etl.TransformArgs{Quit: ctx.Done()}
-	if err := accCollector.Load(tx, kv.HashedAccounts, loadFunc, args); err != nil {
+	if err := accCollector.Load(tx, kv.HashedAccounts, etl.IdentityLoadFunc, args); err != nil {
 		return err
 	}
 
-	if err := storageCollector.Load(tx, kv.HashedStorage, loadFunc, args); err != nil {
+	if err := storageCollector.Load(tx, kv.HashedStorage, etl.IdentityLoadFunc, args); err != nil {
 		return err
 	}
-
+	fmt.Printf("st: ---\n")
+	if err := tx.ForEach(kv.HashedAccounts, nil, func(k, v []byte) error {
+		fmt.Printf("k: %x, %x\n", k, v)
+		return nil
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 
