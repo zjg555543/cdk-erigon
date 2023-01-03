@@ -249,6 +249,8 @@ func WarmupTable(ctx context.Context, db kv.RoDB, bucket string, lvl log.Lvl) {
 							return err
 						}
 						select {
+						case <-ctx.Done():
+							return err
 						case <-logEvery.C:
 							log.Log(lvl, fmt.Sprintf("Progress: %s %.2f%%", bucket, 100*float64(progress.Load())/float64(total)))
 						default:
