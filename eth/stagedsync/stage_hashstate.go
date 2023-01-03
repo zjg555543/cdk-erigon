@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/go-pkgz/flow"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
@@ -24,7 +23,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/log/v3"
-	"go.uber.org/atomic"
+	"golang.org/x/sync/errgroup"
 )
 
 type HashStateCfg struct {
@@ -150,13 +149,12 @@ func unwindHashStateStageImpl(logPrefix string, u *UnwindState, s *StageState, t
 }
 
 func PromoteHashedStateCleanly(logPrefix string, tx kv.RwTx, cfg HashStateCfg, ctx context.Context) error {
-	kv.ReadAhead(ctx, cfg.db, atomic.NewBool(false), kv.PlainState, nil, math.MaxUint32)
 	if err := promotePlainState(
 		logPrefix,
 		tx,
 		cfg.dirs.Tmp,
 		etl.IdentityLoadFunc,
-		ctx.Done(),
+		ctx,
 	); err != nil {
 		return err
 	}
@@ -180,7 +178,7 @@ func promotePlainState(
 	tx kv.RwTx,
 	tmpdir string,
 	loadFunc etl.LoadFunc,
-	quit <-chan struct{},
+	ctx context.Context,
 ) error {
 	bufferSize := etl.BufferOptimalSize
 
@@ -214,13 +212,14 @@ func promotePlainState(
 	defer logEvery.Stop()
 	var m runtime.MemStats
 
-	inCh := make(chan pair, 1000)
-
-	f := flow.New()
-	f.Add(
-		f.Parallel(10, func(ctx context.Context, in chan interface{}) (out chan interface{}, runFn func() error) {
-			out = make(chan interface{}, 100) // example of non-async handler
-			runFn = func() error {
+	{
+		inCh := make(chan pair, 1000)
+		out := make(chan pair, 1000)
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			defer close(out)
+			g, ctx := errgroup.WithContext(ctx)
+			g.Go(func() error {
 				for e := range inCh {
 					if len(e.k) == 20 {
 						newK, err := convertAccFunc(e.k)
@@ -228,79 +227,118 @@ func promotePlainState(
 							return err
 						}
 						e.k = newK
-						out <- e
 					} else {
 						newK, err := convertStorageFunc(e.k)
 						if err != nil {
 							return err
 						}
 						e.k = newK
-						out <- e
-					}
-				}
-				close(out)
-				return nil
-			}
-
-			return out, nil // no runnable function for non-async handler
-		}),
-		func(ctx context.Context, in chan interface{}) (out chan interface{}, runFn func() error) {
-			runFn = func() error {
-				defer close(out)
-				for e := range in {
-					it := e.(pair)
-					if len(it.k) == 32 {
-						if err := accCollector.Collect(it.k, it.v); err != nil {
-							return err
-						}
-					} else {
-						if err := storageCollector.Collect(it.k, it.v); err != nil {
-							return err
-						}
 					}
 					select {
+					case out <- e:
 					case <-ctx.Done():
 						return ctx.Err()
-					default:
 					}
 				}
 				return nil
+			})
+			if err := g.Wait(); err != nil {
+				return err
 			}
-			return out, runFn
+			return nil
 		})
+		//f := flow.New()
+		//f.Add(
+		//	f.Parallel(10, func(ctx context.Context, in chan interface{}) (out chan interface{}, runFn func() error) {
+		//		out = make(chan interface{}, 100) // example of non-async handler
+		//		runFn = func() error {
+		//			defer close(out)
+		//			for e := range inCh {
+		//				if len(e.k) == 20 {
+		//					newK, err := convertAccFunc(e.k)
+		//					if err != nil {
+		//						return err
+		//					}
+		//					e.k = newK
+		//				} else {
+		//					newK, err := convertStorageFunc(e.k)
+		//					if err != nil {
+		//						return err
+		//					}
+		//					e.k = newK
+		//				}
+		//				select {
+		//				case out <- e:
+		//				case <-ctx.Done():
+		//					return ctx.Err()
+		//				}
+		//			}
+		//			return nil
+		//		}
+		//
+		//		return out, nil // no runnable function for non-async handler
+		//	}),
+		//	func(ctx context.Context, in chan interface{}) (out chan interface{}, runFn func() error) {
+		//		runFn = func() error {
+		//			defer close(out)
+		//			for e := range in {
+		//				it := e.(pair)
+		//				if len(it.k) == 32 {
+		//					if err := accCollector.Collect(it.k, it.v); err != nil {
+		//						return err
+		//					}
+		//				} else {
+		//					if err := storageCollector.Collect(it.k, it.v); err != nil {
+		//						return err
+		//					}
+		//				}
+		//				select {
+		//				case <-ctx.Done():
+		//					return ctx.Err()
+		//				default:
+		//				}
+		//			}
+		//			return nil
+		//		}
+		//		return out, runFn
+		//	})
+		//
+		//f.Go() // activate flow
 
-	f.Go() // activate flow
+		if err := func() error {
+			defer close(inCh)
+			c, err := tx.Cursor(kv.PlainState)
+			if err != nil {
+				return err
+			}
+			defer c.Close()
 
-	c, err := tx.Cursor(kv.PlainState)
-	if err != nil {
-		return err
-	}
-	defer c.Close()
+			var startkey []byte
 
-	var startkey []byte
+			// reading kv.PlainState
+			for k, v, e := c.Seek(startkey); k != nil; k, v, e = c.Next() {
+				if e != nil {
+					return e
+				}
 
-	// reading kv.PlainState
-	for k, v, e := c.Seek(startkey); k != nil; k, v, e = c.Next() {
-		if e != nil {
-			return e
-		}
-		if err := libcommon.Stopped(quit); err != nil {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-logEvery.C:
+					dbg.ReadMemStats(&m)
+					log.Info(fmt.Sprintf("[%s] ETL [1/2] Extracting", logPrefix), "current_prefix", hex.EncodeToString(k[:4]), "alloc", libcommon.ByteCount(m.Alloc), "sys", libcommon.ByteCount(m.Sys))
+				case inCh <- pair{k: k, v: v}:
+				default:
+				}
+			}
+			return nil
+		}(); err != nil {
 			return err
 		}
 
-		inCh <- pair{k: k, v: v}
-
-		select {
-		default:
-		case <-logEvery.C:
-			dbg.ReadMemStats(&m)
-			log.Info(fmt.Sprintf("[%s] ETL [1/2] Extracting", logPrefix), "current_prefix", hex.EncodeToString(k[:4]), "alloc", libcommon.ByteCount(m.Alloc), "sys", libcommon.ByteCount(m.Sys))
+		if err := g.Wait(); err == nil {
+			return err
 		}
-	}
-
-	// wait for all handlers to complete
-	if err := f.Wait(); err == nil {
-		fmt.Printf("all done, result=%v, passed=%d", <-f.Channel(), f.Metrics().Get("passed"))
 	}
 
 	log.Trace(fmt.Sprintf("[%s] Extraction finished", logPrefix), "took", time.Since(t))
@@ -308,9 +346,7 @@ func promotePlainState(
 		log.Trace(fmt.Sprintf("[%s] Load finished", logPrefix), "took", time.Since(t))
 	}(time.Now())
 
-	args := etl.TransformArgs{
-		Quit: quit,
-	}
+	args := etl.TransformArgs{Quit: ctx.Done()}
 	if err := accCollector.Load(tx, kv.HashedAccounts, loadFunc, args); err != nil {
 		return err
 	}
