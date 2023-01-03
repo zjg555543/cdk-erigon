@@ -604,7 +604,9 @@ Loop:
 					u.UnwindTo(blockNum-1, header.Hash())
 					break Loop
 				}
-				fmt.Printf("gas: %x, %d\n", txTask.Tx.Hash(), txTask.UsedGas)
+				if txTask.Tx != nil {
+					fmt.Printf("gas: %x, %d\n", txTask.Tx.Hash(), txTask.UsedGas)
+				}
 				if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
 					return fmt.Errorf("StateV3.Apply: %w", err)
 				}
