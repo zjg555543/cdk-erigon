@@ -587,6 +587,9 @@ Loop:
 						gasUsed = 0
 					} else {
 						gasUsed += txTask.UsedGas
+						//if txTask.Tx != nil {
+						//	fmt.Printf("gas: %x, %d, cum=%d\n", txTask.Tx.Hash(), txTask.UsedGas, gasUsed)
+						//}
 					}
 					return nil
 				}(); err != nil {
@@ -603,9 +606,6 @@ Loop:
 					}
 					u.UnwindTo(blockNum-1, header.Hash())
 					break Loop
-				}
-				if txTask.Tx != nil {
-					fmt.Printf("gas: %x, %d, cum=%d\n", txTask.Tx.Hash(), txTask.UsedGas, gasUsed)
 				}
 
 				if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
