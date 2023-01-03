@@ -125,8 +125,10 @@ func (s *Serenity) Finalize(config *params.ChainConfig, header *types.Header, st
 	e consensus.EpochReader, chain consensus.ChainHeaderReader, syscall consensus.SystemCall,
 ) (types.Transactions, types.Receipts, error) {
 	if !IsPoSHeader(header) {
+		fmt.Printf("ser1\n")
 		return s.eth1Engine.Finalize(config, header, state, txs, uncles, r, withdrawals, e, chain, syscall)
 	}
+	fmt.Printf("ser2\n")
 	if auraEngine, ok := s.eth1Engine.(*aura.AuRa); ok {
 		if err := auraEngine.ApplyRewards(header, state, syscall); err != nil {
 			return nil, nil, err
