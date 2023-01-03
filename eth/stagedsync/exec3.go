@@ -737,6 +737,7 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 			}
 		}
 
+		fmt.Printf("apply tx: %d, %x, %d, %d\n", txTask.TxIndex, txTask.Tx.Hash(), txTask.UsedGas, txTask.Header.GasUsed)
 		if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
 			return fmt.Errorf("StateV3.Apply: %w", err)
 		}

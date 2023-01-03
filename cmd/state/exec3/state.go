@@ -2,6 +2,7 @@ package exec3
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"sync"
 
@@ -124,8 +125,10 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 	rw.stateWriter.ResetWriteSet()
 	rw.ibs.Reset()
 	ibs := rw.ibs
+	rw.stateReader.SetTrace(true)
 
 	rules := txTask.Rules
+	fmt.Printf("rules: %+v\n", rules)
 	daoForkTx := rw.chainConfig.DAOForkSupport && rw.chainConfig.DAOForkBlock != nil && rw.chainConfig.DAOForkBlock.Uint64() == txTask.BlockNum && txTask.TxIndex == -1
 	var err error
 	header := txTask.Header
@@ -217,9 +220,9 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 	// Prepare read set, write set and balanceIncrease set and send for serialisation
 	if txTask.Error == nil {
 		txTask.BalanceIncreaseSet = ibs.BalanceIncreaseSet()
-		//for addr, bal := range txTask.BalanceIncreaseSet {
-		//	fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
-		//}
+		for addr, bal := range txTask.BalanceIncreaseSet {
+			fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
+		}
 		if err = ibs.MakeWriteSet(rules, rw.stateWriter); err != nil {
 			panic(err)
 		}
