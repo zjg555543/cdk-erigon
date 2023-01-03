@@ -1315,7 +1315,7 @@ func initConsensusEngine(cc *params.ChainConfig, datadir string, db kv.RwDB) (en
 	var consensusConfig interface{}
 
 	if cc.Clique != nil {
-		consensusConfig = &config.Clique
+		consensusConfig = params.CliqueSnapshot
 	} else if cc.Aura != nil {
 		config.Aura.Etherbase = config.Miner.Etherbase
 		consensusConfig = &config.Aura
@@ -1326,28 +1326,5 @@ func initConsensusEngine(cc *params.ChainConfig, datadir string, db kv.RwDB) (en
 	} else {
 		consensusConfig = &config.Ethash
 	}
-	engine = ethconsensusconfig.CreateConsensusEngine(cc, l, consensusConfig, config.Miner.Notify, config.Miner.Noverify, config.HeimdallURL, config.WithoutHeimdall, datadir, snapshots, false /* readonly */, db)
-
-	//switch {
-	//case cc.Clique != nil:
-	//	c := params.CliqueSnapshot
-	//	c.DBPath = filepath.Join(datadir, "clique", "db")
-	//	engine = ethconsensusconfig.CreateConsensusEngine(cc, l, c, config.Miner.Notify, config.Miner.Noverify, "", true, datadir, snapshots, db.ReadOnly(), db)
-	//case cc.Aura != nil:
-	//	consensusConfig := &params.AuRaConfig{DBPath: filepath.Join(datadir, "aura")}
-	//	engine = ethconsensusconfig.CreateConsensusEngine(cc, l, consensusConfig, config.Miner.Notify, config.Miner.Noverify, "", true, datadir, snapshots, db.ReadOnly(), db)
-	//case cc.Parlia != nil:
-	//	// Apply special hacks for BSC params
-	//	params.ApplyBinanceSmartChainParams()
-	//	consensusConfig := &params.ParliaConfig{DBPath: filepath.Join(datadir, "parlia")}
-	//	engine = ethconsensusconfig.CreateConsensusEngine(cc, l, consensusConfig, config.Miner.Notify, config.Miner.Noverify, "", true, datadir, snapshots, db.ReadOnly(), db)
-	//case cc.Bor != nil:
-	//	consensusConfig := &config.Bor
-	//	engine = ethconsensusconfig.CreateConsensusEngine(cc, l, consensusConfig, config.Miner.Notify, config.Miner.Noverify, HeimdallURL, false, datadir, snapshots, db.ReadOnly(), db)
-	//default: //ethash
-	//	engine = ethash.NewFaker()
-	//}
-	fmt.Printf("eng: %T\n", engine)
-
-	return
+	return ethconsensusconfig.CreateConsensusEngine(cc, l, consensusConfig, config.Miner.Notify, config.Miner.Noverify, config.HeimdallURL, config.WithoutHeimdall, datadir, snapshots, false /* readonly */, db)
 }
