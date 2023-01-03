@@ -288,7 +288,9 @@ func ExecuteBlockEphemerally(
 				receipts = append(receipts, receipt)
 			}
 		}
+		fmt.Printf("gasUsed tx: %d, %d\n", i, *usedGas)
 	}
+	fmt.Printf("gasUsed res: %d\n", *usedGas)
 
 	receiptSha := types.DeriveSha(receipts)
 	if !vmConfig.StatelessExec && chainConfig.IsByzantium(header.Number.Uint64()) && !vmConfig.NoReceipts && receiptSha != block.ReceiptHash() {

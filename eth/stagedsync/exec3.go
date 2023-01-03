@@ -35,6 +35,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb/rawdbhelpers"
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
+	"github.com/ledgerwatch/erigon/core/vm"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
@@ -498,6 +499,16 @@ Loop:
 			return f(n)
 		}
 		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
+
+		r := state.NewPlainStateReader(applyTx)
+		w := &state.NoopWriter{}
+		vmCfg := vm.Config{}
+		getTracer := func(txIndex int, txHash common2.Hash) (vm.EVMLogger, error) {
+			return nil, nil
+		}
+		execRs, err := core.ExecuteBlockEphemerally(cfg.chainConfig, &vmCfg, getHashFn, cfg.engine, b, r, w, EpochReaderImpl{tx: applyTx}, ChainReaderImpl{config: cfg.chainConfig, tx: applyTx, blockReader: cfg.blockReader}, getTracer)
+		fmt.Printf("execRs: %d\n", execRs.GasUsed)
+		panic(1)
 
 		if parallel {
 			select {
