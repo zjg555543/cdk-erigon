@@ -195,13 +195,17 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 			rw.starkNetEvm.Reset(evmtypes.TxContext{}, ibs)
 			vmenv = rw.starkNetEvm
 		} else {
-			blockContext := txTask.EvmBlockContext
+			//blockContext := txTask.EvmBlockContext
 			if !rw.background {
-				getHashFn := core.GetHashFn(header, rw.getHeader)
-				blockContext = core.NewEVMBlockContext(header, getHashFn, rw.engine, nil /* author */)
+				//getHashFn := core.GetHashFn(header, rw.getHeader)
+				//blockContext = core.NewEVMBlockContext(header, getHashFn, rw.engine, nil /* author */)
 			}
-			rw.evm.ResetBetweenBlocks(blockContext, core.NewEVMTxContext(msg), ibs, vmConfig, rules)
-			vmenv = rw.evm
+			getHashFn := core.GetHashFn(txTask.Header, rw.getHeader)
+			blockContext := core.NewEVMBlockContext(txTask.Header, getHashFn, rw.engine, nil /* author */)
+			txContext := core.NewEVMTxContext(msg)
+			vmenv = vm.NewEVM(blockContext, txContext, ibs, rw.chainConfig, vmConfig)
+			//rw.evm.ResetBetweenBlocks(blockContext, core.NewEVMTxContext(msg), ibs, vmConfig, rules)
+			//vmenv = rw.evm
 		}
 		applyRes, err := core.ApplyMessage(vmenv, msg, gp, true /* refunds */, false /* gasBailout */)
 		if err != nil {
