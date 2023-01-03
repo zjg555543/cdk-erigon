@@ -298,8 +298,10 @@ func ExecuteBlockEphemerally(
 	}
 
 	if !vmConfig.StatelessExec && *usedGas != header.GasUsed {
+		fmt.Printf("err??\n")
 		return nil, fmt.Errorf("gas used by execution: %d, in header: %d", *usedGas, header.GasUsed)
 	}
+	fmt.Printf("gasUsed res2: %d\n", *usedGas)
 
 	var bloom types.Bloom
 	if !vmConfig.NoReceipts {
@@ -314,6 +316,7 @@ func ExecuteBlockEphemerally(
 			return nil, err
 		}
 	}
+	fmt.Printf("gasUsed res3: %d\n", *usedGas)
 	blockLogs := ibs.Logs()
 	execRs := &EphemeralExecResult{
 		TxRoot:      types.DeriveSha(includedTxs),
