@@ -2,7 +2,6 @@ package exec3
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"sync"
 
@@ -220,9 +219,9 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 	// Prepare read set, write set and balanceIncrease set and send for serialisation
 	if txTask.Error == nil {
 		txTask.BalanceIncreaseSet = ibs.BalanceIncreaseSet()
-		for addr, bal := range txTask.BalanceIncreaseSet {
-			fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
-		}
+		//for addr, bal := range txTask.BalanceIncreaseSet {
+		//	fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
+		//}
 		if err = ibs.MakeWriteSet(rules, rw.stateWriter); err != nil {
 			panic(err)
 		}
