@@ -294,11 +294,12 @@ func ExecuteBlockEphemerally(
 
 	receiptSha := types.DeriveSha(receipts)
 	if !vmConfig.StatelessExec && chainConfig.IsByzantium(header.Number.Uint64()) && !vmConfig.NoReceipts && receiptSha != block.ReceiptHash() {
+		fmt.Printf("err1??\n")
 		return nil, fmt.Errorf("mismatched receipt headers for block %d (%s != %s)", block.NumberU64(), receiptSha.Hex(), block.ReceiptHash().Hex())
 	}
 
 	if !vmConfig.StatelessExec && *usedGas != header.GasUsed {
-		fmt.Printf("err??\n")
+		fmt.Printf("err2??\n")
 		return nil, fmt.Errorf("gas used by execution: %d, in header: %d", *usedGas, header.GasUsed)
 	}
 	fmt.Printf("gasUsed res2: %d\n", *usedGas)
