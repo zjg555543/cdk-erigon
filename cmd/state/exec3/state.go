@@ -125,7 +125,7 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 	rw.stateWriter.ResetWriteSet()
 	rw.ibs.Reset()
 	ibs := rw.ibs
-	rw.stateReader.SetTrace(true)
+	//rw.stateReader.SetTrace(true)
 
 	rules := txTask.Rules
 	fmt.Printf("rules: %+v\n", rules)
