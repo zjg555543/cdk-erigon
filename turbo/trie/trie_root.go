@@ -379,17 +379,19 @@ func NewAsyncReceiver(ctx context.Context, r StreamReceiver) (*AsyncReceiver, co
 	ch := make(chan pair, 1_000)
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		for item := range ch {
-			if err := r.Receive(item.itemType, item.accountKey, item.storageKey, item.accountValue, item.storageValue, item.hash, item.hasTree, item.cutoff); err != nil {
-				return err
-			}
+		for {
 			select {
+			case item, ok := <-ch:
+				if !ok {
+					return nil
+				}
+				if err := r.Receive(item.itemType, item.accountKey, item.storageKey, item.accountValue, item.storageValue, item.hash, item.hasTree, item.cutoff); err != nil {
+					return err
+				}
 			case <-ctx.Done():
 				return ctx.Err()
-			default:
 			}
 		}
-		return nil
 	})
 	return &AsyncReceiver{ch: ch, g: g, r: r}, ctx
 }
