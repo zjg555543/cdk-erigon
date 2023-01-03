@@ -647,8 +647,10 @@ func accumulateRewards(config *params.ChainConfig, state *state.IntraBlockState,
 	minerReward, uncleRewards := AccumulateRewards(config, header, uncles)
 	for i, uncle := range uncles {
 		if i < len(uncleRewards) {
+			fmt.Printf("uncle rew: %x, %d\n", uncle.Coinbase, uncleRewards[i].Uint64())
 			state.AddBalance(uncle.Coinbase, &uncleRewards[i])
 		}
 	}
+	fmt.Printf("minerReward rew: %x, %d\n", header.Coinbase, minerReward.Uint64())
 	state.AddBalance(header.Coinbase, &minerReward)
 }
