@@ -975,6 +975,7 @@ func reconstituteStep(last bool,
 		}
 		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
 		rules := chainConfig.Rules(bn, b.Time())
+		fmt.Printf("rules: %+v\n", rules)
 
 		for txIndex := -1; txIndex <= len(txs); txIndex++ {
 			if bitmap.Contains(inputTxNum) {

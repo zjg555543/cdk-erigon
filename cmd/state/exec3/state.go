@@ -123,12 +123,12 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 	rw.stateWriter.SetTxNum(txTask.TxNum)
 	rw.stateReader.ResetReadSet()
 	rw.stateWriter.ResetWriteSet()
-	rw.ibs.Reset()
-	ibs := rw.ibs
+	//rw.ibs.Reset()
+	//ibs := rw.ibs
+	ibs := state.New(rw.stateReader)
 	//rw.stateReader.SetTrace(true)
 
 	rules := txTask.Rules
-	fmt.Printf("rules: %+v\n", rules)
 	daoForkTx := rw.chainConfig.DAOForkSupport && rw.chainConfig.DAOForkBlock != nil && rw.chainConfig.DAOForkBlock.Uint64() == txTask.BlockNum && txTask.TxIndex == -1
 	var err error
 	header := txTask.Header
