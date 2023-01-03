@@ -125,7 +125,7 @@ func (s *Serenity) Finalize(config *params.ChainConfig, header *types.Header, st
 	e consensus.EpochReader, chain consensus.ChainHeaderReader, syscall consensus.SystemCall,
 ) (types.Transactions, types.Receipts, error) {
 	if !IsPoSHeader(header) {
-		fmt.Printf("ser1\n")
+		fmt.Printf("ser1: %T\n", s.eth1Engine)
 		return s.eth1Engine.Finalize(config, header, state, txs, uncles, r, withdrawals, e, chain, syscall)
 	}
 	fmt.Printf("ser2\n")
