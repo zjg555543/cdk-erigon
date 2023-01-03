@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/go-pkgz/flow"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
@@ -185,19 +186,10 @@ func promotePlainState(
 
 	accCollector := etl.NewCollector(logPrefix, tmpdir, etl.NewSortableBuffer(bufferSize))
 	defer accCollector.Close()
+	accCollector.LogLvl(log.LvlTrace)
 	storageCollector := etl.NewCollector(logPrefix, tmpdir, etl.NewSortableBuffer(bufferSize))
 	defer storageCollector.Close()
-
-	t := time.Now()
-	logEvery := time.NewTicker(30 * time.Second)
-	defer logEvery.Stop()
-	var m runtime.MemStats
-
-	c, err := tx.Cursor(kv.PlainState)
-	if err != nil {
-		return err
-	}
-	defer c.Close()
+	accCollector.LogLvl(log.LvlTrace)
 
 	convertAccFunc := func(key []byte) ([]byte, error) {
 		hash, err := common.HashData(key)
@@ -217,6 +209,73 @@ func promotePlainState(
 		compositeKey := dbutils.GenerateCompositeStorageKey(addrHash, inc, secKey)
 		return compositeKey, nil
 	}
+	t := time.Now()
+	logEvery := time.NewTicker(30 * time.Second)
+	defer logEvery.Stop()
+	var m runtime.MemStats
+
+	inCh := make(chan pair, 1000)
+
+	f := flow.New()
+	f.Add(
+		f.Parallel(10, func(ctx context.Context, in chan interface{}) (out chan interface{}, runFn func() error) {
+			out = make(chan interface{}, 100) // example of non-async handler
+			runFn = func() error {
+				for e := range inCh {
+					if len(e.k) == 20 {
+						newK, err := convertAccFunc(e.k)
+						if err != nil {
+							return err
+						}
+						e.k = newK
+						out <- e
+					} else {
+						newK, err := convertStorageFunc(e.k)
+						if err != nil {
+							return err
+						}
+						e.k = newK
+						out <- e
+					}
+				}
+				close(out)
+				return nil
+			}
+
+			return out, nil // no runnable function for non-async handler
+		}),
+		func(ctx context.Context, in chan interface{}) (out chan interface{}, runFn func() error) {
+			runFn = func() error {
+				defer close(out)
+				for e := range in {
+					it := e.(pair)
+					if len(it.k) == 32 {
+						if err := accCollector.Collect(it.k, it.v); err != nil {
+							return err
+						}
+					} else {
+						if err := storageCollector.Collect(it.k, it.v); err != nil {
+							return err
+						}
+					}
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					default:
+					}
+				}
+				return nil
+			}
+			return out, runFn
+		})
+
+	f.Go() // activate flow
+
+	c, err := tx.Cursor(kv.PlainState)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
 
 	var startkey []byte
 
@@ -229,23 +288,7 @@ func promotePlainState(
 			return err
 		}
 
-		if len(k) == 20 {
-			newK, err := convertAccFunc(k)
-			if err != nil {
-				return err
-			}
-			if err := accCollector.Collect(newK, v); err != nil {
-				return err
-			}
-		} else {
-			newK, err := convertStorageFunc(k)
-			if err != nil {
-				return err
-			}
-			if err := storageCollector.Collect(newK, v); err != nil {
-				return err
-			}
-		}
+		inCh <- pair{k: k, v: v}
 
 		select {
 		default:
@@ -253,6 +296,11 @@ func promotePlainState(
 			dbg.ReadMemStats(&m)
 			log.Info(fmt.Sprintf("[%s] ETL [1/2] Extracting", logPrefix), "current_prefix", hex.EncodeToString(k[:4]), "alloc", libcommon.ByteCount(m.Alloc), "sys", libcommon.ByteCount(m.Sys))
 		}
+	}
+
+	// wait for all handlers to complete
+	if err := f.Wait(); err == nil {
+		fmt.Printf("all done, result=%v, passed=%d", <-f.Channel(), f.Metrics().Get("passed"))
 	}
 
 	log.Trace(fmt.Sprintf("[%s] Extraction finished", logPrefix), "took", time.Since(t))
@@ -263,7 +311,6 @@ func promotePlainState(
 	args := etl.TransformArgs{
 		Quit: quit,
 	}
-
 	if err := accCollector.Load(tx, kv.HashedAccounts, loadFunc, args); err != nil {
 		return err
 	}
@@ -274,6 +321,8 @@ func promotePlainState(
 
 	return nil
 }
+
+type pair struct{ k, v []byte }
 
 func keyTransformExtractFunc(transformKey func([]byte) ([]byte, error)) etl.ExtractFunc {
 	return func(k, v []byte, next etl.ExtractNextFunc) error {
