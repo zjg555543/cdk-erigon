@@ -217,7 +217,7 @@ var stateHistoryV3Buckets = []string{
 }
 
 func WarmupTable(ctx context.Context, db kv.RoDB, bucket string, lvl log.Lvl) {
-	const ThreadsLimit = 512
+	const ThreadsLimit = 128
 	var total uint64
 	db.View(ctx, func(tx kv.Tx) error {
 		c, _ := tx.Cursor(bucket)
@@ -228,8 +228,6 @@ func WarmupTable(ctx context.Context, db kv.RoDB, bucket string, lvl log.Lvl) {
 
 	logEvery := time.NewTicker(20 * time.Second)
 	defer logEvery.Stop()
-
-	//0000000000a8a7b800000044
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(ThreadsLimit)
