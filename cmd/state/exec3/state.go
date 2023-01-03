@@ -2,6 +2,7 @@ package exec3
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"sync"
@@ -218,6 +219,10 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 			// Update the state with pending changes
 			ibs.SoftFinalise()
 			txTask.Logs = ibs.GetLogs(txHash)
+
+			bb, _ := json.Marshal(txTask.Logs)
+
+			fmt.Printf("logs: %s\n", bb)
 			txTask.TraceFroms = ct.froms
 			txTask.TraceTos = ct.tos
 		}
