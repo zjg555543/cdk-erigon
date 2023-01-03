@@ -224,19 +224,18 @@ func promotePlainState(
 						if err != nil {
 							return err
 						}
-						e.k = newK
+						e = pair{k: newK, v: e.v}
 					} else {
 						newK, err := convertStorageFunc(e.k)
 						if err != nil {
 							return err
 						}
-						e.k = newK
+						e = pair{k: newK, v: e.v}
 					}
 					select {
-					case <-ctx.Done():
-						fmt.Printf("ex?\n")
-						return ctx.Err()
 					case out <- e:
+					case <-ctx.Done():
+						return ctx.Err()
 					}
 				}
 				return nil
@@ -259,7 +258,6 @@ func promotePlainState(
 				}
 				select {
 				case <-ctx.Done():
-					fmt.Printf("ex?\n")
 					return ctx.Err()
 				default:
 				}
@@ -284,13 +282,14 @@ func promotePlainState(
 				}
 
 				select {
+				case inCh <- pair{k: k, v: v}:
 				case <-ctx.Done():
-					fmt.Printf("ex?\n")
 					return ctx.Err()
+				}
+				select {
 				case <-logEvery.C:
 					dbg.ReadMemStats(&m)
 					log.Info(fmt.Sprintf("[%s] ETL [1/2] Extracting", logPrefix), "current_prefix", hex.EncodeToString(k[:4]), "alloc", libcommon.ByteCount(m.Alloc), "sys", libcommon.ByteCount(m.Sys))
-				case inCh <- pair{k: k, v: v}:
 				default:
 				}
 			}
