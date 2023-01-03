@@ -150,7 +150,7 @@ func init() {
 }
 
 func doWarmup(ctx context.Context, chaindata string, bucket string) error {
-	const ThreadsLimit = 5_000
+	const ThreadsLimit = 1024
 	db := mdbx2.NewMDBX(log.New()).Path(chaindata).RoTxsLimiter(semaphore.NewWeighted(ThreadsLimit)).Readonly().MustOpen()
 	defer db.Close()
 
