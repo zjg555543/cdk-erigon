@@ -15,6 +15,7 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/common/dir"
 	"github.com/ledgerwatch/erigon-lib/compress"
 	"github.com/ledgerwatch/erigon-lib/downloader/snaptype"
@@ -386,6 +387,7 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	for i := 0; i < 1024; i++ {
 		if err := db.Update(ctx, func(tx kv.RwTx) error {
 			agg.SetTx(tx)
+			log.Warn("prune", "sttack", dbg.Stack())
 			if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep); err != nil {
 				return err
 			}
@@ -431,6 +433,7 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	for i := 0; i < 1024; i++ {
 		if err := db.Update(ctx, func(tx kv.RwTx) error {
 			agg.SetTx(tx)
+			log.Warn("prune", "sttack", dbg.Stack())
 			if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep); err != nil {
 				return err
 			}

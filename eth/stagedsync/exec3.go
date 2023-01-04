@@ -687,14 +687,14 @@ Loop:
 		}
 	}
 
-	if blockSnapshots.Cfg().Produce {
-		if err := agg.BuildFilesInBackground(chainDb); err != nil {
+	if !useExternalTx && applyTx != nil {
+		if err = applyTx.Commit(); err != nil {
 			return err
 		}
 	}
 
-	if !useExternalTx && applyTx != nil {
-		if err = applyTx.Commit(); err != nil {
+	if blockSnapshots.Cfg().Produce {
+		if err := agg.BuildFilesInBackground(chainDb); err != nil {
 			return err
 		}
 	}

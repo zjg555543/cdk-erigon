@@ -738,6 +738,7 @@ func PruneExecutionStage(s *PruneState, tx kv.RwTx, cfg ExecuteBlockCfg, ctx con
 	if cfg.historyV3 {
 		cfg.agg.SetTx(tx)
 		if initialCycle {
+			log.Warn("prune", "sttack", dbg.Stack())
 			if err = cfg.agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*2); err != nil { // prune part of retired data, before commit
 				return err
 			}
