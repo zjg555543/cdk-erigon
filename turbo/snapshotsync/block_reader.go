@@ -15,6 +15,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/rlp"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // BlockReader can read blocks from db and snapshots
@@ -499,20 +500,25 @@ func (back *BlockReaderWithSnapshots) headerFromSnapshot(blockHeight uint64, sn 
 	if sn.idxHeaderHash == nil {
 		return nil, buf, nil
 	}
+	log.Warn("dbg 1")
 	headerOffset := sn.idxHeaderHash.OrdinalLookup(blockHeight - sn.idxHeaderHash.BaseDataID())
 	gg := sn.seg.MakeGetter()
 	gg.Reset(headerOffset)
 	if !gg.HasNext() {
+		log.Warn("dbg 2")
 		return nil, buf, nil
 	}
 	buf, _ = gg.Next(buf[:0])
 	if len(buf) == 0 {
+		log.Warn("dbg 3")
 		return nil, buf, nil
 	}
 	h := &types.Header{}
 	if err := rlp.DecodeBytes(buf[1:], h); err != nil {
+		log.Warn("dbg 4")
 		return nil, buf, err
 	}
+	log.Warn("dbg 5")
 	return h, buf, nil
 }
 
