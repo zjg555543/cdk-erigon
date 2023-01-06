@@ -492,7 +492,7 @@ func startRegularRpcServer(ctx context.Context, cfg httpcfg.HttpCfg, rpcAPI []rp
 	// register apis and create handler stack
 	httpEndpoint := fmt.Sprintf("%s:%d", cfg.HttpListenAddress, cfg.HttpPort)
 
-	log.Trace("TraceRequests = %t\n", cfg.TraceRequests)
+	log.Trace("Config", "TraceRequests", cfg.TraceRequests)
 	srv := rpc.NewServer(cfg.RpcBatchConcurrency, cfg.TraceRequests, cfg.RpcStreamingDisable)
 
 	allowListForRPC, err := parseAllowListForRPC(cfg.RpcAllowListFilePath)
@@ -606,7 +606,7 @@ type engineInfo struct {
 }
 
 func startAuthenticatedRpcServer(cfg httpcfg.HttpCfg, rpcAPI []rpc.API) (*engineInfo, error) {
-	log.Trace("TraceRequests = %t\n", cfg.TraceRequests)
+	log.Trace("Config", "TraceRequests", cfg.TraceRequests)
 	srv := rpc.NewServer(cfg.RpcBatchConcurrency, cfg.TraceRequests, cfg.RpcStreamingDisable)
 
 	engineListener, engineSrv, engineHttpEndpoint, err := createEngineListener(cfg, rpcAPI)
