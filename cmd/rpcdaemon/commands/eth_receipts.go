@@ -388,6 +388,9 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.TemporalTx, begin, end 
 			if header, err = api._blockReader.HeaderByNumber(ctx, tx, blockNum); err != nil {
 				return nil, err
 			}
+			if header == nil {
+				return nil, fmt.Errorf("header not found: %d", blockNum)
+			}
 			lastBlockNum = blockNum
 			blockHash = header.Hash()
 			signer = types.MakeSigner(chainConfig, blockNum)
