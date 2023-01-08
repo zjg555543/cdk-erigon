@@ -593,6 +593,8 @@ Loop:
 			stageProgress = blockNum
 			inputTxNum++
 		}
+		b = nil
+		txs = nil
 
 		core.BlockExecutionTimer.UpdateDuration(t)
 		if !parallel {
