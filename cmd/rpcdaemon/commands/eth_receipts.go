@@ -33,9 +33,9 @@ import (
 )
 
 func (api *BaseAPI) getReceipts(ctx context.Context, tx kv.Tx, chainConfig *params.ChainConfig, block *types.Block, senders []common.Address) (types.Receipts, error) {
-	if cached := rawdb.ReadReceipts(tx, block, senders); cached != nil {
-		return cached, nil
-	}
+	//if cached := rawdb.ReadReceipts(tx, block, senders); cached != nil {
+	//	return cached, nil
+	//}
 	engine := api.engine()
 
 	_, _, _, ibs, _, err := transactions.ComputeTxEnv(ctx, engine, block, chainConfig, api._blockReader, tx, 0, api._agg, api.historyV3(tx))
