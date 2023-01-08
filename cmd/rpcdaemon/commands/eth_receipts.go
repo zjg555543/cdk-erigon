@@ -421,6 +421,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.TemporalTx, begin, end 
 		if txn == nil {
 			continue
 		}
+		fmt.Printf("reader: %d, %d\n", blockNum, txNum)
 		stateReader.SetTxNum(txNum)
 		txHash := txn.Hash()
 		msg, err := txn.AsMessage(*signer, header.BaseFee, rules)
