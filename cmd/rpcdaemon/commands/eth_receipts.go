@@ -422,7 +422,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.TemporalTx, begin, end 
 			continue
 		}
 		fmt.Printf("reader: %d, %d\n", blockNum, txNum)
-		stateReader.SetTxNum(txNum)
+		stateReader.SetTxNum(txNum - 1)
 		txHash := txn.Hash()
 		msg, err := txn.AsMessage(*signer, header.BaseFee, rules)
 		if err != nil {
