@@ -478,13 +478,15 @@ Loop:
 			}
 
 			func() {
-				ql := rs.QueueLen()
-				if ql > queueSize {
-					return
+				needWait := rs.QueueLen() > queueSize
+				if needWait {
+					log.Warn("l:", "rws.Len()", rws.Len(), "ql", rs.QueueLen(), "queueSize", queueSize)
 				}
-				rwsLock.RLock()
-				needWait := rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold
-				rwsLock.RUnlock()
+				if !needWait {
+					rwsLock.RLock()
+					needWait = rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold
+					rwsLock.RUnlock()
+				}
 				if !needWait {
 					return
 				}
