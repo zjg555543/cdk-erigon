@@ -181,11 +181,11 @@ func (tx *Tx) HistoryGet(name kv.History, key []byte, ts uint64) (v []byte, ok b
 			if !ok || len(v) == 0 {
 				return v, ok, nil
 			}
+			fmt.Printf("from hist: %d, %x\n", ts, v)
 			v, err = tx.db.convertV3toV2(v)
 			if err != nil {
 				return nil, false, err
 			}
-			fmt.Printf("from hist: %d, %x\n", ts, v)
 			v, err = tx.db.restoreCodeHash(tx.Tx, key, v)
 			if err != nil {
 				return nil, false, err
