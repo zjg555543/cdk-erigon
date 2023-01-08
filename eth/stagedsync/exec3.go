@@ -465,10 +465,10 @@ Loop:
 		}
 		b = b.Copy()
 		txs := b.Transactions()
+		b = b.Copy()
 		header := b.Header()
 		skipAnalysis := core.SkipAnalysis(chainConfig, blockNum)
 		signer := *types.MakeSigner(chainConfig, blockNum)
-		b = b.Copy()
 
 		if parallel {
 			select {
