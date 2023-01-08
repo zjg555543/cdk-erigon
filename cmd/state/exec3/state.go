@@ -2,6 +2,7 @@ package exec3
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"sync"
 
@@ -149,7 +150,22 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 		syscall := func(contract common.Address, data []byte) ([]byte, error) {
 			return core.SysCallContract(contract, data, *rw.chainConfig, ibs, types.CopyHeader(header), rw.engine, false /* constCall */)
 		}
-		rw.engine.Initialize(rw.chainConfig, rw.chain, rw.epoch, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, syscall)
+
+		transactionsData, err := types.MarshalTransactionsBinary(txTask.Txs)
+		if err != nil {
+			panic(fmt.Errorf("MarshalTransactionsBinary failed: %w", err))
+		}
+		txs, err := types.DecodeTransactions(transactionsData)
+		if err != nil {
+			panic(fmt.Errorf("DecodeTransactions failed: %w", err))
+		}
+		for i := 0; i < len(txs); i++ {
+			if s, ok := txTask.Txs[i].GetSender(); ok {
+				txs[i].SetSender(s)
+			}
+		}
+
+		rw.engine.Initialize(rw.chainConfig, rw.chain, rw.epoch, types.CopyHeader(header), ibs, txs, txTask.Uncles, syscall)
 	} else if txTask.Final {
 		if txTask.BlockNum > 0 {
 			//fmt.Printf("txNum=%d, blockNum=%d, finalisation of the block\n", txTask.TxNum, txTask.BlockNum)
@@ -158,7 +174,21 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 				return core.SysCallContract(contract, data, *rw.chainConfig, ibs, types.CopyHeader(header), rw.engine, false /* constCall */)
 			}
 
-			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil /* receipts */, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
+			transactionsData, err := types.MarshalTransactionsBinary(txTask.Txs)
+			if err != nil {
+				panic(fmt.Errorf("MarshalTransactionsBinary failed: %w", err))
+			}
+			txs, err := types.DecodeTransactions(transactionsData)
+			if err != nil {
+				panic(fmt.Errorf("DecodeTransactions failed: %w", err))
+			}
+			for i := 0; i < len(txs); i++ {
+				if s, ok := txTask.Txs[i].GetSender(); ok {
+					txs[i].SetSender(s)
+				}
+			}
+
+			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txs, txTask.Uncles, nil /* receipts */, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
 				//fmt.Printf("error=%v\n", err)
 				txTask.Error = err
 			} else {
