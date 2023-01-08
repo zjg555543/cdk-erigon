@@ -2,7 +2,6 @@ package exec3
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"sync"
 
@@ -150,23 +149,7 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 		syscall := func(contract common.Address, data []byte) ([]byte, error) {
 			return core.SysCallContract(contract, data, *rw.chainConfig, ibs, types.CopyHeader(header), rw.engine, false /* constCall */)
 		}
-
-		transactionsData, err := types.MarshalTransactionsBinary(txTask.Txs)
-		if err != nil {
-			panic(fmt.Errorf("MarshalTransactionsBinary failed: %w", err))
-		}
-		txs, err := types.DecodeTransactions(transactionsData)
-		if err != nil {
-			panic(fmt.Errorf("DecodeTransactions failed: %w", err))
-		}
-		for i := 0; i < len(txs); i++ {
-			if s, ok := txTask.Txs[i].GetSender(); ok {
-				txs[i].SetSender(s)
-			}
-		}
-		//txTask.Txs = txs
-
-		rw.engine.Initialize(rw.chainConfig, rw.chain, rw.epoch, types.CopyHeader(header), ibs, txs, txTask.Uncles, syscall)
+		rw.engine.Initialize(rw.chainConfig, rw.chain, rw.epoch, header, ibs, txTask.Uncles, syscall)
 	} else if txTask.Final {
 		if txTask.BlockNum > 0 {
 			//fmt.Printf("txNum=%d, blockNum=%d, finalisation of the block\n", txTask.TxNum, txTask.BlockNum)
