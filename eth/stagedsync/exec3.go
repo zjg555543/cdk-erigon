@@ -27,6 +27,7 @@ import (
 	state2 "github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/cmd/state/exec3"
+	common2 "github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/core"
@@ -441,6 +442,27 @@ func ExecV3(ctx context.Context,
 		defer agg.KeepInDB(ethconfig.HistoryV3AggregationStep)
 	}
 
+	getHeaderFunc := func(hash common2.Hash, number uint64) (h *types.Header) {
+		var err error
+		if parallel {
+			if err = chainDb.View(ctx, func(tx kv.Tx) error {
+				h, err = blockReader.Header(ctx, tx, hash, number)
+				if err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
+				panic(err)
+			}
+			return h
+		} else {
+			h, err = blockReader.Header(ctx, applyTx, hash, number)
+			if err != nil {
+				panic(err)
+			}
+			return h
+		}
+	}
 	if !parallel {
 		applyWorker.ResetTx(applyTx)
 	}
@@ -464,9 +486,18 @@ Loop:
 			return fmt.Errorf("nil block %d", blockNum)
 		}
 		txs := b.Transactions()
-		header := b.Header()
+		header := b.HeaderNoCopy()
 		skipAnalysis := core.SkipAnalysis(chainConfig, blockNum)
 		signer := *types.MakeSigner(chainConfig, blockNum)
+
+		f := core.GetHashFn(header, getHeaderFunc)
+		getHashFnMute := &sync.Mutex{}
+		getHashFn := func(n uint64) common2.Hash {
+			getHashFnMute.Lock()
+			defer getHashFnMute.Unlock()
+			return f(n)
+		}
+		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
 
 		if parallel {
 			select {
@@ -510,18 +541,20 @@ Loop:
 
 			// Do not oversend, wait for the result heap to go under certain size
 			txTask := &exec22.TxTask{
-				BlockNum:     blockNum,
-				Header:       header,
-				Coinbase:     b.Coinbase(),
-				Uncles:       b.Uncles(),
-				Rules:        rules,
-				Txs:          txs,
-				TxNum:        inputTxNum,
-				TxIndex:      txIndex,
-				BlockHash:    b.Hash(),
-				SkipAnalysis: skipAnalysis,
-				Final:        txIndex == len(txs),
-				Withdrawals:  b.Withdrawals(),
+				BlockNum:        blockNum,
+				Header:          header,
+				Coinbase:        b.Coinbase(),
+				Uncles:          b.Uncles(),
+				Rules:           rules,
+				Txs:             txs,
+				TxNum:           inputTxNum,
+				TxIndex:         txIndex,
+				BlockHash:       b.Hash(),
+				SkipAnalysis:    skipAnalysis,
+				Final:           txIndex == len(txs),
+				GetHashFn:       getHashFn,
+				EvmBlockContext: blockContext,
+				Withdrawals:     b.Withdrawals(),
 			}
 			if txIndex >= 0 && txIndex < len(txs) {
 				txTask.Tx = txs[txIndex]
@@ -595,8 +628,6 @@ Loop:
 			stageProgress = blockNum
 			inputTxNum++
 		}
-		b = nil
-		txs = nil
 
 		core.BlockExecutionTimer.UpdateDuration(t)
 		if !parallel {
@@ -726,8 +757,6 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 			return fmt.Errorf("StateV3.Apply: %w", err)
 		}
 		//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
-		txTask.Tx = nil
-		txTask.Txs = nil
 	}
 	if txTask != nil {
 		outputBlockNum.Store(txTask.BlockNum)
@@ -918,6 +947,19 @@ func reconstituteStep(last bool,
 	var inputTxNum uint64 = startTxNum
 	var b *types.Block
 	var txKey [8]byte
+	getHeaderFunc := func(hash common2.Hash, number uint64) (h *types.Header) {
+		if err = chainDb.View(ctx, func(tx kv.Tx) error {
+			h, err = blockReader.Header(ctx, tx, hash, number)
+			if err != nil {
+				return err
+			}
+			return nil
+
+		}); err != nil {
+			panic(err)
+		}
+		return h
+	}
 	for bn = startBlockNum; bn <= endBlockNum; bn++ {
 		t = time.Now()
 		b, err = blockWithSenders(chainDb, nil, blockReader, bn)
@@ -933,24 +975,34 @@ func reconstituteStep(last bool,
 		skipAnalysis := core.SkipAnalysis(chainConfig, bn)
 		signer := *types.MakeSigner(chainConfig, bn)
 
+		f := core.GetHashFn(header, getHeaderFunc)
+		getHashFnMute := &sync.Mutex{}
+		getHashFn := func(n uint64) common2.Hash {
+			getHashFnMute.Lock()
+			defer getHashFnMute.Unlock()
+			return f(n)
+		}
+		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
 		rules := chainConfig.Rules(bn, b.Time())
 
 		for txIndex := -1; txIndex <= len(txs); txIndex++ {
 			if bitmap.Contains(inputTxNum) {
 				binary.BigEndian.PutUint64(txKey[:], inputTxNum)
 				txTask := &exec22.TxTask{
-					BlockNum:     bn,
-					Header:       header,
-					Coinbase:     b.Coinbase(),
-					Uncles:       b.Uncles(),
-					Rules:        rules,
-					TxNum:        inputTxNum,
-					Txs:          txs,
-					TxIndex:      txIndex,
-					BlockHash:    b.Hash(),
-					SkipAnalysis: skipAnalysis,
-					Final:        txIndex == len(txs),
-					Withdrawals:  b.Withdrawals(),
+					BlockNum:        bn,
+					Header:          header,
+					Coinbase:        b.Coinbase(),
+					Uncles:          b.Uncles(),
+					Rules:           rules,
+					TxNum:           inputTxNum,
+					Txs:             txs,
+					TxIndex:         txIndex,
+					BlockHash:       b.Hash(),
+					SkipAnalysis:    skipAnalysis,
+					Final:           txIndex == len(txs),
+					GetHashFn:       getHashFn,
+					EvmBlockContext: blockContext,
+					Withdrawals:     b.Withdrawals(),
 				}
 				if txIndex >= 0 && txIndex < len(txs) {
 					txTask.Tx = txs[txIndex]
