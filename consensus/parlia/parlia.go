@@ -709,6 +709,21 @@ func (p *Parlia) finalize(header *types.Header, state *state.IntraBlockState, tx
 		return nil, nil, err
 	}
 	txs = userTxs
+	transactionsData, err := types.MarshalTransactionsBinary(txs)
+	if err != nil {
+		panic(fmt.Errorf("MarshalTransactionsBinary failed: %w", err))
+	}
+	txs2, err := types.DecodeTransactions(transactionsData)
+	if err != nil {
+		panic(fmt.Errorf("DecodeTransactions failed: %w", err))
+	}
+	for i := 0; i < len(txs); i++ {
+		if s, ok := txs[i].GetSender(); ok {
+			txs2[i].SetSender(s)
+		}
+	}
+	txs = txs2
+
 	// warn if not in majority fork
 	number := header.Number.Uint64()
 	snap, err := p.snapshot(chain, number-1, header.ParentHash, nil, false /* verify */)
