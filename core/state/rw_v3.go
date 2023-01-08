@@ -196,7 +196,6 @@ func (rs *StateV3) CommitTxNum(sender *common.Address, txNum uint64) uint64 {
 func (rs *StateV3) queuePush(t *exec22.TxTask) {
 	rs.queueLock.Lock()
 	heap.Push(&rs.queue, t)
-	log.Warn("q", "l", len(rs.queue))
 	rs.queueLock.Unlock()
 }
 
