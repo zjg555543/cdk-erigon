@@ -294,7 +294,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.TemporalTx, begin, end 
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Printf("blk: %d, min: %d, max: %d\n", begin, fromTxNum, toTxNum)
 	txNumbers := roaring64.New()
 	txNumbers.AddRange(fromTxNum, toTxNum) // [min,max)
 
