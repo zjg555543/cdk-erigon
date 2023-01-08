@@ -708,6 +708,7 @@ func (p *Parlia) finalize(header *types.Header, state *state.IntraBlockState, tx
 	if err != nil {
 		return nil, nil, err
 	}
+	log.Info("len:", "l", len(userTxs), "s", len(systemTxs))
 	txs = userTxs
 	transactionsData, err := types.MarshalTransactionsBinary(txs)
 	if err != nil {
