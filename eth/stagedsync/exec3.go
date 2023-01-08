@@ -544,7 +544,7 @@ Loop:
 
 			if parallel {
 				if rs.QueueLen() > queueSize {
-					time.Sleep(10 * time.Microsecond)
+					time.Sleep(time.Millisecond)
 				}
 				if txTask.TxIndex >= 0 && txTask.TxIndex < len(txs) {
 					if ok := rs.RegisterSender(txTask); ok {
