@@ -755,6 +755,8 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 			return fmt.Errorf("StateV3.Apply: %w", err)
 		}
 		//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
+		txTask.Tx = nil
+		txTask.Txs = nil
 	}
 	if txTask != nil {
 		outputBlockNum.Store(txTask.BlockNum)
