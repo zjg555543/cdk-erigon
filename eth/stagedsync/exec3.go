@@ -524,10 +524,10 @@ Loop:
 			}
 			if txIndex >= 0 && txIndex < len(txs) {
 				txTask.Tx = txs[txIndex]
-				txTask.TxAsMessage, err = txTask.Tx.AsMessage(signer, header.BaseFee, txTask.Rules)
-				if err != nil {
-					panic(err)
-				}
+				//txTask.TxAsMessage, err = txTask.Tx.AsMessage(signer, header.BaseFee, txTask.Rules)
+				//if err != nil {
+				//	panic(err)
+				//}
 
 				if sender, ok := txs[txIndex].GetSender(); ok {
 					txTask.Sender = &sender
