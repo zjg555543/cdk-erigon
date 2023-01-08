@@ -512,7 +512,7 @@ Loop:
 				Coinbase:     b.Coinbase(),
 				Uncles:       b.Uncles(),
 				Rules:        rules,
-				Txs:          b.Copy().Transactions(),
+				Txs:          txs,
 				TxNum:        inputTxNum,
 				TxIndex:      txIndex,
 				BlockHash:    b.Hash(),

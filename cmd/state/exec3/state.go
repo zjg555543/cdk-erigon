@@ -175,22 +175,7 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 				return core.SysCallContract(contract, data, *rw.chainConfig, ibs, types.CopyHeader(header), rw.engine, false /* constCall */)
 			}
 
-			transactionsData, err := types.MarshalTransactionsBinary(txTask.Txs)
-			if err != nil {
-				panic(fmt.Errorf("MarshalTransactionsBinary failed: %w", err))
-			}
-			txs, err := types.DecodeTransactions(transactionsData)
-			if err != nil {
-				panic(fmt.Errorf("DecodeTransactions failed: %w", err))
-			}
-			for i := 0; i < len(txs); i++ {
-				if s, ok := txTask.Txs[i].GetSender(); ok {
-					txs[i].SetSender(s)
-				}
-			}
-			//txTask.Txs = txs
-
-			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txs, txTask.Uncles, nil /* receipts */, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
+			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, types.CopyTxs(txTask.Txs), txTask.Uncles, nil /* receipts */, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
 				//fmt.Printf("error=%v\n", err)
 				txTask.Error = err
 			} else {

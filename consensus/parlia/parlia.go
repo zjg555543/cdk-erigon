@@ -712,6 +712,7 @@ func (p *Parlia) finalize(header *types.Header, state *state.IntraBlockState, tx
 
 	// warn if not in majority fork
 	number := header.Number.Uint64()
+	log.Warn("fin: ", "num", number, "l", len(txs))
 	snap, err := p.snapshot(chain, number-1, header.ParentHash, nil, false /* verify */)
 	if err != nil {
 		return nil, nil, err
