@@ -164,7 +164,7 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 				txs[i].SetSender(s)
 			}
 		}
-		txTask.Txs = txs
+		//txTask.Txs = txs
 
 		rw.engine.Initialize(rw.chainConfig, rw.chain, rw.epoch, types.CopyHeader(header), ibs, txs, txTask.Uncles, syscall)
 	} else if txTask.Final {
@@ -188,7 +188,7 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 					txs[i].SetSender(s)
 				}
 			}
-			txTask.Txs = txs
+			//txTask.Txs = txs
 
 			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txs, txTask.Uncles, nil /* receipts */, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
 				//fmt.Printf("error=%v\n", err)
