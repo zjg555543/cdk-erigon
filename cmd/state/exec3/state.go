@@ -231,7 +231,7 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 			//rw.evm.ResetBetweenBlocks(blockContext, core.NewEVMTxContext(msg), ibs, vmConfig, rules)
 			//vmenv = rw.evm
 		}
-		signer := *types.MakeSigner(chainConfig, blockNum)
+		signer := *types.MakeSigner(rw.chainConfig, txTask.BlockNum)
 		txTask.TxAsMessage, err = txTask.Tx.AsMessage(signer, header.BaseFee, txTask.Rules)
 		if err != nil {
 			panic(err)
