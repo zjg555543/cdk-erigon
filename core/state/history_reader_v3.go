@@ -56,6 +56,24 @@ func (hr *HistoryReaderV3) ReadAccountData(address common.Address) (*accounts.Ac
 		if hr.trace {
 			fmt.Printf("ReadAccountData [%x] => [nonce: %d, balance: %d, codeHash: %x]\n", address, a.Nonce, &a.Balance, a.CodeHash)
 		}
+		fmt.Printf("HistoryReaderV3: nonce %d\n", a.Nonce)
+		{
+			enc, ok, err = hr.ttx.DomainGet(temporal.AccountsDomain, address.Bytes(), hr.txNum-1)
+			if err != nil || !ok || len(enc) == 0 {
+				if hr.trace {
+					fmt.Printf("ReadAccountData [%x] => []\n", address)
+				}
+				return nil, err
+			}
+			var a accounts.Account
+			if err := a.DecodeForStorage(enc); err != nil {
+				return nil, fmt.Errorf("ReadAccountData(%x): %w", address, err)
+			}
+			if hr.trace {
+				fmt.Printf("ReadAccountData [%x] => [nonce: %d, balance: %d, codeHash: %x]\n", address, a.Nonce, &a.Balance, a.CodeHash)
+			}
+			fmt.Printf("HistoryReaderV3: nonce %d\n", a.Nonce)
+		}
 		return &a, nil
 	}
 	fmt.Printf("HistoryReaderV3: %d, non-temporal\n", hr.txNum)
