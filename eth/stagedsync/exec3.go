@@ -468,6 +468,7 @@ Loop:
 		header := b.Header()
 		skipAnalysis := core.SkipAnalysis(chainConfig, blockNum)
 		signer := *types.MakeSigner(chainConfig, blockNum)
+		b = b.Copy()
 
 		if parallel {
 			select {
