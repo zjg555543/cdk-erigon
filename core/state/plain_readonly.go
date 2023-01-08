@@ -192,11 +192,13 @@ func (s *PlainState) ReadAccountData(address common.Address) (*accounts.Account,
 	var enc []byte
 	var err error
 	if ttx, ok := s.tx.(kv.TemporalTx); ok {
+		fmt.Printf("PlainState: %d, temporal\n", s.txNr)
 		enc, _, err = ttx.DomainGet(temporal.AccountsDomain, address[:], s.txNr)
 		if err != nil {
 			return nil, err
 		}
 	} else {
+		fmt.Printf("PlainState: %d, non-temporal\n", s.txNr)
 		enc, err = historyv2read.GetAsOf(s.tx, s.accHistoryC, s.accChangesC, false /* storage */, address[:], s.blockNr)
 		if err != nil {
 			return nil, err
