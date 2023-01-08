@@ -479,9 +479,6 @@ Loop:
 
 			func() {
 				needWait := rs.QueueLen() > queueSize
-				if needWait {
-					log.Warn("l:", "rws.Len()", rws.Len(), "ql", rs.QueueLen(), "queueSize", queueSize)
-				}
 				if !needWait {
 					rwsLock.RLock()
 					needWait = rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold
