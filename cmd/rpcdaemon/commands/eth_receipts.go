@@ -310,7 +310,7 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.TemporalTx, begin, end 
 	var addrBitmap *roaring64.Bitmap
 	for _, addr := range crit.Addresses {
 		var bitmapForORing roaring64.Bitmap
-		it, err := tx.IndexRange(temporal.LogAddr, addr.Bytes(), fromTxNum, toTxNum)
+		it, err := tx.IndexRange(temporal.LogAddrIdx, addr.Bytes(), fromTxNum, toTxNum)
 		if err != nil {
 			return nil, err
 		}
@@ -343,7 +343,6 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.TemporalTx, begin, end 
 	var skipAnalysis bool
 	stateReader := state.NewHistoryReaderV3()
 	stateReader.SetTx(tx)
-	//stateReader.SetAc(ac)
 	ibs := state.New(stateReader)
 
 	//stateReader.SetTrace(true)
@@ -391,6 +390,12 @@ func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.TemporalTx, begin, end 
 			lastBlockNum = blockNum
 			blockHash = header.Hash()
 			signer = types.MakeSigner(chainConfig, blockNum)
+			if chainConfig == nil {
+				log.Warn("chainConfig is nil")
+			}
+			if header == nil {
+				log.Warn("header is nil")
+			}
 			rules = chainConfig.Rules(blockNum, header.Time)
 			vmConfig.SkipAnalysis = core.SkipAnalysis(chainConfig, blockNum)
 
@@ -470,7 +475,7 @@ func getTopicsBitmapV3(tx kv.TemporalTx, topics [][]common.Hash, from, to uint64
 	for _, sub := range topics {
 		var bitmapForORing roaring64.Bitmap
 		for _, topic := range sub {
-			it, err := tx.IndexRange(temporal.LogTopic, topic.Bytes(), from, to)
+			it, err := tx.IndexRange(temporal.LogTopicIdx, topic.Bytes(), from, to)
 			if err != nil {
 				return nil, err
 			}
