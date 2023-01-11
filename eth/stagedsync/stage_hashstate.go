@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"runtime"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
-	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
 )
@@ -189,57 +187,96 @@ func promotePlainState(
 	tmpdir string,
 	ctx context.Context,
 ) error {
-	accCollector := etl.NewCollector(logPrefix, tmpdir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+	quit := ctx.Done()
+	bufferSize := etl.BufferOptimalSize
+
+	accCollector := etl.NewCollector(logPrefix, tmpdir, etl.NewSortableBuffer(bufferSize))
 	defer accCollector.Close()
-	accCollector.LogLvl(log.LvlTrace)
-	storageCollector := etl.NewCollector(logPrefix, tmpdir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+	storageCollector := etl.NewCollector(logPrefix, tmpdir, etl.NewSortableBuffer(bufferSize))
 	defer storageCollector.Close()
-	storageCollector.LogLvl(log.LvlTrace)
 
-	transform := func(k, v []byte) ([]byte, []byte, error) {
-		newK, err := transformPlainStateKey(k)
-		return newK, v, err
+	t := time.Now()
+	logEvery := time.NewTicker(30 * time.Second)
+	defer logEvery.Stop()
+	var m runtime.MemStats
+
+	c, err := tx.Cursor(kv.PlainState)
+	if err != nil {
+		return err
 	}
-	collect := func(k, v []byte) error {
-		if len(k) == 32 {
-			return accCollector.Collect(k, v)
+	defer c.Close()
+
+	convertAccFunc := func(key []byte) ([]byte, error) {
+		hash, err := common.HashData(key)
+		return hash[:], err
+	}
+
+	convertStorageFunc := func(key []byte) ([]byte, error) {
+		addrHash, err := common.HashData(key[:length.Addr])
+		if err != nil {
+			return nil, err
 		}
-		return storageCollector.Collect(k, v)
+		inc := binary.BigEndian.Uint64(key[length.Addr:])
+		secKey, err := common.HashData(key[length.Addr+length.Incarnation:])
+		if err != nil {
+			return nil, err
+		}
+		compositeKey := dbutils.GenerateCompositeStorageKey(addrHash, inc, secKey)
+		return compositeKey, nil
 	}
 
-	{ //errgroup cancelation scope
-		// pipeline: extract -> transform -> collect
-		in, out := make(chan pair, 10_000), make(chan pair, 10_000)
-		g, ctx := errgroup.WithContext(ctx)
-		g.Go(func() error {
-			defer close(out)
-			return parallelTransform(ctx, in, out, transform, estimate.AlmostAllCPUs()).Wait()
-		})
-		g.Go(func() error { return collectChan(ctx, out, collect) })
-		g.Go(func() error { return parallelWarmup(ctx, db, kv.PlainState, 2) })
+	var startkey []byte
 
-		if err := extractTableToChan(ctx, tx, kv.PlainState, in, logPrefix); err != nil {
-			// if ctx canceled, then maybe it's because of error in errgroup
-			//
-			// errgroup doesn't play with pattern where some 1 goroutine-producer is outside of errgroup
-			// but RwTx doesn't allow move between goroutines
-			if errors.Is(err, context.Canceled) {
-				return g.Wait()
-			}
+	// reading kv.PlainState
+	for k, v, e := c.Seek(startkey); k != nil; k, v, e = c.Next() {
+		if e != nil {
+			return e
+		}
+		if err := libcommon.Stopped(quit); err != nil {
 			return err
 		}
 
-		if err := g.Wait(); err != nil {
-			return fmt.Errorf("g.Wait: %w", err)
+		if len(k) == 20 {
+			newK, err := convertAccFunc(k)
+			if err != nil {
+				return err
+			}
+			if err := accCollector.Collect(newK, v); err != nil {
+				return err
+			}
+		} else {
+			newK, err := convertStorageFunc(k)
+			if err != nil {
+				return err
+			}
+			if err := storageCollector.Collect(newK, v); err != nil {
+				return err
+			}
+		}
+
+		select {
+		default:
+		case <-logEvery.C:
+			dbg.ReadMemStats(&m)
+			log.Info(fmt.Sprintf("[%s] ETL [1/2] Extracting", logPrefix), "current_prefix", hex.EncodeToString(k[:4]), "alloc", libcommon.ByteCount(m.Alloc), "sys", libcommon.ByteCount(m.Sys))
 		}
 	}
 
-	args := etl.TransformArgs{Quit: ctx.Done()}
-	if err := accCollector.Load(tx, kv.HashedAccounts, etl.IdentityLoadFunc, args); err != nil {
-		return fmt.Errorf("accCollector.Load: %w", err)
+	log.Trace(fmt.Sprintf("[%s] Extraction finished", logPrefix), "took", time.Since(t))
+	defer func(t time.Time) {
+		log.Trace(fmt.Sprintf("[%s] Load finished", logPrefix), "took", time.Since(t))
+	}(time.Now())
+
+	args := etl.TransformArgs{
+		Quit: quit,
 	}
+
+	if err := accCollector.Load(tx, kv.HashedAccounts, etl.IdentityLoadFunc, args); err != nil {
+		return err
+	}
+
 	if err := storageCollector.Load(tx, kv.HashedStorage, etl.IdentityLoadFunc, args); err != nil {
-		return fmt.Errorf("storageCollector.Load: %w", err)
+		return err
 	}
 
 	return nil
