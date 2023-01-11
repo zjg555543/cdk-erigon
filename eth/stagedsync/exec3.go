@@ -926,8 +926,8 @@ func reconstituteStep(last bool,
 				syncMetrics[stages.Execution].Set(bn)
 				log.Info(fmt.Sprintf("[%s] State reconstitution", s.LogPrefix()), "overall progress", fmt.Sprintf("%.2f%%", progress),
 					"step progress", fmt.Sprintf("%.2f%%", stepProgress),
-					"tx/s", fmt.Sprintf("%.1f", speedTx), "workCh", fmt.Sprintf("%d/%d", len(workCh), cap(workCh)),
-					"repeat ratio", fmt.Sprintf("%.2f%%", repeatRatio), "queue.len", rs.QueueLen(), "blk", bn,
+					"tx/s", fmt.Sprintf("%.1f", speedTx), "pipe", fmt.Sprintf("%d/%d->%d", len(workCh), cap(workCh), rs.QueueLen()),
+					"repeat ratio", fmt.Sprintf("%.2f%%", repeatRatio), "blk", bn,
 					"buffer", fmt.Sprintf("%s/%s", common.ByteCount(sizeEstimate), common.ByteCount(commitThreshold)),
 					"alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 				if sizeEstimate >= commitThreshold {
