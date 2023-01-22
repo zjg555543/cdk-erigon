@@ -1241,10 +1241,16 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 	blockSnapshots := blockReader.(WithSnapshots).Snapshots()
 	defer blockSnapshots.EnableReadAhead().DisableReadAhead()
 
-	// force merge snapshots before reconstitution, to allign domains progress
-	// un-finished merge can happen at "kill -9" during merge
-	if err := agg.MergeLoop(ctx, estimate.CompressSnapshot.Workers()); err != nil {
-		return err
+	{
+		sem := semaphore.NewWeighted(int64(estimate.IndexSnapshot.Workers()))
+		if err := cfg.agg.BuildMissedIndices(ctx, sem); err != nil {
+			return err
+		}
+		// force merge snapshots before reconstitution, to allign domains progress
+		// un-finished merge can happen at "kill -9" during merge
+		if err := agg.MergeLoop(ctx, estimate.CompressSnapshot.Workers()); err != nil {
+			return err
+		}
 	}
 
 	var ok bool
