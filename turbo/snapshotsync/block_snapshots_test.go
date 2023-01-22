@@ -251,7 +251,7 @@ func BenchmarkName(b *testing.B) {
 	})
 	b.Run("a2", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			x = libcommon.BytesToAddressNoCopy(c)
+			x = libcommon.BytesToAddress(c)
 		}
 	})
 	b.Run("a3", func(b *testing.B) {
