@@ -29,6 +29,7 @@ import (
 	"github.com/ledgerwatch/log/v3"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 	atomic2 "go.uber.org/atomic"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/cmd/state/exec3"
@@ -1243,7 +1244,7 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 
 	{
 		sem := semaphore.NewWeighted(int64(estimate.IndexSnapshot.Workers()))
-		if err := cfg.agg.BuildMissedIndices(ctx, sem); err != nil {
+		if err := agg.BuildMissedIndices(ctx, sem); err != nil {
 			return err
 		}
 		// force merge snapshots before reconstitution, to allign domains progress
