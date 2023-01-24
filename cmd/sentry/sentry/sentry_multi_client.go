@@ -655,7 +655,7 @@ func (cs *MultiClient) getBlockBodies66(ctx context.Context, inreq *proto_sentry
 
 func (cs *MultiClient) getReceipts66(ctx context.Context, inreq *proto_sentry.InboundMessage, sentry direct.SentryClient) error {
 	if cs.historyV3 { // historyV3 doesn't store receipts in DB
-		fmt.Printf("alex\n")
+		log.Warn("p2p: getReceipts66 dbg")
 		return nil
 	}
 
