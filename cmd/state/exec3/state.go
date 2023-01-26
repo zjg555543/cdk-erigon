@@ -100,6 +100,12 @@ func (rw *Worker) ResetTx(chainTx kv.Tx) {
 }
 
 func (rw *Worker) Run() {
+	defer func() {
+		rec := recover()
+		if rec != nil {
+			log.Error("panic", "rec", rec)
+		}
+	}()
 	for txTask, ok := rw.rs.Schedule(); ok; txTask, ok = rw.rs.Schedule() {
 		rw.RunTxTask(txTask)
 		rw.resultCh <- txTask // Needs to have outside of the lock
@@ -107,6 +113,12 @@ func (rw *Worker) Run() {
 }
 
 func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
+	defer func() {
+		rec := recover()
+		if rec != nil {
+			log.Error("panic", "rec", rec)
+		}
+	}()
 	rw.lock.Lock()
 	defer rw.lock.Unlock()
 	if rw.background && rw.chainTx == nil {
