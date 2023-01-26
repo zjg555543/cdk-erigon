@@ -512,6 +512,7 @@ Loop:
 		if parallel {
 			select {
 			case err := <-rwLoopErrCh:
+				log.Warn("here1", "err", err)
 				if err != nil {
 					return err
 				}
@@ -537,6 +538,7 @@ Loop:
 					default:
 					}
 					rwsReceiveCond.Wait()
+					log.Info("after rwsReceiveCond.Wait()")
 				}
 			}()
 		}
@@ -702,6 +704,7 @@ Loop:
 		stopWorkers()
 		rwLoopWg.Wait()
 		if err, ok := <-rwLoopErrCh; ok && err != nil {
+			log.Warn("here2", "err", err)
 			return err
 		}
 	} else {
