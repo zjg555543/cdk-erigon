@@ -519,7 +519,7 @@ Loop:
 			default:
 			}
 
-			func() {
+			if err := func() error {
 				needWait := rs.QueueLen() > queueSize
 				if !needWait {
 					rwsLock.RLock()
@@ -527,20 +527,28 @@ Loop:
 					rwsLock.RUnlock()
 				}
 				if !needWait {
-					return
+					return nil
 				}
 				rwsLock.Lock()
 				defer rwsLock.Unlock()
 				for rs.QueueLen() > queueSize || rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold {
 					select {
 					case <-ctx.Done():
-						return
+						return ctx.Err()
+					case err := <-rwLoopErrCh:
+						log.Warn("here3", "err", err)
+						if err != nil {
+							return err
+						}
 					default:
 					}
 					rwsReceiveCond.Wait()
 					log.Info("after rwsReceiveCond.Wait()")
 				}
-			}()
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		rules := chainConfig.Rules(blockNum, b.Time())
 		var gasUsed uint64
