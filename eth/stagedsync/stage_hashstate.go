@@ -218,7 +218,7 @@ func promotePlainState(
 			return parallelTransform(ctx, in, out, transform, estimate.AlmostAllCPUs()).Wait()
 		})
 		g.Go(func() error { return collectChan(ctx, out, collect) })
-		g.Go(func() error { return parallelWarmup(ctx, db, kv.PlainState, 2) })
+		//g.Go(func() error { return parallelWarmup(ctx, db, kv.PlainState, 2) })
 
 		if err := extractTableToChan(ctx, tx, kv.PlainState, in, logPrefix); err != nil {
 			// if ctx canceled, then maybe it's because of error in errgroup
