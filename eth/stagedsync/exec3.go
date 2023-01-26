@@ -544,7 +544,6 @@ Loop:
 					default:
 					}
 					rwsReceiveCond.Wait()
-					log.Info("after rwsReceiveCond.Wait()")
 				}
 				return nil
 			}(); err != nil {
