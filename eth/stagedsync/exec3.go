@@ -769,14 +769,14 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 			repeatCount.Inc()
 
 			// immediately retry once
-			if txTask.Error != nil {
-				log.Error("error", "err", txTask.Error, "stack", dbg.Stack())
-			}
+			//if txTask.Error != nil {
+			//	log.Error("error", "err", txTask.Error, "stack", dbg.Stack())
+			//}
 			applyWorker.RunTxTask(txTask)
 			if txTask.Error != nil {
 				log.Error("error2", "err", txTask.Error, "stack", dbg.Stack())
 			} else {
-				log.Error("no error2", "bl", txTask.BlockNum, "txN", txTask.TxIndex)
+				//log.Error("no error2", "bl", txTask.BlockNum, "txN", txTask.TxIndex)
 			}
 			if txTask.Error != nil {
 				return txTask.Error
@@ -786,7 +786,7 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 			}
 		}
 
-		log.Warn("after exec", "bl", txTask.BlockNum, "txN", txTask.TxIndex)
+		//log.Warn("after exec", "bl", txTask.BlockNum, "txN", txTask.TxIndex)
 		if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
 			return fmt.Errorf("StateV3.Apply: %w", err)
 		}
