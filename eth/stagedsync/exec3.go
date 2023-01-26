@@ -755,7 +755,7 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 		resultsSize.Add(-txTask.ResultsSize)
 		if txTask.Error != nil || !rs.ReadsValid(txTask.ReadLists) {
 			if txTask.Error != nil {
-				log.Error("error", "err", err)
+				log.Error("error", "err", txTask.Error)
 			}
 			repeatCount.Inc()
 
