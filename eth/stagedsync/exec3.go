@@ -254,6 +254,7 @@ func ExecV3(ctx context.Context,
 		defer applyLoopWg.Done()
 		if err := applyLoopInner(ctx); err != nil {
 			if !errors.Is(err, context.Canceled) {
+				log.Warn("write to chan", "err", err)
 				errCh <- err
 			}
 		}
