@@ -3,6 +3,7 @@ package state
 import (
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 
+	"github.com/ledgerwatch/erigon/cl/clparams"
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/core/types"
 )
@@ -19,6 +20,13 @@ func (b *BeaconState) GenesisValidatorsRoot() libcommon.Hash {
 
 func (b *BeaconState) Slot() uint64 {
 	return b.slot
+}
+
+func (b *BeaconState) PreviousSlot() uint64 {
+	if b.slot == 0 {
+		return 0
+	}
+	return b.slot - 1
 }
 
 func (b *BeaconState) Fork() *cltypes.Fork {
@@ -65,6 +73,10 @@ func (b *BeaconState) Balances() []uint64 {
 	return b.balances
 }
 
+func (b *BeaconState) ValidatorBalance(index int) uint64 {
+	return b.balances[index]
+}
+
 func (b *BeaconState) RandaoMixes() [randoMixesLength]libcommon.Hash {
 	return b.randaoMixes
 }
@@ -77,15 +89,15 @@ func (b *BeaconState) SlashingSegmentAt(pos int) uint64 {
 	return b.slashings[pos]
 }
 
-func (b *BeaconState) PreviousEpochParticipation() []byte {
+func (b *BeaconState) PreviousEpochParticipation() cltypes.ParticipationFlagsList {
 	return b.previousEpochParticipation
 }
 
-func (b *BeaconState) CurrentEpochParticipation() []byte {
+func (b *BeaconState) CurrentEpochParticipation() cltypes.ParticipationFlagsList {
 	return b.currentEpochParticipation
 }
 
-func (b *BeaconState) JustificationBits() byte {
+func (b *BeaconState) JustificationBits() cltypes.JustificationBits {
 	return b.justificationBits
 }
 
@@ -123,4 +135,13 @@ func (b *BeaconState) NextWithdrawalValidatorIndex() uint64 {
 
 func (b *BeaconState) HistoricalSummaries() []*cltypes.HistoricalSummary {
 	return b.historicalSummaries
+}
+
+func (b *BeaconState) Version() clparams.StateVersion {
+	return b.version
+}
+
+func (b *BeaconState) ValidatorIndexByPubkey(key [48]byte) (uint64, bool) {
+	val, ok := b.publicKeyIndicies[key]
+	return val, ok
 }
