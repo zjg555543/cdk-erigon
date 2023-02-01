@@ -852,7 +852,7 @@ func reconstituteStep(last bool,
 	bitmap := scanWorker.Bitmap()
 
 	var wg sync.WaitGroup
-	logEvery := time.NewTicker(logInterval)
+	logEvery := time.NewTicker(logInterval / 10)
 	defer logEvery.Stop()
 
 	log.Info(fmt.Sprintf("[%s] Ready to replay", s.LogPrefix()), "transactions", bitmap.GetCardinality(), "out of", txNum)
