@@ -264,6 +264,7 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 			}
 		}
 	}
+	log.Warn("after reconst", "progress", s.BlockNumber)
 
 	prevStageProgress, err := senderStageProgress(tx, cfg.db)
 	if err != nil {
