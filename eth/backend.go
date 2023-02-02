@@ -1008,7 +1008,7 @@ func (s *Ethereum) setUpBlockReader(ctx context.Context, dirs datadir.Dirs, snCo
 	if err = agg.ReopenFiles(); err != nil {
 		return nil, nil, nil, err
 	}
-	agg.CleanDir()
+	//agg.CleanDir()
 	return blockReader, allSnapshots, agg, nil
 }
 
