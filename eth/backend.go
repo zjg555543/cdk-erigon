@@ -1001,13 +1001,6 @@ func (s *Ethereum) setUpBlockReader(ctx context.Context, dirs datadir.Dirs, snCo
 	}
 
 	dir.MustExist(dirs.SnapHistory)
-	agg, err := libstate.NewAggregatorV3(ctx, dirs.SnapHistory, dirs.Tmp, ethconfig.HistoryV3AggregationStep, s.chainDB)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	agg.CleanDir()
-	agg.Close()
-
 	agg, err = libstate.NewAggregatorV3(ctx, dirs.SnapHistory, dirs.Tmp, ethconfig.HistoryV3AggregationStep, s.chainDB)
 	if err != nil {
 		return nil, nil, nil, err
@@ -1015,6 +1008,7 @@ func (s *Ethereum) setUpBlockReader(ctx context.Context, dirs datadir.Dirs, snCo
 	if err = agg.ReopenFiles(); err != nil {
 		return nil, nil, nil, err
 	}
+	agg.CleanDir()
 	return blockReader, allSnapshots, agg, nil
 }
 
