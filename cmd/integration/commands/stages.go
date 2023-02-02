@@ -1157,7 +1157,7 @@ func allSnapshots(ctx context.Context, db kv.RoDB) (*snapshotsync.RoSnapshots, *
 		if err != nil {
 			panic(err)
 		}
-		_aggSingleton.CleanDir()
+		//_aggSingleton.CleanDir()
 
 		if useSnapshots {
 			if err := _allSnapshotsSingleton.ReopenFolder(); err != nil {
