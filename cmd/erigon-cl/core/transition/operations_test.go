@@ -1,6 +1,7 @@
 package transition
 
 import (
+	"fmt"
 	"testing"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -351,4 +352,65 @@ func TestProcessDeposit(t *testing.T) {
 			},
 		})*/
 	//s := New()
+}
+
+func TestProcessVoluntaryExits(t *testing.T) {
+	state := state.GetEmptyBeaconState()
+	exit := &cltypes.SignedVoluntaryExit{
+		VolunaryExit: &cltypes.VoluntaryExit{
+			ValidatorIndex: 0,
+			Epoch:          0,
+		},
+	}
+	state.AddValidator(&cltypes.Validator{
+		ExitEpoch:       clparams.MainnetBeaconConfig.FarFutureEpoch,
+		ActivationEpoch: 0,
+	})
+	state.SetSlot((clparams.MainnetBeaconConfig.SlotsPerEpoch * 5) + (clparams.MainnetBeaconConfig.SlotsPerEpoch * clparams.MainnetBeaconConfig.ShardCommitteePeriod))
+	fmt.Println(state.Slot())
+	transitioner := New(state, &clparams.MainnetBeaconConfig, nil, true)
+
+	require.NoError(t, transitioner.ProcessVoluntaryExit(exit), "Could not process exits")
+	newRegistry := state.Validators()
+	require.Equal(t, newRegistry[0].ExitEpoch, uint64(266))
+}
+
+func TestProcessAttestation(t *testing.T) {
+	beaconState := state.GetEmptyBeaconState()
+	beaconState.SetSlot(beaconState.Slot() + clparams.MainnetBeaconConfig.MinAttestationInclusionDelay)
+	for i := 0; i < 64; i++ {
+		beaconState.AddValidator(&cltypes.Validator{
+			EffectiveBalance:  clparams.MainnetBeaconConfig.MaxEffectiveBalance,
+			ExitEpoch:         clparams.MainnetBeaconConfig.FarFutureEpoch,
+			WithdrawableEpoch: clparams.MainnetBeaconConfig.FarFutureEpoch,
+		})
+		beaconState.AddCurrentEpochParticipationFlags(cltypes.ParticipationFlags(0))
+		beaconState.AddBalance(clparams.MainnetBeaconConfig.MaxEffectiveBalance)
+	}
+
+	aggBits := []byte{7}
+	r, err := beaconState.GetBlockRootAtSlot(0)
+	require.NoError(t, err)
+	att := &cltypes.Attestation{
+		Data: &cltypes.AttestationData{
+			BeaconBlockHash: r,
+			Source:          &cltypes.Checkpoint{},
+			Target:          &cltypes.Checkpoint{},
+		},
+		AggregationBits: aggBits,
+	}
+	s := New(beaconState, &clparams.MainnetBeaconConfig, nil, true)
+
+	require.NoError(t, s.ProcessAttestation(att))
+
+	p := beaconState.CurrentEpochParticipation()
+	require.NoError(t, err)
+
+	indices, err := beaconState.GetAttestingIndicies(att.Data, att.AggregationBits)
+	require.NoError(t, err)
+	for _, index := range indices {
+		require.True(t, p[index].HasFlag(int(clparams.MainnetBeaconConfig.TimelyHeadFlagIndex)))
+		require.True(t, p[index].HasFlag(int(clparams.MainnetBeaconConfig.TimelySourceFlagIndex)))
+		require.True(t, p[index].HasFlag(int(clparams.MainnetBeaconConfig.TimelyTargetFlagIndex)))
+	}
 }
