@@ -207,7 +207,11 @@ func ExecV3(ctx context.Context,
 	defer pruneEvery.Stop()
 
 	applyLoopWg := sync.WaitGroup{} // to wait for finishing of applyLoop after applyCtx cancel
-	defer applyLoopWg.Wait()
+	defer func() {
+		log.Error("before applyLoopWg.Wait()")
+		applyLoopWg.Wait()
+		log.Error("after applyLoopWg.Wait()")
+	}()
 
 	applyLoopInner := func(ctx context.Context) error {
 		tx, err := chainDb.BeginRo(ctx)
@@ -279,7 +283,12 @@ func ExecV3(ctx context.Context,
 				defer agg.StartWrites().FinishWrites()
 			}
 
-			defer applyLoopWg.Wait()
+			defer func() {
+				log.Error("before applyLoopWg.Wait()")
+				applyLoopWg.Wait()
+				log.Error("after applyLoopWg.Wait()")
+			}()
+
 			applyCtx, cancelApplyCtx := context.WithCancel(ctx)
 			defer cancelApplyCtx()
 			applyLoopWg.Add(1)
@@ -432,8 +441,12 @@ func ExecV3(ctx context.Context,
 		}
 
 		rwLoopErrCh = make(chan error, 1)
+		defer func() {
+			log.Error("before applyLoopWg.Wait()")
+			rwLoopWg.Wait()
+			log.Error("after applyLoopWg.Wait()")
+		}()
 
-		defer rwLoopWg.Wait()
 		rwLoopCtx, rwLoopCancel := context.WithCancel(ctx)
 		defer rwLoopCancel()
 		rwLoopWg.Add(1)
