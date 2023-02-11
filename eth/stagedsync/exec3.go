@@ -709,7 +709,6 @@ Loop:
 		if err := <-rwLoopErrCh; err != nil {
 			return err
 		}
-		rwLoopWg.Wait()
 	} else {
 		if err = rs.Flush(ctx, applyTx, logPrefix, logEvery); err != nil {
 			return err
