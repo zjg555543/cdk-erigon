@@ -706,10 +706,10 @@ Loop:
 
 	if parallel {
 		stopWorkers()
-		rwLoopWg.Wait()
-		if err, ok := <-rwLoopErrCh; ok && err != nil {
+		if err := <-rwLoopErrCh; err != nil {
 			return err
 		}
+		rwLoopWg.Wait()
 	} else {
 		if err = rs.Flush(ctx, applyTx, logPrefix, logEvery); err != nil {
 			return err
