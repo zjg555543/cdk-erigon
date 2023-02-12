@@ -896,7 +896,7 @@ func BuildMissedIndices(logPrefix string, ctx context.Context, dirs datadir.Dirs
 	ps := background.NewProgressSet()
 	startIndexingTime := time.Now()
 
-	g, gCtx := errgroup.WithContext(ctx)
+	g, ctx := errgroup.WithContext(ctx)
 	for _, t := range snaptype.AllSnapshotTypes {
 		for index := range segments {
 			segment := segments[index]
@@ -906,37 +906,33 @@ func BuildMissedIndices(logPrefix string, ctx context.Context, dirs datadir.Dirs
 			if hasIdxFile(&segment) {
 				continue
 			}
-			if err := sem.Acquire(gCtx, 1); err != nil {
+			sn := segment
+
+			if err := sem.Acquire(ctx, 1); err != nil {
 				return err
 			}
-			sn := segment
 			g.Go(func() error {
 				defer sem.Release(1)
 				p := &background.Progress{}
 				ps.Add(p)
 				defer ps.Delete(p)
-				return buildIdx(gCtx, sn, chainID, tmpDir, p, log.LvlInfo)
+				return buildIdx(ctx, sn, chainID, tmpDir, p, log.LvlInfo)
 			})
 		}
 	}
-	finish := make(chan struct{})
-	go func() {
-		g.Wait()
-		close(finish)
-	}()
-
-	for {
-		select {
-		case <-finish:
-			return g.Wait()
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-logEvery.C:
-			var m runtime.MemStats
-			dbg.ReadMemStats(&m)
-			log.Info(fmt.Sprintf("[%s] Indexing", logPrefix), "progress", ps.String(), "total-indexing-time", time.Since(startIndexingTime).Round(time.Second).String(), "alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
+	g.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-logEvery.C:
+				var m runtime.MemStats
+				dbg.ReadMemStats(&m)
+				log.Info(fmt.Sprintf("[%s] Indexing", logPrefix), "progress", ps.String(), "total-indexing-time", time.Since(startIndexingTime).Round(time.Second).String(), "alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
+			}
 		}
-	}
+	})
+	return g.Wait()
 }
 
 func noGaps(in []snaptype.FileInfo) (out []snaptype.FileInfo, missingSnapshots []Range) {
