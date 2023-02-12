@@ -22,7 +22,7 @@ var (
 	Gnosis     = fromToml(snapshothashes.Gnosis)
 
 	MainnetHistory    = fromToml(snapshothashes.MainnetHistory)
-	SepoliaHistory    = fromToml(snapshothashes.SepoliaHistory)
+	SepoliaHistory    = fromToml([]byte{})
 	GoerliHistory     = fromToml(snapshothashes.GoerliHistory)
 	BscHistory        = fromToml(snapshothashes.BscHistory)
 	MumbaiHistory     = fromToml(snapshothashes.MumbaiHistory)
