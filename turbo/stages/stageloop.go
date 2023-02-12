@@ -109,7 +109,7 @@ func StageLoop(
 			continue
 		}
 
-		initialCycle = false
+		//initialCycle = false
 		hd.AfterInitialCycle()
 
 		if loopMinTime != 0 {
