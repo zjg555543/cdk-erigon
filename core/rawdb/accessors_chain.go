@@ -1640,6 +1640,7 @@ func ReadSnapshots(tx kv.Tx) ([]string, []string, error) {
 }
 
 func WriteSnapshots(tx kv.RwTx, list, histList []string) error {
+	log.Warn("WriteSnapshots", "list", list, "histList", histList)
 	res, err := json.Marshal(list)
 	if err != nil {
 		return err
