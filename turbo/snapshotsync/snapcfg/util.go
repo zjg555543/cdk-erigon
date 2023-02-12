@@ -14,7 +14,7 @@ import (
 
 var (
 	Mainnet    = fromToml(snapshothashes.Mainnet)
-	Sepolia    = fromToml([]byte{})
+	Sepolia    = fromToml(snapshothashes.Sepolia)
 	Goerli     = fromToml(snapshothashes.Goerli)
 	Bsc        = fromToml(snapshothashes.Bsc)
 	Mumbai     = fromToml(snapshothashes.Mumbai)
