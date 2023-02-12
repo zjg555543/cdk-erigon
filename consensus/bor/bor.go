@@ -581,6 +581,9 @@ func (c *Bor) snapshot(chain consensus.ChainHeaderReader, number uint64, hash li
 
 		headers = append(headers, header)
 		number, hash = number-1, header.ParentHash
+		if len(headers)%100_000 == 0 {
+			log.Debug("Collected headers for bor snapshot so far...", "number", snap.Number, "hash", snap.Hash, "headers", len(headers))
+		}
 	}
 
 	// check if snapshot is nil
