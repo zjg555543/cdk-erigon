@@ -593,10 +593,13 @@ func (c *Bor) snapshot(chain consensus.ChainHeaderReader, number uint64, hash li
 		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
 	}
 
+	log.Debug("Collected headers for bor snapshot", "number", snap.Number, "hash", snap.Hash, "headers", len(headers))
 	snap, err := snap.apply(headers)
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debug("Calculated bor snapshot", "number", snap.Number, "hash", snap.Hash, "headers", len(headers))
 
 	c.recents.Add(snap.Hash, snap)
 
@@ -606,7 +609,7 @@ func (c *Bor) snapshot(chain consensus.ChainHeaderReader, number uint64, hash li
 			return nil, err
 		}
 
-		log.Trace("Stored snapshot to disk", "number", snap.Number, "hash", snap.Hash)
+		log.Debug("Stored snapshot to disk", "number", snap.Number, "hash", snap.Hash)
 	}
 
 	return snap, err
