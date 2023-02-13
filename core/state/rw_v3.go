@@ -65,12 +65,9 @@ func (rs *StateV3) put(table string, key, val []byte) {
 		rs.sizeEstimate += uint64(len(val))
 		rs.sizeEstimate -= uint64(len(old))
 	} else {
-		rs.sizeEstimate += btreeOverhead + uint64(len(key)) + uint64(len(val))
+		rs.sizeEstimate += uint64(len(key)) + uint64(len(val))
 	}
 }
-
-const btreeOverhead = 16
-
 func (rs *StateV3) Get(table string, key []byte) []byte {
 	rs.lock.RLock()
 	v := rs.get(table, key)
@@ -275,27 +272,29 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 			}
 			if psChanges != nil {
 				//TODO: try full-scan, then can replace btree by map
-				iter := psChanges.Iter()
-				for ok := iter.Seek(string(addr1)); ok; ok = iter.Next() {
-					key := []byte(iter.Key())
-					if !bytes.HasPrefix(key, addr1) {
-						break
-					}
-					for ; e == nil && k != nil && bytes.HasPrefix(k, addr1) && bytes.Compare(k, key) <= 0; k, v, e = cursor.Next() {
-						if !bytes.Equal(k, key) {
-							// Skip the cursor item when the key is equal, i.e. prefer the item from the changes tree
-							if e = agg.AddStoragePrev(addr, k[28:], v); e != nil {
-								return e
+				/*
+					iter := psChanges.Iter()
+					for ok := iter.Seek(string(addr1)); ok; ok = iter.Next() {
+						key := []byte(iter.Key())
+						if !bytes.HasPrefix(key, addr1) {
+							break
+						}
+						for ; e == nil && k != nil && bytes.HasPrefix(k, addr1) && bytes.Compare(k, key) <= 0; k, v, e = cursor.Next() {
+							if !bytes.Equal(k, key) {
+								// Skip the cursor item when the key is equal, i.e. prefer the item from the changes tree
+								if e = agg.AddStoragePrev(addr, k[28:], v); e != nil {
+									return e
+								}
 							}
 						}
+						if e != nil {
+							return e
+						}
+						if e = agg.AddStoragePrev(addr, key[28:], iter.Value()); e != nil {
+							break
+						}
 					}
-					if e != nil {
-						return e
-					}
-					if e = agg.AddStoragePrev(addr, key[28:], iter.Value()); e != nil {
-						break
-					}
-				}
+				*/
 			}
 			for ; e == nil && k != nil && bytes.HasPrefix(k, addr1); k, v, e = cursor.Next() {
 				if e = agg.AddStoragePrev(addr, k[28:], v); e != nil {

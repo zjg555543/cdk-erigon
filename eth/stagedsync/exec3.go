@@ -30,6 +30,7 @@ import (
 	"github.com/ledgerwatch/log/v3"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 	atomic2 "go.uber.org/atomic"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/cmd/state/exec3"
@@ -104,6 +105,39 @@ func (p *Progress) Log(rs *state.StateV3, rwsLen int, queueSize, doneCount, inpu
 	p.prevOutputBlockNum = outputBlockNum
 	p.prevRepeatCount = repeatCount
 }
+func ExecV33(ctx context.Context) {
+	g, ctx := errgroup.WithContext(ctx)
+
+	//workers pool
+	g.Go(func() error {
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			_ = ctx
+			return nil
+		})
+		return g.Wait()
+	})
+	// apply loop
+	g.Go(func() error {
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			_ = ctx
+			return nil
+		})
+		return g.Wait()
+	})
+	// rw loop
+	g.Go(func() error {
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			_ = ctx
+			return nil
+		})
+		return g.Wait()
+	})
+	// load to blocks to chan
+	g.Wait()
+}
 
 func ExecV3(ctx context.Context,
 	execStage *StageState, u Unwinder, workerCount int, cfg ExecuteBlockCfg, applyTx kv.RwTx,
@@ -126,9 +160,9 @@ func ExecV3(ctx context.Context,
 		}
 		defer applyTx.Rollback()
 	} else {
-		if blockSnapshots.Cfg().Enabled {
-			defer blockSnapshots.EnableMadvNormal().DisableReadAhead()
-		}
+		//if blockSnapshots.Cfg().Enabled {
+		//defer blockSnapshots.EnableMadvNormal().DisableReadAhead()
+		//}
 	}
 
 	var block, stageProgress uint64
