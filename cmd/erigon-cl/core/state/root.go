@@ -1,25 +1,73 @@
 package state
 
 import (
+	libcommon "github.com/ledgerwatch/erigon-lib/common"
+
+	"github.com/ledgerwatch/erigon/cl/clparams"
 	"github.com/ledgerwatch/erigon/cl/merkle_tree"
+	"github.com/ledgerwatch/erigon/cl/utils"
 	"github.com/ledgerwatch/erigon/cmd/erigon-cl/core/state/state_encoding"
-	"github.com/ledgerwatch/erigon/common"
 )
 
-func (b *BeaconState) HashTreeRoot() ([32]byte, error) {
+func (b *BeaconState) HashSSZ() ([32]byte, error) {
 	if err := b.computeDirtyLeaves(); err != nil {
 		return [32]byte{}, err
 	}
-
-	currentLayer := b.leaves
 	// Pad to 32 of length
-	for len(currentLayer) != 32 {
-		currentLayer = append(currentLayer, [32]byte{})
+	return merkle_tree.MerkleRootFromLeaves(b.leaves[:])
+}
+
+// An hash component is a payload for a specific state leaves given base inner leaves.
+type hashComponent struct {
+	hashF func() ([32]byte, error)
+	index int
+}
+
+// An hash component is a payload for a specific state leaves given base inner leaves.
+type hashResult struct {
+	root  libcommon.Hash
+	index int
+	err   error
+}
+
+// computeRandaoMixesHash computes the randao mix hash in hopefully less time than required.
+func (b *BeaconState) computeRandaoMixesHash() ([32]byte, error) {
+	mixes := utils.PreparateRootsForHashing(b.randaoMixes[:])
+	// Divide computation in 8 threads
+	hashComponents := []*hashComponent{}
+	numThreads := 16
+	branchSize := len(b.randaoMixes) / numThreads // should be 8192
+	for i := 0; i < numThreads; i++ {
+		leaves := make([][32]byte, branchSize)
+		copy(leaves, mixes[i*branchSize:])
+		hashComponents = append(hashComponents, &hashComponent{
+			hashF: func() ([32]byte, error) {
+				root, err := merkle_tree.ArraysRoot(leaves, uint64(branchSize))
+				if err != nil {
+					return [32]byte{}, err
+				}
+				return root, nil
+			},
+			index: i,
+		})
 	}
-	return merkle_tree.MerkleRootFromLeaves(currentLayer)
+	merkleLayer := make([][32]byte, numThreads)
+	resultCh := make(chan hashResult)
+	for _, component := range hashComponents {
+		go hashComponentWorker(component, resultCh)
+	}
+	for range hashComponents {
+		result := <-resultCh
+		if result.err != nil {
+			return [32]byte{}, result.err
+		}
+		merkleLayer[result.index] = result.root
+	}
+	return merkle_tree.ArraysRoot(merkleLayer, uint64(numThreads))
 }
 
 func (b *BeaconState) computeDirtyLeaves() error {
+	hashComponents := []*hashComponent{}
 	// Update all dirty leafs
 	// ----
 
@@ -40,7 +88,7 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(3): Fork
 	if b.isLeafDirty(ForkLeafIndex) {
-		forkRoot, err := b.fork.HashTreeRoot()
+		forkRoot, err := b.fork.HashSSZ()
 		if err != nil {
 			return err
 		}
@@ -49,7 +97,7 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(4): LatestBlockHeader
 	if b.isLeafDirty(LatestBlockHeaderLeafIndex) {
-		headerRoot, err := b.latestBlockHeader.HashTreeRoot()
+		headerRoot, err := b.latestBlockHeader.HashSSZ()
 		if err != nil {
 			return err
 		}
@@ -58,34 +106,51 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(5): BlockRoots
 	if b.isLeafDirty(BlockRootsLeafIndex) {
-		blockRootsRoot, err := merkle_tree.ArraysRoot(b.blockRoots, state_encoding.BlockRootsLength)
-		if err != nil {
-			return err
-		}
-		b.updateLeaf(BlockRootsLeafIndex, blockRootsRoot)
+		// Make the hash component.
+		hashComponents = append(hashComponents, &hashComponent{
+			hashF: func() ([32]byte, error) {
+				root, err := merkle_tree.ArraysRoot(utils.PreparateRootsForHashing(b.blockRoots[:]), state_encoding.BlockRootsLength)
+				if err != nil {
+					return [32]byte{}, err
+				}
+				return root, nil
+			},
+			index: int(BlockRootsLeafIndex),
+		})
 	}
 
 	// Field(6): StateRoots
 	if b.isLeafDirty(StateRootsLeafIndex) {
-		stateRootsRoot, err := merkle_tree.ArraysRoot(b.stateRoots, state_encoding.StateRootsLength)
-		if err != nil {
-			return err
-		}
-		b.updateLeaf(StateRootsLeafIndex, stateRootsRoot)
+		// Make the hash component.
+		hashComponents = append(hashComponents, &hashComponent{
+			hashF: func() ([32]byte, error) {
+				root, err := merkle_tree.ArraysRoot(utils.PreparateRootsForHashing(b.stateRoots[:]), state_encoding.StateRootsLength)
+				if err != nil {
+					return [32]byte{}, err
+				}
+				return root, nil
+			},
+			index: int(StateRootsLeafIndex),
+		})
 	}
 
 	// Field(7): HistoricalRoots
 	if b.isLeafDirty(HistoricalRootsLeafIndex) {
-		historicalRootsRoot, err := merkle_tree.ArraysRootWithLimit(b.historicalRoots, state_encoding.HistoricalRootsLength)
-		if err != nil {
-			return err
-		}
-		b.updateLeaf(HistoricalRootsLeafIndex, historicalRootsRoot)
+		hashComponents = append(hashComponents, &hashComponent{
+			hashF: func() ([32]byte, error) {
+				root, err := merkle_tree.ArraysRootWithLimit(utils.PreparateRootsForHashing(b.historicalRoots), state_encoding.HistoricalRootsLength)
+				if err != nil {
+					return [32]byte{}, err
+				}
+				return root, nil
+			},
+			index: int(HistoricalRootsLeafIndex),
+		})
 	}
 
 	// Field(8): Eth1Data
 	if b.isLeafDirty(Eth1DataLeafIndex) {
-		dataRoot, err := b.eth1Data.HashTreeRoot()
+		dataRoot, err := b.eth1Data.HashSSZ()
 		if err != nil {
 			return err
 		}
@@ -94,11 +159,16 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(9): Eth1DataVotes
 	if b.isLeafDirty(Eth1DataVotesLeafIndex) {
-		votesRoot, err := state_encoding.Eth1DataVectorRoot(b.eth1DataVotes)
-		if err != nil {
-			return err
-		}
-		b.updateLeaf(Eth1DataVotesLeafIndex, votesRoot)
+		hashComponents = append(hashComponents, &hashComponent{
+			hashF: func() ([32]byte, error) {
+				root, err := state_encoding.Eth1DataVectorRoot(b.eth1DataVotes)
+				if err != nil {
+					return [32]byte{}, err
+				}
+				return root, nil
+			},
+			index: int(Eth1DataVotesLeafIndex),
+		})
 	}
 
 	// Field(10): Eth1DepositIndex
@@ -108,67 +178,74 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(11): Validators
 	if b.isLeafDirty(ValidatorsLeafIndex) {
-		vRoot, err := state_encoding.ValidatorsVectorRoot(b.validators)
+		root, err := state_encoding.ValidatorsVectorRoot(b.validators)
 		if err != nil {
 			return err
 		}
-		b.updateLeaf(ValidatorsLeafIndex, vRoot)
+		b.updateLeaf(ValidatorsLeafIndex, root)
 	}
 
 	// Field(12): Balances
 	if b.isLeafDirty(BalancesLeafIndex) {
-		balancesRoot, err := merkle_tree.Uint64ListRootWithLimit(b.balances, state_encoding.ValidatorLimitForBalancesChunks())
+		root, err := merkle_tree.Uint64ListRootWithLimit(b.balances, state_encoding.ValidatorLimitForBalancesChunks())
 		if err != nil {
 			return err
 		}
-		b.updateLeaf(BalancesLeafIndex, balancesRoot)
+		b.updateLeaf(BalancesLeafIndex, root)
+
 	}
 
 	// Field(13): RandaoMixes
 	if b.isLeafDirty(RandaoMixesLeafIndex) {
-		randaoRootsRoot, err := merkle_tree.ArraysRoot(b.randaoMixes, state_encoding.RandaoMixesLength)
+		root, err := b.computeRandaoMixesHash()
 		if err != nil {
 			return err
 		}
-		b.updateLeaf(RandaoMixesLeafIndex, randaoRootsRoot)
+		b.updateLeaf(RandaoMixesLeafIndex, root)
 	}
 
 	// Field(14): Slashings
 	if b.isLeafDirty(SlashingsLeafIndex) {
-		slashingsRoot, err := state_encoding.SlashingsRoot(b.slashings)
-		if err != nil {
-			return err
-		}
-		b.updateLeaf(SlashingsLeafIndex, slashingsRoot)
+		hashComponents = append(hashComponents, &hashComponent{
+			hashF: func() ([32]byte, error) {
+				root, err := state_encoding.SlashingsRoot(b.slashings[:])
+				if err != nil {
+					return [32]byte{}, err
+				}
+				return root, nil
+			},
+			index: int(SlashingsLeafIndex),
+		})
 	}
 	// Field(15): PreviousEpochParticipation
 	if b.isLeafDirty(PreviousEpochParticipationLeafIndex) {
-		participationRoot, err := merkle_tree.BitlistRootWithLimitForState(b.previousEpochParticipation, state_encoding.ValidatorRegistryLimit)
+		root, err := merkle_tree.BitlistRootWithLimitForState(b.previousEpochParticipation.Bytes(), state_encoding.ValidatorRegistryLimit)
 		if err != nil {
 			return err
 		}
-		b.updateLeaf(PreviousEpochParticipationLeafIndex, participationRoot)
+		b.updateLeaf(PreviousEpochParticipationLeafIndex, root)
+
 	}
 
 	// Field(16): CurrentEpochParticipation
 	if b.isLeafDirty(CurrentEpochParticipationLeafIndex) {
-		participationRoot, err := merkle_tree.BitlistRootWithLimitForState(b.currentEpochParticipation, state_encoding.ValidatorRegistryLimit)
+		root, err := merkle_tree.BitlistRootWithLimitForState(b.currentEpochParticipation.Bytes(), state_encoding.ValidatorRegistryLimit)
 		if err != nil {
 			return err
 		}
-		b.updateLeaf(CurrentEpochParticipationLeafIndex, participationRoot)
+		b.updateLeaf(CurrentEpochParticipationLeafIndex, root)
 	}
 
 	// Field(17): JustificationBits
 	if b.isLeafDirty(JustificationBitsLeafIndex) {
 		var root [32]byte
-		copy(root[:], b.justificationBits)
+		root[0] = b.justificationBits.Byte()
 		b.updateLeaf(JustificationBitsLeafIndex, root)
 	}
 
 	// Field(18): PreviousJustifiedCheckpoint
 	if b.isLeafDirty(PreviousJustifiedCheckpointLeafIndex) {
-		checkpointRoot, err := b.previousJustifiedCheckpoint.HashTreeRoot()
+		checkpointRoot, err := b.previousJustifiedCheckpoint.HashSSZ()
 		if err != nil {
 			return err
 		}
@@ -177,7 +254,7 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(19): CurrentJustifiedCheckpoint
 	if b.isLeafDirty(CurrentJustifiedCheckpointLeafIndex) {
-		checkpointRoot, err := b.currentJustifiedCheckpoint.HashTreeRoot()
+		checkpointRoot, err := b.currentJustifiedCheckpoint.HashSSZ()
 		if err != nil {
 			return err
 		}
@@ -186,7 +263,7 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(20): FinalizedCheckpoint
 	if b.isLeafDirty(FinalizedCheckpointLeafIndex) {
-		checkpointRoot, err := b.finalizedCheckpoint.HashTreeRoot()
+		checkpointRoot, err := b.finalizedCheckpoint.HashSSZ()
 		if err != nil {
 			return err
 		}
@@ -195,16 +272,16 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(21): Inactivity Scores
 	if b.isLeafDirty(InactivityScoresLeafIndex) {
-		scoresRoot, err := merkle_tree.Uint64ListRootWithLimit(b.inactivityScores, state_encoding.ValidatorLimitForBalancesChunks())
+		root, err := merkle_tree.Uint64ListRootWithLimit(b.inactivityScores, state_encoding.ValidatorLimitForBalancesChunks())
 		if err != nil {
 			return err
 		}
-		b.updateLeaf(InactivityScoresLeafIndex, scoresRoot)
+		b.updateLeaf(InactivityScoresLeafIndex, root)
 	}
 
 	// Field(22): CurrentSyncCommitte
 	if b.isLeafDirty(CurrentSyncCommitteeLeafIndex) {
-		committeeRoot, err := b.currentSyncCommittee.HashTreeRoot()
+		committeeRoot, err := b.currentSyncCommittee.HashSSZ()
 		if err != nil {
 			return err
 		}
@@ -213,13 +290,16 @@ func (b *BeaconState) computeDirtyLeaves() error {
 
 	// Field(23): NextSyncCommitte
 	if b.isLeafDirty(NextSyncCommitteeLeafIndex) {
-		committeeRoot, err := b.nextSyncCommittee.HashTreeRoot()
+		committeeRoot, err := b.nextSyncCommittee.HashSSZ()
 		if err != nil {
 			return err
 		}
 		b.updateLeaf(NextSyncCommitteeLeafIndex, committeeRoot)
 	}
 
+	if b.version < clparams.BellatrixVersion {
+		return nil
+	}
 	// Field(24): LatestExecutionPayloadHeader
 	if b.isLeafDirty(LatestExecutionPayloadHeaderLeafIndex) {
 		headerRoot, err := b.latestExecutionPayloadHeader.HashSSZ()
@@ -228,10 +308,56 @@ func (b *BeaconState) computeDirtyLeaves() error {
 		}
 		b.updateLeaf(LatestExecutionPayloadHeaderLeafIndex, headerRoot)
 	}
+
+	if b.version >= clparams.CapellaVersion {
+
+		// Field(25): NextWithdrawalIndex
+		if b.isLeafDirty(NextWithdrawalIndexLeafIndex) {
+			b.updateLeaf(NextWithdrawalIndexLeafIndex, merkle_tree.Uint64Root(b.nextWithdrawalIndex))
+		}
+
+		// Field(26): NextWithdrawalValidatorIndex
+		if b.isLeafDirty(NextWithdrawalValidatorIndexLeafIndex) {
+			b.updateLeaf(NextWithdrawalValidatorIndexLeafIndex, merkle_tree.Uint64Root(b.nextWithdrawalValidatorIndex))
+		}
+
+		// Field(27): HistoricalSummaries
+		if b.isLeafDirty(HistoricalSummariesLeafIndex) {
+			root, err := merkle_tree.ListObjectSSZRoot(b.historicalSummaries, state_encoding.HistoricalRootsLength)
+			if err != nil {
+				return err
+			}
+			b.updateLeaf(HistoricalSummariesLeafIndex, root)
+		}
+	}
+	// Execute hash components in parallel
+	resultCh := make(chan hashResult)
+	for _, component := range hashComponents {
+		go hashComponentWorker(component, resultCh)
+	}
+	for range hashComponents {
+		result := <-resultCh
+		if result.err != nil {
+			return result.err
+		}
+		b.updateLeaf(StateLeafIndex(result.index), result.root)
+	}
 	return nil
 }
 
-func (b *BeaconState) updateLeaf(idx StateLeafIndex, leaf common.Hash) {
+func hashComponentWorker(component *hashComponent, resultCh chan hashResult) {
+	root, err := component.hashF()
+	if err != nil {
+		resultCh <- hashResult{err: err}
+		return
+	}
+	resultCh <- hashResult{
+		root:  root,
+		index: component.index,
+	}
+}
+
+func (b *BeaconState) updateLeaf(idx StateLeafIndex, leaf libcommon.Hash) {
 	// Update leaf with new value.
 	b.leaves[idx] = leaf
 	// Now leaf is clean :).
