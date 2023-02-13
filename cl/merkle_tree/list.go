@@ -3,9 +3,26 @@ package merkle_tree
 import (
 	"math/bits"
 
-	"github.com/ledgerwatch/erigon/cl/utils"
+	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/prysmaticlabs/gohashtree"
+
+	"github.com/ledgerwatch/erigon/cl/cltypes/ssz_utils"
+	"github.com/ledgerwatch/erigon/cl/utils"
 )
+
+type gohashtreeWorkerIO struct {
+	elements [][32]byte // elements to go hash
+	index    int        // index
+}
+
+func gohashtreeWorker(g *gohashtreeWorkerIO, result chan *gohashtreeWorkerIO) {
+	outputLen := len(g.elements) / 2
+	if err := gohashtree.Hash(g.elements, g.elements); err != nil {
+		panic(err)
+	}
+	g.elements = g.elements[:outputLen]
+	result <- g
+}
 
 // MerkleizeVector uses our optimized routine to hash a list of 32-byte
 // elements.
@@ -15,18 +32,48 @@ func MerkleizeVector(elements [][32]byte, length uint64) ([32]byte, error) {
 	if len(elements) == 0 {
 		return ZeroHashes[depth], nil
 	}
+	numThreads := 16
 	for i := uint8(0); i < depth; i++ {
-		layerLen := len(elements)
-		oddNodeLength := layerLen%2 == 1
-		if oddNodeLength {
-			zerohash := ZeroHashes[i]
-			elements = append(elements, zerohash)
+		// Sequential
+		if len(elements) < 8192 {
+			layerLen := len(elements)
+			if layerLen%2 == 1 {
+				elements = append(elements, ZeroHashes[i])
+			}
+			outputLen := len(elements) / 2
+			if err := gohashtree.Hash(elements, elements); err != nil {
+				return [32]byte{}, err
+			}
+			elements = elements[:outputLen]
+		} else {
+			// Parallel
+			// Make it divisible per 32.
+			for len(elements)%(numThreads*2) != 0 {
+				elements = append(elements, ZeroHashes[i])
+			}
+			outputLen := len(elements) / 2
+			branchSize := len(elements) / numThreads
+			resultCh := make(chan *gohashtreeWorkerIO)
+			outputBranches := make([][][32]byte, numThreads)
+			for i := 0; i < numThreads; i++ {
+				go gohashtreeWorker(&gohashtreeWorkerIO{
+					elements: elements[i*branchSize : (i*branchSize)+branchSize],
+					index:    i,
+				}, resultCh)
+			}
+			for range outputBranches {
+				result := <-resultCh
+				outputBranches[result.index] = result.elements
+			}
+			pos := 0
+			// Now write it all to output len
+			for i := range outputBranches {
+				copy(elements[pos:], outputBranches[i])
+				pos += len(outputBranches[i])
+			}
+			elements = elements[:outputLen]
 		}
-		outputLen := len(elements) / 2
-		if err := gohashtree.Hash(elements, elements); err != nil {
-			return [32]byte{}, err
-		}
-		elements = elements[:outputLen]
+
 	}
 	return elements[0], nil
 }
@@ -44,10 +91,11 @@ func ArraysRootWithLimit(input [][32]byte, limit uint64) ([32]byte, error) {
 
 // ArraysRoot calculates the root hash of an array of hashes by first making a copy of the input array, then calculating the Merkle root of the copy using the MerkleRootFromLeaves function.
 func ArraysRoot(input [][32]byte, length uint64) ([32]byte, error) {
-	leaves := make([][32]byte, length)
-	copy(leaves, input)
+	for uint64(len(input)) != length {
+		input = append(input, [32]byte{})
+	}
 
-	res, err := MerkleRootFromLeaves(leaves)
+	res, err := MerkleRootFromLeaves(input)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -72,7 +120,7 @@ func Uint64ListRootWithLimit(list []uint64, limit uint64) ([32]byte, error) {
 	return utils.Keccak256(base[:], lengthRoot[:]), nil
 }
 
-// BitlistRootWithLimit computes the HashTreeRoot merkleization of
+// BitlistRootWithLimit computes the HashSSZ merkleization of
 // participation roots.
 func BitlistRootWithLimit(bits []byte, limit uint64) ([32]byte, error) {
 	var (
@@ -91,7 +139,7 @@ func BitlistRootWithLimit(bits []byte, limit uint64) ([32]byte, error) {
 	return utils.Keccak256(base[:], lengthRoot[:]), nil
 }
 
-// BitlistRootWithLimitForState computes the HashTreeRoot merkleization of
+// BitlistRootWithLimitForState computes the HashSSZ merkleization of
 // participation roots.
 func BitlistRootWithLimitForState(bits []byte, limit uint64) ([32]byte, error) {
 	roots := packBits(bits)
@@ -131,4 +179,46 @@ func parseBitlist(dst, buf []byte) ([]byte, uint64) {
 	}
 	res := dst[:newLen]
 	return res, size
+}
+
+func TransactionsListRoot(transactions [][]byte) (libcommon.Hash, error) {
+	txCount := uint64(len(transactions))
+
+	leaves := [][32]byte{}
+	for _, transaction := range transactions {
+		transactionLength := uint64(len(transaction))
+		packedTransactions := packBits(transaction) // Pack transactions
+		transactionsBaseRoot, err := MerkleizeVector(packedTransactions, 33554432)
+		if err != nil {
+			return libcommon.Hash{}, err
+		}
+
+		lengthRoot := Uint64Root(transactionLength)
+		leaves = append(leaves, utils.Keccak256(transactionsBaseRoot[:], lengthRoot[:]))
+	}
+	transactionsBaseRoot, err := MerkleizeVector(leaves, 1048576)
+	if err != nil {
+		return libcommon.Hash{}, err
+	}
+
+	countRoot := Uint64Root(txCount)
+
+	return utils.Keccak256(transactionsBaseRoot[:], countRoot[:]), nil
+}
+
+func ListObjectSSZRoot[T ssz_utils.HashableSSZ](list []T, limit uint64) ([32]byte, error) {
+	subLeaves := make([][32]byte, 0, len(list))
+	for _, element := range list {
+		subLeaf, err := element.HashSSZ()
+		if err != nil {
+			return [32]byte{}, err
+		}
+		subLeaves = append(subLeaves, subLeaf)
+	}
+	vectorLeaf, err := MerkleizeVector(subLeaves, limit)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	lenLeaf := Uint64Root(uint64(len(list)))
+	return utils.Keccak256(vectorLeaf[:], lenLeaf[:]), nil
 }

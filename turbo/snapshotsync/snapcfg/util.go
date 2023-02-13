@@ -14,6 +14,7 @@ import (
 
 var (
 	Mainnet    = fromToml(snapshothashes.Mainnet)
+	Sepolia    = fromToml(snapshothashes.Sepolia)
 	Goerli     = fromToml(snapshothashes.Goerli)
 	Bsc        = fromToml(snapshothashes.Bsc)
 	Mumbai     = fromToml(snapshothashes.Mumbai)
@@ -21,6 +22,7 @@ var (
 	Gnosis     = fromToml(snapshothashes.Gnosis)
 
 	MainnetHistory    = fromToml(snapshothashes.MainnetHistory)
+	SepoliaHistory    = fromToml(snapshothashes.SepoliaHistory)
 	GoerliHistory     = fromToml(snapshothashes.GoerliHistory)
 	BscHistory        = fromToml(snapshothashes.BscHistory)
 	MumbaiHistory     = fromToml(snapshothashes.MumbaiHistory)
@@ -53,6 +55,7 @@ func doSort(in preverified) Preverified {
 
 var (
 	MainnetChainSnapshotCfg    = newCfg(Mainnet, MainnetHistory)
+	SepoliaChainSnapshotCfg    = newCfg(Sepolia, SepoliaHistory)
 	GoerliChainSnapshotCfg     = newCfg(Goerli, GoerliHistory)
 	BscChainSnapshotCfg        = newCfg(Bsc, BscHistory)
 	MumbaiChainSnapshotCfg     = newCfg(Mumbai, MumbaiHistory)
@@ -102,6 +105,7 @@ type Cfg struct {
 
 var KnownCfgs = map[string]*Cfg{
 	networkname.MainnetChainName:    MainnetChainSnapshotCfg,
+	networkname.SepoliaChainName:    SepoliaChainSnapshotCfg,
 	networkname.GoerliChainName:     GoerliChainSnapshotCfg,
 	networkname.BSCChainName:        BscChainSnapshotCfg,
 	networkname.MumbaiChainName:     MumbaiChainSnapshotCfg,
@@ -139,7 +143,7 @@ func KnownCfg(networkName string, whiteList, whiteListHistory []string) *Cfg {
 	} else {
 		wlMap2 := make(map[string]struct{}, len(whiteListHistory))
 		for _, fName := range whiteListHistory {
-			wlMap2[fName] = struct{}{}
+			wlMap2[filepath.Join("history", fName)] = struct{}{}
 		}
 
 		result2 = make(Preverified, 0, len(c.PreverifiedHistory))
