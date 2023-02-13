@@ -1328,6 +1328,16 @@ func TruncateBlocks(ctx context.Context, tx kv.RwTx, blockFrom uint64) error {
 			if !isCanonical {
 				bucket = kv.NonCanonicalTxs
 			}
+			{
+				cc, _ := tx.Cursor(bucket)
+				lastIdB, _, _ := cc.Last()
+				lastID := binary.BigEndian.Uint64(lastIdB)
+				if int(b.BaseTxId)+int(b.TxAmount) < int(lastID) {
+					seq, _ := tx.ReadSequence(bucket)
+					log.Warn("see abandoned txs", "table", bucket, "lastBaseID", b.BaseTxId, "lastAmount", b.TxAmount, "lastInTable", int(lastID), "sequence", seq)
+				}
+			}
+
 			i := 0
 			if err := tx.ForEach(bucket, hexutility.EncodeTs(b.BaseTxId), func(k, _ []byte) error {
 				select {

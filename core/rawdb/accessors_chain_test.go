@@ -160,6 +160,15 @@ func TestTruncateBlocks(t *testing.T) {
 	err = WriteCanonicalHash(tx, b.Hash(), b.NumberU64())
 	require.NoError(t, err)
 
+	// insert some abandoned txs
+	WriteTransactions(tx, types.Transactions{
+		types.NewTransaction(6, testAddr, u256.Num1, 1, u256.Num1, nil),
+		types.NewTransaction(7, testAddr, u256.Num1, 1, u256.Num1, nil),
+		types.NewTransaction(8, testAddr, u256.Num1, 1, u256.Num1, nil),
+		types.NewTransaction(9, testAddr, u256.Num1, 1, u256.Num1, nil),
+		types.NewTransaction(10, testAddr, u256.Num1, 1, u256.Num1, nil),
+	}, 14)
+
 	if err := TruncateBlocks(context.Background(), tx, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +181,7 @@ func TestTruncateBlocks(t *testing.T) {
 		return nil
 	})
 	require.Equal(t, 5, count)
-	require.Equal(t, 5, last)
+	require.Equal(t, 5, int(last))
 	t.Fail()
 }
 
