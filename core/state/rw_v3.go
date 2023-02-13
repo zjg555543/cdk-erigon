@@ -63,7 +63,7 @@ func (rs *StateV3) put(table string, key, val []byte) {
 		rs.changes[table] = t
 	}
 	stringKey := string(key)
-	if oldVal, ok := t[stringKey]; !ok {
+	if oldVal, ok := t[stringKey]; ok {
 		rs.sizeEstimate += len(val) - len(oldVal)
 		t[stringKey] = val
 		return
