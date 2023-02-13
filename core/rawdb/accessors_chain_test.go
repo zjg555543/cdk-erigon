@@ -19,12 +19,14 @@ package rawdb
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
@@ -125,6 +127,55 @@ func TestBodyStorage(t *testing.T) {
 }
 
 // Tests block storage and retrieval operations.
+func TestTruncateBlocks(t *testing.T) {
+	_, tx := memdb.NewTestTx(t)
+	var testKey, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	testAddr := crypto.PubkeyToAddress(testKey.PublicKey)
+	h1 := &types.Header{Number: big.NewInt(1)}
+	b := types.NewBlockFromStorage(h1.Hash(), h1,
+		types.Transactions{
+			types.NewTransaction(1, testAddr, u256.Num1, 1, u256.Num1, nil),
+			types.NewTransaction(2, testAddr, u256.Num1, 1, u256.Num1, nil),
+			types.NewTransaction(3, testAddr, u256.Num1, 1, u256.Num1, nil),
+			types.NewTransaction(4, testAddr, u256.Num1, 1, u256.Num1, nil),
+			types.NewTransaction(5, testAddr, u256.Num1, 1, u256.Num1, nil),
+		}, nil, nil)
+
+	err := WriteBlock(tx, b)
+	require.NoError(t, err)
+	err = WriteCanonicalHash(tx, b.Hash(), b.NumberU64())
+	require.NoError(t, err)
+
+	h2 := &types.Header{Number: big.NewInt(2)}
+	b = types.NewBlockFromStorage(h2.Hash(), h2,
+		types.Transactions{
+			types.NewTransaction(6, testAddr, u256.Num1, 1, u256.Num1, nil),
+			types.NewTransaction(7, testAddr, u256.Num1, 1, u256.Num1, nil),
+			types.NewTransaction(8, testAddr, u256.Num1, 1, u256.Num1, nil),
+			types.NewTransaction(9, testAddr, u256.Num1, 1, u256.Num1, nil),
+			types.NewTransaction(10, testAddr, u256.Num1, 1, u256.Num1, nil),
+		}, nil, nil)
+	err = WriteBlock(tx, b)
+	require.NoError(t, err)
+	err = WriteCanonicalHash(tx, b.Hash(), b.NumberU64())
+	require.NoError(t, err)
+
+	if err := TruncateBlocks(context.Background(), tx, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	count := 0
+	var last uint64
+	tx.ForEach(kv.EthTx, nil, func(k, v []byte) error {
+		count++
+		last = binary.BigEndian.Uint64(k)
+		return nil
+	})
+	require.Equal(t, 5, count)
+	require.Equal(t, 5, last)
+	t.Fail()
+}
+
 func TestBlockStorage(t *testing.T) {
 	_, tx := memdb.NewTestTx(t)
 

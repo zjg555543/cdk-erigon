@@ -1328,15 +1328,16 @@ func TruncateBlocks(ctx context.Context, tx kv.RwTx, blockFrom uint64) error {
 			if !isCanonical {
 				bucket = kv.NonCanonicalTxs
 			}
+			i := 0
 			if err := tx.ForEach(bucket, hexutility.EncodeTs(b.BaseTxId), func(k, _ []byte) error {
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
 				case <-logEvery.C:
-					log.Info("TruncateBlocks", "block", n)
+					log.Info("TruncateBlocks", "block", n, "isCanonical", isCanonical, "blockBaseTxID", b.BaseTxId, "blockTxsAmount", n, "deletedInThisBlock", i)
 				default:
 				}
-
+				i++
 				if err := tx.Delete(bucket, k); err != nil {
 					return err
 				}
