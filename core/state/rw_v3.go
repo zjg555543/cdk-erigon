@@ -5,10 +5,10 @@ import (
 	"container/heap"
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/holiman/uint256"
 	common2 "github.com/ledgerwatch/erigon-lib/common"
@@ -37,18 +37,20 @@ type StateV3 struct {
 	triggerLock  sync.RWMutex
 	queue        exec22.TxTaskQueue
 	queueLock    sync.Mutex
-	changes      map[string]*btree2.Map[string, []byte]
-	sizeEstimate uint64
+	changes      map[string]map[string][]byte
+	sizeEstimate int
 	txsDone      *atomic2.Uint64
 	finished     atomic2.Bool
+	tmpdir       string
 }
 
-func NewStateV3() *StateV3 {
+func NewStateV3(tmpdir string) *StateV3 {
 	rs := &StateV3{
 		triggers:     map[uint64]*exec22.TxTask{},
 		senderTxNums: map[common2.Address]uint64{},
-		changes:      map[string]*btree2.Map[string, []byte]{},
+		changes:      map[string]map[string][]byte{},
 		txsDone:      atomic2.NewUint64(0),
+		tmpdir:       tmpdir,
 	}
 	rs.receiveWork = sync.NewCond(&rs.queueLock)
 	return rs
@@ -57,19 +59,18 @@ func NewStateV3() *StateV3 {
 func (rs *StateV3) put(table string, key, val []byte) {
 	t, ok := rs.changes[table]
 	if !ok {
-		t = btree2.NewMap[string, []byte](128)
+		t = map[string][]byte{}
 		rs.changes[table] = t
 	}
-	old, ok := t.Set(string(key), val)
-	if ok {
-		rs.sizeEstimate += uint64(len(val))
-		rs.sizeEstimate -= uint64(len(old))
-	} else {
-		rs.sizeEstimate += btreeOverhead + uint64(len(key)) + uint64(len(val))
+	stringKey := string(key)
+	if oldVal, ok := t[stringKey]; !ok {
+		rs.sizeEstimate += len(val) - len(oldVal)
+		t[stringKey] = val
+		return
 	}
+	rs.sizeEstimate += len(key) + len(val)
+	t[stringKey] = val
 }
-
-const btreeOverhead = 16
 
 func (rs *StateV3) Get(table string, key []byte) []byte {
 	rs.lock.RLock()
@@ -83,48 +84,36 @@ func (rs *StateV3) get(table string, key []byte) []byte {
 	if !ok {
 		return nil
 	}
-	if i, ok := t.Get(string(key)); ok {
-		return i
+	if value, ok := t[*(*string)(unsafe.Pointer(&key))]; ok {
+		return value
 	}
 	return nil
 }
 
-func (rs *StateV3) Flush(ctx context.Context, rwTx kv.RwTx, logPrefix string, logEvery *time.Ticker) error {
+func (rs *StateV3) Flush(ctx context.Context, tx kv.RwTx, logPrefix string, logEvery *time.Ticker) error {
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
-	for table, t := range rs.changes {
-		c, err := rwTx.RwCursor(table)
-		if err != nil {
-			return err
-		}
-
-		iter := t.Iter()
-		for ok := iter.First(); ok; ok = iter.Next() {
-			if len(iter.Value()) == 0 {
-				if err = c.Delete([]byte(iter.Key())); err != nil {
-					return err
-				}
-				//fmt.Printf("Flush [%x]=>\n", item.key)
-			} else {
-				if err = c.Put([]byte(iter.Key()), iter.Value()); err != nil {
-					return err
-				}
-				//fmt.Printf("Flush [%x]=>[%x]\n", item.key, item.val)
+	for table, changes := range rs.changes {
+		collector := etl.NewCollector(logPrefix, rs.tmpdir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+		defer collector.Close()
+		for key, value := range changes {
+			if err := collector.Collect([]byte(key), value); err != nil {
+				return err
 			}
-
 			select {
+			default:
 			case <-logEvery.C:
-				log.Info(fmt.Sprintf("[%s] Flush", logPrefix), "table", table, "current_prefix", hex.EncodeToString([]byte(iter.Key())[:4]))
+				log.Info("Sorting", "current table", table)
+				tx.CollectMetrics()
 			case <-ctx.Done():
 				return ctx.Err()
-			default:
 			}
 		}
-		if err != nil {
+		if err := collector.Load(tx, table, etl.IdentityLoadFunc, etl.TransformArgs{Quit: ctx.Done()}); err != nil {
 			return err
 		}
-		t.Clear()
 	}
+	rs.changes = map[string]map[string][]byte{}
 	rs.sizeEstimate = 0
 	return nil
 }
@@ -274,8 +263,15 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 				k = nil
 			}
 			if psChanges != nil {
+				psChanges2 := *btree2.NewMap[string, []byte](128)
+				for key, value := range psChanges {
+					if bytes.HasPrefix([]byte(key), addr1) {
+						psChanges2.Set(key, value)
+					}
+				}
+
 				//TODO: try full-scan, then can replace btree by map
-				iter := psChanges.Iter()
+				iter := psChanges2.Iter()
 				for ok := iter.Seek(string(addr1)); ok; ok = iter.Next() {
 					key := []byte(iter.Key())
 					if !bytes.HasPrefix(key, addr1) {
@@ -544,11 +540,11 @@ func (rs *StateV3) SizeEstimate() uint64 {
 	rs.lock.RLock()
 	r := rs.sizeEstimate
 	rs.lock.RUnlock()
-	return r
+	return uint64(r)
 }
 
 func (rs *StateV3) ReadsValid(readLists map[string]*exec22.KvList) bool {
-	var t *btree2.Map[string, []byte]
+	var t map[string][]byte
 
 	rs.lock.RLock()
 	defer rs.lock.RUnlock()
@@ -565,7 +561,7 @@ func (rs *StateV3) ReadsValid(readLists map[string]*exec22.KvList) bool {
 			continue
 		}
 		for i, key := range list.Keys {
-			if val, ok := t.Get(string(key)); ok {
+			if val, ok := t[*(*string)(unsafe.Pointer(&key))]; ok {
 				//fmt.Printf("key [%x] => [%x] vs [%x]\n", key, val, rereadVal)
 				if table == CodeSizeTable {
 					if binary.BigEndian.Uint64(list.Vals[i]) != uint64(len(val)) {
