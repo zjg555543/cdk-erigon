@@ -765,7 +765,6 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 			repeatCount.Inc()
 
 			//rs.AddWork(txTask)
-			//repeatCount.Inc()
 			//continue
 
 			// immediately retry once

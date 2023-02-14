@@ -1,0 +1,9 @@
+STOP_AFTER_RECONSTITUTE=true DISCARD_HISTORY=true ./build/bin/integration stage_exec --datadir=/mnt/erigon/ --chain="$CHAIN" --pprof --batchSize=2gb --recon.workers=16 --exec.workers=16 --metrics --metrics.addr=0.0.0.0 --metrics.port=6061  1>&2 2>> ~/log.txt < /dev/null &!
+
+
+
+rm -rf /mnt/erigon/snapshots/history/*
+
+./build/bin/integration stage_headers --reset --datadir=/mnt/erigon/ --chain="$CHAIN"
+
+DISCARD_HISTORY=true ./build/bin/integration stage_exec --datadir=/mnt/erigon/ --chain="$CHAIN" --pprof --batchSize=1gb --recon.workers=8 --exec.workers=8 --metrics --metrics.addr=0.0.0.0 --metrics.port=6061  1>&2 2>> ~/log.txt < /dev/null &!

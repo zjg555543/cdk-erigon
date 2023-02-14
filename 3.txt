@@ -1,0 +1,1157 @@
+go test --tags=erigon3,integration -p 1 -v -run='TestBlockchain/InvalidBlocks/bcUncleHeaderValidity/gasLimitTooLowExactBoundLondon.json' -count=1 ./tests
+
+
+go test --tags=erigon3,integration -p 1 -v -run='TestExecutionSpec/withdrawals/withdrawals/withdrawals_multiple_withdrawals_same_address.json/001_shanghai' -count=1 ./tests
+
+
+Mainnet:
+2.8G	/mnt/ssd/erigon/snapshots/history/accounts.0-575.l
+915M	/mnt/ssd/erigon/snapshots/history/accounts.0-575.li
+12G	/mnt/ssd/erigon/snapshots/history/storage.0-575.l
+5.1G	/mnt/ssd/erigon/snapshots/history/storage.0-575.li
+
+Mainnet 8bytes:
+1.9G	accounts.0-544.l
+886M	accounts.0-544.li
+8.1G	storage.0-544.l
+4.7G	storage.0-544.li
+
+Mainnet embed:
+676M	accounts.0-544.li
+2.9G	storage.0-544.li
+
+Goerli:
+144M	/mnt/ssd/erigon/snapshots/history/accounts.0-32.l
+51M	/mnt/ssd/erigon/snapshots/history/accounts.0-32.li
+1.5G	/mnt/ssd/erigon/snapshots/history/storage.0-32.l
+539M	/mnt/ssd/erigon/snapshots/history/storage.0-32.li
+
+
+
+go test --tags=integration -v -run='TestBlockchain/TransitionTests/bcHomesteadToDao/DaoTransactions.json' ./tests > 1.txt
+go test --tags=erigon3,integration -v -run='TestBlockchain/TransitionTests/bcHomesteadToDao/DaoTransactions.json' ./tests > 2.txt
+
+./build/bin/integration state_stages --unwind=2 --unwind.every=3 --datadir=/mnt/ssd/erigon --chain=mainnet --pprof --metrics --metrics.addr=0.0.0.0 --metrics.port=6061 --integrity.fast=false
+./build/bin/integration state_stages --unwind=2 --unwind.every=4 --datadir=/mnt/ssd/erigon --chain=mainnet --pprof --metrics --metrics.addr=0.0.0.0 --metrics.port=6061 --integrity.fast=false
+./build/bin/integration state_stages --unwind=100 --datadir=/mnt/ssd/erigon --chain=mainnet --pprof --metrics --metrics.addr=0.0.0.0 --metrics.port=6061 --integrity.fast=false
+
+
+4958d03af2288082a73b5338c65f9732a40070f700000000000000013cf1ad0a16bbfbbc282ec59ada7f4b886d030da2588cc903fbf7dfc6cde1e04c ->
+d605d5be9c9c850bbbf5969ee92897faf2e68a5f2efa153582bea2aa6d87ddc500000000000000017ff4f7
+// 0d08050b01030c050104020a000f050a0009010d060b0f000409030b0b0e050509010305040d0f07030102060f0d040d06070700000408030201
+
+
+
+
+for retain: 4958d03af2288082a73b5338c65f9732a40070f700000000000000013cf1ad0a16bbfbbc282ec59ada7f4b886d030da2588cc903fbf7dfc6cde1e04d,d605d5be9c9c850bbbf5969ee92897faf2e68a5f2efa153582bea2aa6d87ddc50000000000000001f6e46474ec4eb85040c9723f24381e985d630a6ac91c7decfbaeb9e31535942c, 5d223207, 0d0101010120cdcdc7857dffd9c371c56fc987311372b7bd5fff59486bf0d5fafe14a664ff1e
+
+
+
+go run ./cmd/integration stage_exec --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --reset
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli  --block=882140 --integrity.fast=false > 1.txt
+
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli  --block=882139 --integrity.fast=false > 1.txt
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli  --unwind=1 --integrity.fast=false > 1.txt
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli  --block=882140 --integrity.fast=false > 1.txt
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli  --unwind=1 --integrity.fast=false > 1.txt
+
+go run ./cmd/integration stage_exec --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli  --block=882140 --integrity.fast=true --integrity.slow=true > 2.txt
+
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli  --block=882139 --integrity.fast=false > 2.txt
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli  --block=882140 --integrity.fast=false > 2.txt
+
+go run ./cmd/integration state_stages --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli  --unwind=1 --integrity.fast=false > 2.txt
+
+go run ./cmd/integration stage_trie --reset --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false > 2.txt
+go run ./cmd/integration stage_trie --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false > 2.txt
+
+
+ GOGC=50 WRITE_MAP=true ./build/bin/integration stage_exec --datadir=/mnt/ssd/erigon/ --chain=mainnet --pprof --batchSize=512mb --recon.workers=32 --exec.workers=32 --metrics --metrics.addr=0.0.0.0 --metrics.port=6061 --log.console.verbosity=4 1>&2 2>> ~/log.txt < /dev/null &!
+
+
+curl -X POST -H "Content-Type: application/json" --data '{  "jsonrpc": "2.0",  "method": "eth_getLogs",  "params": [    {"fromBlock": "0xDD40CB", "toBlock": "0xDD40CB"}], "id": 537758}' http://localhost:8545
+curl -X POST -H "Content-Type: application/json" --data '{  "jsonrpc": "2.0",  "method": "eth_getBlockByNumber",  "params": [    "0xDD40CB", false], "id": 537758}' http://localhost:8545
+
+
+ MDBX_READAHEAD=true WRITE_MAP=true ./build/bin/integration stage_hash_state --datadir=/mnt/ssd/erigon/ --chain=mainnet
+ MDBX_READAHEAD=true WRITE_MAP=true ./build/bin/integration stage_trie --datadir=/mnt/ssd/erigon/ --chain=mainnet
+
+
+
+echo -e "POST http://127.0.0.1:8545 \n Content-Type: application/json \n @$(pwd)/cmd/rpctest/lessHeavyStorageRangeAt.json" | vegeta attack -rate=100 -duration=50s --output results.bin;
+
+15843286
+ time curl -sK -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_getLogs", "params": [ {"fromBlock": "0x4C4B40","toBlock": "0x4C4B60"}], "id":1}' http://localhost:8545 > /dev/null
+ time curl -sK -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_getLogs", "params": [ {"fromBlock": "0xF1BFD6","toBlock": "0xF1BFD6"}], "id":1}' http://localhost:8545 > /dev/null
+ time curl -s -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_getLogs", "params": [ {"fromBlock": "0xF1BFD6","toBlock": "0xF1BFD6"}], "id":1}' http://localhost:8545
+
+
+==================
+WARNING: DATA RACE
+Write at 0x00c090b73008 by goroutine 23:
+  github.com/ledgerwatch/erigon/core/state.(*TxTaskQueue).Push()
+      github.com/ledgerwatch/erigon/core/state/rw22.go:70 +0xe8
+  container/heap.Push()
+      container/heap/heap.go:52 +0x4b
+  github.com/ledgerwatch/erigon/eth/stagedsync.Exec3.func2.1()
+      github.com/ledgerwatch/erigon/eth/stagedsync/exec3.go:204 +0x128
+  github.com/ledgerwatch/erigon/eth/stagedsync.Exec3.func2()
+      github.com/ledgerwatch/erigon/eth/stagedsync/exec3.go:207 +0x89b
+
+Previous read at 0x00c090b73008 by main goroutine:
+  github.com/ledgerwatch/erigon/eth/stagedsync.Exec3()
+      github.com/ledgerwatch/erigon/eth/stagedsync/exec3.go:417 +0x2947
+  github.com/ledgerwatch/erigon/eth/stagedsync.ExecBlock22()
+      github.com/ledgerwatch/erigon/eth/stagedsync/stage_execute.go:272 +0xe56
+  github.com/ledgerwatch/erigon/eth/stagedsync.SpawnExecuteBlocksStage()
+      github.com/ledgerwatch/erigon/eth/stagedsync/stage_execute.go:349 +0xc84
+  github.com/ledgerwatch/erigon/cmd/integration/commands.stageExec()
+      github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:740 +0xcd0
+  github.com/ledgerwatch/erigon/cmd/integration/commands.glob..func12()
+      github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:121 +0x178
+  github.com/spf13/cobra.(*Command).execute()
+      github.com/spf13/cobra@v1.5.0/command.go:872 +0xb2b
+  github.com/spf13/cobra.(*Command).ExecuteC()
+      github.com/spf13/cobra@v1.5.0/command.go:990 +0x5da
+  github.com/spf13/cobra.(*Command).Execute()
+      github.com/spf13/cobra@v1.5.0/command.go:918 +0x199
+  github.com/spf13/cobra.(*Command).ExecuteContext()
+      github.com/spf13/cobra@v1.5.0/command.go:911 +0x194
+  main.main()
+      github.com/ledgerwatch/erigon/cmd/integration/main.go:15 +0x1a0
+
+Goroutine 23 (running) created at:
+  github.com/ledgerwatch/erigon/eth/stagedsync.Exec3()
+      github.com/ledgerwatch/erigon/eth/stagedsync/exec3.go:186 +0x1989
+  github.com/ledgerwatch/erigon/eth/stagedsync.ExecBlock22()
+      github.com/ledgerwatch/erigon/eth/stagedsync/stage_execute.go:272 +0xe56
+  github.com/ledgerwatch/erigon/eth/stagedsync.SpawnExecuteBlocksStage()
+      github.com/ledgerwatch/erigon/eth/stagedsync/stage_execute.go:349 +0xc84
+  github.com/ledgerwatch/erigon/cmd/integration/commands.stageExec()
+      github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:740 +0xcd0
+  github.com/ledgerwatch/erigon/cmd/integration/commands.glob..func12()
+      github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:121 +0x178
+  github.com/spf13/cobra.(*Command).execute()
+      github.com/spf13/cobra@v1.5.0/command.go:872 +0xb2b
+  github.com/spf13/cobra.(*Command).ExecuteC()
+      github.com/spf13/cobra@v1.5.0/command.go:990 +0x5da
+  github.com/spf13/cobra.(*Command).Execute()
+      github.com/spf13/cobra@v1.5.0/command.go:918 +0x199
+  github.com/spf13/cobra.(*Command).ExecuteContext()
+      github.com/spf13/cobra@v1.5.0/command.go:911 +0x194
+  main.main()
+      github.com/ledgerwatch/erigon/cmd/integration/main.go:15 +0x1a0
+==================
+
+
+2 @ 0x45aab6 0x46a93c 0x5a31aa 0x48c441
+#	0x5a31a9	github.com/ledgerwatch/erigon-lib/common.RootContext.func1+0x1a9	github.com/ledgerwatch/erigon-lib@v0.0.0-20221021061906-a04ec28603cd/common/cli.go:39
+
+2 @ 0x45aab6 0x48842c 0x48840c 0x4a0c8c 0xe6c965 0x10f083d 0x48c441
+#	0x48840b	sync.runtime_notifyListWait+0x12b					runtime/sema.go:517
+#	0x4a0c8b	sync.(*Cond).Wait+0x8b							sync/cond.go:70
+#	0xe6c964	github.com/ledgerwatch/erigon/core/state.(*State22).Schedule+0xa4	github.com/ledgerwatch/erigon/core/state/rw22.go:175
+#	0x10f083c	github.com/ledgerwatch/erigon/cmd/state/exec3.(*Worker22).Run+0xbc	github.com/ledgerwatch/erigon/cmd/state/exec3/state.go:94
+
+1 @ 0x42c974 0x48888f 0x51a399 0x48c441
+#	0x48888e	os/signal.signal_recv+0x2e	runtime/sigqueue.go:152
+#	0x51a398	os/signal.loop+0x18		os/signal/signal_unix.go:23
+
+1 @ 0x44ff36 0x486125 0x5c0e55 0x5c0c6d 0x5bdbcb 0x81d5f1 0x48c441
+#	0x486124	runtime/pprof.runtime_goroutineProfileWithLabels+0x24			runtime/mprof.go:846
+#	0x5c0e54	runtime/pprof.writeRuntimeProfile+0xb4					runtime/pprof/pprof.go:723
+#	0x5c0c6c	runtime/pprof.writeGoroutine+0x4c					runtime/pprof/pprof.go:683
+#	0x5bdbca	runtime/pprof.(*Profile).WriteTo+0x14a					runtime/pprof/pprof.go:330
+#	0x81d5f0	github.com/ledgerwatch/erigon/internal/debug.ListenSignals+0x190	github.com/ledgerwatch/erigon/internal/debug/signal.go:40
+
+1 @ 0x45aab6 0x4273db 0x426ed8 0x1276692 0x48c441
+#	0x1276691	github.com/ledgerwatch/erigon/cmd/integration/commands.newSync.func1+0x31	github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:1258
+
+1 @ 0x45aab6 0x453497 0x4865c9 0x4f4e92 0x4fa114 0x4fa101 0x568ed5 0x5850a8 0x58427d 0x7463e5 0x74601d 0x81d249 0x81d24a 0x48c441
+#	0x4865c8	internal/poll.runtime_pollWait+0x88					runtime/netpoll.go:305
+#	0x4f4e91	internal/poll.(*pollDesc).wait+0x31					internal/poll/fd_poll_runtime.go:84
+#	0x4fa113	internal/poll.(*pollDesc).waitRead+0x233				internal/poll/fd_poll_runtime.go:89
+#	0x4fa100	internal/poll.(*FD).Accept+0x220					internal/poll/fd_unix.go:614
+#	0x568ed4	net.(*netFD).accept+0x34						net/fd_unix.go:172
+#	0x5850a7	net.(*TCPListener).accept+0x27						net/tcpsock_posix.go:142
+#	0x58427c	net.(*TCPListener).Accept+0x3c						net/tcpsock.go:288
+#	0x7463e4	net/http.(*Server).Serve+0x384						net/http/server.go:3070
+#	0x74601c	net/http.(*Server).ListenAndServe+0x7c					net/http/server.go:2999
+#	0x81d248	net/http.ListenAndServe+0x68						net/http/server.go:3255
+#	0x81d249	github.com/ledgerwatch/erigon/internal/debug.StartPProf.func2+0x69	github.com/ledgerwatch/erigon/internal/debug/flags.go:194
+
+1 @ 0x45aab6 0x46a93c 0x119a19f 0x48c441
+#	0x119a19e	github.com/ledgerwatch/erigon/eth/stagedsync.Exec3.func2+0x45e	github.com/ledgerwatch/erigon/eth/stagedsync/exec3.go:189
+
+1 @ 0x45aab6 0x48842c 0x48840c 0x4a0c8c 0x1199b51 0x1198319 0x11b238f 0x11b38a7 0x126fc11 0x1269aac 0x809d14 0x80a39d 0x127f119 0x127f111 0x127f11a 0x45a6f2 0x48c441
+#	0x48840b	sync.runtime_notifyListWait+0x12b						runtime/sema.go:517
+#	0x4a0c8b	sync.(*Cond).Wait+0x8b								sync/cond.go:70
+#	0x1199b50	github.com/ledgerwatch/erigon/eth/stagedsync.Exec3.func3+0xd0			github.com/ledgerwatch/erigon/eth/stagedsync/exec3.go:318
+#	0x1198318	github.com/ledgerwatch/erigon/eth/stagedsync.Exec3+0x11f8			github.com/ledgerwatch/erigon/eth/stagedsync/exec3.go:320
+#	0x11b238e	github.com/ledgerwatch/erigon/eth/stagedsync.ExecBlock22+0x8ee			github.com/ledgerwatch/erigon/eth/stagedsync/stage_execute.go:272
+#	0x11b38a6	github.com/ledgerwatch/erigon/eth/stagedsync.SpawnExecuteBlocksStage+0x986	github.com/ledgerwatch/erigon/eth/stagedsync/stage_execute.go:349
+#	0x126fc10	github.com/ledgerwatch/erigon/cmd/integration/commands.stageExec+0x890		github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:740
+#	0x1269aab	github.com/ledgerwatch/erigon/cmd/integration/commands.glob..func12+0x14b	github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:121
+#	0x809d13	github.com/spf13/cobra.(*Command).execute+0x693					github.com/spf13/cobra@v1.5.0/command.go:872
+#	0x80a39c	github.com/spf13/cobra.(*Command).ExecuteC+0x3bc				github.com/spf13/cobra@v1.5.0/command.go:990
+#	0x127f118	github.com/spf13/cobra.(*Command).Execute+0x118					github.com/spf13/cobra@v1.5.0/command.go:918
+#	0x127f110	github.com/spf13/cobra.(*Command).ExecuteContext+0x110				github.com/spf13/cobra@v1.5.0/command.go:911
+#	0x127f119	main.main+0x119									github.com/ledgerwatch/erigon/cmd/integration/main.go:15
+#	0x45a6f1	runtime.main+0x211								runtime/proc.go:250
+
+1 @ 0x45aab6 0x4891d5 0x7b2a16 0x48c441
+#	0x4891d4	time.Sleep+0x134						runtime/time.go:195
+#	0x7b2a15	github.com/VictoriaMetrics/metrics.summariesSwapCron+0x35	github.com/VictoriaMetrics/metrics@v1.22.2/summary.go:237
+
+
+
+
+
+
+go run ./cmd/downloader --datadir=/home/admin/.local/share/mainnet --log.console.verbosity=4 --torrent.download.rate=300mb --torrent.upload.rate=300mb --torrent.port=0 --torrent.verbosity=3
+ go run ./cmd/downloader --datadir=/mnt/ssd/erigon/  --torrent.download.rate=300mb --torrent.upload.rate=300mb --torrent.port=0 --log.console.verbosity=4
+
+[INFO] [10-19|10:11:43.373] [snapshots] merge: accounts.0-32.ef
+unexpected fault address 0x7792309b9641
+fatal error: fault
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x7792309b9641 pc=0xe108b3]
+
+goroutine 2275 [running]:
+runtime.throw({0x15c2417?, 0x203060?})
+	runtime/panic.go:1047 +0x5d fp=0xc0f8bf25b0 sp=0xc0f8bf2580 pc=0x457e9d
+runtime.sigpanic()
+	runtime/signal_unix.go:842 +0x2c5 fp=0xc0f8bf2600 sp=0xc0f8bf25b0 pc=0x46e7c5
+github.com/ledgerwatch/erigon-lib/compress.(*Getter).nextPos(0x50?, 0x20?)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/decompress.go:412 +0xb3 fp=0xc0f8bf2620 sp=0xc0f8bf2600 pc=0xe108b3
+github.com/ledgerwatch/erigon-lib/compress.(*Getter).Next(0xc1814ec2d0, {0x0, 0x0, 0x0})
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/decompress.go:518 +0x59 fp=0xc0f8bf26b8 sp=0xc0f8bf2620 pc=0xe10e39
+github.com/ledgerwatch/erigon-lib/state.(*InvertedIndex).mergeFiles(0xc000154400, {0xc1f4cab9c0, 0x6, 0x0?}, 0x0, 0x5f5e100, 0x262c9c0?)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/merge.go:514 +0x773 fp=0xc0f8bf29c8 sp=0xc0f8bf26b8 pc=0xe49a73
+github.com/ledgerwatch/erigon-lib/state.(*History).mergeFiles(0xc000280190, {0xc1f4cab9c0?, 0x6, 0x8}, {0xc1f4caba00, 0x6, 0x0?}, {0x0, 0x5f5e100, 0x1, ...}, ...)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/merge.go:611 +0x17d fp=0xc0f8bf32e0 sp=0xc0f8bf29c8 pc=0xe4ad1d
+github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).mergeFiles(_, {{0xc1f4cab9c0, 0x6, 0x8}, {0xc1f4caba00, 0x6, 0x8}, 0x0, {0xc1f4caba40, 0x6, ...}, ...}, ...)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:772 +0x1cf fp=0xc0f8bf34b8 sp=0xc0f8bf32e0 pc=0xe3002f
+github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).Merge(0xc000e78000)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:331 +0x40b fp=0xc0f8bf3bb0 sp=0xc0f8bf34b8 pc=0xe2b80b
+github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).buildFilesInBackground(0xc000e78000, 0x20, {{{0xc05a590680, 0x32}, 0xc0535c0f70, 0xa94bd8, 0xc050c60420}, {{0xc05485a1c0, 0x31}, 0xc068981040, ...}, ...})
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:314 +0x3c5 fp=0xc0f8bf3ee8 sp=0xc0f8bf3bb0 pc=0xe2b265
+github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).FinishTx.func2()
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:911 +0xb8 fp=0xc0f8bf3fe0 sp=0xc0f8bf3ee8 pc=0xe31098
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc0f8bf3fe8 sp=0xc0f8bf3fe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).FinishTx
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:909 +0x32a
+
+goroutine 1 [runnable, locked to thread]:
+runtime.cgocall(0x127888c, 0xc069b11848)
+	runtime/cgocall.go:158 +0x5c fp=0xc069b11820 sp=0xc069b117e8 pc=0x4243fc
+github.com/torquem-ch/mdbx-go/mdbx._Cfunc_mdbx_cursor_del(0x7797841a6a90, 0x40)
+	_cgo_gotypes.go:449 +0x4c fp=0xc069b11848 sp=0xc069b11820 pc=0x8a11ec
+github.com/torquem-ch/mdbx-go/mdbx.(*Cursor).Del.func1(0x8a67d1?, 0x40)
+	github.com/torquem-ch/mdbx-go@v0.26.1/mdbx/cursor.go:295 +0x51 fp=0xc069b11880 sp=0xc069b11848 pc=0x8a67d1
+github.com/torquem-ch/mdbx-go/mdbx.(*Cursor).Del(0xc167ecc050?, 0x7797685cdc68?)
+	github.com/torquem-ch/mdbx-go@v0.26.1/mdbx/cursor.go:295 +0x1d fp=0xc069b118b0 sp=0xc069b11880 pc=0x8a663d
+github.com/ledgerwatch/erigon-lib/kv/mdbx.(*MdbxCursor).delCurrent(...)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/kv/mdbx/kv_mdbx.go:1100
+github.com/ledgerwatch/erigon-lib/kv/mdbx.(*MdbxDupSortCursor).DeleteExact(0xc0cded0040, {0x7797685cdc68?, 0x20?, 0x20?}, {0x7797685cdc16?, 0x8?, 0x8?})
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/kv/mdbx/kv_mdbx.go:1506 +0x9c fp=0xc069b11910 sp=0xc069b118b0 pc=0xa49d5c
+github.com/ledgerwatch/erigon-lib/state.(*InvertedIndex).prune(0xc000155080, 0x0, 0x5f5e100, 0x2faf08)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/inverted_index.go:877 +0x70a fp=0xc069b11b08 sp=0xc069b11910 pc=0xe47c8a
+github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).prune(0xc000e78000, 0x32?, 0xc0535c0f70?, 0xa94bd8?)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:570 +0xf2 fp=0xc069b11b50 sp=0xc069b11b08 pc=0xe2e7d2
+github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).FinishTx(0xc0764310e0?)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:916 +0x345 fp=0xc069b11d30 sp=0xc069b11b50 pc=0xe30e85
+github.com/ledgerwatch/erigon/core/state.(*State22).Apply(0xc02a4f26c0, {0x1c25c20, 0xc05da92030}, 0xc02e747a40, 0xc000e78000)
+	github.com/ledgerwatch/erigon/core/state/rw22.go:402 +0x163d fp=0xc069b124b0 sp=0xc069b11d30 pc=0xe683dd
+github.com/ledgerwatch/erigon/eth/stagedsync.Exec3({0x1c18788, 0xc000480640}, 0xc029bbdfa0, 0x1, 0x8000000, {0x1c205e0, 0xc000275290}, {0x0, 0x0}, 0xc02a4f26c0, ...)
+	github.com/ledgerwatch/erigon/eth/stagedsync/exec3.go:356 +0x2257 fp=0xc069b12ba0 sp=0xc069b124b0 pc=0x1192bd7
+github.com/ledgerwatch/erigon/eth/stagedsync.ExecBlock22(_, {_, _}, {_, _}, _, {_, _}, {{0x1c205e0, 0xc000275290}, ...}, ...)
+	github.com/ledgerwatch/erigon/eth/stagedsync/stage_execute.go:270 +0x8cf fp=0xc069b12db0 sp=0xc069b12ba0 pc=0x11abb8f
+github.com/ledgerwatch/erigon/eth/stagedsync.SpawnExecuteBlocksStage(_, {_, _}, {_, _}, _, {_, _}, {{0x1c205e0, 0xc000275290}, ...}, ...)
+	github.com/ledgerwatch/erigon/eth/stagedsync/stage_execute.go:347 +0x987 fp=0xc069b134c0 sp=0xc069b12db0 pc=0x11ad0a7
+github.com/ledgerwatch/erigon/cmd/integration/commands.stageExec({0x1c205e0?, 0xc000275290}, {0x1c18788, 0xc000480640})
+	github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:740 +0x891 fp=0xc069b13c18 sp=0xc069b134c0 pc=0x12691f1
+github.com/ledgerwatch/erigon/cmd/integration/commands.glob..func12(0x255af00?, {0x15c11aa?, 0x5?, 0x5?})
+	github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:121 +0x14c fp=0xc069b13d88 sp=0xc069b13c18 pc=0x126308c
+github.com/spf13/cobra.(*Command).execute(0x255af00, {0xc000099770, 0x5, 0x5})
+	github.com/spf13/cobra@v1.5.0/command.go:872 +0x694 fp=0xc069b13e60 sp=0xc069b13d88 pc=0x5ffa94
+github.com/spf13/cobra.(*Command).ExecuteC(0x255cf80)
+	github.com/spf13/cobra@v1.5.0/command.go:990 +0x3bd fp=0xc069b13f18 sp=0xc069b13e60 pc=0x60011d
+github.com/spf13/cobra.(*Command).Execute(...)
+	github.com/spf13/cobra@v1.5.0/command.go:918
+github.com/spf13/cobra.(*Command).ExecuteContext(...)
+	github.com/spf13/cobra@v1.5.0/command.go:911
+main.main()
+	github.com/ledgerwatch/erigon/cmd/integration/main.go:15 +0x11b fp=0xc069b13f80 sp=0xc069b13f18 pc=0x12786fb
+runtime.main()
+	runtime/proc.go:250 +0x212 fp=0xc069b13fe0 sp=0xc069b13f80 pc=0x45a6f2
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc069b13fe8 sp=0xc069b13fe0 pc=0x48c441
+
+goroutine 2 [force gc (idle), 99 minutes]:
+runtime.gopark(0x51478b51cdac?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc000062fb0 sp=0xc000062f90 pc=0x45aab6
+runtime.goparkunlock(...)
+	runtime/proc.go:369
+runtime.forcegchelper()
+	runtime/proc.go:302 +0xad fp=0xc000062fe0 sp=0xc000062fb0 pc=0x45a94d
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc000062fe8 sp=0xc000062fe0 pc=0x48c441
+created by runtime.init.6
+	runtime/proc.go:290 +0x25
+
+goroutine 3 [GC sweep wait]:
+runtime.gopark(0x1?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc000063790 sp=0xc000063770 pc=0x45aab6
+runtime.goparkunlock(...)
+	runtime/proc.go:369
+runtime.bgsweep(0x0?)
+	runtime/mgcsweep.go:297 +0xd7 fp=0xc0000637c8 sp=0xc000063790 pc=0x445757
+runtime.gcenable.func1()
+	runtime/mgc.go:178 +0x26 fp=0xc0000637e0 sp=0xc0000637c8 pc=0x43a3c6
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc0000637e8 sp=0xc0000637e0 pc=0x48c441
+created by runtime.gcenable
+	runtime/mgc.go:178 +0x6b
+
+goroutine 4 [GC scavenge wait]:
+runtime.gopark(0x56002e83e41a?, 0x1049402?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc000063f70 sp=0xc000063f50 pc=0x45aab6
+runtime.goparkunlock(...)
+	runtime/proc.go:369
+runtime.(*scavengerState).park(0x25ecce0)
+	runtime/mgcscavenge.go:389 +0x53 fp=0xc000063fa0 sp=0xc000063f70 pc=0x4437f3
+runtime.bgscavenge(0x0?)
+	runtime/mgcscavenge.go:622 +0x65 fp=0xc000063fc8 sp=0xc000063fa0 pc=0x443de5
+runtime.gcenable.func2()
+	runtime/mgc.go:179 +0x26 fp=0xc000063fe0 sp=0xc000063fc8 pc=0x43a366
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc000063fe8 sp=0xc000063fe0 pc=0x48c441
+created by runtime.gcenable
+	runtime/mgc.go:179 +0xaa
+
+goroutine 18 [finalizer wait, 110 minutes]:
+runtime.gopark(0x0?, 0x1a4d750?, 0xa0?, 0xb8?, 0x2000000020?)
+	runtime/proc.go:363 +0xd6 fp=0xc000062628 sp=0xc000062608 pc=0x45aab6
+runtime.goparkunlock(...)
+	runtime/proc.go:369
+runtime.runfinq()
+	runtime/mfinal.go:180 +0x10f fp=0xc0000627e0 sp=0xc000062628 pc=0x4394cf
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc0000627e8 sp=0xc0000627e0 pc=0x48c441
+created by runtime.createfing
+	runtime/mfinal.go:157 +0x45
+
+goroutine 19 [sleep]:
+runtime.gopark(0x567eb6959261?, 0xc00012af68?, 0x0?, 0x0?, 0x56811c69c62d?)
+	runtime/proc.go:363 +0xd6 fp=0xc00005e740 sp=0xc00005e720 pc=0x45aab6
+time.Sleep(0x22ecb25c00)
+	runtime/time.go:195 +0x135 fp=0xc00005e780 sp=0xc00005e740 pc=0x4891d5
+github.com/VictoriaMetrics/metrics.summariesSwapCron(0x45d964b800)
+	github.com/VictoriaMetrics/metrics@v1.22.2/summary.go:237 +0x36 fp=0xc00005e7c8 sp=0xc00005e780 pc=0x813656
+github.com/VictoriaMetrics/metrics.registerSummaryLocked.func1()
+	github.com/VictoriaMetrics/metrics@v1.22.2/summary.go:211 +0x26 fp=0xc00005e7e0 sp=0xc00005e7c8 pc=0x813366
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc00005e7e8 sp=0xc00005e7e0 pc=0x48c441
+created by github.com/VictoriaMetrics/metrics.registerSummaryLocked
+	github.com/VictoriaMetrics/metrics@v1.22.2/summary.go:211 +0x128
+
+goroutine 20 [GC worker (idle)]:
+runtime.gopark(0x567edfda209e?, 0x3?, 0x53?, 0x23?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc00005ef50 sp=0xc00005ef30 pc=0x45aab6
+runtime.gcBgMarkWorker()
+	runtime/mgc.go:1235 +0xf1 fp=0xc00005efe0 sp=0xc00005ef50 pc=0x43c511
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc00005efe8 sp=0xc00005efe0 pc=0x48c441
+created by runtime.gcBgMarkStartWorkers
+	runtime/mgc.go:1159 +0x25
+
+goroutine 34 [GC worker (idle)]:
+runtime.gopark(0x262c9c0?, 0x1?, 0xc?, 0x5?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc000298750 sp=0xc000298730 pc=0x45aab6
+runtime.gcBgMarkWorker()
+	runtime/mgc.go:1235 +0xf1 fp=0xc0002987e0 sp=0xc000298750 pc=0x43c511
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc0002987e8 sp=0xc0002987e0 pc=0x48c441
+created by runtime.gcBgMarkStartWorkers
+	runtime/mgc.go:1159 +0x25
+
+goroutine 5 [GC worker (idle)]:
+runtime.gopark(0x262c9c0?, 0x1?, 0x7a?, 0x93?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc000064750 sp=0xc000064730 pc=0x45aab6
+runtime.gcBgMarkWorker()
+	runtime/mgc.go:1235 +0xf1 fp=0xc0000647e0 sp=0xc000064750 pc=0x43c511
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc0000647e8 sp=0xc0000647e0 pc=0x48c441
+created by runtime.gcBgMarkStartWorkers
+	runtime/mgc.go:1159 +0x25
+
+goroutine 21 [GC worker (idle)]:
+runtime.gopark(0x568148c47e5a?, 0x3?, 0x86?, 0x94?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc00005f750 sp=0xc00005f730 pc=0x45aab6
+runtime.gcBgMarkWorker()
+	runtime/mgc.go:1235 +0xf1 fp=0xc00005f7e0 sp=0xc00005f750 pc=0x43c511
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc00005f7e8 sp=0xc00005f7e0 pc=0x48c441
+created by runtime.gcBgMarkStartWorkers
+	runtime/mgc.go:1159 +0x25
+
+goroutine 6 [select, 1581 minutes]:
+runtime.gopark(0xc00029bf98?, 0x2?, 0x11?, 0xe0?, 0xc00029bf14?)
+	runtime/proc.go:363 +0xd6 fp=0xc00029bd88 sp=0xc00029bd68 pc=0x45aab6
+runtime.selectgo(0xc00029bf98, 0xc00029bf10, 0x2?, 0x0, 0x0?, 0x1)
+	runtime/select.go:328 +0x7bc fp=0xc00029bec8 sp=0xc00029bd88 pc=0x46a93c
+github.com/ledgerwatch/erigon-lib/common.RootContext.func1()
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/common/cli.go:39 +0x1aa fp=0xc00029bfe0 sp=0xc00029bec8 pc=0x5a19ea
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc00029bfe8 sp=0xc00029bfe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon-lib/common.RootContext
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/common/cli.go:30 +0xa5
+
+goroutine 7 [select, 1581 minutes]:
+runtime.gopark(0xc000065768?, 0x2?, 0x1?, 0x30?, 0xc00006570c?)
+	runtime/proc.go:363 +0xd6 fp=0xc000065580 sp=0xc000065560 pc=0x45aab6
+runtime.selectgo(0xc000065768, 0xc000065708, 0x1?, 0x0, 0x0?, 0x1)
+	runtime/select.go:328 +0x7bc fp=0xc0000656c0 sp=0xc000065580 pc=0x46a93c
+github.com/ledgerwatch/erigon/internal/debug.ListenSignals({0x0?, 0x0})
+	github.com/ledgerwatch/erigon/internal/debug/signal.go:25 +0x1de fp=0xc0000657c0 sp=0xc0000656c0 pc=0x81abde
+github.com/ledgerwatch/erigon/internal/debug.SetupCobra.func1()
+	github.com/ledgerwatch/erigon/internal/debug/flags.go:145 +0x26 fp=0xc0000657e0 sp=0xc0000657c0 pc=0x81b586
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc0000657e8 sp=0xc0000657e0 pc=0x48c441
+created by github.com/ledgerwatch/erigon/internal/debug.SetupCobra
+	github.com/ledgerwatch/erigon/internal/debug/flags.go:145 +0x15b
+
+goroutine 35 [select, 1581 minutes, locked to thread]:
+runtime.gopark(0xc0002977a8?, 0x2?, 0x0?, 0x0?, 0xc0002977a4?)
+	runtime/proc.go:363 +0xd6 fp=0xc000297618 sp=0xc0002975f8 pc=0x45aab6
+runtime.selectgo(0xc0002977a8, 0xc0002977a0, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:328 +0x7bc fp=0xc000297758 sp=0xc000297618 pc=0x46a93c
+runtime.ensureSigM.func1()
+	runtime/signal_unix.go:991 +0x1bb fp=0xc0002977e0 sp=0xc000297758 pc=0x46ed1b
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc0002977e8 sp=0xc0002977e0 pc=0x48c441
+created by runtime.ensureSigM
+	runtime/signal_unix.go:974 +0xbd
+
+goroutine 36 [syscall, 1581 minutes]:
+runtime.notetsleepg(0x0?, 0x0?)
+	runtime/lock_futex.go:236 +0x34 fp=0xc000297fa0 sp=0xc000297f68 pc=0x42c974
+os/signal.signal_recv()
+	runtime/sigqueue.go:152 +0x2f fp=0xc000297fc0 sp=0xc000297fa0 pc=0x48888f
+os/signal.loop()
+	os/signal/signal_unix.go:23 +0x19 fp=0xc000297fe0 sp=0xc000297fc0 pc=0x51a399
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc000297fe8 sp=0xc000297fe0 pc=0x48c441
+created by os/signal.Notify.func1.1
+	os/signal/signal.go:151 +0x2a
+
+goroutine 8 [IO wait, 526 minutes]:
+runtime.gopark(0x200000003?, 0xc000287a00?, 0x0?, 0x0?, 0xc000070c30?)
+	runtime/proc.go:363 +0xd6 fp=0xc000070bc0 sp=0xc000070ba0 pc=0x45aab6
+runtime.netpollblock(0xc000070c10?, 0x70c88?, 0xc0?)
+	runtime/netpoll.go:526 +0xf7 fp=0xc000070bf8 sp=0xc000070bc0 pc=0x453497
+internal/poll.runtime_pollWait(0x7fa7cf48aac8, 0x72)
+	runtime/netpoll.go:305 +0x89 fp=0xc000070c18 sp=0xc000070bf8 pc=0x4865c9
+internal/poll.(*pollDesc).wait(0xc000154000?, 0x6?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x32 fp=0xc000070c40 sp=0xc000070c18 pc=0x4f4e92
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0xc000154000)
+	internal/poll/fd_unix.go:614 +0x234 fp=0xc000070cd8 sp=0xc000070c40 pc=0x4fa114
+net.(*netFD).accept(0xc000154000)
+	net/fd_unix.go:172 +0x35 fp=0xc000070d90 sp=0xc000070cd8 pc=0x568ed5
+net.(*TCPListener).accept(0xc000440018)
+	net/tcpsock_posix.go:142 +0x28 fp=0xc000070dc0 sp=0xc000070d90 pc=0x5850a8
+net.(*TCPListener).Accept(0xc000440018)
+	net/tcpsock.go:288 +0x3d fp=0xc000070df0 sp=0xc000070dc0 pc=0x58427d
+net/http.(*onceCloseListener).Accept(0xc044d08320?)
+	<autogenerated>:1 +0x2a fp=0xc000070e08 sp=0xc000070df0 pc=0x7e9dea
+net/http.(*Server).Serve(0xc00022cf00, {0x1c16ad0, 0xc000440018})
+	net/http/server.go:3070 +0x385 fp=0xc000070f38 sp=0xc000070e08 pc=0x7c5305
+net/http.(*Server).ListenAndServe(0xc00022cf00)
+	net/http/server.go:2999 +0x7d fp=0xc000070f68 sp=0xc000070f38 pc=0x7c4f3d
+net/http.ListenAndServe(...)
+	net/http/server.go:3255
+github.com/ledgerwatch/erigon/internal/debug.StartPProf.func2()
+	github.com/ledgerwatch/erigon/internal/debug/flags.go:252 +0x69 fp=0xc000070fe0 sp=0xc000070f68 pc=0x81a7e9
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc000070fe8 sp=0xc000070fe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon/internal/debug.StartPProf
+	github.com/ledgerwatch/erigon/internal/debug/flags.go:251 +0x258
+
+goroutine 9 [select, 1581 minutes]:
+runtime.gopark(0xc00005ff98?, 0x2?, 0x0?, 0x30?, 0xc00005ff14?)
+	runtime/proc.go:363 +0xd6 fp=0xc00005fd88 sp=0xc00005fd68 pc=0x45aab6
+runtime.selectgo(0xc00005ff98, 0xc00005ff10, 0x2?, 0x0, 0x0?, 0x1)
+	runtime/select.go:328 +0x7bc fp=0xc00005fec8 sp=0xc00005fd88 pc=0x46a93c
+github.com/ledgerwatch/erigon-lib/common.RootContext.func1()
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/common/cli.go:39 +0x1aa fp=0xc00005ffe0 sp=0xc00005fec8 pc=0x5a19ea
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc00005ffe8 sp=0xc00005ffe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon-lib/common.RootContext
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/common/cli.go:30 +0xa5
+
+goroutine 11 [chan receive, 1581 minutes]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc00029a700 sp=0xc00029a6e0 pc=0x45aab6
+runtime.chanrecv(0xc00010e240, 0x0, 0x1)
+	runtime/chan.go:583 +0x49b fp=0xc00029a790 sp=0xc00029a700 pc=0x4273db
+runtime.chanrecv1(0x0?, 0x0?)
+	runtime/chan.go:442 +0x18 fp=0xc00029a7b8 sp=0xc00029a790 pc=0x426ed8
+github.com/ledgerwatch/erigon/cmd/integration/commands.newSync.func1()
+	github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:1258 +0x32 fp=0xc00029a7e0 sp=0xc00029a7b8 pc=0x126fc72
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc00029a7e8 sp=0xc00029a7e0 pc=0x48c441
+created by github.com/ledgerwatch/erigon/cmd/integration/commands.newSync
+	github.com/ledgerwatch/erigon/cmd/integration/commands/stages.go:1257 +0x9fb
+
+goroutine 2276 [runnable]:
+github.com/ledgerwatch/erigon-lib/kv/mdbx.(*MdbxCursor).Seek(0xc0505b40c0?, {0x77ada0814c6c?, 0x8?, 0x8?})
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/kv/mdbx/kv_mdbx.go:1160 +0x208 fp=0xc000076c80 sp=0xc000076c78 pc=0xa47508
+github.com/ledgerwatch/erigon-lib/state.(*History).warmup(0xc000280280, 0x0, 0x2faf08, {0x1c25c20, 0xc072220030})
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/history.go:835 +0x532 fp=0xc000076e98 sp=0xc000076c80 pc=0xe3c032
+github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).warmup.func1.1({0x1c25c20, 0xc072220030})
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:480 +0x7d fp=0xc000076ee8 sp=0xc000076e98 pc=0xe2de1d
+github.com/ledgerwatch/erigon-lib/kv/mdbx.(*MdbxKV).View(0xffffffffffffffff?, {0x1c187c0?, 0xc00012e000?}, 0xc13f2c11a0)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/kv/mdbx/kv_mdbx.go:646 +0xbe fp=0xc000076f58 sp=0xc000076ee8 pc=0xa4415e
+github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).warmup.func1()
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:476 +0xaf fp=0xc000076fe0 sp=0xc000076f58 pc=0xe2dd0f
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc000076fe8 sp=0xc000076fe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon-lib/state.(*Aggregator22).warmup
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/state/aggregator22.go:475 +0x85
+
+goroutine 2258 [chan receive, 110 minutes]:
+runtime.gopark(0x262c9c0?, 0xc1469fbe28?, 0xc8?, 0xdf?, 0x7fa7f7aa75b8?)
+	runtime/proc.go:363 +0xd6 fp=0xc1469fbda8 sp=0xc1469fbd88 pc=0x45aab6
+runtime.chanrecv(0xc062f5c060, 0xc1469fbf60, 0x1)
+	runtime/chan.go:583 +0x49b fp=0xc1469fbe38 sp=0xc1469fbda8 pc=0x4273db
+runtime.chanrecv2(0x0?, 0x13e9ae0?)
+	runtime/chan.go:447 +0x18 fp=0xc1469fbe60 sp=0xc1469fbe38 pc=0x426f18
+github.com/ledgerwatch/erigon-lib/compress.processSuperstring(0xc106085ce0?, 0xc06b55a000, 0x400, 0xc106085d70?)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/parallel_compress.go:749 +0x13c fp=0xc1469fbfb0 sp=0xc1469fbe60 pc=0xe18e1c
+github.com/ledgerwatch/erigon-lib/compress.NewCompressor.func1()
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/compress.go:102 +0x32 fp=0xc1469fbfe0 sp=0xc1469fbfb0 pc=0xe0a8d2
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc1469fbfe8 sp=0xc1469fbfe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon-lib/compress.NewCompressor
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/compress.go:102 +0x251
+
+goroutine 2303 [chan receive]:
+runtime.gopark(0xc08d2d6060?, 0x0?, 0x65?, 0xde?, 0x0?)
+	runtime/proc.go:363 +0xd6 fp=0xc0dda6dda8 sp=0xc0dda6dd88 pc=0x45aab6
+runtime.chanrecv(0xc0818001e0, 0xc0dda6df60, 0x1)
+	runtime/chan.go:583 +0x49b fp=0xc0dda6de38 sp=0xc0dda6dda8 pc=0x4273db
+runtime.chanrecv2(0x42e1a7?, 0x58?)
+	runtime/chan.go:447 +0x18 fp=0xc0dda6de60 sp=0xc0dda6de38 pc=0x426f18
+github.com/ledgerwatch/erigon-lib/compress.processSuperstring(0xc0dda6dfd0?, 0xc1814ec280, 0x400, 0xc08d2d6000?)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/parallel_compress.go:749 +0x13c fp=0xc0dda6dfb0 sp=0xc0dda6de60 pc=0xe18e1c
+github.com/ledgerwatch/erigon-lib/compress.NewCompressor.func1()
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/compress.go:102 +0x32 fp=0xc0dda6dfe0 sp=0xc0dda6dfb0 pc=0xe0a8d2
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc0dda6dfe8 sp=0xc0dda6dfe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon-lib/compress.NewCompressor
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/compress.go:102 +0x251
+
+goroutine 2209 [chan receive, 111 minutes]:
+runtime.gopark(0x0?, 0xc022c86998?, 0x65?, 0xde?, 0x1bb8e645ae216da7?)
+	runtime/proc.go:363 +0xd6 fp=0xc022c86918 sp=0xc022c868f8 pc=0x45aab6
+runtime.chanrecv(0xc075b36240, 0xc022c87e70, 0x1)
+	runtime/chan.go:583 +0x49b fp=0xc022c869a8 sp=0xc022c86918 pc=0x4273db
+runtime.chanrecv2(0xf4ed7d9487aac943?, 0x1f9628921856fda5?)
+	runtime/chan.go:447 +0x18 fp=0xc022c869d0 sp=0xc022c869a8 pc=0x426f18
+github.com/ledgerwatch/erigon-lib/compress.reduceDictWorker(0x0?, 0xc075b36240?, 0xc075b362a0?, 0xc057ecaed0?, 0xc06860ef60, 0xc057ecaec0, 0xc057ecaec8, 0xc06860eff0?)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/parallel_compress.go:191 +0x35e fp=0xc022c87f90 sp=0xc022c869d0 pc=0xe13ffe
+github.com/ledgerwatch/erigon-lib/compress.reducedict.func5()
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/parallel_compress.go:290 +0x45 fp=0xc022c87fe0 sp=0xc022c87f90 pc=0xe18a25
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc022c87fe8 sp=0xc022c87fe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon-lib/compress.reducedict
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/parallel_compress.go:290 +0x32ca
+
+goroutine 2208 [chan receive, 111 minutes]:
+runtime.gopark(0x15f27dfe9139cd54?, 0xc022c84998?, 0x65?, 0xde?, 0xd4b96c567f6654e4?)
+	runtime/proc.go:363 +0xd6 fp=0xc022c84918 sp=0xc022c848f8 pc=0x45aab6
+runtime.chanrecv(0xc075b36240, 0xc022c85e70, 0x1)
+	runtime/chan.go:583 +0x49b fp=0xc022c849a8 sp=0xc022c84918 pc=0x4273db
+runtime.chanrecv2(0x4cc17ed241e48a78?, 0x109de8226e455f20?)
+	runtime/chan.go:447 +0x18 fp=0xc022c849d0 sp=0xc022c849a8 pc=0x426f18
+github.com/ledgerwatch/erigon-lib/compress.reduceDictWorker(0x0?, 0xc075b36240?, 0xc075b362a0?, 0xc057ecaed0?, 0xc06860ef60, 0xc057ecaec0, 0xc057ecaec8, 0xc06860efc0?)
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/parallel_compress.go:191 +0x35e fp=0xc022c85f90 sp=0xc022c849d0 pc=0xe13ffe
+github.com/ledgerwatch/erigon-lib/compress.reducedict.func5()
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/parallel_compress.go:290 +0x45 fp=0xc022c85fe0 sp=0xc022c85f90 pc=0xe18a25
+runtime.goexit()
+	runtime/asm_amd64.s:1594 +0x1 fp=0xc022c85fe8 sp=0xc022c85fe0 pc=0x48c441
+created by github.com/ledgerwatch/erigon-lib/compress.reducedict
+	github.com/ledgerwatch/erigon-lib@v0.0.0-20221018043814-37cdd12e5b19/compress/parallel_compress.go:290 +0x32ca
+
+
+
+
+
+
+
+
+
+
+
+
+PRYSM_ALLOW_UNVERIFIED_BINARIES=1 nohup "$HOME/prysm/prysm.sh" beacon-chain \
+    --datadir=/home/admin/.local/share/mainnet_prysm --jwt-secret=/home/admin/.local/share/mainnet/jwt.hex --accept-terms-of-use \
+    --block-batch-limit=1024 --mainnet \
+    --checkpoint-sync-url=https://2FErFpQJBJhBN5CeiW5ghtqU9Yt:c92c12a5c6466376de918a03419161d9@eth2-beacon-mainnet.infura.io --genesis-beacon-api-url=https://2FErFpQJBJhBN5CeiW5ghtqU9Yt:c92c12a5c6466376de918a03419161d9@eth2-beacon-mainnet.infura.io 1>&2 2>> ~/web/turbogeth16f.weblogix.it/public_html/mainnet_prysm.txt < /dev/null &!
+
+/home/admin/.local/share/mainnet_prysm
+
+
+
+
+
+go run ./cmd/erigon --datadir=/home/admin/.local/share/goerli --chain=goerli --experimental.history.v3 --port=0 --http.port=8645 --authrpc.port=8651 --private.api.addr=localhost:0 --torrent.port=0 --pprof --metrics --metrics.addr=0.0.0.0 --metrics.port=6062 --pprof.port=6063 --batchSize=128mb --prune=hrtc --verbosity=4 --txpool.disable 1>&2 2>> ~/web/turbogeth16f.weblogix.it/public_html/goerli.txt < /dev/null &!
+
+PRYSM_ALLOW_UNVERIFIED_BINARIES=1 nohup "$HOME/prysm/prysm.sh" beacon-chain  --http-web3provider="http://localhost:8651"  --p2p-udp-port=12100 --p2p-tcp-port=13100 --datadir=/home/admin/.local/share/goerli_prysm --jwt-secret=/home/admin/.local/share/goerli/jwt.hex --accept-terms-of-use     --block-batch-limit=1024 --goerli  --checkpoint-sync-url=https://2FEqTm02juQIzlkfmk1eIbdApX5:9e665b67b858d6b9322aa753b942dbde@eth2-beacon-prater.infura.io --genesis-beacon-api-url=https://2FEqTm02juQIzlkfmk1eIbdApX5:9e665b67b858d6b9322aa753b942dbde@eth2-beacon-prater.infura.io 1>&2 2>> ~/web/turbogeth16f.weblogix.it/public_html/goerli_prysm.txt < /dev/null &!
+
+
+
+ 1>&2 2>> ~/log.txt < /dev/null &!
+
+
+
+
+./build/bin/integration stage_exec  --datadir=/home/admin/.local/share/goerli --chain=goerli --block=7_1000_000 --workers=16 --pprof --batchSize=512M  1>&2 2>> ~/web/turbogeth16f.weblogix.it/public_html/goerli.txt < /dev/null &!
+
+
+
+
+==================
+WARNING: DATA RACE
+Write at 0x00c00138d300 by goroutine 41:
+  github.com/ledgerwatch/erigon/cmd/downloader/downloader.BuildTorrentFilesIfNeed.func1()
+      github.com/ledgerwatch/erigon/cmd/downloader/downloader/util.go:233 +0x1fb
+  github.com/ledgerwatch/erigon/cmd/downloader/downloader.BuildTorrentFilesIfNeed.func4()
+      github.com/ledgerwatch/erigon/cmd/downloader/downloader/util.go:245 +0x58
+
+Previous write at 0x00c00138d300 by goroutine 46:
+  github.com/ledgerwatch/erigon/cmd/downloader/downloader.BuildTorrentFilesIfNeed.func1()
+      github.com/ledgerwatch/erigon/cmd/downloader/downloader/util.go:233 +0x1fb
+  github.com/ledgerwatch/erigon/cmd/downloader/downloader.BuildTorrentFilesIfNeed.func4()
+      github.com/ledgerwatch/erigon/cmd/downloader/downloader/util.go:245 +0x58
+
+Goroutine 41 (running) created at:
+  github.com/ledgerwatch/erigon/cmd/downloader/downloader.BuildTorrentFilesIfNeed()
+      github.com/ledgerwatch/erigon/cmd/downloader/downloader/util.go:229 +0xa96
+  github.com/ledgerwatch/erigon/cmd/downloader/downloader.(*Downloader).addSegments()
+      github.com/ledgerwatch/erigon/cmd/downloader/downloader/downloader.go:227 +0xde
+  github.com/ledgerwatch/erigon/cmd/downloader/downloader.New()
+      github.com/ledgerwatch/erigon/cmd/downloader/downloader/downloader.go:97 +0x8b9
+  github.com/ledgerwatch/erigon/eth.(*Ethereum).setUpBlockReader()
+      github.com/ledgerwatch/erigon/eth/backend.go:832 +0x4a8
+  github.com/ledgerwatch/erigon/eth.New()
+      github.com/ledgerwatch/erigon/eth/backend.go:264 +0x1b14
+
+
+
+
+
+erigon@bsc-sn3:~/erigon$ ./build/bin/mdbx_stat -a /mnt/ssd/erigon/chaindata/ | grep -A6 Idx
+Status of AccountIdx
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 7387
+  Leaf pages: 143558
+  Overflow pages: 0
+  Entries: 65758963
+--
+Status of CodeIdx
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 26
+  Leaf pages: 4143
+  Overflow pages: 0
+  Entries: 658546
+--
+Status of CommitmentIdx
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of LogAddressIdx
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 3120
+  Leaf pages: 44919
+  Overflow pages: 0
+  Entries: 24740882
+--
+Status of LogTopicsIdx
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 3186
+  Leaf pages: 153777
+  Overflow pages: 0
+  Entries: 59026877
+--
+Status of RAccountIdx
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of RCodeIdx
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of RStorageIdx
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of StorageIdx
+  Pagesize: 16384
+  Tree depth: 4
+  Branch pages: 12842
+  Leaf pages: 263478
+  Overflow pages: 0
+  Entries: 70545228
+--
+Status of TracesFromIdx
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 6581
+  Leaf pages: 110178
+  Overflow pages: 0
+  Entries: 43104031
+--
+Status of TracesToIdx
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 5276
+  Leaf pages: 101756
+  Overflow pages: 0
+  Entries: 60759617
+
+
+
+
+
+alex2: accounts, 00000000000009c1, 0000000000019c9a: 0000000000019c9a, 22ea9f6b28db76a7162054c05ed812deb2f519cd00000000000009c1
+alex2: accounts, 0000000000000000, 0000000000019c9a: 0000000000019c9a, 67fbd263343e1d9edae1f665883fa9d4985d89d00000000000000000
+alex2: accounts, 00000000000009c2, 0000000000019c9a: 0000000000019c9a, baf8f29f82e754fec7fc45153a6866c989ff03c400000000000009c2
+
+alex: storage, 0000000000000000, 00000000000536ef: 00000000000536ef, fe29e9886f32523099bd1c180755b249a0f5916ec2575a0e9e593c00f959f8c92f12db2869c3395a3b0502d05e2516446f71f86c0000000000000000
+
+
+
+
+
+Status of AccountHistoryKeys
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 228
+  Leaf pages: 194580
+  Overflow pages: 0
+  Entries: 65758963
+--
+Status of AccountKeys
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of CodeHistoryKeys
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 4
+  Leaf pages: 1803
+  Overflow pages: 0
+  Entries: 658546
+--
+Status of CodeKeys
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of CommitmentHistoryKeys
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of CommitmentKeys
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of LogAddressKeys
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 86
+  Leaf pages: 76429
+  Overflow pages: 0
+  Entries: 24740882
+--
+Status of LogTopicsKeys
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 839
+  Leaf pages: 290738
+  Overflow pages: 0
+  Entries: 59026877
+--
+Status of RAccountKeys
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of RCodeKeys
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of RStorageKeys
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of StorageHistoryKeys
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 1499
+  Leaf pages: 331288
+  Overflow pages: 0
+  Entries: 70545228
+--
+Status of StorageKeys
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of TracesFromKeys
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 127
+  Leaf pages: 112997
+  Overflow pages: 0
+  Entries: 43104031
+--
+Status of TracesToKeys
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 165
+  Leaf pages: 145777
+  Overflow pages: 0
+  Entries: 60759617
+
+
+
+./build/bin/mdbx_dump: mdbx_cursor_get() error 4 Interrupted system call
+Interrupted by signal/user
+erigon@bsc-sn3:~/erigon$ ./build/bin/mdbx_stat -a /mnt/ssd/erigon/chaindata/ | grep -A6 Vals
+Status of AccountHistoryVals
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 177
+  Leaf pages: 159085
+  Overflow pages: 0
+  Entries: 59184145
+--
+Status of AccountVals
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of CodeHistoryVals
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 4
+  Leaf pages: 1189
+  Overflow pages: 0
+  Entries: 471682
+--
+Status of CodeVals
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of CommitmentHistoryVals
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+10620237
+10620237
+10931956
+
+Status of CommitmentVals
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+--
+Status of StorageHistoryVals
+  Pagesize: 16384
+  Tree depth: 3
+  Branch pages: 145
+  Leaf pages: 129156
+  Overflow pages: 0
+  Entries: 59151400
+--
+Status of StorageVals
+  Pagesize: 16384
+  Tree depth: 0
+  Branch pages: 0
+  Leaf pages: 0
+  Overflow pages: 0
+  Entries: 0
+
+
+
+curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_getLogs", "params": [ {"fromBlock": "0x452390","toBlock": "0x452390"}], "id":1}' localhost:8545
+
+go run ./cmd/erigon --datadir=/home/admin/.local/share/goerli --chain=goerli --experimental.history.v3 --prune=hrtc --torrent.download.rate=1gb --torrent.upload.rate=1gb --torrent.maxpeers=1024 --torrent.conns.perfile=200 --txpool.disable 1>&2 2> ~/web/turbogeth16f.weblogix.it/public_html/goerli.txt < /dev/null &!
+
+
+
+
+
+
+
+go run ./cmd/erigon snapshots uncompress /mnt/ssd/erigon/snapshots/history/accounts.0-32.v | go run ./cmd/erigon snapshots compress /mnt/ssd/erigon/snapshots/history/accounts.0-32.v.new --datadir=/mnt/ssd/erigon/ 1>&2 2>> ~/compress.log &
+
+go run ./cmd/erigon snapshots uncompress /mnt/ssd/erigon/snapshots/history/tracesto.0-32.ef | go run ./cmd/erigon snapshots compress /mnt/ssd/erigon/snapshots/history/tracesto.0-32.ef.new --datadir=/mnt/ssd/erigon/ 1>&2 2>> ~/compress.log &
+
+go run ./cmd/erigon snapshots uncompress /mnt/ssd/erigon/snapshots/history/storage.0-32.ef | go run ./cmd/erigon snapshots compress /mnt/ssd/erigon/snapshots/history/storage.0-32.ef --datadir=/mnt/ssd/erigon/ 1>&2 2>> ~/compress.log &
+
+en
+
+
+go run ./cmd/erigon snapshots uncompress /mnt/ssd2/erigon/snapshots/v1-020000-020500-transactions.seg | go run ./cmd/erigon snapshots compress /mnt/ssd2/erigon/snapshots/v1-020000-020500-transactions.seg.new --datadir=/mnt/ssd2/erigon/ 1>&2 2>> ~/compress.log &
+
+go run  ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --pprof
+go run  ./cmd/integration stage_trie --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --pprof
+
+
+14: 95.42s user 12.12s system 215% cpu 49.835 total
+1: 79.55s user 3.91s system 160% cpu 52.068 total
+8:
+
+
+go run ./cmd/integration mdbx_to_mdbx --chaindata=/mnt/ssd2/erigon/chaindata --chaindata.to=/mnt/ssd3/erigon/chaindata
+
+
+
+uncompressed file: 74Gb (bsc 012500-013000-transactions.seg)
+| DictSize | Ram  | file_size | dec_speed | skip_speed |
+| -------- | ---- | --------- | --------- | ---------- |
+| 1M       | 70Mb | 35871Mb   | 4m06s     | 1m58s      |
+| 512K     | 42Mb | 36496Mb   | 3m49s     | 1m51s      |
+| 256K     | 21Mb | 37100Mb   | 3m44s     | 1m48s      |
+| 128K     | 11Mb | 37782Mb   | 3m25s     | 1m44s      |
+| 64K      | 7Mb  | 38597Mb   | 3m16s     | 1m34s      |
+| 32K      | 5Mb  | 39626Mb   | 3m0s      | 1m29s      |
+
+
+64k_s4 = 7Mb, 2470Mb, 6.2s, 2.7s
+64k_s4_p64 = 7Mb, 2486Mb, 6.0s, 3.0s
+
+
+SamplingFactor=2 took=28m56.943502387s ratio=1.79 file=v1-020000-020500-transactions.seg.new
+SamplingFactor=4 took=26m13.212492319s ratio=1.79 file=v1-020000-020500-transactions.seg.new
+SamplingFactor=8 took=27m25.987419625s ratio=1.78 file=v1-020000-020500-transactions.seg.new
+
+
+
+Sampling skip 75% of superstrings:
+128K_s4  -> ram=11Mb, file_size=37799Mb, dec_speed=3m30s, skip_speed=1m46s
+creation: 17min
+reducedict:
+
+./build/bin/erigon snapshots uncompress /Users/alex.sharov/data/goerli_hist_v2/snapshots/v1-004000-004500-transactions.seg.new_32k_s4 | ./build/bin/erigon snapshots compress /Users/alex.sharov/data/goerli_hist_v2/snapshots/v1-004000-004500-transactions.seg.new_128k_s10 --datadir=/Users/alex.sharov/data/goerli_hist_v2 --pprof
+
+./build/bin/erigon snapshots uncompress /Users/alex.sharov/data/goerli_hist_v2/snapshots/v1-004000-004500-transactions.seg_ | ./build/bin/erigon snapshots compress /Users/alex.sharov/data/goerli_hist_v2/snapshots/v1-004000-004500-transactions.seg.new_128k_s4 --datadir=/Users/alex.sharov/data/goerli_hist_v2 --pprof
+
+IH FAIL:
+go run ./cmd/integration state_stages     --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=20 --unwind.every=200_000 --integrity.fast=false >> 2.txt
+
+go run  ./cmd/integration stage_exec --reset --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli
+time go run  ./cmd/integration stage_exec --block=1_000_000 --workers=14 --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --pprof
+go run  ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli
+go run  ./cmd/integration stage_trie --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli
+
+
+
+from=1854436 to=1854435
+
+echo "" > 1.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --reset
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --block=1854436 >> 1.txt
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli >> 1.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --integrity.fast=false >> 1.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --integrity.fast=false --unwind=2 >> 1.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --unwind=2 >> 1.txt
+
+
+PRYSM_ALLOW_UNVERIFIED_BINARIES=1 ./prysm.sh beacon-chain --datadir=/Users/alex.sharov/data/goerli_retire_prysm --jwt-secret=/Users/alex.sharov/data/goerli_hist_v2/jwt.hex --accept-terms-of-use --block-batch-limit=1024 --goerli --checkpoint-sync-url=https://goerli.checkpoint-sync.ethpandaops.io --genesis-beacon-api-url=https://goerli.checkpoint-sync.ethpandaops.io
+
+
+
+
+
+echo "" > 1.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --block=110_000
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=1000 > 1.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=1000 --integrity.fast=false
+
+echo "" > 2.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --block=110_000
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=1000 > 2.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=1000 --integrity.fast=false
+
+
+
+
+
+echo "" > 2.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --block=1854436 >> 2.txt
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli >> 2.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false >> 2.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false --unwind=2 >> 2.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=2 >> 2.txt
+
+
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false --unwind=10_000 >> 2.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=10_000 >> 2.txt
+
+
+echo "" > 1.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --reset
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --block=98890 >> 1.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --block=98895  >> 1.txt
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --integrity.fast=false
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --unwind=5 >> 1.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --integrity.fast=false --unwind=5 >> 1.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --unwind=5
+
+
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration stage_hash_state       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+
+
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --block=2_000_000
+
+
+echo "" > 2.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --block=98890 >> 2.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --block=98895 >> 2.txt
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=5 >> 2.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false --unwind=5 >> 2.txt
+
+
+
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration state_stages     --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=789 --unwind.every=89_012 --integrity.fast=false >> 2.txt
+
+
+
+
+
+echo "" > 2.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --block=42692
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --block=42514
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli >> 2.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --integrity.fast=false >> 2.txt
+
+
+
+1849233
+
+
+echo "" > 1.txt
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --reset
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --block=1850_000
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --integrity.fast=false
+go run ./cmd/integration stage_exec       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --block=1870_000
+echo "" > 1.txt
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli >> 1.txt
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --integrity.fast=false >> 1.txt
+
+
+
+echo "" > 1.txt
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --unwind=20_000
+echo "" > 1.txt
+go run ./cmd/integration stage_hash_state --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli >> 1.txt
+
+
+go run ./cmd/integration stage_trie       --datadir=/Users/alex.sharov/data/goerli_hist_v1 --chain=goerli --integrity.fast=false --unwind=20_000
+
+
+
+
+
+go run ./cmd/integration stage_exec      --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --reset
+go run ./cmd/integration state_stages    --datadir=/Users/alex.sharov/data/goerli_hist_v2 --chain=goerli --unwind=179 --unwind.every=10_000 --integrity.fast=false >> 2.txt
+
+
