@@ -744,7 +744,7 @@ func stageExec(db kv.RwDB, ctx context.Context) error {
 	}
 
 	syncCfg := ethconfig.Defaults.Sync
-	syncCfg.ExecWorkerCount = int(workers)
+	syncCfg.ExecWorkerCount = int(execWorkers)
 	syncCfg.ReconWorkerCount = int(reconWorkers)
 
 	genesis := core.DefaultGenesisBlockByChainName(chain)

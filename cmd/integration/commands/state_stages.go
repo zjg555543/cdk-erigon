@@ -197,7 +197,7 @@ func syncBySmallSteps(db kv.RwDB, miningConfig params.MiningConfig, ctx context.
 
 	genesis := core.DefaultGenesisBlockByChainName(chain)
 	syncCfg := ethconfig.Defaults.Sync
-	syncCfg.ExecWorkerCount = int(workers)
+	syncCfg.ExecWorkerCount = int(execWorkers)
 	syncCfg.ReconWorkerCount = int(reconWorkers)
 
 	execCfg := stagedsync.StageExecuteBlocksCfg(db, pm, batchSize, changeSetHook, chainConfig, engine, vmConfig, changesAcc, false, false, historyV3, dirs, getBlockReader(db), nil, genesis, syncCfg, agg)
@@ -527,7 +527,7 @@ func loopExec(db kv.RwDB, ctx context.Context, unwind uint64) error {
 
 	genesis := core.DefaultGenesisBlockByChainName(chain)
 	syncCfg := ethconfig.Defaults.Sync
-	syncCfg.ExecWorkerCount = int(workers)
+	syncCfg.ExecWorkerCount = int(execWorkers)
 	syncCfg.ReconWorkerCount = int(reconWorkers)
 
 	initialCycle := false

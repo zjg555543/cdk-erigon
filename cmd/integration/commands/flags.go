@@ -31,8 +31,8 @@ var (
 	experiments                    []string
 	chain                          string // Which chain to use (mainnet, rinkeby, goerli, etc.)
 
-	_forceSetHistoryV3    bool
-	workers, reconWorkers uint64
+	_forceSetHistoryV3        bool
+	execWorkers, reconWorkers uint64
 )
 
 func must(err error) {
@@ -139,6 +139,6 @@ func withHeimdall(cmd *cobra.Command) {
 }
 
 func withWorkers(cmd *cobra.Command) {
-	cmd.Flags().Uint64Var(&workers, "exec.workers", uint64(ethconfig.Defaults.Sync.ExecWorkerCount), "")
+	cmd.Flags().Uint64Var(&execWorkers, "exec.workers", uint64(ethconfig.Defaults.Sync.ExecWorkerCount), "")
 	cmd.Flags().Uint64Var(&reconWorkers, "recon.workers", uint64(ethconfig.Defaults.Sync.ReconWorkerCount), "")
 }

@@ -36,7 +36,6 @@ import (
 	"github.com/ledgerwatch/erigon/core/vm"
 	"github.com/ledgerwatch/erigon/eth/calltracer"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
-	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/eth/tracers/logger"
 	"github.com/ledgerwatch/erigon/ethdb"
@@ -242,11 +241,7 @@ func newStateReaderWriter(
 
 func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx context.Context, cfg ExecuteBlockCfg, initialCycle bool) (err error) {
 	workersCount := cfg.syncCfg.ExecWorkerCount
-	//workersCount := 2
-	if !initialCycle {
-		workersCount = 1
-	}
-	cfg.agg.SetWorkers(estimate.CompressSnapshot.WorkersQuarter())
+	cfg.agg.SetWorkers(1)
 
 	if initialCycle {
 		reconstituteToBlock, found, err := reconstituteBlock(cfg.agg, cfg.db, tx)

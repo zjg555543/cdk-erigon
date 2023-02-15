@@ -465,6 +465,7 @@ func ExecV3(ctx context.Context,
 					}
 
 					tx.CollectMetrics()
+
 					tt = time.Now()
 					if err := tx.Commit(); err != nil {
 						return err
@@ -505,7 +506,7 @@ func ExecV3(ctx context.Context,
 
 		rs.Finish()
 
-		if !useExternalTx && tx != nil {
+		if !useExternalTx {
 			if err := tx.Commit(); err != nil {
 				return err
 			}
