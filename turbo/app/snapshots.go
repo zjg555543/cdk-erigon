@@ -418,12 +418,13 @@ func doRetireCommand(cliCtx *cli.Context) error {
 			return err
 		}
 		agg.SetTxNum(lastTxNum)
+		log.Info("Build state history snapshots", "fromBlock", execProgress, "fromBlock", lastTxNum, "minimax", agg.EndTxNumMinimax())
 		return nil
 	}); err != nil {
 		return err
 	}
 
-	log.Info("Build state history snapshots")
+	return nil
 	if err = agg.BuildFiles(ctx, db); err != nil {
 		return err
 	}
