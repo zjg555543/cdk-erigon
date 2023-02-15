@@ -313,11 +313,6 @@ func ExecV3(ctx context.Context,
 			func() {
 				needWait := rs.QueueLen() > queueSize
 				if !needWait {
-					rwsLock.RLock()
-					needWait = rws.Len() > queueSize || resultsSize.Load() >= resultsThreshold || rs.SizeEstimate() >= commitThreshold
-					rwsLock.RUnlock()
-				}
-				if !needWait {
 					return
 				}
 				rwsLock.Lock()
