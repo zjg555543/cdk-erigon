@@ -93,6 +93,7 @@ func (sn *HeaderSegment) close() {
 func (sn *HeaderSegment) reopenSeg(dir string) (err error) {
 	sn.closeSeg()
 	fileName := snaptype.SegmentFileName(sn.ranges.from, sn.ranges.to, snaptype.Headers)
+	log.Warn("dbg: reopenSeg", "f", fileName)
 	sn.seg, err = compress.NewDecompressor(path.Join(dir, fileName))
 	if err != nil {
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
@@ -121,6 +122,7 @@ func (sn *HeaderSegment) reopenIdx(dir string) (err error) {
 		return nil
 	}
 	fileName := snaptype.IdxFileName(sn.ranges.from, sn.ranges.to, snaptype.Headers.String())
+	log.Warn("dbg: reopenIdx", "f", fileName)
 	sn.idxHeaderHash, err = recsplit.OpenIndex(path.Join(dir, fileName))
 	if err != nil {
 		return fmt.Errorf("%w, fileName: %s", err, fileName)
@@ -957,8 +959,10 @@ MainLoop:
 			continue
 		}
 		for _, t := range snaptype.AllSnapshotTypes {
-			p := filepath.Join(dir, snaptype.SegmentFileName(f.From, f.To, t))
+			fName := snaptype.SegmentFileName(f.From, f.To, t)
+			p := filepath.Join(dir, fName)
 			if !dir2.FileExist(p) {
+				log.Warn("dbg: file doesn't exists", "f", fName)
 				continue MainLoop
 			}
 		}
