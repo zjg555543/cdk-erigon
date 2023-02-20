@@ -872,8 +872,8 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 		if txTask.Error != nil || !rs.ReadsValid(txTask.ReadLists) {
 			//repeatCount.Inc()
 
-			rs.AddWork(txTask)
-			continue
+			//rs.AddWork(txTask)
+			//continue
 
 			// immediately retry once
 			applyWorker.RunTxTask(txTask)
@@ -891,9 +891,9 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 		triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 		outputTxNum.Inc()
 		onSuccess()
-		//if err := rs.ApplyHistory(txTask, agg); err != nil {
-		//	return fmt.Errorf("StateV3.Apply: %w", err)
-		//}
+		if err := rs.ApplyHistory(txTask, agg); err != nil {
+			return fmt.Errorf("StateV3.Apply: %w", err)
+		}
 		//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
 	}
 	if txTask != nil {
