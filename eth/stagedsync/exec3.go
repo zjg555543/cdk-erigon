@@ -147,7 +147,6 @@ func ExecV3(ctx context.Context,
 		} else if parallel {
 			defer agg.StartWrites().FinishWrites()
 		} else {
-			fmt.Printf("aelx\n")
 			defer agg.StartUnbufferedWrites().FinishWrites()
 		}
 
