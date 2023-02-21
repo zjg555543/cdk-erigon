@@ -686,17 +686,18 @@ Loop:
 						return err
 					}
 					t4 = time.Since(tt)
+
 					applyTx, err = chainDb.BeginRw(ctx)
 					if err != nil {
 						return err
 					}
-					defer applyTx.Rollback()
 					for i := 0; i < len(execWorkers); i++ {
 						execWorkers[i].ResetTx(applyTx)
 					}
 					applyWorker.ResetTx(applyTx)
 					agg.SetTx(applyTx)
 
+					log.Warn("dbg: commit done")
 					return nil
 				}(); err != nil {
 					return err
