@@ -206,6 +206,7 @@ func ExecV3(ctx context.Context,
 	queueSize := workerCount // workerCount * 4 // when wait cond can be moved inside txs loop
 	execWorkers, applyWorker, resultCh, stopWorkers, waitWorkers := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, rs, blockReader, chainConfig, logger, genesis, engine, workerCount+1)
 	defer stopWorkers()
+	applyWorker.DiscardReadList()
 
 	var rwsLock sync.Mutex
 	var rwsReceiveCond *sync.Cond
@@ -835,7 +836,7 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 			//continue
 
 			// immediately retry once
-			applyWorker.RunTxTask(txTask)
+			applyWorker.RunTxTaskNoLock(txTask)
 			if txTask.Error != nil {
 				return txTask.Error
 				//log.Info("second fail", "blk", txTask.BlockNum, "txn", txTask.BlockNum)
