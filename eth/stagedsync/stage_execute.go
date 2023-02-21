@@ -82,11 +82,11 @@ type ExecuteBlockCfg struct {
 	blockReader   services.FullBlockReader
 	hd            headerDownloader
 
-	dirs      datadir.Dirs
-	historyV3 bool
-	syncCfg   ethconfig.Sync
-	genesis   *core.Genesis
-	agg       *libstate.AggregatorV3
+	dirs                    datadir.Dirs
+	historyV3, parallelExec bool
+	syncCfg                 ethconfig.Sync
+	genesis                 *core.Genesis
+	agg                     *libstate.AggregatorV3
 }
 
 func StageExecuteBlocksCfg(
@@ -101,7 +101,7 @@ func StageExecuteBlocksCfg(
 	stateStream bool,
 	badBlockHalt bool,
 
-	historyV3 bool,
+	historyV3, parallelExec bool,
 	dirs datadir.Dirs,
 	blockReader services.FullBlockReader,
 	hd headerDownloader,
@@ -125,6 +125,7 @@ func StageExecuteBlocksCfg(
 		hd:            hd,
 		genesis:       genesis,
 		historyV3:     historyV3,
+		parallelExec:  parallelExec,
 		syncCfg:       syncCfg,
 		agg:           agg,
 	}
@@ -270,7 +271,6 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 		return err
 	}
 
-	logPrefix := s.LogPrefix()
 	var to = prevStageProgress
 	if toBlock > 0 {
 		to = cmp.Min(prevStageProgress, toBlock)
@@ -279,11 +279,11 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 		return nil
 	}
 	if to > s.BlockNumber+16 {
-		log.Info(fmt.Sprintf("[%s] Blocks execution", logPrefix), "from", s.BlockNumber, "to", to)
+		log.Info(fmt.Sprintf("[%s] Blocks execution", s.LogPrefix()), "from", s.BlockNumber, "to", to)
 	}
 	rs := state.NewStateV3()
-	parallel := initialCycle && tx == nil
-	if err := ExecV3(ctx, s, u, workersCount, cfg, tx, parallel, rs, logPrefix,
+	parallel := initialCycle && tx == nil && cfg.parallelExec
+	if err := ExecV3(ctx, s, u, workersCount, cfg, tx, parallel, rs,
 		log.New(), to); err != nil {
 		return fmt.Errorf("ExecV3: %w", err)
 	}

@@ -15,6 +15,7 @@ var (
 	block, pruneTo, unwind         uint64
 	unwindEvery                    uint64
 	batchSizeStr                   string
+	parallelExec                   bool
 	reset, warmup                  bool
 	bucket                         string
 	datadirCli, toChaindata        string
@@ -139,6 +140,7 @@ func withHeimdall(cmd *cobra.Command) {
 }
 
 func withWorkers(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&parallelExec, utils.ParallelExecFlag.Name, utils.ParallelExecFlag.Value, utils.ParallelExecFlag.Usage)
 	cmd.Flags().Uint64Var(&workers, "exec.workers", uint64(ethconfig.Defaults.Sync.ExecWorkerCount), "")
 	cmd.Flags().Uint64Var(&reconWorkers, "recon.workers", uint64(ethconfig.Defaults.Sync.ReconWorkerCount), "")
 }

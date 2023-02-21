@@ -107,10 +107,11 @@ func (p *Progress) Log(rs *state.StateV3, rwsLen int, queueSize, doneCount, inpu
 
 func ExecV3(ctx context.Context,
 	execStage *StageState, u Unwinder, workerCount int, cfg ExecuteBlockCfg, applyTx kv.RwTx,
-	parallel bool, rs *state.StateV3, logPrefix string,
+	parallel bool, rs *state.StateV3,
 	logger log.Logger,
 	maxBlockNum uint64,
 ) error {
+	logPrefix := execStage.LogPrefix()
 	batchSize, chainDb := cfg.batchSize, cfg.db
 	blockReader := cfg.blockReader
 	agg, engine := cfg.agg, cfg.engine
@@ -653,7 +654,7 @@ Loop:
 			case <-logEvery.C:
 				stepsInDB := rawdbhelpers.IdxStepsCountV3(applyTx)
 				progress.Log(rs, rws.Len(), uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
-				if rs.SizeEstimate() < commitThreshold {
+				if useExternalTx || rs.SizeEstimate() < commitThreshold {
 					break
 				}
 
@@ -679,6 +680,20 @@ Loop:
 
 					applyTx.CollectMetrics()
 
+					if err = applyTx.Commit(); err != nil {
+						return err
+					}
+					t4 = time.Since(tt)
+					tx, err := chainDb.BeginRw(ctx)
+					if err != nil {
+						return err
+					}
+					defer tx.Rollback()
+					for i := 0; i < len(execWorkers); i++ {
+						execWorkers[i].ResetTx(tx)
+					}
+					applyWorker.ResetTx(tx)
+
 					return nil
 				}(); err != nil {
 					return err
@@ -690,6 +705,11 @@ Loop:
 
 		if blockSnapshots.Cfg().Produce {
 			agg.BuildFilesInBackground()
+		}
+		if !parallel && !useExternalTx {
+			if err = agg.Prune(ctx, 10*ethconfig.HistoryV3AggregationStep); err != nil { // prune part of retired data, before commit
+				return err
+			}
 		}
 	}
 
