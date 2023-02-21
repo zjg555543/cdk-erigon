@@ -144,8 +144,11 @@ func ExecV3(ctx context.Context,
 		agg.SetTx(applyTx)
 		if dbg.DiscardHistory() {
 			defer agg.DiscardHistory().FinishWrites()
-		} else {
+		} else if parallel {
 			defer agg.StartWrites().FinishWrites()
+		} else {
+			fmt.Printf("aelx\n")
+			defer agg.StartUnbufferedWrites().FinishWrites()
 		}
 
 		var err error
