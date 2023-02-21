@@ -242,8 +242,10 @@ func newStateReaderWriter(
 // ================ Erigon3 ================
 
 func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx context.Context, cfg ExecuteBlockCfg, initialCycle bool) (err error) {
-	workersCount := cfg.syncCfg.ExecWorkerCount
-	//workersCount := 2
+	var workersCount = 1
+	if cfg.parallelExec {
+		workersCount = cfg.syncCfg.ExecWorkerCount
+	}
 	if !initialCycle {
 		workersCount = 1
 	}
