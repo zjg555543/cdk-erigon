@@ -707,9 +707,10 @@ Loop:
 			if err := rs.ApplyHistory(txTask, agg); err != nil {
 				return fmt.Errorf("StateV3.Apply: %w", err)
 			}
+
+			inputTxNum++
+			stageProgress = blockNum
 		}
-		stageProgress = blockNum
-		inputTxNum++
 		syncMetrics[stages.Execution].Set(blockNum)
 
 		select {
