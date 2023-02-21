@@ -686,15 +686,16 @@ Loop:
 						return err
 					}
 					t4 = time.Since(tt)
-					tx, err := chainDb.BeginRw(ctx)
+					applyTx, err = chainDb.BeginRw(ctx)
 					if err != nil {
 						return err
 					}
-					defer tx.Rollback()
+					defer applyTx.Rollback()
 					for i := 0; i < len(execWorkers); i++ {
-						execWorkers[i].ResetTx(tx)
+						execWorkers[i].ResetTx(applyTx)
 					}
-					applyWorker.ResetTx(tx)
+					applyWorker.ResetTx(applyTx)
+					agg.SetTx(applyTx)
 
 					return nil
 				}(); err != nil {
