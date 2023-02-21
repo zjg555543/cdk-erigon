@@ -597,6 +597,28 @@ func FinalizeBlockExecution(engine consensus.Engine, stateReader state.StateRead
 	return newBlock, newTxs, newReceipt, nil
 }
 
+func FinalizeBlockExecutionV3(engine consensus.Engine, header *types.Header,
+	txs types.Transactions, uncles []*types.Header, stateWriter state.StateWriter, cc *chain.Config, ibs *state.IntraBlockState,
+	receipts types.Receipts, withdrawals []*types.Withdrawal, e consensus.EpochReader, headerReader consensus.ChainHeaderReader, isMining bool,
+) (newBlock *types.Block, newTxs types.Transactions, newReceipt types.Receipts, err error) {
+	syscall := func(contract libcommon.Address, data []byte) ([]byte, error) {
+		return SysCallContract(contract, data, *cc, ibs, header, engine, false /* constCall */)
+	}
+	if isMining {
+		newBlock, newTxs, newReceipt, err = engine.FinalizeAndAssemble(cc, header, ibs, txs, uncles, receipts, withdrawals, e, headerReader, syscall, nil)
+	} else {
+		_, _, err = engine.Finalize(cc, header, ibs, txs, uncles, receipts, withdrawals, e, headerReader, syscall)
+	}
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	if err := ibs.CommitBlock(cc.Rules(header.Number.Uint64(), header.Time), stateWriter); err != nil {
+		return nil, nil, nil, fmt.Errorf("committing block %d failed: %w", header.Number.Uint64(), err)
+	}
+	return newBlock, newTxs, newReceipt, nil
+}
+
 func InitializeBlockExecution(engine consensus.Engine, chain consensus.ChainHeaderReader, epochReader consensus.EpochReader, header *types.Header, txs types.Transactions, uncles []*types.Header, cc *chain.Config, ibs *state.IntraBlockState) error {
 	engine.Initialize(cc, chain, epochReader, header, ibs, txs, uncles, func(contract libcommon.Address, data []byte) ([]byte, error) {
 		return SysCallContract(contract, data, *cc, ibs, header, engine, false /* constCall */)

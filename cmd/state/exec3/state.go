@@ -2,13 +2,18 @@ package exec3
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/common/math"
+	"github.com/ledgerwatch/erigon/rlp"
 	"github.com/ledgerwatch/log/v3"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/consensus"
@@ -110,6 +115,9 @@ func (rw *Worker) Run() {
 func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 	rw.lock.Lock()
 	defer rw.lock.Unlock()
+	rw.RunTxTaskNoLock(txTask)
+}
+func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 	if rw.background && rw.chainTx == nil {
 		var err error
 		if rw.chainTx, err = rw.chainDb.BeginRo(rw.ctx); err != nil {
@@ -159,10 +167,10 @@ func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 			//fmt.Printf("txNum=%d, blockNum=%d, finalisation of the block\n", txTask.TxNum, txTask.BlockNum)
 			// End of block transaction in a block
 			syscall := func(contract libcommon.Address, data []byte) ([]byte, error) {
-				return core.SysCallContract(contract, data, *rw.chainConfig, ibs, header, rw.engine, false /* constCall */)
+				return core.SysCallContract(contract, data, *rw.chainConfig, ibs, header, rw.engine, false)
 			}
 
-			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil /* receipts */, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
+			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
 				//fmt.Printf("error=%v\n", err)
 				txTask.Error = err
 			} else {
@@ -347,4 +355,191 @@ func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chai
 		}
 	}
 	return reconWorkers, applyWorker, resultCh, clear, wg.Wait
+}
+
+// ExecuteBlockEphemerallyV3 runs a block from provided stateReader and
+// writes the result to the provided stateWriter
+func ExecuteBlockEphemerallyV3(
+	chainConfig *chain.Config,
+	vmConfig *vm.Config,
+	blockHashFunc func(n uint64) libcommon.Hash,
+	engine consensus.Engine,
+	block *types.Block,
+	stateReader state.ReaderV3,
+	stateWriter state.WriterV3,
+	epochReader consensus.EpochReader,
+	chainReader consensus.ChainHeaderReader,
+	txNum uint64,
+) (*core.EphemeralExecResult, error) {
+	defer core.BlockExecutionTimer.UpdateDuration(time.Now())
+	stateReader.SetTxNum(txNum)
+	stateWriter.SetTxNum(txNum)
+	stateReader.ResetReadSet()
+	stateWriter.ResetWriteSet()
+
+	ibs := state.New(stateReader)
+	header := block.HeaderNoCopy()
+
+	usedGas := new(uint64)
+	gp := new(core.GasPool)
+	gp.AddGas(block.GasLimit())
+
+	var (
+		rejectedTxs []*core.RejectedTx
+		includedTxs types.Transactions
+		receipts    types.Receipts
+	)
+
+	if !vmConfig.ReadOnly {
+		if err := core.InitializeBlockExecution(engine, chainReader, epochReader, block.Header(), block.Transactions(), block.Uncles(), chainConfig, ibs); err != nil {
+			return nil, err
+		}
+	}
+
+	if chainConfig.DAOForkSupport && chainConfig.DAOForkBlock != nil && chainConfig.DAOForkBlock.Cmp(block.Number()) == 0 {
+		misc.ApplyDAOHardFork(ibs)
+	}
+	noop := state.NewNoopWriter()
+	//fmt.Printf("====txs processing start: %d====\n", block.NumberU64())
+	for i, tx := range block.Transactions() {
+		txNum++
+		stateReader.SetTxNum(txNum)
+		stateWriter.SetTxNum(txNum)
+		stateReader.ResetReadSet()
+		stateWriter.ResetWriteSet()
+		ibs.Prepare(tx.Hash(), block.Hash(), i)
+
+		vmConfig.Tracer = NewCallTracer()
+
+		receipt, _, err := core.ApplyTransaction(chainConfig, blockHashFunc, engine, nil, gp, ibs, noop, header, tx, usedGas, *vmConfig)
+		if ftracer, ok := vmConfig.Tracer.(vm.FlushableTracer); ok {
+			ftracer.Flush(tx)
+		}
+		if err != nil {
+			if !vmConfig.StatelessExec {
+				return nil, fmt.Errorf("could not apply tx %d from block %d [%v]: %w", i, block.NumberU64(), tx.Hash().Hex(), err)
+			}
+			rejectedTxs = append(rejectedTxs, &core.RejectedTx{i, err.Error()})
+		} else {
+			includedTxs = append(includedTxs, tx)
+			if !vmConfig.NoReceipts {
+				receipts = append(receipts, receipt)
+			}
+		}
+
+		/*
+			if err != nil {
+					txTask.Error = err
+					//fmt.Printf("error=%v\n", err)
+				} else {
+					txTask.UsedGas = applyRes.UsedGas
+					// Update the state with pending changes
+					ibs.SoftFinalise()
+					txTask.Logs = ibs.GetLogs(txHash)
+					txTask.TraceFroms = ct.froms
+					txTask.TraceTos = ct.tos
+				}
+		*/
+		/*
+			// Prepare read set, write set and balanceIncrease set and send for serialisation
+			if txTask.Error == nil {
+				txTask.BalanceIncreaseSet = ibs.BalanceIncreaseSet()
+				//for addr, bal := range txTask.BalanceIncreaseSet {
+				//	fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
+				//}
+				if err = ibs.MakeWriteSet(rules, rw.stateWriter); err != nil {
+					panic(err)
+				}
+				txTask.ReadLists = rw.stateReader.ReadSet()
+				txTask.WriteLists = rw.stateWriter.WriteSet()
+				txTask.AccountPrevs, txTask.AccountDels, txTask.StoragePrevs, txTask.CodePrevs = rw.stateWriter.PrevAndDels()
+				size := (20 + 32) * len(txTask.BalanceIncreaseSet)
+				for _, list := range txTask.ReadLists {
+					for _, b := range list.Keys {
+						size += len(b)
+					}
+					for _, b := range list.Vals {
+						size += len(b)
+					}
+				}
+				for _, list := range txTask.WriteLists {
+					for _, b := range list.Keys {
+						size += len(b)
+					}
+					for _, b := range list.Vals {
+						size += len(b)
+					}
+				}
+				txTask.ResultsSize = int64(size)
+			}
+		*/
+	}
+
+	/*
+		if txTask.BlockNum > 0 {
+			txNum++
+			stateReader.SetTxNum(txNum)
+			stateWriter.SetTxNum(txNum)
+			stateReader.ResetReadSet()
+			stateWriter.ResetWriteSet()
+			// End of block transaction in a block
+			syscall := func(contract libcommon.Address, data []byte) ([]byte, error) {
+				return core.SysCallContract(contract, data, *rw.chainConfig, ibs, header, rw.engine, false )
+			}
+
+			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
+				//fmt.Printf("error=%v\n", err)
+				txTask.Error = err
+			} else {
+				txTask.TraceTos = map[libcommon.Address]struct{}{}
+				txTask.TraceTos[txTask.Coinbase] = struct{}{}
+				for _, uncle := range txTask.Uncles {
+					txTask.TraceTos[uncle.Coinbase] = struct{}{}
+				}
+			}
+		}
+	*/
+
+	receiptSha := types.DeriveSha(receipts)
+	if !vmConfig.StatelessExec && chainConfig.IsByzantium(header.Number.Uint64()) && !vmConfig.NoReceipts && receiptSha != block.ReceiptHash() {
+		return nil, fmt.Errorf("mismatched receipt headers for block %d (%s != %s)", block.NumberU64(), receiptSha.Hex(), block.ReceiptHash().Hex())
+	}
+
+	if !vmConfig.StatelessExec && *usedGas != header.GasUsed {
+		return nil, fmt.Errorf("gas used by execution: %d, in header: %d", *usedGas, header.GasUsed)
+	}
+
+	var bloom types.Bloom
+	if !vmConfig.NoReceipts {
+		bloom = types.CreateBloom(receipts)
+		if !vmConfig.StatelessExec && bloom != header.Bloom {
+			return nil, fmt.Errorf("bloom computed by execution: %x, in header: %x", bloom, header.Bloom)
+		}
+	}
+	if !vmConfig.ReadOnly {
+		txs := block.Transactions()
+		if _, _, _, err := core.FinalizeBlockExecutionV3(engine, block.Header(), txs, block.Uncles(), stateWriter, chainConfig, ibs, receipts, block.Withdrawals(), epochReader, chainReader, false); err != nil {
+			return nil, err
+		}
+	}
+	blockLogs := ibs.Logs()
+	execRs := &core.EphemeralExecResult{
+		TxRoot:      types.DeriveSha(includedTxs),
+		ReceiptRoot: receiptSha,
+		Bloom:       bloom,
+		LogsHash:    rlpHash(blockLogs),
+		Receipts:    receipts,
+		Difficulty:  (*math.HexOrDecimal256)(header.Difficulty),
+		GasUsed:     math.HexOrDecimal64(*usedGas),
+		Rejected:    rejectedTxs,
+	}
+
+	return execRs, nil
+}
+
+func rlpHash(x interface{}) (h libcommon.Hash) {
+	hw := sha3.NewLegacyKeccak256()
+	rlp.Encode(hw, x) //nolint:errcheck
+	hw.Sum(h[:0])
+	return h
 }

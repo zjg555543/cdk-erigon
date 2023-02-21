@@ -206,6 +206,81 @@ func executeBlock(
 	return nil
 }
 
+func executeBlockV3(
+	block *types.Block,
+	tx kv.RwTx,
+	batch ethdb.Database,
+	cfg ExecuteBlockCfg,
+	vmConfig vm.Config, // emit copy, because will modify it
+	writeChangesets bool,
+	writeReceipts bool,
+	writeCallTraces bool,
+	initialCycle bool,
+	stateStream bool,
+) error {
+	blockNum := block.NumberU64()
+	stateReader, stateWriter, err := newStateReaderWriter(batch, tx, block, writeChangesets, cfg.accumulator, initialCycle, stateStream)
+	if err != nil {
+		return err
+	}
+
+	// where the magic happens
+	getHeader := func(hash common.Hash, number uint64) *types.Header {
+		h, _ := cfg.blockReader.Header(context.Background(), tx, hash, number)
+		return h
+	}
+
+	getTracer := func(txIndex int, txHash common.Hash) (vm.EVMLogger, error) {
+		return logger.NewStructLogger(&logger.LogConfig{}), nil
+	}
+
+	callTracer := calltracer.NewCallTracer()
+	vmConfig.Debug = true
+	vmConfig.Tracer = callTracer
+
+	var receipts types.Receipts
+	var stateSyncReceipt *types.Receipt
+	var execRs *core.EphemeralExecResult
+	_, isPoSa := cfg.engine.(consensus.PoSA)
+	isBor := cfg.chainConfig.Bor != nil
+	getHashFn := core.GetHashFn(block.Header(), getHeader)
+
+	if isPoSa {
+		execRs, err = core.ExecuteBlockEphemerallyForBSC(cfg.chainConfig, &vmConfig, getHashFn, cfg.engine, block, stateReader, stateWriter, EpochReaderImpl{tx: tx}, ChainReaderImpl{config: cfg.chainConfig, tx: tx, blockReader: cfg.blockReader}, getTracer)
+	} else if isBor {
+		execRs, err = core.ExecuteBlockEphemerallyBor(cfg.chainConfig, &vmConfig, getHashFn, cfg.engine, block, stateReader, stateWriter, EpochReaderImpl{tx: tx}, ChainReaderImpl{config: cfg.chainConfig, tx: tx, blockReader: cfg.blockReader}, getTracer)
+	} else {
+		execRs, err = core.ExecuteBlockEphemerally(cfg.chainConfig, &vmConfig, getHashFn, cfg.engine, block, stateReader, stateWriter, EpochReaderImpl{tx: tx}, ChainReaderImpl{config: cfg.chainConfig, tx: tx, blockReader: cfg.blockReader}, getTracer)
+	}
+	if err != nil {
+		return err
+	}
+	receipts = execRs.Receipts
+	stateSyncReceipt = execRs.StateSyncReceipt
+
+	if writeReceipts {
+		if err = rawdb.AppendReceipts(tx, blockNum, receipts); err != nil {
+			return err
+		}
+
+		if stateSyncReceipt != nil && stateSyncReceipt.Status == types.ReceiptStatusSuccessful {
+			if err := rawdb.WriteBorReceipt(tx, block.Hash(), block.NumberU64(), stateSyncReceipt); err != nil {
+				return err
+			}
+		}
+	}
+
+	if cfg.changeSetHook != nil {
+		if hasChangeSet, ok := stateWriter.(HasChangeSetWriter); ok {
+			cfg.changeSetHook(blockNum, hasChangeSet.ChangeSetWriter())
+		}
+	}
+	if writeCallTraces {
+		return callTracer.WriteToDb(tx, block, *cfg.vmConfig)
+	}
+	return nil
+}
+
 func newStateReaderWriter(
 	batch ethdb.Database,
 	tx kv.RwTx,

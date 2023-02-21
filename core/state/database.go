@@ -31,6 +31,16 @@ const (
 	NonContractIncarnation = 0
 )
 
+type ReaderV3 interface {
+	StateReader
+	SetTxNum(txNum uint64)
+	ResetReadSet()
+}
+type WriterV3 interface {
+	StateWriter
+	SetTxNum(txNum uint64)
+	ResetWriteSet()
+}
 type StateReader interface {
 	ReadAccountData(address libcommon.Address) (*accounts.Account, error)
 	ReadAccountStorage(address libcommon.Address, incarnation uint64, key *libcommon.Hash) ([]byte, error)

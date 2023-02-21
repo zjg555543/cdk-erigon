@@ -138,6 +138,10 @@ func ExecV3(ctx context.Context,
 	var maxTxNum uint64
 	var outputTxNum = atomic2.NewUint64(0)
 	var inputTxNum uint64
+	defer func(t time.Time) {
+		fmt.Printf("exec3.go:114: %s\n", time.Since(t))
+	}(time.Now())
+
 	if execStage.BlockNumber > 0 {
 		stageProgress = execStage.BlockNumber
 		block = execStage.BlockNumber + 1
@@ -149,7 +153,8 @@ func ExecV3(ctx context.Context,
 		} else if parallel {
 			defer agg.StartWrites().FinishWrites()
 		} else {
-			defer agg.StartUnbufferedWrites().FinishWrites()
+			//defer agg.StartUnbufferedWrites().FinishWrites()
+			defer agg.StartWrites().FinishWrites()
 		}
 
 		var err error
@@ -203,7 +208,10 @@ func ExecV3(ctx context.Context,
 	defer stopWorkers()
 
 	var rwsLock sync.Mutex
-	rwsReceiveCond := sync.NewCond(&rwsLock)
+	var rwsReceiveCond *sync.Cond
+	if parallel {
+		rwsReceiveCond = sync.NewCond(&rwsLock)
+	}
 
 	commitThreshold := batchSize.Bytes()
 	resultsThreshold := int64(batchSize.Bytes())
@@ -518,6 +526,52 @@ Loop:
 		signer := *types.MakeSigner(chainConfig, blockNum)
 
 		f := core.GetHashFn(header, getHeaderFunc)
+		/*
+				//lastLogTx += uint64(block.Transactions().Len())
+
+				// Incremental move of next stages depend on fully written ChangeSets, Receipts, CallTraceSet
+				writeChangeSets := true // nextStagesExpectData || blockNum > cfg.prune.History.PruneTo(to)
+				writeReceipts := false  // nextStagesExpectData || blockNum > cfg.prune.Receipts.PruneTo(to)
+				writeCallTraces := true // nextStagesExpectData || blockNum > cfg.prune.CallTraces.PruneTo(to)
+				if err = executeBlock(b, applyTx, batch, cfg, *cfg.vmConfig, writeChangeSets, writeReceipts, writeCallTraces, initialCycle, stateStream); err != nil {
+					if !errors.Is(err, context.Canceled) {
+						log.Warn(fmt.Sprintf("[%s] Execution failed", logPrefix), "block", blockNum, "hash", b.Hash().String(), "err", err)
+						if cfg.hd != nil {
+							cfg.hd.ReportBadHeaderPoS(b.Hash(), b.ParentHash())
+						}
+						if cfg.badBlockHalt {
+							return err
+						}
+					}
+					u.UnwindTo(blockNum-1, b.Hash())
+					break Loop
+				}
+				stageProgress = blockNum
+			shouldUpdateProgress := batch.BatchSize() >= int(cfg.batchSize)
+			if shouldUpdateProgress {
+				log.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState)
+				currentStateGas = 0
+				if err = batch.Commit(); err != nil {
+					return err
+				}
+				if err = s.Update(tx, stageProgress); err != nil {
+					return err
+				}
+				if !useExternalTx {
+					if err = tx.Commit(); err != nil {
+						return err
+					}
+					tx, err = cfg.db.BeginRw(context.Background())
+					if err != nil {
+						return err
+					}
+					// TODO: This creates stacked up deferrals
+					defer tx.Rollback()
+				}
+				batch = olddb.NewHashBatch(tx, quit, cfg.dirs.Tmp)
+			}
+		*/
+
 		getHashFnMute := &sync.Mutex{}
 		getHashFn := func(n uint64) common.Hash {
 			getHashFnMute.Lock()
@@ -605,114 +659,115 @@ Loop:
 				} else {
 					rs.AddWork(txTask)
 				}
-			} else {
-				count++
-				applyWorker.RunTxTask(txTask)
-				if err := func() error {
-					if txTask.Final && !isPoSa {
-						gasUsed += txTask.UsedGas
-						if gasUsed != txTask.Header.GasUsed {
-							if txTask.BlockNum > 0 { //Disable check for genesis. Maybe need somehow improve it in future - to satisfy TestExecutionSpec
-								return fmt.Errorf("gas used by execution: %d, in header: %d, headerNum=%d, %x", gasUsed, txTask.Header.GasUsed, txTask.Header.Number.Uint64(), txTask.Header.Hash())
-							}
-						}
-						gasUsed = 0
-					} else {
-						gasUsed += txTask.UsedGas
-					}
-					return nil
-				}(); err != nil {
-					if errors.Is(err, context.Canceled) || errors.Is(err, common.ErrStopped) {
-						return err
-					} else {
-						log.Warn(fmt.Sprintf("[%s] Execution failed", logPrefix), "block", blockNum, "hash", header.Hash().String(), "err", err)
-						if cfg.hd != nil {
-							cfg.hd.ReportBadHeaderPoS(header.Hash(), header.ParentHash)
-						}
-						if cfg.badBlockHalt {
-							return err
-						}
-					}
-					u.UnwindTo(blockNum-1, header.Hash())
-					break Loop
+				if blockSnapshots.Cfg().Produce {
+					agg.BuildFilesInBackground()
 				}
-
-				if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
-					return fmt.Errorf("StateV3.Apply: %w", err)
-				}
-				triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
-				outputTxNum.Inc()
-				outputBlockNum.Store(txTask.BlockNum)
-				if err := rs.ApplyHistory(txTask, agg); err != nil {
-					return fmt.Errorf("StateV3.Apply: %w", err)
-				}
+				continue
 			}
-			stageProgress = blockNum
-			inputTxNum++
-		}
 
-		if !parallel {
-			syncMetrics[stages.Execution].Set(blockNum)
-
-			select {
-			case <-logEvery.C:
-				stepsInDB := rawdbhelpers.IdxStepsCountV3(applyTx)
-				progress.Log(rs, rws.Len(), uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
-				if useExternalTx || rs.SizeEstimate() < commitThreshold {
-					break
+			// not-parallel part
+			count++
+			applyWorker.RunTxTaskNoLock(txTask)
+			if err := func() error {
+				if txTask.Final && !isPoSa {
+					gasUsed += txTask.UsedGas
+					if gasUsed != txTask.Header.GasUsed {
+						if txTask.BlockNum > 0 { //Disable check for genesis. Maybe need somehow improve it in future - to satisfy TestExecutionSpec
+							return fmt.Errorf("gas used by execution: %d, in header: %d, headerNum=%d, %x", gasUsed, txTask.Header.GasUsed, txTask.Header.Number.Uint64(), txTask.Header.Hash())
+						}
+					}
+					gasUsed = 0
+				} else {
+					gasUsed += txTask.UsedGas
 				}
-
-				var t1, t2, t3, t4 time.Duration
-				commitStart := time.Now()
-				if err := func() error {
-					t1 = time.Since(commitStart)
-					tt := time.Now()
-					if err := rs.Flush(ctx, applyTx, logPrefix, logEvery); err != nil {
+				return nil
+			}(); err != nil {
+				if errors.Is(err, context.Canceled) || errors.Is(err, common.ErrStopped) {
+					return err
+				} else {
+					log.Warn(fmt.Sprintf("[%s] Execution failed", logPrefix), "block", blockNum, "hash", header.Hash().String(), "err", err)
+					if cfg.hd != nil {
+						cfg.hd.ReportBadHeaderPoS(header.Hash(), header.ParentHash)
+					}
+					if cfg.badBlockHalt {
 						return err
 					}
-					t2 = time.Since(tt)
+				}
+				u.UnwindTo(blockNum-1, header.Hash())
+				break Loop
+			}
 
-					tt = time.Now()
-					if err := agg.Flush(ctx, applyTx); err != nil {
-						return err
-					}
-					t3 = time.Since(tt)
+			if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
+				return fmt.Errorf("StateV3.Apply: %w", err)
+			}
+			triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
+			outputTxNum.Inc()
+			outputBlockNum.Store(txTask.BlockNum)
+			if err := rs.ApplyHistory(txTask, agg); err != nil {
+				return fmt.Errorf("StateV3.Apply: %w", err)
+			}
+		}
+		stageProgress = blockNum
+		inputTxNum++
+		syncMetrics[stages.Execution].Set(blockNum)
 
-					if err = execStage.Update(applyTx, outputBlockNum.Load()); err != nil {
-						return err
-					}
+		select {
+		case <-logEvery.C:
+			stepsInDB := rawdbhelpers.IdxStepsCountV3(applyTx)
+			progress.Log(rs, rws.Len(), uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Load(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
+			if useExternalTx || rs.SizeEstimate() < commitThreshold {
+				break
+			}
 
-					applyTx.CollectMetrics()
-
-					if err = applyTx.Commit(); err != nil {
-						return err
-					}
-					t4 = time.Since(tt)
-
-					applyTx, err = chainDb.BeginRw(ctx)
-					if err != nil {
-						return err
-					}
-					for i := 0; i < len(execWorkers); i++ {
-						execWorkers[i].ResetTx(applyTx)
-					}
-					applyWorker.ResetTx(applyTx)
-					agg.SetTx(applyTx)
-
-					log.Warn("dbg: commit done")
-					return nil
-				}(); err != nil {
+			var t1, t2, t3, t4 time.Duration
+			commitStart := time.Now()
+			if err := func() error {
+				t1 = time.Since(commitStart)
+				tt := time.Now()
+				if err := rs.Flush(ctx, applyTx, logPrefix, logEvery); err != nil {
 					return err
 				}
-				log.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3, "tx.commit", t4)
-			default:
+				t2 = time.Since(tt)
+
+				tt = time.Now()
+				if err := agg.Flush(ctx, applyTx); err != nil {
+					return err
+				}
+				t3 = time.Since(tt)
+
+				if err = execStage.Update(applyTx, outputBlockNum.Load()); err != nil {
+					return err
+				}
+
+				applyTx.CollectMetrics()
+
+				if err = applyTx.Commit(); err != nil {
+					return err
+				}
+				t4 = time.Since(tt)
+
+				applyTx, err = chainDb.BeginRw(ctx)
+				if err != nil {
+					return err
+				}
+				for i := 0; i < len(execWorkers); i++ {
+					execWorkers[i].ResetTx(applyTx)
+				}
+				applyWorker.ResetTx(applyTx)
+				agg.SetTx(applyTx)
+
+				return nil
+			}(); err != nil {
+				return err
 			}
+			log.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3, "tx.commit", t4)
+		default:
 		}
 
 		if blockSnapshots.Cfg().Produce {
 			agg.BuildFilesInBackground()
 		}
-		if !parallel && !useExternalTx {
+		if !useExternalTx {
 			if err = agg.Prune(ctx, 10*ethconfig.HistoryV3AggregationStep); err != nil { // prune part of retired data, before commit
 				return err
 			}
