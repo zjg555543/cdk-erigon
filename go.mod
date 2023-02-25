@@ -3,8 +3,8 @@ module github.com/ledgerwatch/erigon
 go 1.18
 
 require (
-	github.com/ledgerwatch/erigon-lib v0.0.0-20230222044005-291a8411696d
-	github.com/ledgerwatch/erigon-snapshot v1.1.1-0.20230215122237-5e33484e9be4
+	github.com/ledgerwatch/erigon-lib v0.0.0-20230225054553-79d634dbdfe3
+	github.com/ledgerwatch/erigon-snapshot v1.1.1-0.20230224032817-e29f5ad218a2
 	github.com/ledgerwatch/log/v3 v3.7.0
 	github.com/ledgerwatch/secp256k1 v1.0.0
 	github.com/ledgerwatch/trackerslist v1.1.0 // indirect
@@ -45,6 +45,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
+	github.com/hashicorp/golang-lru/v2 v2.0.1
 	github.com/holiman/uint256 v1.2.1
 	github.com/huandu/xstrings v1.3.2
 	github.com/huin/goupnp v1.0.3
@@ -151,7 +152,6 @@ require (
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.1 // indirect
 	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20220405231054-a1ae3e4bba26 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/ipfs/go-cid v0.3.2 // indirect
