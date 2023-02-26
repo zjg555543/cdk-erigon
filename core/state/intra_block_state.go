@@ -33,7 +33,7 @@ import (
 )
 
 const PreAllocReset = true
-const PreAllocSize = 32
+const PreAllocSize = 64
 
 type revision struct {
 	id           int
