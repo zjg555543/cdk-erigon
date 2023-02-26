@@ -839,6 +839,12 @@ var writeListPool = &sync.Pool{
 }
 
 func newWriteList() map[string]*exec22.KvList {
+	return map[string]*exec22.KvList{
+		kv.PlainState:        {Keys: make([][]byte, 0, 128), Vals: make([][]byte, 0, 128)},
+		kv.Code:              {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
+		kv.PlainContractCode: {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
+		kv.IncarnationMap:    {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
+	}
 	v := writeListPool.Get().(map[string]*exec22.KvList)
 	for _, tbl := range v {
 		tbl.Keys, tbl.Vals = tbl.Keys[:0], tbl.Vals[:0]
@@ -846,6 +852,7 @@ func newWriteList() map[string]*exec22.KvList {
 	return v
 }
 func returnWriteList(v map[string]*exec22.KvList) {
+	return
 	if v == nil {
 		return
 	}
@@ -864,6 +871,12 @@ var readListPool = &sync.Pool{
 }
 
 func newReadList() map[string]*exec22.KvList {
+	return map[string]*exec22.KvList{
+		kv.PlainState:     {Keys: make([][]byte, 0, 512), Vals: make([][]byte, 0, 512)},
+		kv.Code:           {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
+		CodeSizeTable:     {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
+		kv.IncarnationMap: {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
+	}
 	v := readListPool.Get().(map[string]*exec22.KvList)
 	for _, tbl := range v {
 		tbl.Keys, tbl.Vals = tbl.Keys[:0], tbl.Vals[:0]
@@ -871,6 +884,7 @@ func newReadList() map[string]*exec22.KvList {
 	return v
 }
 func returnReadList(v map[string]*exec22.KvList) {
+	return
 	if v == nil {
 		return
 	}
