@@ -32,7 +32,7 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/trie"
 )
 
-const PreAllocReset = false
+const PreAllocReset = true
 
 type revision struct {
 	id           int
