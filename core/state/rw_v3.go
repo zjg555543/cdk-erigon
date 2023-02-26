@@ -57,7 +57,7 @@ func NewStateV3() *StateV3 {
 func (rs *StateV3) put(table string, key, val []byte) {
 	t, ok := rs.changes[table]
 	if !ok {
-		t = btree2.NewMap[string, []byte](128)
+		t = btree2.NewMap[string, []byte](64)
 		rs.changes[table] = t
 	}
 	old, ok := t.Set(string(key), val)
