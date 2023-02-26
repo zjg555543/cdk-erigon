@@ -118,18 +118,18 @@ func (sdb *IntraBlockState) Error() error {
 // Reset clears out all ephemeral state objects from the state db, but keeps
 // the underlying state trie to avoid reloading data for the next operations.
 func (sdb *IntraBlockState) Reset() {
-	if len(sdb.nilAccounts) > 64 {
+	if len(sdb.nilAccounts) > 512 {
 		log.Warn("need increase IntraBlockState.Reset.nilAccounts", "len", len(sdb.nilAccounts))
 	}
-	if len(sdb.stateObjects) > 64 {
+	if len(sdb.stateObjects) > 512 {
 		log.Warn("need increase IntraBlockState.Reset.stateObjects", "len", len(sdb.stateObjects))
 	}
-	if len(sdb.stateObjectsDirty) > 64 {
+	if len(sdb.stateObjectsDirty) > 512 {
 		log.Warn("need increase IntraBlockState.Reset.stateObjectsDirty", "len", len(sdb.stateObjectsDirty))
 	}
-	sdb.nilAccounts = make(map[libcommon.Address]struct{}, 64)
-	sdb.stateObjects = make(map[libcommon.Address]*stateObject, 64)
-	sdb.stateObjectsDirty = make(map[libcommon.Address]struct{}, 64)
+	sdb.nilAccounts = make(map[libcommon.Address]struct{}, 512)
+	sdb.stateObjects = make(map[libcommon.Address]*stateObject, 512)
+	sdb.stateObjectsDirty = make(map[libcommon.Address]struct{}, 512)
 	//maps.Clear(sdb.nilAccounts)
 	//maps.Clear(sdb.stateObjects)
 	//maps.Clear(sdb.stateObjectsDirty)
@@ -137,7 +137,7 @@ func (sdb *IntraBlockState) Reset() {
 	sdb.bhash = libcommon.Hash{}
 	sdb.txIndex = 0
 	if len(sdb.logs) > 64 {
-		log.Warn("need increase IntraBlockState.Reset.stateObjectsDirty", "len", len(sdb.logs))
+		log.Warn("need increase IntraBlockState.Reset.logs", "len", len(sdb.logs))
 	}
 	sdb.logs = make(map[libcommon.Hash][]*types.Log, 64)
 	//maps.Clear(sdb.logs)
