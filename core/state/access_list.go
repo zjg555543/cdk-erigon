@@ -34,7 +34,7 @@ func newAccessList() *accessList {
 
 func (al *accessList) Reset() {
 	if PreAllocReset {
-		al.addresses = make(map[libcommon.Address]int, 16)
+		al.addresses = make(map[libcommon.Address]int, PreAllocSize)
 	} else {
 		al.addresses = make(map[libcommon.Address]int)
 	}

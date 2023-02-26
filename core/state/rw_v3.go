@@ -609,10 +609,10 @@ func (w *StateWriterV3) SetTxNum(txNum uint64) {
 func (w *StateWriterV3) ResetWriteSet() {
 	w.writeLists = newWriteList()
 	if PreAllocReset {
-		w.accountPrevs = make(map[string][]byte, 16)
-		w.accountDels = make(map[string]*accounts.Account, 16)
-		w.storagePrevs = make(map[string][]byte, 16)
-		w.codePrevs = make(map[string]uint64, 16)
+		w.accountPrevs = make(map[string][]byte, PreAllocSize)
+		w.accountDels = make(map[string]*accounts.Account, PreAllocSize)
+		w.storagePrevs = make(map[string][]byte, PreAllocSize)
+		w.codePrevs = make(map[string]uint64, PreAllocSize)
 	} else {
 		w.accountPrevs = map[string][]byte{}
 		w.accountDels = map[string]*accounts.Account{}

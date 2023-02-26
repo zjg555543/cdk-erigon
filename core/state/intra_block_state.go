@@ -33,6 +33,7 @@ import (
 )
 
 const PreAllocReset = true
+const PreAllocSize = 32
 
 type revision struct {
 	id           int
@@ -120,11 +121,11 @@ func (sdb *IntraBlockState) Error() error {
 // the underlying state trie to avoid reloading data for the next operations.
 func (sdb *IntraBlockState) Reset() {
 	if PreAllocReset {
-		sdb.nilAccounts = make(map[libcommon.Address]struct{}, 16)
-		sdb.stateObjects = make(map[libcommon.Address]*stateObject, 16)
-		sdb.stateObjectsDirty = make(map[libcommon.Address]struct{}, 16)
-		sdb.logs = make(map[libcommon.Hash][]*types.Log, 16)
-		sdb.balanceInc = make(map[libcommon.Address]*BalanceIncrease, 16)
+		sdb.nilAccounts = make(map[libcommon.Address]struct{}, PreAllocSize)
+		sdb.stateObjects = make(map[libcommon.Address]*stateObject, PreAllocSize)
+		sdb.stateObjectsDirty = make(map[libcommon.Address]struct{}, PreAllocSize)
+		sdb.logs = make(map[libcommon.Hash][]*types.Log, PreAllocSize)
+		sdb.balanceInc = make(map[libcommon.Address]*BalanceIncrease, PreAllocSize)
 	} else {
 		sdb.nilAccounts = make(map[libcommon.Address]struct{})
 		sdb.stateObjects = make(map[libcommon.Address]*stateObject)

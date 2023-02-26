@@ -47,7 +47,7 @@ func newJournal() *journal {
 }
 func (j *journal) reset() {
 	if PreAllocReset {
-		j.dirties = make(map[libcommon.Address]int, 16)
+		j.dirties = make(map[libcommon.Address]int, PreAllocSize)
 	} else {
 		j.dirties = make(map[libcommon.Address]int)
 	}
