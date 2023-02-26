@@ -596,7 +596,10 @@ Loop:
 			if parallel {
 				if txTask.TxIndex >= 0 && txTask.TxIndex < len(txs) {
 					if ok := rs.RegisterSender(txTask); ok {
-						rs.AddWork(txTask)
+						currentQueueSize := rs.AddWork(txTask)
+						if currentQueueSize > queueSize {
+							time.Sleep(10 * time.Microsecond)
+						}
 					}
 				} else {
 					rs.AddWork(txTask)
