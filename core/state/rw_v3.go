@@ -613,7 +613,6 @@ func (w *StateWriterV3) ResetWriteSet() {
 	maps.Clear(w.accountDels)
 	maps.Clear(w.storagePrevs)
 	maps.Clear(w.codePrevs)
-
 }
 
 func (w *StateWriterV3) WriteSet() map[string]*exec22.KvList {
