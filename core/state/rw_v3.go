@@ -845,12 +845,6 @@ var writeListPool = &sync.Pool{
 			kv.PlainContractCode: {},
 			kv.IncarnationMap:    {},
 		}
-		return map[string]*exec22.KvList{
-			kv.PlainState:        {Keys: make([][]byte, 0, 128), Vals: make([][]byte, 0, 128)},
-			kv.Code:              {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
-			kv.PlainContractCode: {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
-			kv.IncarnationMap:    {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
-		}
 	},
 }
 
@@ -875,12 +869,6 @@ var readListPool = &sync.Pool{
 			kv.Code:           {},
 			CodeSizeTable:     {},
 			kv.IncarnationMap: {},
-		}
-		return map[string]*exec22.KvList{
-			kv.PlainState:     {Keys: make([][]byte, 0, 512), Vals: make([][]byte, 0, 512)},
-			kv.Code:           {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
-			CodeSizeTable:     {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
-			kv.IncarnationMap: {Keys: make([][]byte, 0, 16), Vals: make([][]byte, 0, 16)},
 		}
 	},
 }
