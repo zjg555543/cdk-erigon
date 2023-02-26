@@ -30,6 +30,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/turbo/trie"
+	"github.com/ledgerwatch/log/v3"
 )
 
 type revision struct {
@@ -117,6 +118,15 @@ func (sdb *IntraBlockState) Error() error {
 // Reset clears out all ephemeral state objects from the state db, but keeps
 // the underlying state trie to avoid reloading data for the next operations.
 func (sdb *IntraBlockState) Reset() {
+	if len(sdb.nilAccounts) > 64 {
+		log.Warn("need increase IntraBlockState.Reset.nilAccounts", "len", len(sdb.nilAccounts))
+	}
+	if len(sdb.stateObjects) > 64 {
+		log.Warn("need increase IntraBlockState.Reset.stateObjects", "len", len(sdb.stateObjects))
+	}
+	if len(sdb.stateObjectsDirty) > 64 {
+		log.Warn("need increase IntraBlockState.Reset.stateObjectsDirty", "len", len(sdb.stateObjectsDirty))
+	}
 	sdb.nilAccounts = make(map[libcommon.Address]struct{}, 64)
 	sdb.stateObjects = make(map[libcommon.Address]*stateObject, 64)
 	sdb.stateObjectsDirty = make(map[libcommon.Address]struct{}, 64)
@@ -126,9 +136,15 @@ func (sdb *IntraBlockState) Reset() {
 	sdb.thash = libcommon.Hash{}
 	sdb.bhash = libcommon.Hash{}
 	sdb.txIndex = 0
+	if len(sdb.logs) > 64 {
+		log.Warn("need increase IntraBlockState.Reset.stateObjectsDirty", "len", len(sdb.logs))
+	}
 	sdb.logs = make(map[libcommon.Hash][]*types.Log, 64)
 	//maps.Clear(sdb.logs)
 	sdb.logSize = 0
+	if len(sdb.balanceInc) > 64 {
+		log.Warn("need increase IntraBlockState.Reset.balanceInc", "len", len(sdb.balanceInc))
+	}
 	sdb.balanceInc = make(map[libcommon.Address]*BalanceIncrease, 64)
 	//maps.Clear(sdb.balanceInc)
 }
