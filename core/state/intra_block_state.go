@@ -30,10 +30,9 @@ import (
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/turbo/trie"
-	"golang.org/x/exp/maps"
 )
 
-const ResetMapsByClean = false
+const PreAllocReset = false
 
 type revision struct {
 	id           int
@@ -120,12 +119,12 @@ func (sdb *IntraBlockState) Error() error {
 // Reset clears out all ephemeral state objects from the state db, but keeps
 // the underlying state trie to avoid reloading data for the next operations.
 func (sdb *IntraBlockState) Reset() {
-	if ResetMapsByClean {
-		maps.Clear(sdb.nilAccounts)
-		maps.Clear(sdb.stateObjects)
-		maps.Clear(sdb.stateObjectsDirty)
-		maps.Clear(sdb.logs)
-		maps.Clear(sdb.balanceInc)
+	if PreAllocReset {
+		sdb.nilAccounts = make(map[libcommon.Address]struct{}, 16)
+		sdb.stateObjects = make(map[libcommon.Address]*stateObject, 16)
+		sdb.stateObjectsDirty = make(map[libcommon.Address]struct{}, 16)
+		sdb.logs = make(map[libcommon.Hash][]*types.Log, 16)
+		sdb.balanceInc = make(map[libcommon.Address]*BalanceIncrease, 16)
 	} else {
 		sdb.nilAccounts = make(map[libcommon.Address]struct{})
 		sdb.stateObjects = make(map[libcommon.Address]*stateObject)

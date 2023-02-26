@@ -19,7 +19,6 @@ package state
 import (
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
-	"golang.org/x/exp/maps"
 )
 
 // journalEntry is a modification entry in the state change journal that can be
@@ -47,8 +46,8 @@ func newJournal() *journal {
 	}
 }
 func (j *journal) reset() {
-	if ResetMapsByClean {
-		maps.Clear(j.dirties)
+	if PreAllocReset {
+		j.dirties = make(map[libcommon.Address]int, 16)
 	} else {
 		j.dirties = make(map[libcommon.Address]int)
 	}

@@ -18,7 +18,6 @@ package state
 
 import (
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
-	"golang.org/x/exp/maps"
 )
 
 type accessList struct {
@@ -34,8 +33,8 @@ func newAccessList() *accessList {
 }
 
 func (al *accessList) Reset() {
-	if ResetMapsByClean {
-		maps.Clear(al.addresses)
+	if PreAllocReset {
+		al.addresses = make(map[libcommon.Address]int, 16)
 	} else {
 		al.addresses = make(map[libcommon.Address]int)
 	}
