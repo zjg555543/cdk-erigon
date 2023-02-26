@@ -30,7 +30,7 @@ import (
 const CodeSizeTable = "CodeSize"
 
 type StateV3 struct {
-	lock         sync.RWMutex
+	lock         sync.Mutex
 	receiveWork  *sync.Cond
 	triggers     map[uint64]*exec22.TxTask
 	senderTxNums map[common.Address]uint64
@@ -69,9 +69,9 @@ func (rs *StateV3) put(table string, key, val []byte) {
 }
 
 func (rs *StateV3) Get(table string, key []byte) []byte {
-	rs.lock.RLock()
+	rs.lock.Lock()
 	v := rs.get(table, key)
-	rs.lock.RUnlock()
+	rs.lock.Unlock()
 	return v
 }
 
@@ -228,8 +228,8 @@ func (rs *StateV3) Finish() {
 }
 
 func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
-	rs.lock.RLock()
-	defer rs.lock.RUnlock()
+	rs.lock.Lock()
+	defer rs.lock.Unlock()
 
 	if len(txTask.AccountDels) > 0 {
 		cursor, err := roTx.Cursor(kv.PlainState)
@@ -541,17 +541,17 @@ func (rs *StateV3) Unwind(ctx context.Context, tx kv.RwTx, txUnwindTo uint64, ag
 func (rs *StateV3) DoneCount() uint64 { return rs.txsDone.Load() }
 
 func (rs *StateV3) SizeEstimate() uint64 {
-	rs.lock.RLock()
+	rs.lock.Lock()
 	r := rs.sizeEstimate
-	rs.lock.RUnlock()
+	rs.lock.Unlock()
 	return uint64(r)
 }
 
 func (rs *StateV3) ReadsValid(readLists map[string]*exec22.KvList) bool {
 	var t *btree2.Map[string, []byte]
 
-	rs.lock.RLock()
-	defer rs.lock.RUnlock()
+	rs.lock.Lock()
+	defer rs.lock.Unlock()
 	//fmt.Printf("ValidReads\n")
 	for table, list := range readLists {
 		//fmt.Printf("Table %s\n", table)
