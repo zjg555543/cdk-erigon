@@ -763,7 +763,7 @@ Loop:
 		default:
 		}
 
-		if blockSnapshots.Cfg().Produce {
+		if blockSnapshots.Cfg().Produce && blockNum%10 == 0 {
 			agg.BuildFilesInBackground()
 		}
 		if !useExternalTx && blockNum%1000 == 0 {
