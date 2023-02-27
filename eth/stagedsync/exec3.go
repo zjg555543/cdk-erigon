@@ -360,8 +360,8 @@ func ExecV3(ctx context.Context,
 						defer rwsLock.Unlock()
 						// Drain results (and process) channel because read sets do not carry over
 						for {
-							var drained bool
-							for !drained {
+						Drain:
+							for {
 								select {
 								case txTask, ok := <-resultCh:
 									if !ok {
@@ -370,7 +370,7 @@ func ExecV3(ctx context.Context,
 									resultsSize.Add(txTask.ResultsSize)
 									heap.Push(rws, txTask)
 								default:
-									drained = true
+									break Drain
 								}
 							}
 							applyWorker.ResetTx(tx)
