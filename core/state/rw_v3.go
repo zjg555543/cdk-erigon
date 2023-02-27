@@ -314,7 +314,7 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 			}
 		}
 		var codePrev []byte
-		if codeHash == nil {
+		if codeHash != nil {
 			codePrev = rs.get(kv.Code, codeHash)
 			if codePrev == nil {
 				var err error
@@ -841,7 +841,12 @@ func newWriteList() map[string]*exec22.KvList {
 	}
 	return v
 }
-func returnWriteList(v map[string]*exec22.KvList) { writeListPool.Put(v) }
+func returnWriteList(v map[string]*exec22.KvList) {
+	if v == nil {
+		return
+	}
+	writeListPool.Put(v)
+}
 
 var readListPool = sync.Pool{
 	New: func() any {
@@ -861,4 +866,9 @@ func newReadList() map[string]*exec22.KvList {
 	}
 	return v
 }
-func returnReadList(v map[string]*exec22.KvList) { readListPool.Put(v) }
+func returnReadList(v map[string]*exec22.KvList) {
+	if v == nil {
+		return
+	}
+	readListPool.Put(v)
+}
