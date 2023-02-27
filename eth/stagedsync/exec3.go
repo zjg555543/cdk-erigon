@@ -766,7 +766,7 @@ Loop:
 		if blockSnapshots.Cfg().Produce {
 			agg.BuildFilesInBackground()
 		}
-		if !useExternalTx {
+		if !useExternalTx && blockNum%1000 == 0 {
 			if err = agg.Prune(ctx, 10*ethconfig.HistoryV3AggregationStep); err != nil { // prune part of retired data, before commit
 				return err
 			}
