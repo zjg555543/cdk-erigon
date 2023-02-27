@@ -785,6 +785,11 @@ Loop:
 		rwLoopWg.Wait()
 		waitWorkers()
 	} else {
+		if !useExternalTx {
+			if err = agg.Prune(ctx, 10*ethconfig.HistoryV3AggregationStep); err != nil { // prune part of retired data, before commit
+				return err
+			}
+		}
 		if err = rs.Flush(ctx, applyTx, logPrefix, logEvery); err != nil {
 			return err
 		}
