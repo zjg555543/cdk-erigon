@@ -200,14 +200,13 @@ func ExecV3(ctx context.Context,
 	var resultsSize = atomic2.NewInt64(0)
 	var lock sync.RWMutex
 
-	rws := &exec22.TxTaskQueue{}
-	heap.Init(rws)
-
 	queueSize := workerCount // workerCount * 4 // when wait cond can be moved inside txs loop
 	execWorkers, applyWorker, resultCh, stopWorkers, waitWorkers := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, rs, blockReader, chainConfig, logger, genesis, engine, workerCount+1)
 	defer stopWorkers()
 	applyWorker.DiscardReadList()
 
+	rws := &exec22.TxTaskQueue{}
+	heap.Init(rws)
 	var rwsLock sync.Mutex
 	var rwsReceiveCond *sync.Cond
 	if parallel {
@@ -237,6 +236,27 @@ func ExecV3(ctx context.Context,
 		notifyReceived := func() { rwsReceiveCond.Signal() }
 		var t time.Time
 		var lastBlockNum uint64
+		drainF := func(txTask *exec22.TxTask) (added int64, ok bool) {
+			rwsLock.Lock()
+			defer rwsLock.Unlock()
+			added += txTask.ResultsSize
+			heap.Push(rws, txTask)
+		Drain:
+			for {
+				select {
+				case txTask, ok := <-resultCh:
+					if !ok {
+						return added, false
+					}
+					added += txTask.ResultsSize
+					heap.Push(rws, txTask)
+				default: // we are inside mutex section, can't block here
+					break Drain
+				}
+			}
+			return added, true
+		}
+
 		for outputTxNum.Load() < maxTxNum {
 			select {
 			case <-ctx.Done():
@@ -245,32 +265,35 @@ func ExecV3(ctx context.Context,
 				if !ok {
 					return nil
 				}
-				if txTask.BlockNum > lastBlockNum {
-					if lastBlockNum > 0 {
-						core.BlockExecutionTimer.UpdateDuration(t)
-					}
-					lastBlockNum = txTask.BlockNum
-					t = time.Now()
-				}
-				var conflicts, processedBlockNum uint64
-				if err := func() error {
-					rwsLock.Lock()
-					defer rwsLock.Unlock()
-					resultsSize.Add(txTask.ResultsSize)
-					heap.Push(rws, txTask)
-					conflicts, processedBlockNum, err = processResultQueue(rws, outputTxNum, rs, agg, tx, triggerCount, resultsSize, notifyReceived, applyWorker)
-					if err != nil {
-						return err
-					}
+				added, ok := drainF(txTask)
+				if !ok {
 					return nil
-				}(); err != nil {
-					return err
 				}
-				repeatCount.Add(conflicts)
-				if processedBlockNum > 0 {
-					outputBlockNum.Set(processedBlockNum)
-				}
+				resultsSize.Add(added)
 			}
+
+			var processedTxNum, conflicts, processedBlockNum uint64
+			if err := func() (err error) {
+				rwsLock.Lock()
+				defer rwsLock.Unlock()
+				processedTxNum, conflicts, processedBlockNum, err = processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, resultsSize, notifyReceived, applyWorker)
+				return err
+			}(); err != nil {
+				return err
+			}
+			repeatCount.Add(conflicts)
+			if processedBlockNum > lastBlockNum {
+				outputBlockNum.Set(processedBlockNum)
+				if lastBlockNum > 0 {
+					core.BlockExecutionTimer.UpdateDuration(t)
+				}
+				lastBlockNum = processedBlockNum
+				t = time.Now()
+			}
+			if processedTxNum > 0 {
+				outputTxNum.Store(processedTxNum)
+			}
+
 		}
 		return nil
 	}
@@ -365,7 +388,7 @@ func ExecV3(ctx context.Context,
 								}
 							}
 							applyWorker.ResetTx(tx)
-							conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum, rs, agg, tx, triggerCount, resultsSize, func() {}, applyWorker)
+							processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, resultsSize, func() {}, applyWorker)
 							if err != nil {
 								return err
 							}
@@ -373,6 +396,10 @@ func ExecV3(ctx context.Context,
 							if processedBlockNum > 0 {
 								outputBlockNum.Set(processedBlockNum)
 							}
+							if processedTxNum > 0 {
+								outputTxNum.Store(processedTxNum)
+							}
+
 							if rws.Len() == 0 {
 								break
 							}
@@ -380,9 +407,9 @@ func ExecV3(ctx context.Context,
 						rwsReceiveCond.Signal()
 						lock.Lock() // This is to prevent workers from starting work on any new txTask
 						defer lock.Unlock()
-						// Drain results channel because read sets do not carry over
-						var drained bool
-						for !drained {
+
+					DrainLoop: // Drain results channel because read sets do not carry over
+						for {
 							select {
 							case txTask, ok := <-resultCh:
 								if !ok {
@@ -390,7 +417,7 @@ func ExecV3(ctx context.Context,
 								}
 								rs.AddWork(txTask)
 							default:
-								drained = true
+								break DrainLoop
 							}
 						}
 
@@ -838,9 +865,10 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 	return b, nil
 }
 
-func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, resultsSize *atomic2.Int64, onSuccess func(), applyWorker *exec3.Worker) (conflicts, processedBlockNum uint64, err error) {
+func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, resultsSize *atomic2.Int64, onSuccess func(), applyWorker *exec3.Worker) (outputTxNum, conflicts, processedBlockNum uint64, err error) {
 	var i int
-	for rws.Len() > 0 && (*rws)[0].TxNum == outputTxNum.Load() {
+	outputTxNum = outputTxNumIn
+	for rws.Len() > 0 && (*rws)[0].TxNum == outputTxNum {
 		txTask := heap.Pop(rws).(*exec22.TxTask)
 		resultsSize.Add(-txTask.ResultsSize)
 		if txTask.Error != nil || !rs.ReadsValid(txTask.ReadLists) {
@@ -855,24 +883,24 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs
 			// resolve first conflict right here: it's faster and conflict-free
 			applyWorker.RunTxTask(txTask)
 			if txTask.Error != nil {
-				return conflicts, processedBlockNum, txTask.Error
+				return outputTxNum, conflicts, processedBlockNum, txTask.Error
 			}
 			i++
 		}
 
 		if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
-			return conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
+			return outputTxNum, conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
 		}
 		triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
-		outputTxNum.Inc()
+		outputTxNum++
 		onSuccess()
 		if err := rs.ApplyHistory(txTask, agg); err != nil {
-			return conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
+			return outputTxNum, conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
 		}
 		//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
 		processedBlockNum = txTask.BlockNum
 	}
-	return conflicts, processedBlockNum, nil
+	return outputTxNum, conflicts, processedBlockNum, nil
 }
 
 func reconstituteStep(last bool,
