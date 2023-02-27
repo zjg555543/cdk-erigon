@@ -779,25 +779,17 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 }
 
 func processResultQueue(rws *exec22.TxTaskQueue, outputTxNum *atomic2.Uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, resultsSize *atomic2.Int64, onSuccess func(), applyWorker *exec3.Worker) (conflicts, processedBlockNum uint64, err error) {
-	var i int
 	for rws.Len() > 0 && (*rws)[0].TxNum == outputTxNum.Load() {
 		txTask := heap.Pop(rws).(*exec22.TxTask)
 		resultsSize.Add(-txTask.ResultsSize)
 		if txTask.Error != nil || !rs.ReadsValid(txTask.ReadLists) {
 			conflicts++
 
-			if i > 0 {
-				//send to re-exex
-				rs.AddWork(txTask)
-				continue
-			}
-
 			// resolve first conflict right here: it's faster and conflict-free
 			applyWorker.RunTxTask(txTask)
 			if txTask.Error != nil {
 				return conflicts, processedBlockNum, txTask.Error
 			}
-			i++
 		}
 
 		if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
