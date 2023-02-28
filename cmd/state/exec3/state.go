@@ -212,6 +212,16 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 			// Update the state with pending changes
 			ibs.SoftFinalise()
 			txTask.Logs = ibs.GetLogs(txHash)
+			if len(txTask.Logs) > 0 {
+				txTask.LogAddr = make(map[libcommon.Address]struct{}, len(txTask.Logs))
+				txTask.LogTopic = make(map[libcommon.Hash]struct{}, len(txTask.Logs))
+				for _, log := range txTask.Logs {
+					txTask.LogAddr[log.Address] = struct{}{}
+					for _, topic := range log.Topics {
+						txTask.LogTopic[topic] = struct{}{}
+					}
+				}
+			}
 			txTask.TraceFroms = ct.froms
 			txTask.TraceTos = ct.tos
 		}

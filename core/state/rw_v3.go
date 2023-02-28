@@ -421,28 +421,30 @@ func (rs *StateV3) ApplyHistory(txTask *exec22.TxTask, agg *libstate.AggregatorV
 			return err
 		}
 	}
-	if txTask.TraceFroms != nil {
-		for addr := range txTask.TraceFroms {
-			if err := agg.AddTraceFrom(addr[:]); err != nil {
-				return err
-			}
+	for addr := range txTask.TraceFroms {
+		if err := agg.AddTraceFrom(addr[:]); err != nil {
+			return err
 		}
 	}
-	if txTask.TraceTos != nil {
-		for addr := range txTask.TraceTos {
-			if err := agg.AddTraceTo(addr[:]); err != nil {
-				return err
-			}
+	for addr := range txTask.TraceTos {
+		if err := agg.AddTraceTo(addr[:]); err != nil {
+			return err
 		}
 	}
-	for _, log := range txTask.Logs {
-		if err := agg.AddLogAddr(log.Address[:]); err != nil {
-			return fmt.Errorf("adding event log for addr %x: %w", log.Address, err)
+	for addr := range txTask.TraceTos {
+		if err := agg.AddTraceTo(addr[:]); err != nil {
+			return err
 		}
-		for _, topic := range log.Topics {
-			if err := agg.AddLogTopic(topic[:]); err != nil {
-				return fmt.Errorf("adding event log for topic %x: %w", topic, err)
-			}
+	}
+
+	for addr := range txTask.LogAddr {
+		if err := agg.AddLogAddr(addr[:]); err != nil {
+			return fmt.Errorf("adding event log for addr %x: %w", addr, err)
+		}
+	}
+	for topic := range txTask.LogTopic {
+		if err := agg.AddLogTopic(topic[:]); err != nil {
+			return fmt.Errorf("adding event log for topic %x: %w", topic, err)
 		}
 	}
 	return nil

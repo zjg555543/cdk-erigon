@@ -45,6 +45,8 @@ type TxTask struct {
 	Logs               []*types.Log
 	TraceFroms         map[libcommon.Address]struct{}
 	TraceTos           map[libcommon.Address]struct{}
+	LogAddr            map[libcommon.Address]struct{}
+	LogTopic           map[libcommon.Hash]struct{}
 
 	UsedGas uint64
 }
