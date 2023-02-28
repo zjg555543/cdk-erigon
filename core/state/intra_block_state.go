@@ -123,7 +123,7 @@ func (sdb *IntraBlockState) Reset() {
 	//		"len(sdb.stateObjectsDirty)", len(sdb.stateObjectsDirty),
 	//		"len(sdb.balanceInc)", len(sdb.balanceInc))
 	//}
-	//sdb.nilAccounts =nil
+	sdb.nilAccounts = nil
 	sdb.stateObjects = make(map[libcommon.Address]*stateObject)
 	sdb.stateObjectsDirty = make(map[libcommon.Address]struct{})
 	sdb.logs = make(map[libcommon.Hash][]*types.Log)
