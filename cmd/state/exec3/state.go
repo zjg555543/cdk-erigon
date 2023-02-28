@@ -3,6 +3,7 @@ package exec3
 import (
 	"context"
 	"math/big"
+	"sort"
 	"sync"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
