@@ -46,6 +46,7 @@ import (
 )
 
 var ExecStepsInDB = metrics.NewCounter(`exec_steps_in_db`) //nolint
+var E3TxNumMetric = metrics.GetOrCreateCounter("e3_tx_num")
 
 func NewProgress(prevOutputBlockNum, commitThreshold uint64, workersCount int, logPrefix string) *Progress {
 	return &Progress{prevTime: time.Now(), prevOutputBlockNum: prevOutputBlockNum, commitThreshold: commitThreshold, workersCount: workersCount, logPrefix: logPrefix}
@@ -132,7 +133,6 @@ func ExecV3(ctx context.Context,
 
 	var block, stageProgress uint64
 	var maxTxNum uint64
-	var outputTxNum = atomic2.NewUint64(0)
 	var inputTxNum uint64
 	if execStage.BlockNumber > 0 {
 		stageProgress = execStage.BlockNumber
@@ -156,9 +156,9 @@ func ExecV3(ctx context.Context,
 			if err != nil {
 				return err
 			}
-			outputTxNum.Store(_outputTxNum)
-			outputTxNum.Inc()
-			inputTxNum = outputTxNum.Load()
+			E3TxNumMetric.Set(_outputTxNum)
+			E3TxNumMetric.Inc()
+			inputTxNum = E3TxNumMetric.Get()
 		}
 	} else {
 		if err := chainDb.View(ctx, func(tx kv.Tx) error {
@@ -172,9 +172,9 @@ func ExecV3(ctx context.Context,
 				if err != nil {
 					return err
 				}
-				outputTxNum.Store(_outputTxNum)
-				outputTxNum.Inc()
-				inputTxNum = outputTxNum.Load()
+				E3TxNumMetric.Set(_outputTxNum)
+				E3TxNumMetric.Inc()
+				inputTxNum = E3TxNumMetric.Get()
 			}
 			return nil
 		}); err != nil {
@@ -244,7 +244,7 @@ func ExecV3(ctx context.Context,
 			return added, true
 		}
 
-		for outputTxNum.Load() < maxTxNum {
+		for E3TxNumMetric.Get() < maxTxNum {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -263,7 +263,7 @@ func ExecV3(ctx context.Context,
 			if err := func() (err error) {
 				rwsLock.Lock()
 				defer rwsLock.Unlock()
-				processedTxNum, conflicts, processedBlockNum, err = processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, resultsSize, notifyReceived, applyWorker)
+				processedTxNum, conflicts, processedBlockNum, err = processResultQueue(rws, E3TxNumMetric.Get(), rs, agg, tx, triggerCount, resultsSize, notifyReceived, applyWorker)
 				return err
 			}(); err != nil {
 				return err
@@ -278,7 +278,7 @@ func ExecV3(ctx context.Context,
 				t = time.Now()
 			}
 			if processedTxNum > 0 {
-				outputTxNum.Store(processedTxNum)
+				E3TxNumMetric.Set(processedTxNum)
 			}
 
 		}
@@ -317,7 +317,7 @@ func ExecV3(ctx context.Context,
 			defer cancelApplyCtx()
 			applyLoopWg.Add(1)
 			go applyLoop(applyCtx, rwLoopErrCh)
-			for outputTxNum.Load() < maxTxNum {
+			for E3TxNumMetric.Get() < maxTxNum {
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
@@ -328,7 +328,7 @@ func ExecV3(ctx context.Context,
 					rwsLock.Unlock()
 
 					stepsInDB := rawdbhelpers.IdxStepsCountV3(tx)
-					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Get(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
+					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Get(), E3TxNumMetric.Get(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
 						// too much steps in db will slow-down everything: flush and prune
@@ -375,7 +375,7 @@ func ExecV3(ctx context.Context,
 								}
 							}
 							applyWorker.ResetTx(tx)
-							processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, resultsSize, func() {}, applyWorker)
+							processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, E3TxNumMetric.Get(), rs, agg, tx, triggerCount, resultsSize, func() {}, applyWorker)
 							if err != nil {
 								return err
 							}
@@ -384,7 +384,7 @@ func ExecV3(ctx context.Context,
 								outputBlockNum.Set(processedBlockNum)
 							}
 							if processedTxNum > 0 {
-								outputTxNum.Store(processedTxNum)
+								E3TxNumMetric.Set(processedTxNum)
 							}
 
 							if rws.Len() == 0 {
@@ -668,7 +668,7 @@ Loop:
 					return fmt.Errorf("StateV3.Apply: %w", err)
 				}
 				triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
-				outputTxNum.Inc()
+				E3TxNumMetric.Inc()
 
 				if err := rs.ApplyHistory(txTask, agg); err != nil {
 					return fmt.Errorf("StateV3.Apply: %w", err)
@@ -684,7 +684,7 @@ Loop:
 			select {
 			case <-logEvery.C:
 				stepsInDB := rawdbhelpers.IdxStepsCountV3(applyTx)
-				progress.Log(rs, rws.Len(), uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Get(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
+				progress.Log(rs, rws.Len(), uint64(queueSize), count, inputBlockNum.Load(), outputBlockNum.Get(), E3TxNumMetric.Get(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
 				if rs.SizeEstimate() < commitThreshold {
 					break
 				}
