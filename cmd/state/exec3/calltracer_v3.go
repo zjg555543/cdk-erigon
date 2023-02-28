@@ -14,8 +14,8 @@ type CallTracer struct {
 
 func NewCallTracer() *CallTracer {
 	return &CallTracer{
-		froms: map[libcommon.Address]struct{}{},
-		tos:   map[libcommon.Address]struct{}{},
+		froms: make(map[libcommon.Address]struct{}, 16),
+		tos:   make(map[libcommon.Address]struct{}, 16),
 	}
 }
 func (ct *CallTracer) Froms() map[libcommon.Address]struct{} { return ct.froms }
