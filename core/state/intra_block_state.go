@@ -417,6 +417,19 @@ func (sdb *IntraBlockState) Selfdestruct(addr libcommon.Address) bool {
 	return true
 }
 
+func (sdb *IntraBlockState) isNilAcc(addr libcommon.Address) (ok bool) {
+	if sdb.nilAccounts == nil {
+		return false
+	}
+	_, ok = sdb.nilAccounts[addr]
+	return ok
+}
+func (sdb *IntraBlockState) addNilAcc(addr libcommon.Address) {
+	if sdb.nilAccounts == nil {
+		sdb.nilAccounts = map[libcommon.Address]struct{}{}
+	}
+	sdb.nilAccounts[addr] = struct{}{}
+}
 func (sdb *IntraBlockState) getStateObject(addr libcommon.Address) (stateObject *stateObject) {
 	// Prefer 'live' objects.
 	if obj := sdb.stateObjects[addr]; obj != nil {
@@ -424,13 +437,11 @@ func (sdb *IntraBlockState) getStateObject(addr libcommon.Address) (stateObject 
 	}
 
 	// Load the object from the database.
-	if sdb.nilAccounts != nil {
-		if _, ok := sdb.nilAccounts[addr]; ok {
-			if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
-				return sdb.createObject(addr, nil)
-			}
-			return nil
+	if sdb.isNilAcc(addr) {
+		if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
+			return sdb.createObject(addr, nil)
 		}
+		return nil
 	}
 	account, err := sdb.stateReader.ReadAccountData(addr)
 	if err != nil {
@@ -438,10 +449,7 @@ func (sdb *IntraBlockState) getStateObject(addr libcommon.Address) (stateObject 
 		return nil
 	}
 	if account == nil {
-		if sdb.nilAccounts == nil {
-			sdb.nilAccounts = map[libcommon.Address]struct{}{}
-		}
-		sdb.nilAccounts[addr] = struct{}{}
+		sdb.addNilAcc(addr)
 		if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
 			return sdb.createObject(addr, nil)
 		}
