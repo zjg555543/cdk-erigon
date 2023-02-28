@@ -30,7 +30,6 @@ import (
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/turbo/trie"
-	"github.com/ledgerwatch/log/v3"
 )
 
 type revision struct {
@@ -118,13 +117,13 @@ func (sdb *IntraBlockState) Error() error {
 // Reset clears out all ephemeral state objects from the state db, but keeps
 // the underlying state trie to avoid reloading data for the next operations.
 func (sdb *IntraBlockState) Reset() {
-	if len(sdb.nilAccounts) == 0 || len(sdb.stateObjects) == 0 || len(sdb.stateObjectsDirty) == 0 || len(sdb.balanceInc) == 0 {
-		log.Warn("zero", "len(sdb.nilAccounts)", len(sdb.nilAccounts),
-			"len(sdb.stateObjects)", len(sdb.stateObjects),
-			"len(sdb.stateObjectsDirty)", len(sdb.stateObjectsDirty),
-			"len(sdb.balanceInc)", len(sdb.balanceInc))
-	}
-	sdb.nilAccounts = make(map[libcommon.Address]struct{})
+	//if len(sdb.stateObjects) == 0 || len(sdb.stateObjectsDirty) == 0 || len(sdb.balanceInc) == 0 {
+	//	log.Warn("zero", "len(sdb.nilAccounts)", len(sdb.nilAccounts),
+	//		"len(sdb.stateObjects)", len(sdb.stateObjects),
+	//		"len(sdb.stateObjectsDirty)", len(sdb.stateObjectsDirty),
+	//		"len(sdb.balanceInc)", len(sdb.balanceInc))
+	//}
+	//sdb.nilAccounts =nil
 	sdb.stateObjects = make(map[libcommon.Address]*stateObject)
 	sdb.stateObjectsDirty = make(map[libcommon.Address]struct{})
 	sdb.logs = make(map[libcommon.Hash][]*types.Log)
@@ -425,11 +424,13 @@ func (sdb *IntraBlockState) getStateObject(addr libcommon.Address) (stateObject 
 	}
 
 	// Load the object from the database.
-	if _, ok := sdb.nilAccounts[addr]; ok {
-		if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
-			return sdb.createObject(addr, nil)
+	if sdb.nilAccounts != nil {
+		if _, ok := sdb.nilAccounts[addr]; ok {
+			if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
+				return sdb.createObject(addr, nil)
+			}
+			return nil
 		}
-		return nil
 	}
 	account, err := sdb.stateReader.ReadAccountData(addr)
 	if err != nil {
@@ -437,6 +438,9 @@ func (sdb *IntraBlockState) getStateObject(addr libcommon.Address) (stateObject 
 		return nil
 	}
 	if account == nil {
+		if sdb.nilAccounts == nil {
+			sdb.nilAccounts = map[libcommon.Address]struct{}{}
+		}
 		sdb.nilAccounts[addr] = struct{}{}
 		if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
 			return sdb.createObject(addr, nil)
