@@ -126,7 +126,7 @@ func (sdb *IntraBlockState) Reset() {
 	sdb.nilAccounts = make(map[libcommon.Address]struct{})
 	sdb.stateObjects = make(map[libcommon.Address]*stateObject)
 	sdb.stateObjectsDirty = make(map[libcommon.Address]struct{})
-	sdb.logs = make(map[libcommon.Hash][]*types.Log)
+	sdb.logs = nil
 	sdb.balanceInc = make(map[libcommon.Address]*BalanceIncrease)
 	sdb.thash = libcommon.Hash{}
 	sdb.bhash = libcommon.Hash{}
@@ -140,6 +140,9 @@ func (sdb *IntraBlockState) AddLog(log2 *types.Log) {
 	log2.BlockHash = sdb.bhash
 	log2.TxIndex = uint(sdb.txIndex)
 	log2.Index = sdb.logSize
+	if sdb.logs == nil {
+		sdb.logs = map[libcommon.Hash][]*types.Log{}
+	}
 	sdb.logs[sdb.thash] = append(sdb.logs[sdb.thash], log2)
 	sdb.logSize++
 }

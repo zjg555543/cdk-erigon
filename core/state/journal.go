@@ -258,6 +258,9 @@ func (ch refundChange) dirtied() *libcommon.Address {
 }
 
 func (ch addLogChange) revert(s *IntraBlockState) {
+	if s.logs == nil {
+		return
+	}
 	logs := s.logs[ch.txhash]
 	if len(logs) == 1 {
 		delete(s.logs, ch.txhash)
