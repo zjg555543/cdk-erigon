@@ -669,10 +669,6 @@ Loop:
 				}
 				triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 				outputTxNum.Inc()
-
-				if err := rs.ApplyHistory(txTask, agg); err != nil {
-					return fmt.Errorf("StateV3.Apply: %w", err)
-				}
 			}
 			stageProgress = blockNum
 			inputTxNum++
@@ -807,9 +803,6 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state
 		triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 		outputTxNum++
 		onSuccess()
-		if err := rs.ApplyHistory(txTask, agg); err != nil {
-			return outputTxNum, conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
-		}
 		//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
 		processedBlockNum = txTask.BlockNum
 	}
