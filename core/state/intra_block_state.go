@@ -72,7 +72,7 @@ type IntraBlockState struct {
 
 	thash, bhash libcommon.Hash
 	txIndex      int
-	logs         map[libcommon.Hash][]*types.Log
+	logs         [][]*types.Log
 	logSize      uint
 
 	// Journal of state modifications. This is the backbone of
@@ -92,7 +92,7 @@ func New(stateReader StateReader) *IntraBlockState {
 		stateObjects:      map[libcommon.Address]*stateObject{},
 		stateObjectsDirty: map[libcommon.Address]struct{}{},
 		nilAccounts:       map[libcommon.Address]struct{}{},
-		logs:              map[libcommon.Hash][]*types.Log{},
+		logs:              [][]*types.Log{},
 		journal:           newJournal(),
 		accessList:        newAccessList(),
 		balanceInc:        map[libcommon.Address]*BalanceIncrease{},
@@ -126,7 +126,7 @@ func (sdb *IntraBlockState) Reset() {
 	sdb.nilAccounts = make(map[libcommon.Address]struct{})
 	sdb.stateObjects = make(map[libcommon.Address]*stateObject)
 	sdb.stateObjectsDirty = make(map[libcommon.Address]struct{})
-	sdb.logs = make(map[libcommon.Hash][]*types.Log)
+	sdb.logs = [][]*types.Log{}
 	sdb.balanceInc = make(map[libcommon.Address]*BalanceIncrease)
 	sdb.thash = libcommon.Hash{}
 	sdb.bhash = libcommon.Hash{}
@@ -135,17 +135,23 @@ func (sdb *IntraBlockState) Reset() {
 }
 
 func (sdb *IntraBlockState) AddLog(log2 *types.Log) {
-	sdb.journal.append(addLogChange{txhash: sdb.thash})
+	sdb.journal.append(addLogChange{txIndex: sdb.txIndex})
 	log2.TxHash = sdb.thash
 	log2.BlockHash = sdb.bhash
 	log2.TxIndex = uint(sdb.txIndex)
 	log2.Index = sdb.logSize
-	sdb.logs[sdb.thash] = append(sdb.logs[sdb.thash], log2)
+	for len(sdb.logs) <= sdb.txIndex {
+		sdb.logs = append(sdb.logs, nil)
+	}
+	sdb.logs[sdb.txIndex] = append(sdb.logs[sdb.txIndex], log2)
 	sdb.logSize++
 }
 
-func (sdb *IntraBlockState) GetLogs(hash libcommon.Hash) []*types.Log {
-	return sdb.logs[hash]
+func (sdb *IntraBlockState) GetLogs(txIdx int) []*types.Log {
+	if len(sdb.logs) <= txIdx {
+		return nil
+	}
+	return sdb.logs[txIdx]
 }
 
 func (sdb *IntraBlockState) Logs() []*types.Log {

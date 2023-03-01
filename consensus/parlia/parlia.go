@@ -1241,7 +1241,7 @@ func (p *Parlia) applyTransaction(from libcommon.Address, to libcommon.Address, 
 		return nil, nil, nil, err
 	}
 	// Set the receipt logs and create a bloom for filtering
-	receipt.Logs = ibs.GetLogs(expectedTx.Hash())
+	receipt.Logs = ibs.GetLogs(txIndex)
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 	receipt.BlockHash = header.Hash()
 	receipt.BlockNumber = header.Number

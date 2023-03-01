@@ -216,7 +216,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 			txTask.UsedGas = applyRes.UsedGas
 			// Update the state with pending changes
 			ibs.SoftFinalise()
-			txTask.Logs = ibs.GetLogs(txHash)
+			txTask.Logs = ibs.GetLogs(txTask.TxIndex)
 			txTask.TraceFroms = rw.callTracer.Froms()
 			txTask.TraceTos = rw.callTracer.Tos()
 		}
