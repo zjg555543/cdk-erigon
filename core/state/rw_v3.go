@@ -30,28 +30,32 @@ import (
 const CodeSizeTable = "CodeSize"
 
 type StateV3 struct {
-	lock         sync.RWMutex
+	//lock         sync.RWMutex
 	receiveWork  *sync.Cond
 	triggers     map[uint64]*exec22.TxTask
 	senderTxNums map[common.Address]uint64
 	triggerLock  sync.Mutex
 	queue        exec22.TxTaskQueue
 	queueLock    sync.Mutex
-	changes      map[string]*btree2.Map[string, []byte]
+	changes      map[string]*X
 	sizeEstimate int
 	txsDone      *atomic2.Uint64
 	finished     atomic2.Bool
+}
+type X struct {
+	data *btree2.Map[string, []byte]
+	lock sync.RWMutex
 }
 
 func NewStateV3() *StateV3 {
 	rs := &StateV3{
 		triggers:     map[uint64]*exec22.TxTask{},
 		senderTxNums: map[common.Address]uint64{},
-		changes: map[string]*btree2.Map[string, []byte]{
-			kv.PlainState:        btree2.NewMap[string, []byte](128),
-			kv.Code:              btree2.NewMap[string, []byte](128),
-			kv.IncarnationMap:    btree2.NewMap[string, []byte](128),
-			kv.PlainContractCode: btree2.NewMap[string, []byte](128),
+		changes: map[string]*X{
+			kv.PlainState:        {data: btree2.NewMap[string, []byte](128)},
+			kv.Code:              {data: btree2.NewMap[string, []byte](128)},
+			kv.IncarnationMap:    {data: btree2.NewMap[string, []byte](128)},
+			kv.PlainContractCode: {data: btree2.NewMap[string, []byte](128)},
 		},
 		txsDone: atomic2.NewUint64(0),
 	}
@@ -60,7 +64,7 @@ func NewStateV3() *StateV3 {
 }
 
 func (rs *StateV3) put(table string, key, val []byte) {
-	old, ok := rs.changes[table].Set(string(key), val)
+	old, ok := rs.changes[table].data.Set(string(key), val)
 	if ok {
 		rs.sizeEstimate += len(val) - len(old)
 	} else {
@@ -69,7 +73,7 @@ func (rs *StateV3) put(table string, key, val []byte) {
 }
 
 func (rs *StateV3) puts(table string, key string, val []byte) {
-	old, ok := rs.changes[table].Set(key, val)
+	old, ok := rs.changes[table].data.Set(key, val)
 	if ok {
 		rs.sizeEstimate += len(val) - len(old)
 	} else {
@@ -78,27 +82,29 @@ func (rs *StateV3) puts(table string, key string, val []byte) {
 }
 
 func (rs *StateV3) Get(table string, key []byte) []byte {
-	rs.lock.RLock()
+	rs.changes[table].lock.RLock()
 	v := rs.get(table, key)
-	rs.lock.RUnlock()
+	rs.changes[table].lock.RUnlock()
 	return v
 }
 
 func (rs *StateV3) get(table string, key []byte) (v []byte) {
-	v, _ = rs.changes[table].Get(*(*string)(unsafe.Pointer(&key)))
+	v, _ = rs.changes[table].data.Get(*(*string)(unsafe.Pointer(&key)))
 	return v
 }
 
 func (rs *StateV3) Flush(ctx context.Context, rwTx kv.RwTx, logPrefix string, logEvery *time.Ticker) error {
-	rs.lock.Lock()
-	defer rs.lock.Unlock()
+	//rs.lock.Lock()
+	//defer rs.lock.Unlock()
 	for table, t := range rs.changes {
+		t.lock.Lock()
+		defer t.lock.Unlock()
 		c, err := rwTx.RwCursor(table)
 		if err != nil {
 			return err
 		}
 
-		iter := t.Iter()
+		iter := t.data.Iter()
 		for ok := iter.First(); ok; ok = iter.Next() {
 			if len(iter.Value()) == 0 {
 				if err = c.Delete([]byte(iter.Key())); err != nil {
@@ -123,7 +129,7 @@ func (rs *StateV3) Flush(ctx context.Context, rwTx kv.RwTx, logPrefix string, lo
 		if err != nil {
 			return err
 		}
-		t.Clear()
+		t.data.Clear()
 	}
 	rs.sizeEstimate = 0
 	return nil
@@ -231,8 +237,8 @@ func (rs *StateV3) Finish() {
 }
 
 func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
-	rs.lock.RLock()
-	defer rs.lock.RUnlock()
+	rs.changes[kv.PlainState].lock.RLock()
+	defer rs.changes[kv.PlainState].lock.RUnlock()
 
 	if len(txTask.AccountDels) > 0 {
 		cursor, err := roTx.Cursor(kv.PlainState)
@@ -275,7 +281,7 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 			}
 			if psChanges != nil {
 				//TODO: try full-scan, then can replace btree by map
-				iter := psChanges.Iter()
+				iter := psChanges.data.Iter()
 				for ok := iter.Seek(string(addr1)); ok; ok = iter.Next() {
 					key := []byte(iter.Key())
 					if !bytes.HasPrefix(key, addr1) {
@@ -307,6 +313,11 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 			}
 		}
 	}
+
+	rs.changes[kv.Code].lock.RLock()
+	defer rs.changes[kv.Code].lock.RUnlock()
+	rs.changes[kv.ContractCode].lock.RLock()
+	defer rs.changes[kv.ContractCode].lock.RUnlock()
 
 	k := make([]byte, 20+8)
 	for addrS, incarnation := range txTask.CodePrevs {
@@ -342,8 +353,10 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 
 func (rs *StateV3) appplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
 	emptyRemoval := txTask.Rules.IsSpuriousDragon
-	rs.lock.Lock()
-	defer rs.lock.Unlock()
+	for _, t := range rs.changes {
+		t.lock.Lock()
+		defer t.lock.Unlock()
+	}
 
 	for addr, increase := range txTask.BalanceIncreaseSet {
 		increase := increase
@@ -548,17 +561,15 @@ func (rs *StateV3) Unwind(ctx context.Context, tx kv.RwTx, txUnwindTo uint64, ag
 func (rs *StateV3) DoneCount() uint64 { return rs.txsDone.Load() }
 
 func (rs *StateV3) SizeEstimate() uint64 {
-	rs.lock.RLock()
+	//rs.lock.RLock()
 	r := rs.sizeEstimate
-	rs.lock.RUnlock()
+	//rs.lock.RUnlock()
 	return uint64(r)
 }
 
 func (rs *StateV3) ReadsValid(readLists map[string]*exec22.KvList) bool {
-	var t *btree2.Map[string, []byte]
+	var t *X
 
-	rs.lock.RLock()
-	defer rs.lock.RUnlock()
 	//fmt.Printf("ValidReads\n")
 	for table, list := range readLists {
 		//fmt.Printf("Table %s\n", table)
@@ -571,8 +582,9 @@ func (rs *StateV3) ReadsValid(readLists map[string]*exec22.KvList) bool {
 		if !ok {
 			continue
 		}
+		t.lock.Lock()
 		for i, key := range list.Keys {
-			if val, ok := t.Get(key); ok {
+			if val, ok := t.data.Get(key); ok {
 				if table == CodeSizeTable {
 					if binary.BigEndian.Uint64(list.Vals[i]) != uint64(len(val)) {
 						return false
@@ -582,6 +594,7 @@ func (rs *StateV3) ReadsValid(readLists map[string]*exec22.KvList) bool {
 				}
 			}
 		}
+		t.lock.Unlock()
 	}
 	return true
 }
