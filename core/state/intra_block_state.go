@@ -126,7 +126,7 @@ func (sdb *IntraBlockState) Reset() {
 	sdb.nilAccounts = make(map[libcommon.Address]struct{})
 	sdb.stateObjects = make(map[libcommon.Address]*stateObject)
 	sdb.stateObjectsDirty = make(map[libcommon.Address]struct{})
-	sdb.logs = [][]*types.Log{}
+	sdb.logs = sdb.logs[:0]
 	sdb.balanceInc = make(map[libcommon.Address]*BalanceIncrease)
 	sdb.thash = libcommon.Hash{}
 	sdb.bhash = libcommon.Hash{}
