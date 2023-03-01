@@ -243,7 +243,8 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 			return err
 		}
 		defer cursor.Close()
-		addr1 := rs.codeHistoryKeyBuf
+		//addr1 := rs.codeHistoryKeyBuf
+		addr1 := make([]byte, 20+8)
 		psChanges := rs.changes[kv.PlainState]
 		for addrS, original := range txTask.AccountDels {
 			addr := []byte(addrS)
@@ -311,7 +312,8 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 		}
 	}
 
-	k := rs.codeHistoryKeyBuf
+	k := make([]byte, 20+8)
+	//k := rs.codeHistoryKeyBuf
 	for addrS, incarnation := range txTask.CodePrevs {
 		addr := []byte(addrS)
 		copy(k, addr)
