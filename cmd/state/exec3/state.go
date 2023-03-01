@@ -182,6 +182,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 				//fmt.Printf("error=%v\n", err)
 				txTask.Error = err
 			} else {
+				rw.callTracer.Reset()
 				rw.callTracer.AddCoinbase(txTask.Coinbase, txTask.Uncles)
 				txTask.TraceTos = rw.callTracer.Tos()
 			}
