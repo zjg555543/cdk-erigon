@@ -41,6 +41,8 @@ type StateV3 struct {
 	sizeEstimate int
 	txsDone      *atomic2.Uint64
 	finished     atomic2.Bool
+
+	codeHistoryKeyBuf []byte
 }
 
 func NewStateV3() *StateV3 {
@@ -53,7 +55,8 @@ func NewStateV3() *StateV3 {
 			kv.IncarnationMap:    btree2.NewMap[string, []byte](128),
 			kv.PlainContractCode: btree2.NewMap[string, []byte](128),
 		},
-		txsDone: atomic2.NewUint64(0),
+		txsDone:           atomic2.NewUint64(0),
+		codeHistoryKeyBuf: make([]byte, 20+8),
 	}
 	rs.receiveWork = sync.NewCond(&rs.queueLock)
 	return rs
@@ -230,7 +233,7 @@ func (rs *StateV3) Finish() {
 	rs.receiveWork.Broadcast()
 }
 
-func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
+func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
 	rs.lock.RLock()
 	defer rs.lock.RUnlock()
 
@@ -240,7 +243,7 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 			return err
 		}
 		defer cursor.Close()
-		addr1 := make([]byte, 20+8)
+		addr1 := rs.codeHistoryKeyBuf
 		psChanges := rs.changes[kv.PlainState]
 		for addrS, original := range txTask.AccountDels {
 			addr := []byte(addrS)
@@ -308,7 +311,7 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 		}
 	}
 
-	k := make([]byte, 20+8)
+	k := rs.codeHistoryKeyBuf
 	for addrS, incarnation := range txTask.CodePrevs {
 		addr := []byte(addrS)
 		copy(k, addr)
@@ -392,7 +395,7 @@ func (rs *StateV3) ApplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 	defer agg.BatchHistoryWriteStart().BatchHistoryWriteEnd()
 
 	agg.SetTxNum(txTask.TxNum)
-	if err := rs.appplyState1(roTx, txTask, agg); err != nil {
+	if err := rs.writeStateHistory(roTx, txTask, agg); err != nil {
 		return err
 	}
 	if err := rs.appplyState(roTx, txTask, agg); err != nil {
