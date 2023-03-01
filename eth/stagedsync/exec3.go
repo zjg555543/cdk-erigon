@@ -110,6 +110,7 @@ func ExecV3(ctx context.Context,
 	logger log.Logger,
 	maxBlockNum uint64,
 ) error {
+	runtime.SetMutexProfileFraction(1)
 	batchSize, chainDb := cfg.batchSize, cfg.db
 	blockReader := cfg.blockReader
 	agg, engine := cfg.agg, cfg.engine
