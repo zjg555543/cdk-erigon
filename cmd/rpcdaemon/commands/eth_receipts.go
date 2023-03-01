@@ -528,7 +528,7 @@ func (e *intraBlockExec) execTx(txNum uint64, txIndex int, txn types.Transaction
 			e.tracer.SetTransaction(txn)
 		}
 	}
-	return e.ibs.GetLogs(txIndex), res, nil
+	return e.ibs.GetLogs(txIndex, nil), res, nil
 }
 
 // The Topic list restricts matches to particular event topics. Each event has a list

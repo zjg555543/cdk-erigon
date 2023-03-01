@@ -84,7 +84,7 @@ func applyTransaction(config *chain.Config, engine consensus.EngineReader, gp *G
 			receipt.ContractAddress = crypto.CreateAddress(evm.TxContext().Origin, tx.GetNonce())
 		}
 		// Set the receipt logs and create a bloom for filtering
-		receipt.Logs = ibs.GetLogs(ibs.TxIndex())
+		receipt.Logs = ibs.GetLogs(ibs.TxIndex(), nil)
 		receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 		receipt.BlockNumber = header.Number
 		receipt.TransactionIndex = uint(ibs.TxIndex())

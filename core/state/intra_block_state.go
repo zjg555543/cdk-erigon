@@ -30,7 +30,6 @@ import (
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/turbo/trie"
-	"golang.org/x/exp/slices"
 )
 
 type revision struct {
@@ -142,7 +141,7 @@ func (sdb *IntraBlockState) Reset() {
 }
 
 func (sdb *IntraBlockState) AddLog(log2 *types.Log) {
-	sdb.journal.append(addLogChange{txIndex: sdb.txIndex})
+	sdb.journal.append(addLogTxIndexChange(sdb.txIndex))
 	log2.TxHash = sdb.thash
 	log2.BlockHash = sdb.bhash
 	log2.TxIndex = uint(sdb.txIndex)
@@ -158,11 +157,11 @@ func (sdb *IntraBlockState) AddLog(log2 *types.Log) {
 	sdb.logSize++
 }
 
-func (sdb *IntraBlockState) GetLogs(txIdx int) []*types.Log {
+func (sdb *IntraBlockState) GetLogs(txIdx int, toBuf []*types.Log) []*types.Log {
 	if len(sdb.logs) <= txIdx {
 		return nil
 	}
-	return slices.Clone(sdb.logs[txIdx])
+	return append(toBuf, sdb.logs[txIdx]...)
 }
 
 func (sdb *IntraBlockState) Logs() []*types.Log {

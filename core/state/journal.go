@@ -134,10 +134,8 @@ type (
 	refundChange struct {
 		prev uint64
 	}
-	addLogChange struct {
-		txIndex int
-	}
-	touchChange struct {
+	addLogTxIndexChange int
+	touchChange         struct {
 		account *libcommon.Address
 	}
 	// Changes to the access list
@@ -257,18 +255,19 @@ func (ch refundChange) dirtied() *libcommon.Address {
 	return nil
 }
 
-func (ch addLogChange) revert(s *IntraBlockState) {
-	logs := s.logs[ch.txIndex]
+func (ch addLogTxIndexChange) revert(s *IntraBlockState) {
+	txIndex := ch
+	logs := s.logs[txIndex]
 	if len(logs) == 1 {
-		s.logs[ch.txIndex] = logs[:0]
-		s.logs = s.logs[:ch.txIndex]
+		s.logs[txIndex] = logs[:0]
+		s.logs = s.logs[:txIndex]
 	} else {
-		s.logs[ch.txIndex] = logs[:len(logs)-1]
+		s.logs[txIndex] = logs[:len(logs)-1]
 	}
 	s.logSize--
 }
 
-func (ch addLogChange) dirtied() *libcommon.Address {
+func (ch addLogTxIndexChange) dirtied() *libcommon.Address {
 	return nil
 }
 
