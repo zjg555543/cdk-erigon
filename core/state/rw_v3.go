@@ -230,9 +230,17 @@ func (rs *StateV3) Finish() {
 	rs.receiveWork.Broadcast()
 }
 
-func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
-	rs.lock.RLock()
-	defer rs.lock.RUnlock()
+//func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
+//	rs.lock.RLock()
+//	defer rs.lock.RUnlock()
+//
+//	return nil
+//}
+
+func (rs *StateV3) appplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
+	emptyRemoval := txTask.Rules.IsSpuriousDragon
+	rs.lock.Lock()
+	defer rs.lock.Unlock()
 
 	if len(txTask.AccountDels) > 0 {
 		cursor, err := roTx.Cursor(kv.PlainState)
@@ -337,13 +345,6 @@ func (rs *StateV3) appplyState1(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate
 			return err
 		}
 	}
-	return nil
-}
-
-func (rs *StateV3) appplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
-	emptyRemoval := txTask.Rules.IsSpuriousDragon
-	rs.lock.Lock()
-	defer rs.lock.Unlock()
 
 	for addr, increase := range txTask.BalanceIncreaseSet {
 		increase := increase
@@ -392,9 +393,9 @@ func (rs *StateV3) ApplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 	defer agg.BatchHistoryWriteStart().BatchHistoryWriteEnd()
 
 	agg.SetTxNum(txTask.TxNum)
-	if err := rs.appplyState1(roTx, txTask, agg); err != nil {
-		return err
-	}
+	//if err := rs.appplyState1(roTx, txTask, agg); err != nil {
+	//	return err
+	//}
 	if err := rs.appplyState(roTx, txTask, agg); err != nil {
 		return err
 	}
