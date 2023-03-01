@@ -328,7 +328,7 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 			}
 		}
 		var codePrev []byte
-		if codeHash == nil {
+		if codeHash != nil {
 			codePrev = rs.get(kv.Code, codeHash)
 			if codePrev == nil {
 				var err error
