@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 
 	"github.com/holiman/uint256"
+	atomic2 "go.uber.org/atomic"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -146,6 +147,7 @@ func (evm *EVM) Cancel() {
 
 // Cancelled returns true if Cancel has been called
 func (evm *EVM) Cancelled() bool {
+	atomic2.Bool{}
 	return atomic.LoadInt32(&evm.abort) == 1
 }
 
