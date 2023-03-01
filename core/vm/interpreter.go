@@ -169,24 +169,23 @@ func (in *EVMInterpreter) decrementDepth() { in.depth-- }
 // considered a revert-and-consume-all-gas operation except for
 // ErrExecutionReverted which means revert-and-keep-gas-left.
 func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
-	// Don't bother with the execution if there's no code.
-	if len(contract.Code) == 0 {
-		return nil, nil
-	}
-
 	// Increment the call depth which is restricted to 1024
 	in.depth++
+	defer func() { in.depth-- }()
 
 	// Make sure the readOnly is only set if we aren't in readOnly yet.
 	// This makes also sure that the readOnly flag isn't removed for child calls.
-	restoreRO := readOnly && !in.readOnly
-	if restoreRO {
-		in.readOnly = true
-	}
+	callback := in.setReadonly(readOnly)
+	defer callback()
 
 	// Reset the previous call's return data. It's unimportant to preserve the old buffer
 	// as every returning call will return new data anyway.
 	in.returnData = nil
+
+	// Don't bother with the execution if there's no code.
+	if len(contract.Code) == 0 {
+		return nil, nil
+	}
 
 	var (
 		op          OpCode        // current opcode
@@ -212,6 +211,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// Don't move this deferrred function, it's placed before the capturestate-deferred method,
 	// so that it get's executed _after_: the capturestate needs the stacks before
 	// they are returned to the pools
+	defer stack.ReturnNormalStack(locStack)
 	contract.Input = input
 
 	// The Interpreter main run loop (contextual). This loop runs until either an
@@ -298,11 +298,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		}
 	}
 
-	stack.ReturnNormalStack(locStack)
-	if restoreRO {
-		in.readOnly = false
-	}
-	in.depth--
 	return res, err
 }
 
