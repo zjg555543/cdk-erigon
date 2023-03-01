@@ -119,6 +119,7 @@ var DefaultFlags = []cli.Flag{
 	&utils.MetricsPortFlag,
 	&utils.HistoryV3Flag,
 	&utils.TransactionV3Flag,
+	&utils.ParallelExecFlag,
 	&utils.IdentityFlag,
 	&utils.CliqueSnapshotCheckpointIntervalFlag,
 	&utils.CliqueSnapshotInmemorySnapshotsFlag,
