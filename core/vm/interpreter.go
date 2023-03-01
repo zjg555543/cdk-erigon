@@ -204,10 +204,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		pc   = &_pc      // program counter
 		cost uint64
 		// copies used by tracer
-		pcCopy  uint64 // needed for the deferred Tracer
-		gasCopy uint64 // for Tracer to log gas remaining before execution
-		logged  bool   // deferred Tracer should ignore already logged steps
-		res     []byte // result of the opcode execution function
+		res []byte // result of the opcode execution function
 	)
 	// Don't move this deferrred function, it's placed before the capturestate-deferred method,
 	// so that it get's executed _after_: the capturestate needs the stacks before
@@ -223,10 +220,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		steps++
 		if steps%1000 == 0 && in.evm.Cancelled() {
 			break
-		}
-		if in.cfg.Debug {
-			// Capture pre-execution values for tracing.
-			logged, pcCopy, gasCopy = false, _pc, contract.Gas
 		}
 		// Get the operation from the jump table and validate the stack to ensure there are
 		// enough stack items available to perform the operation.
@@ -272,10 +265,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 				mem.Resize(memorySize)
 			}
 		}
-		if in.cfg.Debug {
-			in.cfg.Tracer.CaptureState(_pc, op, gasCopy, cost, callContext, in.returnData, in.depth, err) //nolint:errcheck
-			logged = true
-		}
 		// execute the operation
 		res, err = operation.execute(pc, in, callContext)
 
@@ -287,15 +276,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 
 	if err == errStopToken {
 		err = nil // clear stop token error
-	}
-	if in.cfg.Debug {
-		if err != nil {
-			if !logged {
-				in.cfg.Tracer.CaptureState(pcCopy, op, gasCopy, cost, callContext, in.returnData, in.depth, err) //nolint:errcheck
-			} else {
-				in.cfg.Tracer.CaptureFault(pcCopy, op, gasCopy, cost, callContext, in.depth, err)
-			}
-		}
 	}
 
 	stack.ReturnNormalStack(locStack)
