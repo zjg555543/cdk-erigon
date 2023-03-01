@@ -9,16 +9,20 @@ import (
 )
 
 type CallTracer struct {
-	froms     map[common.Address]struct{}
-	tos       map[common.Address]struct{}
+	froms map[common.Address]struct{}
+	tos   map[common.Address]struct{}
+
+	froms2    map[common.Address][]uint64
+	tos2      map[common.Address][]uint64
 	buffering bool
+	txNum     uint64
 	agg       *state.AggregatorV3
 }
 
 func NewCallTracer(buffering bool, agg *state.AggregatorV3) *CallTracer {
 	return &CallTracer{buffering: buffering, agg: agg}
 }
-func (ct *CallTracer) Reset()                             { ct.froms, ct.tos = nil, nil }
+func (ct *CallTracer) Reset(txNum uint64)                 { ct.froms, ct.tos, ct.txNum = nil, nil, txNum }
 func (ct *CallTracer) Froms() map[common.Address]struct{} { return ct.froms }
 func (ct *CallTracer) Tos() map[common.Address]struct{}   { return ct.tos }
 
@@ -26,8 +30,12 @@ func (ct *CallTracer) CaptureTxStart(gasLimit uint64) {}
 func (ct *CallTracer) CaptureTxEnd(restGas uint64)    {}
 func (ct *CallTracer) CaptureStart(env vm.VMInterface, from common.Address, to common.Address, precompile bool, create bool, input []byte, gas uint64, value *uint256.Int, code []byte) {
 	if !ct.buffering {
-		_ = ct.agg.AddTraceFrom(from[:])
-		_ = ct.agg.AddTraceTo(to[:])
+		if ct.froms2 == nil {
+			ct.froms2 = map[common.Address][]uint64{}
+			ct.tos2 = map[common.Address][]uint64{}
+		}
+
+		ct.froms2[from], ct.tos2[to] = append(ct.froms2[from], ct.txNum), append(ct.tos2[to], ct.txNum)
 		return
 	}
 
@@ -39,8 +47,12 @@ func (ct *CallTracer) CaptureStart(env vm.VMInterface, from common.Address, to c
 }
 func (ct *CallTracer) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, precompile bool, create bool, input []byte, gas uint64, value *uint256.Int, code []byte) {
 	if !ct.buffering {
-		_ = ct.agg.AddTraceFrom(from[:])
-		_ = ct.agg.AddTraceTo(to[:])
+		if ct.froms2 == nil {
+			ct.froms2 = map[common.Address][]uint64{}
+			ct.tos2 = map[common.Address][]uint64{}
+		}
+
+		ct.froms2[from], ct.tos2[to] = append(ct.froms2[from], ct.txNum), append(ct.tos2[to], ct.txNum)
 		return
 	}
 
@@ -60,9 +72,13 @@ func (ct *CallTracer) CaptureExit(output []byte, usedGas uint64, err error) {
 }
 func (ct *CallTracer) AddCoinbase(coinbase common.Address, uncles []*types.Header) {
 	if !ct.buffering {
-		_ = ct.agg.AddTraceTo(coinbase[:])
+		if ct.froms2 == nil {
+			ct.froms2 = map[common.Address][]uint64{}
+			ct.tos2 = map[common.Address][]uint64{}
+		}
+		ct.tos2[coinbase] = append(ct.tos2[coinbase], ct.txNum)
 		for _, uncle := range uncles {
-			_ = ct.agg.AddTraceTo(uncle.Coinbase[:])
+			ct.tos2[uncle.Coinbase] = append(ct.tos2[uncle.Coinbase], ct.txNum)
 		}
 		return
 	}
