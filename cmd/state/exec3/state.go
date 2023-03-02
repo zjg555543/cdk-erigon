@@ -360,7 +360,7 @@ func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chai
 			close(resultCh)
 		}
 	}
-	applyWorker = NewWorker(lock, ctx, false, chainDb, rs, blockReader, chainConfig, logger, genesis, resultCh, engine)
+	applyWorker = NewWorker(lock, ctx, false, chainDb, rs, blockReader, chainConfig, genesis, resultCh, engine, agg)
 
 	return reconWorkers, applyWorker, resultCh, clear, wait
 }
