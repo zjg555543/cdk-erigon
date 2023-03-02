@@ -10,7 +10,7 @@ import (
 )
 
 func (l *LightClient) BootstrapCheckpoint(ctx context.Context, finalized [32]byte) error {
-	log.Info("[Checkpoint Sync] Retrieving lightclient bootstrap from sentinel",
+	log.Info("[lightclient] Checkpoint Sync: Retrieving lightclient bootstrap from sentinel",
 		"root", common.Bytes2Hex(finalized[:]))
 	retryInterval := time.NewTicker(200 * time.Millisecond)
 	defer retryInterval.Stop()
@@ -33,7 +33,7 @@ func (l *LightClient) BootstrapCheckpoint(ctx context.Context, finalized [32]byt
 				if err != nil {
 					continue
 				}
-				log.Info("[Checkpoint Sync] P2P", "peers", peers)
+				log.Info("[lightclient] Checkpoint Sync: P2P", "peers", peers)
 			case <-doneLogCh:
 				return
 			}
@@ -51,7 +51,7 @@ func (l *LightClient) BootstrapCheckpoint(ctx context.Context, finalized [32]byt
 	doneLogCh <- struct{}{}
 	s, err := NewLightClientStore(finalized, b)
 	if err != nil {
-		log.Warn("[Checkpoint Sync] could not create/validate store", "err", err)
+		log.Warn("[lightclient] Checkpoint Sync: could not create/validate store", "err", err)
 		return err
 	}
 
