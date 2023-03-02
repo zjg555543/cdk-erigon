@@ -795,17 +795,18 @@ Loop:
 				return err
 			}
 			log.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3, "tx.commit", t4)
+
+			if blockSnapshots.Cfg().Produce {
+				agg.BuildFilesInBackground()
+			}
 		default:
 		}
 
-		if blockSnapshots.Cfg().Produce && blockNum%100 == 0 {
-			agg.BuildFilesInBackground()
-		}
-		if !useExternalTx && blockNum%1000 == 0 {
-			if err = agg.Prune(ctx, 10*ethconfig.HistoryV3AggregationStep); err != nil { // prune part of retired data, before commit
-				return err
-			}
-		}
+		//if !useExternalTx && blockNum%1000 == 0 {
+		//	if err = agg.Prune(ctx, 10*ethconfig.HistoryV3AggregationStep); err != nil { // prune part of retired data, before commit
+		//		return err
+		//	}
+		//}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
