@@ -333,7 +333,7 @@ func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chai
 		ctx, cancel := context.WithCancel(ctx)
 		g, ctx := errgroup.WithContext(ctx)
 		for i := 0; i < workerCount; i++ {
-			reconWorkers[i] = NewWorker(lock, ctx, background, chainDb, rs, blockReader, chainConfig, logger, genesis, resultCh, engine)
+			reconWorkers[i] = NewWorker(lock, ctx, background, chainDb, rs, blockReader, chainConfig, genesis, resultCh, engine, agg)
 		}
 		if background {
 			for i := 0; i < workerCount; i++ {
