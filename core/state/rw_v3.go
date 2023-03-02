@@ -428,18 +428,14 @@ func (rs *StateV3) ApplyHistory(txTask *exec22.TxTask, agg *libstate.AggregatorV
 			return err
 		}
 	}
-	if txTask.TraceFroms != nil {
-		for addr := range txTask.TraceFroms {
-			if err := agg.AddTraceFrom(addr[:]); err != nil {
-				return err
-			}
+	for addr := range txTask.TraceFroms {
+		if err := agg.AddTraceFrom(addr[:]); err != nil {
+			return err
 		}
 	}
-	if txTask.TraceTos != nil {
-		for addr := range txTask.TraceTos {
-			if err := agg.AddTraceTo(addr[:]); err != nil {
-				return err
-			}
+	for addr := range txTask.TraceTos {
+		if err := agg.AddTraceTo(addr[:]); err != nil {
+			return err
 		}
 	}
 	for _, log := range txTask.Logs {
