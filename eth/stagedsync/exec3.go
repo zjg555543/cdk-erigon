@@ -220,7 +220,7 @@ func ExecV3(ctx context.Context,
 
 		applyWorker.ResetTx(tx)
 
-		notifyReceived := func() { rwsReceiveCond.Signal() }
+		notifyReceived := func() {}
 		var t time.Time
 		var lastBlockNum uint64
 		drainF := func(txTask *exec22.TxTask) (added int64, ok bool) {
@@ -280,7 +280,7 @@ func ExecV3(ctx context.Context,
 			if processedTxNum > 0 {
 				outputTxNum.Store(processedTxNum)
 			}
-
+			rwsReceiveCond.Signal()
 		}
 		return nil
 	}
