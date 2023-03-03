@@ -526,7 +526,7 @@ func extractHeaders(chaindata string, block uint64, blockTotalOrOffset int64) er
 	return nil
 }
 
-func extractBodies(datadir string) error {
+func extractBodies(datadir string, block uint64, blockTotalOrOffset int64) error {
 	snaps := snapshotsync.NewRoSnapshots(ethconfig.Snapshot{
 		Enabled:    true,
 		KeepBlocks: true,
@@ -579,14 +579,15 @@ func extractBodies(datadir string) error {
 		return err
 	}
 	defer tx.Rollback()
+	blockEncoded := hexutility.EncodeTs(block)
+	blockTotal := getBlockTotal(tx, block, blockTotalOrOffset)
 	c, err := tx.Cursor(kv.BlockBody)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
-	i := 0
 	var txId uint64
-	for k, _, err := c.First(); k != nil; k, _, err = c.Next() {
+	for k, _, err := c.Seek(blockEncoded); k != nil && blockTotal > 0; k, _, err = c.Next() {
 		if err != nil {
 			return err
 		}
@@ -602,16 +603,13 @@ func extractBodies(datadir string) error {
 			fmt.Printf("Non-canonical\n")
 			continue
 		}
-		i++
 		if txId > 0 {
 			if txId != baseTxId {
 				fmt.Printf("Mismatch txId for block %d, txId = %d, baseTxId = %d\n", blockNumber, txId, baseTxId)
 			}
 		}
 		txId = baseTxId + uint64(txAmount) + 2
-		if i == 50 {
-			break
-		}
+		blockTotal--
 	}
 	return nil
 }
