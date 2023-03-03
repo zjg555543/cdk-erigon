@@ -8,6 +8,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	state2 "github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
 
@@ -38,7 +39,6 @@ type Worker struct {
 
 	ctx      context.Context
 	engine   consensus.Engine
-	logger   log.Logger
 	genesis  *core.Genesis
 	resultCh chan *exec22.TxTask
 	epoch    EpochReader
@@ -51,9 +51,10 @@ type Worker struct {
 
 	evm *vm.EVM
 	ibs *state.IntraBlockState
+	agg *state2.AggregatorV3
 }
 
-func NewWorker(lock sync.Locker, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, blockReader services.FullBlockReader, chainConfig *chain.Config, logger log.Logger, genesis *core.Genesis, resultCh chan *exec22.TxTask, engine consensus.Engine) *Worker {
+func NewWorker(lock sync.Locker, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, blockReader services.FullBlockReader, chainConfig *chain.Config, genesis *core.Genesis, resultCh chan *exec22.TxTask, engine consensus.Engine, agg *state2.AggregatorV3) *Worker {
 	w := &Worker{
 		lock:        lock,
 		chainDb:     chainDb,
@@ -65,15 +66,15 @@ func NewWorker(lock sync.Locker, ctx context.Context, background bool, chainDb k
 		chainConfig: chainConfig,
 
 		ctx:      ctx,
-		logger:   logger,
 		genesis:  genesis,
 		resultCh: resultCh,
 		engine:   engine,
 
 		evm: vm.NewEVM(evmtypes.BlockContext{}, evmtypes.TxContext{}, nil, chainConfig, vm.Config{}),
 		//callTracer:  NewCallTracer(background, agg),
-		callTracer:  NewCallTracer(),
+		callTracer:  NewCallTracer(background, agg),
 		taskGasPool: new(core.GasPool),
+		agg:         agg,
 	}
 	w.getHeader = func(hash libcommon.Hash, number uint64) *types.Header {
 		h, err := blockReader.Header(ctx, w.chainTx, hash, number)
@@ -179,13 +180,8 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 				//fmt.Printf("error=%v\n", err)
 				txTask.Error = err
 			} else {
-				//rw.callTracer.AddCoinbase(txTask.Coinbase, txTask.Uncles)
-				//txTask.TraceTos = rw.callTracer.Tos()
-				txTask.TraceTos = map[libcommon.Address]struct{}{}
-				txTask.TraceTos[txTask.Coinbase] = struct{}{}
-				for _, uncle := range txTask.Uncles {
-					txTask.TraceTos[uncle.Coinbase] = struct{}{}
-				}
+				rw.callTracer.AddCoinbase(txTask.Coinbase, txTask.Uncles)
+				txTask.TraceTos = rw.callTracer.Tos()
 			}
 		}
 	} else {
@@ -328,7 +324,7 @@ func (cr EpochReader) FindBeforeOrEqualNumber(number uint64) (blockNum uint64, b
 	return rawdb.FindEpochBeforeOrEqualNumber(cr.tx, number)
 }
 
-func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, blockReader services.FullBlockReader, chainConfig *chain.Config, logger log.Logger, genesis *core.Genesis, engine consensus.Engine, workerCount int) (reconWorkers []*Worker, applyWorker *Worker, resultCh chan *exec22.TxTask, clear func(), wait func()) {
+func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, blockReader services.FullBlockReader, chainConfig *chain.Config, genesis *core.Genesis, engine consensus.Engine, agg *state2.AggregatorV3, workerCount int) (reconWorkers []*Worker, applyWorker *Worker, resultCh chan *exec22.TxTask, clear func(), wait func()) {
 	queueSize := workerCount * 256
 	reconWorkers = make([]*Worker, workerCount)
 	resultCh = make(chan *exec22.TxTask, queueSize)
@@ -338,7 +334,7 @@ func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chai
 		ctx, cancel := context.WithCancel(ctx)
 		g, ctx := errgroup.WithContext(ctx)
 		for i := 0; i < workerCount; i++ {
-			reconWorkers[i] = NewWorker(lock, ctx, background, chainDb, rs, blockReader, chainConfig, logger, genesis, resultCh, engine)
+			reconWorkers[i] = NewWorker(lock, ctx, background, chainDb, rs, blockReader, chainConfig, genesis, resultCh, engine, agg)
 		}
 		if background {
 			for i := 0; i < workerCount; i++ {
@@ -365,7 +361,7 @@ func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chai
 			close(resultCh)
 		}
 	}
-	applyWorker = NewWorker(lock, ctx, false, chainDb, rs, blockReader, chainConfig, logger, genesis, resultCh, engine)
+	applyWorker = NewWorker(lock, ctx, false, chainDb, rs, blockReader, chainConfig, genesis, resultCh, engine, agg)
 
 	return reconWorkers, applyWorker, resultCh, clear, wait
 }
