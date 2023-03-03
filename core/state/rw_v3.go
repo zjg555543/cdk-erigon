@@ -25,6 +25,7 @@ import (
 	"github.com/ledgerwatch/log/v3"
 	btree2 "github.com/tidwall/btree"
 	atomic2 "go.uber.org/atomic"
+	"golang.org/x/exp/maps"
 )
 
 const CodeSizeTable = "CodeSize"
@@ -737,18 +738,30 @@ func (w *StateWriterV3) SetTxNum(txNum uint64) {
 
 func (w *StateWriterV3) ResetWriteSet() {
 	w.writeLists = newWriteList()
-	w.accountPrevs = nil
-	w.accountDels = nil
-	w.storagePrevs = nil
-	w.codePrevs = nil
+	maps.Clear(w.accountPrevs)
+	maps.Clear(w.accountDels)
+	maps.Clear(w.storagePrevs)
+	maps.Clear(w.codePrevs)
 }
 
 func (w *StateWriterV3) WriteSet() map[string]*exec22.KvList {
 	return w.writeLists
 }
 
-func (w *StateWriterV3) PrevAndDels() (map[string][]byte, map[string]*accounts.Account, map[string][]byte, map[string]uint64) {
-	return w.accountPrevs, w.accountDels, w.storagePrevs, w.codePrevs
+func (w *StateWriterV3) PrevAndDels() (a map[string][]byte, b map[string]*accounts.Account, c map[string][]byte, d map[string]uint64) {
+	if len(w.accountPrevs) > 0 {
+		a = maps.Clone(w.accountPrevs)
+	}
+	if len(w.accountDels) > 0 {
+		b = maps.Clone(w.accountDels)
+	}
+	if len(w.storagePrevs) > 0 {
+		c = maps.Clone(w.storagePrevs)
+	}
+	if len(w.codePrevs) > 0 {
+		d = maps.Clone(w.codePrevs)
+	}
+	return a, b, c, d
 }
 
 func (w *StateWriterV3) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
