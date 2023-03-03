@@ -266,7 +266,7 @@ func Erigon4(genesis *core.Genesis, chainConfig *chain2.Config, logger log.Logge
 		agg.SetTx(rwTx)
 		agg.SetTxNum(txNum)
 
-		if txNum, _, err = processBlock23(startTxNum, trace, txNum, readWrapper, writeWrapper, chainConfig, engine, getHeader, b, vmConfig); err != nil {
+		if txNum, _, err = processBlock23(startTxNum, trace, txNum, readWrapper, writeWrapper, chainConfig, engine, getHeader, b, vmConfig, agg); err != nil {
 			return fmt.Errorf("processing block %d: %w", blockNum, err)
 		}
 
@@ -333,6 +333,7 @@ func (s *stat23) delta(aStats libstate.FilesStats, blockNum, txNum uint64) *stat
 
 func processBlock23(startTxNum uint64, trace bool, txNumStart uint64, rw *ReaderWrapper23, ww *WriterWrapper23, chainConfig *chain2.Config,
 	engine consensus.Engine, getHeader func(hash libcommon.Hash, number uint64) *types.Header, block *types.Block, vmConfig vm.Config,
+	agg *libstate.AggregatorV3,
 ) (uint64, types.Receipts, error) {
 	defer blockExecutionTimer.UpdateDuration(time.Now())
 
@@ -373,7 +374,7 @@ func processBlock23(startTxNum uint64, trace bool, txNumStart uint64, rw *Reader
 		if txNum >= startTxNum {
 			ibs := state.New(rw)
 			ibs.Prepare(tx.Hash(), block.Hash(), i)
-			ct := exec3.NewCallTracer()
+			ct := exec3.NewCallTracer(false, agg)
 			vmConfig.Tracer = ct
 			receipt, _, err := core.ApplyTransaction(chainConfig, getHashFn, engine, nil, gp, ibs, ww, header, tx, usedGas, vmConfig)
 			if err != nil {
