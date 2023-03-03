@@ -191,7 +191,7 @@ func ExecV3(ctx context.Context,
 	var lock sync.RWMutex
 
 	queueSize := workerCount // workerCount * 4 // when wait cond can be moved inside txs loop
-	execWorkers, applyWorker, resultCh, stopWorkers, waitWorkers := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, rs, blockReader, chainConfig, logger, genesis, engine, workerCount+1)
+	execWorkers, applyWorker, resultCh, stopWorkers, waitWorkers := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, rs, blockReader, chainConfig, genesis, engine, agg, workerCount+1)
 	defer stopWorkers()
 	applyWorker.DiscardReadList()
 
