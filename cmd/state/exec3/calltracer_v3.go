@@ -4,6 +4,7 @@ import (
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/core/vm"
+	"golang.org/x/exp/maps"
 )
 
 type CallTracer struct {
@@ -15,10 +16,22 @@ func NewCallTracer() *CallTracer {
 	return &CallTracer{}
 }
 func (ct *CallTracer) Reset() {
-	ct.froms, ct.tos = nil, nil
+	maps.Clear(ct.froms)
+	maps.Clear(ct.tos)
 }
-func (ct *CallTracer) Froms() map[libcommon.Address]struct{} { return ct.froms }
-func (ct *CallTracer) Tos() map[libcommon.Address]struct{}   { return ct.tos }
+func (ct *CallTracer) Froms() map[libcommon.Address]struct{} {
+	if len(ct.froms) == 0 {
+		return nil
+	}
+	return maps.Clone(ct.froms)
+}
+func (ct *CallTracer) Tos() map[libcommon.Address]struct{} {
+	if len(ct.tos) == 0 {
+		return nil
+
+	}
+	return maps.Clone(ct.tos)
+}
 
 func (ct *CallTracer) CaptureTxStart(gasLimit uint64) {}
 func (ct *CallTracer) CaptureTxEnd(restGas uint64)    {}
