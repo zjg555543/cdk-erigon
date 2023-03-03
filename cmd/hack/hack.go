@@ -1474,7 +1474,7 @@ func main() {
 		err = hackdb.TextInfo(*chaindata, &strings.Builder{})
 
 	case "extractBodies":
-		err = extractBodies(*chaindata)
+		err = extractBodies(*chaindata, uint64(*block), int64(*blockTotal))
 
 	case "repairCurrent":
 		repairCurrent()
