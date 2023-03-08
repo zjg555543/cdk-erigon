@@ -62,8 +62,8 @@ type Progress struct {
 	logPrefix    string
 }
 
-func (p *Progress) Log(rs *state.StateV3, rwsLen int, queueSize, doneCount, inputBlockNum, outputBlockNum, outTxNum, repeatCount uint64, resultsSize uint64, resultCh chan *exec22.TxTask, idxStepsAmountInDB float64) {
-	ExecStepsInDB.Set(uint64(idxStepsAmountInDB * 100))
+func (p *Progress) Log(rs *state.StateV3, rwsLen int, queueSize, doneCount, inputBlockNum, outputBlockNum, outTxNum, repeatCount uint64, resultsSize uint64, resultCh chan *exec22.TxTask, historyStepsInDB, historyStepsInDBAfterCommit float64) {
+	ExecStepsInDB.Set(uint64(historyStepsInDB * 100))
 	var m runtime.MemStats
 	dbg.ReadMemStats(&m)
 	sizeEstimate := rs.SizeEstimate()
@@ -86,7 +86,7 @@ func (p *Progress) Log(rs *state.StateV3, rwsLen int, queueSize, doneCount, inpu
 		"repeatRatio", fmt.Sprintf("%.2f%%", repeatRatio),
 		"workers", p.workersCount,
 		"buffer", fmt.Sprintf("%s/%s", common.ByteCount(sizeEstimate), common.ByteCount(p.commitThreshold)),
-		"idxStepsInDB", fmt.Sprintf("%.2f", idxStepsAmountInDB),
+		"historyStepsInDB", fmt.Sprintf("%.2f(%.2f)", historyStepsInDB, historyStepsInDBAfterCommit),
 		"inBlk", inputBlockNum,
 		"step", fmt.Sprintf("%.1f", float64(outTxNum)/float64(ethconfig.HistoryV3AggregationStep)),
 		"alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys),
@@ -327,7 +327,7 @@ func ExecV3(ctx context.Context,
 					rwsLock.Unlock()
 
 					stepsInDB := rawdbhelpers.IdxStepsCountV3(tx)
-					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Get(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
+					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Get(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB, stepsInDBAfterCommit)
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
 						// too much steps in db will slow-down everything: flush and prune
