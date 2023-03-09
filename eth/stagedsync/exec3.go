@@ -326,14 +326,13 @@ func ExecV3(ctx context.Context,
 					stepsInDB := rawdbhelpers.IdxStepsCountV3(tx)
 					progress.Log(rs, rwsLen, uint64(queueSize), rs.DoneCount(), inputBlockNum.Load(), outputBlockNum.Get(), outputTxNum.Load(), repeatCount.Load(), uint64(resultsSize.Load()), resultCh, stepsInDB)
 				case <-pruneEvery.C:
-					if rs.SizeEstimate() < commitThreshold {
-						if agg.CanPrune(tx) {
-							log.Warn("Aggressive prune")
+					sz := rs.SizeEstimate()
+					if sz < commitThreshold {
+						if sz < uint64(float64(commitThreshold)*0.8) && agg.CanPrune(tx) {
 							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep/10); err != nil { // prune part of retired data, before commit
 								panic(err)
 							}
 						} else {
-							log.Warn("No aggressive prune")
 							if err = agg.Flush(ctx, tx); err != nil {
 								return err
 							}
