@@ -4,7 +4,6 @@ import (
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 
 	"github.com/ledgerwatch/erigon/cl/cltypes"
-	"github.com/ledgerwatch/erigon/core/types"
 )
 
 const maxEth1Votes = 2048
@@ -59,7 +58,7 @@ func (b *BeaconState) SetHistoricalRootAt(index int, root [32]byte) {
 
 func (b *BeaconState) SetValidatorAt(index int, validator *cltypes.Validator) error {
 	if index >= len(b.validators) {
-		return InvalidValidatorIndex
+		return ErrInvalidValidatorIndex
 	}
 	b.validators[index] = validator
 	b.touchedLeaves[ValidatorsLeafIndex] = true
@@ -113,7 +112,7 @@ func (b *BeaconState) SetBalances(balances []uint64) {
 
 func (b *BeaconState) SetValidatorBalance(index int, balance uint64) error {
 	if index >= len(b.balances) {
-		return InvalidValidatorIndex
+		return ErrInvalidValidatorIndex
 	}
 
 	b.touchedLeaves[BalancesLeafIndex] = true
@@ -171,7 +170,7 @@ func (b *BeaconState) SetNextSyncCommittee(nextSyncCommittee *cltypes.SyncCommit
 	b.nextSyncCommittee = nextSyncCommittee
 }
 
-func (b *BeaconState) SetLatestExecutionPayloadHeader(header *types.Header) {
+func (b *BeaconState) SetLatestExecutionPayloadHeader(header *cltypes.Eth1Header) {
 	b.touchedLeaves[LatestExecutionPayloadHeaderLeafIndex] = true
 	b.latestExecutionPayloadHeader = header
 }
@@ -187,7 +186,7 @@ func (b *BeaconState) SetNextWithdrawalValidatorIndex(index uint64) {
 }
 
 func (b *BeaconState) AddHistoricalSummary(summary *cltypes.HistoricalSummary) {
-	b.touchedLeaves[HistoricalRootsLeafIndex] = true
+	b.touchedLeaves[HistoricalSummariesLeafIndex] = true
 	b.historicalSummaries = append(b.historicalSummaries, summary)
 }
 
@@ -203,7 +202,7 @@ func (b *BeaconState) AddInactivityScore(score uint64) {
 
 func (b *BeaconState) SetValidatorInactivityScore(index int, score uint64) error {
 	if index >= len(b.inactivityScores) {
-		return InvalidValidatorIndex
+		return ErrInvalidValidatorIndex
 	}
 	b.touchedLeaves[InactivityScoresLeafIndex] = true
 	b.inactivityScores[index] = score

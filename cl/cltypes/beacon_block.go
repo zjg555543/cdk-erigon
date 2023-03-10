@@ -31,6 +31,7 @@ type BeaconBlockForStorage struct {
 	AttesterSlashings []*AttesterSlashing
 	Deposits          []*Deposit
 	VoluntaryExits    []*SignedVoluntaryExit
+	AddressChanges    []*SignedBLSToExecutionChange
 	SyncAggregate     *SyncAggregate
 	// Metadatas
 	Eth1Number    uint64
@@ -156,7 +157,7 @@ func (b *BeaconBody) EncodeSSZ(dst []byte) ([]byte, error) {
 	}
 	if b.Version >= clparams.BellatrixVersion {
 		buf = append(buf, ssz_utils.OffsetSSZ(offset)...)
-		offset += uint32(b.ExecutionPayload.EncodingSizeSSZ(b.Version))
+		offset += uint32(b.ExecutionPayload.EncodingSizeSSZ())
 	}
 	if b.Version >= clparams.CapellaVersion {
 		buf = append(buf, ssz_utils.OffsetSSZ(offset)...)
@@ -187,29 +188,11 @@ func (b *BeaconBody) EncodeSSZ(dst []byte) ([]byte, error) {
 		}
 	}
 	// Write attester slashings as a dynamic list.
-	subOffset := len(b.AttesterSlashings) * 4
-	for _, attesterSlashing := range b.AttesterSlashings {
-		buf = append(buf, ssz_utils.OffsetSSZ(uint32(subOffset))...)
-		subOffset += attesterSlashing.EncodingSizeSSZ()
+	if buf, err = ssz_utils.EncodeDynamicList(buf, b.AttesterSlashings); err != nil {
+		return nil, err
 	}
-
-	for _, attesterSlashing := range b.AttesterSlashings {
-		buf, err = attesterSlashing.EncodeSSZ(buf)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Attestation
-	subOffset = len(b.Attestations) * 4
-	for _, attestation := range b.Attestations {
-		buf = append(buf, ssz_utils.OffsetSSZ(uint32(subOffset))...)
-		subOffset += attestation.EncodingSizeSSZ()
-	}
-	for _, attestation := range b.Attestations {
-		buf, err = attestation.EncodeSSZ(buf)
-		if err != nil {
-			return nil, err
-		}
+	if buf, err = ssz_utils.EncodeDynamicList(buf, b.Attestations); err != nil {
+		return nil, err
 	}
 
 	for _, deposit := range b.Deposits {
@@ -221,7 +204,7 @@ func (b *BeaconBody) EncodeSSZ(dst []byte) ([]byte, error) {
 	}
 
 	if b.Version >= clparams.BellatrixVersion {
-		buf, err = b.ExecutionPayload.EncodeSSZ(buf, b.Version)
+		buf, err = b.ExecutionPayload.EncodeSSZ(buf)
 		if err != nil {
 			return nil, err
 		}
@@ -259,7 +242,7 @@ func (b *BeaconBody) EncodingSizeSSZ() (size int) {
 		if b.ExecutionPayload == nil {
 			b.ExecutionPayload = new(Eth1Block)
 		}
-		size += b.ExecutionPayload.EncodingSizeSSZ(b.Version)
+		size += b.ExecutionPayload.EncodingSizeSSZ()
 	}
 
 	if b.Version >= clparams.CapellaVersion {
@@ -270,8 +253,8 @@ func (b *BeaconBody) EncodingSizeSSZ() (size int) {
 	return
 }
 
-func (b *BeaconBody) DecodeSSZ(buf []byte, version clparams.StateVersion) error {
-	b.Version = version
+func (b *BeaconBody) DecodeSSZWithVersion(buf []byte, version int) error {
+	b.Version = clparams.StateVersion(version)
 	var err error
 
 	if len(buf) < b.EncodingSizeSSZ() {
@@ -295,7 +278,7 @@ func (b *BeaconBody) DecodeSSZ(buf []byte, version clparams.StateVersion) error 
 	offsetDeposits := ssz_utils.DecodeOffset(buf[212:])
 	offsetExits := ssz_utils.DecodeOffset(buf[216:])
 	// Decode sync aggregate if we are past altair.
-	if version >= clparams.AltairVersion {
+	if b.Version >= clparams.AltairVersion {
 		if len(buf) < 380 {
 			return ssz_utils.ErrLowBufferSize
 		}
@@ -307,12 +290,12 @@ func (b *BeaconBody) DecodeSSZ(buf []byte, version clparams.StateVersion) error 
 
 	// Execution Payload offset if past bellatrix.
 	var offsetExecution uint32
-	if version >= clparams.BellatrixVersion {
+	if b.Version >= clparams.BellatrixVersion {
 		offsetExecution = ssz_utils.DecodeOffset(buf[380:])
 	}
 	// Execution to BLS changes
 	var blsChangesOffset uint32
-	if version >= clparams.CapellaVersion {
+	if b.Version >= clparams.CapellaVersion {
 		blsChangesOffset = ssz_utils.DecodeOffset(buf[384:])
 	}
 	// Decode Proposer slashings
@@ -322,12 +305,12 @@ func (b *BeaconBody) DecodeSSZ(buf []byte, version clparams.StateVersion) error 
 		return err
 	}
 	// Decode attester slashings
-	b.AttesterSlashings, err = ssz_utils.DecodeDynamicList[*AttesterSlashing](buf, offsetAttesterSlashings, offsetAttestations, uint32(MaxAttesterSlashings))
+	b.AttesterSlashings, err = ssz_utils.DecodeDynamicList[*AttesterSlashing](buf, offsetAttesterSlashings, offsetAttestations, MaxAttesterSlashings)
 	if err != nil {
 		return err
 	}
 	// Decode attestations
-	b.Attestations, err = ssz_utils.DecodeDynamicList[*Attestation](buf, offsetAttestations, offsetDeposits, uint32(MaxAttestations))
+	b.Attestations, err = ssz_utils.DecodeDynamicList[*Attestation](buf, offsetAttestations, offsetDeposits, MaxAttestations)
 	if err != nil {
 		return err
 	}
@@ -357,7 +340,7 @@ func (b *BeaconBody) DecodeSSZ(buf []byte, version clparams.StateVersion) error 
 		if offsetExecution > uint32(endOffset) || len(buf) < endOffset {
 			return ssz_utils.ErrBadOffset
 		}
-		if err := b.ExecutionPayload.DecodeSSZ(buf[offsetExecution:endOffset], b.Version); err != nil {
+		if err := b.ExecutionPayload.DecodeSSZWithVersion(buf[offsetExecution:endOffset], int(b.Version)); err != nil {
 			return err
 		}
 	}
@@ -434,6 +417,13 @@ func (b *BeaconBody) HashSSZ() ([32]byte, error) {
 		}
 		leaves = append(leaves, payloadLeaf)
 	}
+	if b.Version >= clparams.CapellaVersion {
+		blsExecutionLeaf, err := merkle_tree.ListObjectSSZRoot(b.ExecutionChanges, MaxExecutionChanges)
+		if err != nil {
+			return [32]byte{}, err
+		}
+		leaves = append(leaves, blsExecutionLeaf)
+	}
 	if b.Version == clparams.Phase0Version {
 		return merkle_tree.ArraysRoot(leaves, 8)
 	}
@@ -463,7 +453,7 @@ func (b *BeaconBlock) EncodingSizeSSZ() int {
 	return 80 + b.Body.EncodingSizeSSZ()
 }
 
-func (b *BeaconBlock) DecodeSSZ(buf []byte, version clparams.StateVersion) error {
+func (b *BeaconBlock) DecodeSSZWithVersion(buf []byte, version int) error {
 	if len(buf) < b.EncodingSizeSSZ() {
 		return ssz_utils.ErrLowBufferSize
 	}
@@ -472,7 +462,7 @@ func (b *BeaconBlock) DecodeSSZ(buf []byte, version clparams.StateVersion) error
 	copy(b.ParentRoot[:], buf[16:])
 	copy(b.StateRoot[:], buf[48:])
 	b.Body = new(BeaconBody)
-	return b.Body.DecodeSSZ(buf[84:], version)
+	return b.Body.DecodeSSZWithVersion(buf[84:], version)
 }
 
 func (b *BeaconBlock) HashSSZ() ([32]byte, error) {
@@ -489,6 +479,9 @@ func (b *BeaconBlock) HashSSZ() ([32]byte, error) {
 	}, 8)
 }
 
+func (*BeaconBlock) DecodeSSZ(buf []byte) error {
+	panic("A")
+}
 func (b *SignedBeaconBlock) EncodeSSZ(buf []byte) ([]byte, error) {
 	dst := buf
 	var err error
@@ -517,7 +510,7 @@ func (b *SignedBeaconBlock) DecodeSSZWithVersion(buf []byte, s int) error {
 		return ssz_utils.ErrLowBufferSize
 	}
 	copy(b.Signature[:], buf[4:100])
-	return b.Block.DecodeSSZ(buf[100:], clparams.StateVersion(s))
+	return b.Block.DecodeSSZWithVersion(buf[100:], s)
 }
 
 func (b *SignedBeaconBlock) HashSSZ() ([32]byte, error) {
@@ -555,14 +548,15 @@ func (b *SignedBeaconBlock) EncodeForStorage() ([]byte, error) {
 		Deposits:          b.Block.Body.Deposits,
 		VoluntaryExits:    b.Block.Body.VoluntaryExits,
 		SyncAggregate:     b.Block.Body.SyncAggregate,
+		AddressChanges:    b.Block.Body.ExecutionChanges,
 		Version:           uint8(b.Version()),
 		Eth2BlockRoot:     blockRoot,
 	}
 
 	if b.Version() >= clparams.BellatrixVersion {
 		eth1Block := b.Block.Body.ExecutionPayload
-		storageObject.Eth1Number = eth1Block.NumberU64()
-		storageObject.Eth1BlockHash = eth1Block.Header.BlockHashCL
+		storageObject.Eth1Number = eth1Block.BlockNumber
+		storageObject.Eth1BlockHash = eth1Block.BlockHash
 	}
 	var buffer bytes.Buffer
 	if err := cbor.Marshal(&buffer, storageObject); err != nil {
@@ -602,6 +596,7 @@ func DecodeBeaconBlockForStorage(buf []byte) (block *SignedBeaconBlock, eth1Numb
 				Deposits:          storageObject.Deposits,
 				VoluntaryExits:    storageObject.VoluntaryExits,
 				SyncAggregate:     storageObject.SyncAggregate,
+				ExecutionChanges:  storageObject.AddressChanges,
 				Version:           clparams.StateVersion(storageObject.Version),
 			},
 		},
