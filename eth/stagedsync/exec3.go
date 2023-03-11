@@ -1116,10 +1116,10 @@ func reconstituteStep(last bool,
 		}
 	}
 	close(workCh)
-	reconDone <- struct{}{} // Complete logging and committing go-routine
 	if err := g.Wait(); err != nil {
 		return err
 	}
+	reconDone <- struct{}{} // Complete logging and committing go-routine
 
 	for i := 0; i < workerCount; i++ {
 		roTxs[i].Rollback()

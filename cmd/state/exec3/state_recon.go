@@ -275,16 +275,10 @@ func (rw *ReconWorker) SetChainTx(chainTx kv.Tx) {
 	rw.stateWriter.SetChainTx(chainTx)
 }
 
-func (rw *ReconWorker) Run() error {
-	for txTask, ok, err := rw.rs.Schedule(rw.ctx); ok || err != nil; txTask, ok, err = rw.rs.Schedule(rw.ctx) {
-		if err != nil {
-			return err
-		}
-		if err := rw.runTxTask(txTask); err != nil {
-			return err
-		}
+func (rw *ReconWorker) Run() {
+	for txTask, ok := rw.rs.Schedule(); ok; txTask, ok = rw.rs.Schedule() {
+		rw.runTxTask(txTask)
 	}
-	return nil
 }
 
 var noop = state.NewNoopWriter()
