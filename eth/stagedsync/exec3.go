@@ -964,13 +964,12 @@ func reconstituteStep(last bool,
 		log.Info(fmt.Sprintf("[%s] State reconstitution, commit", s.LogPrefix()), "took", time.Since(t))
 		return nil
 	}
-	g.Go(func() error {
+	_ = commit
+	go func() {
 		for {
 			select {
 			case <-reconDone: // success finish path
-				return nil
-			case <-reconstWorkersCtx.Done(): // force-stop path
-				return reconstWorkersCtx.Err()
+				return
 			case <-logEvery.C:
 				var m runtime.MemStats
 				dbg.ReadMemStats(&m)
@@ -997,13 +996,37 @@ func reconstituteStep(last bool,
 					"buffer", fmt.Sprintf("%s/%s", common.ByteCount(sizeEstimate), common.ByteCount(commitThreshold)),
 					"alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 				if sizeEstimate >= commitThreshold {
-					if err := commit(reconstWorkersCtx); err != nil {
-						return err
+					t := time.Now()
+					if err := func() error {
+						lock.Lock()
+						defer lock.Unlock()
+						for i := 0; i < workerCount; i++ {
+							roTxs[i].Rollback()
+						}
+						if err := db.Update(ctx, func(tx kv.RwTx) error {
+							if err := rs.Flush(tx); err != nil {
+								return err
+							}
+							return nil
+						}); err != nil {
+							return err
+						}
+						for i := 0; i < workerCount; i++ {
+							var err error
+							if roTxs[i], err = db.BeginRo(ctx); err != nil {
+								return err
+							}
+							reconWorkers[i].SetTx(roTxs[i])
+						}
+						return nil
+					}(); err != nil {
+						panic(err)
 					}
+					log.Info(fmt.Sprintf("[%s] State reconstitution, commit", s.LogPrefix()), "took", time.Since(t))
 				}
 			}
 		}
-	})
+	}()
 
 	var inputTxNum = startTxNum
 	var b *types.Block

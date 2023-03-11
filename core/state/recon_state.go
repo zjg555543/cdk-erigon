@@ -192,8 +192,6 @@ func (rs *ReconnWork) Schedule(ctx context.Context) (*exec22.TxTask, bool, error
 Loop:
 	for rs.queue.Len() < 16 {
 		select {
-		case <-ctx.Done():
-			return nil, false, ctx.Err()
 		case txTask, ok := <-rs.workCh:
 			if !ok {
 				// No more work, channel is closed
