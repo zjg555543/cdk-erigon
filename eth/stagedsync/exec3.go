@@ -26,14 +26,9 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
 	state2 "github.com/ledgerwatch/erigon-lib/state"
-	"github.com/ledgerwatch/erigon/common/math"
-	"github.com/ledgerwatch/log/v3"
-	"github.com/torquem-ch/mdbx-go/mdbx"
-	atomic2 "go.uber.org/atomic"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/cmd/state/exec3"
+	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/rawdb"
@@ -44,6 +39,9 @@ import (
 	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/turbo/services"
+	"github.com/ledgerwatch/log/v3"
+	"github.com/torquem-ch/mdbx-go/mdbx"
+	atomic2 "go.uber.org/atomic"
 )
 
 var ExecStepsInDB = metrics.NewCounter(`exec_steps_in_db`) //nolint
@@ -904,8 +902,6 @@ func reconstituteStep(last bool,
 			return err
 		}
 	}
-	g, reconstWorkersCtx := errgroup.WithContext(ctx)
-	defer g.Wait()
 	workCh := make(chan *exec22.TxTask, workerCount*4)
 	defer func() {
 		fmt.Printf("close1\n")
@@ -921,19 +917,21 @@ func reconstituteStep(last bool,
 		} else {
 			localAs = as.Clone()
 		}
-		reconWorkers[i] = exec3.NewReconWorker(lock.RLocker(), reconstWorkersCtx, rs, localAs, blockReader, chainConfig, logger, genesis, engine, chainTxs[i])
+		reconWorkers[i] = exec3.NewReconWorker(lock.RLocker(), ctx, rs, localAs, blockReader, chainConfig, logger, genesis, engine, chainTxs[i])
 		reconWorkers[i].SetTx(roTxs[i])
 		reconWorkers[i].SetChainTx(chainTxs[i])
 	}
 
 	rollbackCount := uint64(0)
 
+	wg := sync.WaitGroup{}
 	for i := 0; i < workerCount; i++ {
 		i := i
-		g.Go(func() error {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			reconWorkers[i].Run()
-			return nil
-		})
+		}()
 	}
 	commitThreshold := batchSize.Bytes()
 	prevRollbackCount := uint64(0)
@@ -1092,9 +1090,7 @@ func reconstituteStep(last bool,
 		}
 	}
 	close(workCh)
-	if err := g.Wait(); err != nil {
-		return err
-	}
+	wg.Wait()
 	reconDone <- struct{}{} // Complete logging and committing go-routine
 
 	for i := 0; i < workerCount; i++ {
