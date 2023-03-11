@@ -283,7 +283,7 @@ func (rw *ReconWorker) Run() {
 
 var noop = state.NewNoopWriter()
 
-func (rw *ReconWorker) runTxTask(txTask *exec22.TxTask) error {
+func (rw *ReconWorker) runTxTask(txTask *exec22.TxTask) {
 	rw.lock.Lock()
 	defer rw.lock.Unlock()
 	rw.stateReader.SetTxNum(txTask.TxNum)
@@ -299,7 +299,7 @@ func (rw *ReconWorker) runTxTask(txTask *exec22.TxTask) error {
 		// Genesis block
 		_, ibs, err = rw.genesis.ToBlock("")
 		if err != nil {
-			return err
+			panic(err)
 		}
 		// For Genesis, rules should be empty, so that empty accounts can be included
 		rules = &chain.Rules{}
@@ -316,7 +316,7 @@ func (rw *ReconWorker) runTxTask(txTask *exec22.TxTask) error {
 			}
 			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(txTask.Header), ibs, txTask.Txs, txTask.Uncles, nil /* receipts */, txTask.Withdrawals, rw.epoch, rw.chain, syscall); err != nil {
 				if _, readError := rw.stateReader.ReadError(); !readError {
-					return fmt.Errorf("finalize of block %d failed: %w", txTask.BlockNum, err)
+					panic(fmt.Errorf("finalize of block %d failed: %w", txTask.BlockNum, err))
 				}
 			}
 		}
@@ -334,10 +334,10 @@ func (rw *ReconWorker) runTxTask(txTask *exec22.TxTask) error {
 		if rw.isPoSA {
 			if isSystemTx, err := rw.posa.IsSystemTransaction(txTask.Tx, txTask.Header); err != nil {
 				if _, readError := rw.stateReader.ReadError(); !readError {
-					return err
+					panic(err)
 				}
 			} else if isSystemTx {
-				return nil
+				return
 			}
 		}
 		gp := new(core.GasPool).AddGas(txTask.Tx.GetGas())
@@ -351,12 +351,12 @@ func (rw *ReconWorker) runTxTask(txTask *exec22.TxTask) error {
 		_, err = core.ApplyMessage(vmenv, msg, gp, true /* refunds */, false /* gasBailout */)
 		if err != nil {
 			if _, readError := rw.stateReader.ReadError(); !readError {
-				return fmt.Errorf("could not apply blockNum=%d, txIdx=%d txNum=%d [%x] failed: %w", txTask.BlockNum, txTask.TxIndex, txTask.TxNum, txTask.Tx.Hash(), err)
+				panic(fmt.Errorf("could not apply blockNum=%d, txIdx=%d txNum=%d [%x] failed: %w", txTask.BlockNum, txTask.TxIndex, txTask.TxNum, txTask.Tx.Hash(), err))
 			}
 		}
 		if err = ibs.FinalizeTx(rules, noop); err != nil {
 			if _, readError := rw.stateReader.ReadError(); !readError {
-				return err
+				panic(err)
 			}
 		}
 	}
@@ -365,10 +365,9 @@ func (rw *ReconWorker) runTxTask(txTask *exec22.TxTask) error {
 		rw.rs.RollbackTx(txTask, dependency)
 	} else {
 		if err = ibs.CommitBlock(rules, rw.stateWriter); err != nil {
-			return err
+			panic(err)
 		}
 		//fmt.Printf("commit %d\n", txNum)
 		rw.rs.CommitTxNum(txTask.TxNum)
 	}
-	return nil
 }

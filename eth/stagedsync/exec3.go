@@ -940,34 +940,6 @@ func reconstituteStep(last bool,
 	prevTime := time.Now()
 	reconDone := make(chan struct{})
 
-	defer close(reconDone)
-
-	commit := func(ctx context.Context) error {
-		t := time.Now()
-		lock.Lock()
-		defer lock.Unlock()
-		for i := 0; i < workerCount; i++ {
-			roTxs[i].Rollback()
-		}
-		if err := db.Update(ctx, func(tx kv.RwTx) error {
-			if err := rs.Flush(tx); err != nil {
-				return err
-			}
-			return nil
-		}); err != nil {
-			return err
-		}
-		for i := 0; i < workerCount; i++ {
-			var err error
-			if roTxs[i], err = db.BeginRo(ctx); err != nil {
-				return err
-			}
-			reconWorkers[i].SetTx(roTxs[i])
-		}
-		log.Info(fmt.Sprintf("[%s] State reconstitution, commit", s.LogPrefix()), "took", time.Since(t))
-		return nil
-	}
-	_ = commit
 	go func() {
 		for {
 			select {
@@ -1057,7 +1029,8 @@ func reconstituteStep(last bool,
 			return err
 		}
 		if b == nil {
-			return fmt.Errorf("could not find block %d\n", bn)
+			fmt.Printf("could not find block %d\n", bn)
+			panic("")
 		}
 		txs := b.Transactions()
 		header := b.HeaderNoCopy()
