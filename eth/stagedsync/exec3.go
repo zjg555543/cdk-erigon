@@ -930,7 +930,10 @@ func reconstituteStep(last bool,
 
 	for i := 0; i < workerCount; i++ {
 		i := i
-		g.Go(func() error { return reconWorkers[i].Run() })
+		g.Go(func() error {
+			reconWorkers[i].Run()
+			return nil
+		})
 	}
 	commitThreshold := batchSize.Bytes()
 	prevRollbackCount := uint64(0)
