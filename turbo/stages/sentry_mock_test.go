@@ -2,12 +2,14 @@ package stages_test
 
 import (
 	"math/big"
+	"os"
 	"testing"
 
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/remote"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/sentry"
+	"github.com/ledgerwatch/log/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -677,9 +679,8 @@ func TestPoSSyncWithInvalidHeader(t *testing.T) {
 }
 
 func TestPOSWrontTrieRootReorgs(t *testing.T) {
-	t.Skip("Need some fixes for memory mutation to support DupSort")
-	//defer log.Root().SetHandler(log.Root().GetHandler())
-	//log.Root().SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StreamHandler(os.Stderr, log.TerminalFormat())))
+	defer log.Root().SetHandler(log.Root().GetHandler())
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StreamHandler(os.Stderr, log.TerminalFormat())))
 	require := require.New(t)
 	m := stages.MockWithZeroTTDGnosis(t, true)
 
