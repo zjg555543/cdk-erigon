@@ -329,7 +329,7 @@ func (rs *StateV3) Finish() {
 	rs.receiveWork.Broadcast()
 }
 
-func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
+func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3, txNumBytes []byte) error {
 	rs.lock.RLock()
 	defer rs.lock.RUnlock()
 
@@ -347,7 +347,7 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 
 			prev := rs.applyPrevAccountBuf[:accounts.SerialiseV3Len(original)]
 			accounts.SerialiseV3To(original, prev)
-			if err := agg.AddAccountPrev(addr, prev); err != nil {
+			if err := agg.AddAccountPrev(addr, prev, txNumBytes); err != nil {
 				return err
 			}
 			codeHashBytes := original.CodeHash.Bytes()
@@ -359,7 +359,7 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 					return err
 				}
 			}
-			if err := agg.AddCodePrev(addr, codePrev); err != nil {
+			if err := agg.AddCodePrev(addr, codePrev, txNumBytes); err != nil {
 				return err
 			}
 			// Iterate over storage
@@ -382,7 +382,7 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 				for ; e == nil && k != nil && bytes.HasPrefix(k, addr1) && bytes.Compare(k, key) <= 0; k, v, e = cursor.Next() {
 					if !bytes.Equal(k, key) {
 						// Skip the cursor item when the key is equal, i.e. prefer the item from the changes tree
-						if e = agg.AddStoragePrev(addr, k[28:], v); e != nil {
+						if e = agg.AddStoragePrev(addr, k[28:], v, txNumBytes); e != nil {
 							return e
 						}
 					}
@@ -390,12 +390,12 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 				if e != nil {
 					return e
 				}
-				if e = agg.AddStoragePrev(addr, key[28:], iter.Value()); e != nil {
+				if e = agg.AddStoragePrev(addr, key[28:], iter.Value(), txNumBytes); e != nil {
 					break
 				}
 			}
 			for ; e == nil && k != nil && bytes.HasPrefix(k, addr1); k, v, e = cursor.Next() {
-				if e = agg.AddStoragePrev(addr, k[28:], v); e != nil {
+				if e = agg.AddStoragePrev(addr, k[28:], v, txNumBytes); e != nil {
 					return e
 				}
 			}
@@ -430,14 +430,14 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 				}
 			}
 		}
-		if err := agg.AddCodePrev(addr, codePrev); err != nil {
+		if err := agg.AddCodePrev(addr, codePrev, txNumBytes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (rs *StateV3) applyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
+func (rs *StateV3) applyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3, txNumBytes []byte) error {
 	emptyRemoval := txTask.Rules.IsSpuriousDragon
 	rs.lock.Lock()
 	defer rs.lock.Unlock()
@@ -470,7 +470,7 @@ func (rs *StateV3) applyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 			a.EncodeForStorage(enc1)
 		}
 		rs.put(kv.PlainState, addrBytes, enc1)
-		if err := agg.AddAccountPrev(addrBytes, enc0); err != nil {
+		if err := agg.AddAccountPrev(addrBytes, enc0, txNumBytes); err != nil {
 			return err
 		}
 	}
@@ -486,13 +486,16 @@ func (rs *StateV3) applyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 }
 
 func (rs *StateV3) ApplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
+	agg.SetTxNum(txTask.TxNum)
+	txNumBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(txNumBytes, txTask.TxNum)
+
 	defer agg.BatchHistoryWriteStart().BatchHistoryWriteEnd()
 
-	agg.SetTxNum(txTask.TxNum)
-	if err := rs.writeStateHistory(roTx, txTask, agg); err != nil {
+	if err := rs.writeStateHistory(roTx, txTask, agg, txNumBytes); err != nil {
 		return err
 	}
-	if err := rs.applyState(roTx, txTask, agg); err != nil {
+	if err := rs.applyState(roTx, txTask, agg, txNumBytes); err != nil {
 		return err
 	}
 
@@ -514,13 +517,13 @@ func (rs *StateV3) ApplyHistory(txTask *exec22.TxTask, agg *libstate.AggregatorV
 	defer agg.BatchHistoryWriteStart().BatchHistoryWriteEnd()
 
 	for addrS, enc0 := range txTask.AccountPrevs {
-		if err := agg.AddAccountPrev([]byte(addrS), enc0); err != nil {
+		if err := agg.AddAccountPrev([]byte(addrS), enc0, txNumBytes); err != nil {
 			return err
 		}
 	}
 	for compositeS, val := range txTask.StoragePrevs {
 		composite := []byte(compositeS)
-		if err := agg.AddStoragePrev(composite[:20], composite[28:], val); err != nil {
+		if err := agg.AddStoragePrev(composite[:20], composite[28:], val, txNumBytes); err != nil {
 			return err
 		}
 	}
