@@ -498,6 +498,17 @@ func (rs *StateV3) ApplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 	if err := rs.applyState(roTx, txTask, agg, txNumBytes); err != nil {
 		return err
 	}
+	for addrS, enc0 := range txTask.AccountPrevs {
+		if err := agg.AddAccountPrev([]byte(addrS), enc0, txNumBytes); err != nil {
+			return err
+		}
+	}
+	for compositeS, val := range txTask.StoragePrevs {
+		composite := []byte(compositeS)
+		if err := agg.AddStoragePrev(composite[:20], composite[28:], val, txNumBytes); err != nil {
+			return err
+		}
+	}
 
 	returnReadList(txTask.ReadLists)
 	returnWriteList(txTask.WriteLists)
@@ -516,17 +527,6 @@ func (rs *StateV3) ApplyHistory(txTask *exec22.TxTask, agg *libstate.AggregatorV
 
 	defer agg.BatchHistoryWriteStart().BatchHistoryWriteEnd()
 
-	for addrS, enc0 := range txTask.AccountPrevs {
-		if err := agg.AddAccountPrev([]byte(addrS), enc0, txNumBytes); err != nil {
-			return err
-		}
-	}
-	for compositeS, val := range txTask.StoragePrevs {
-		composite := []byte(compositeS)
-		if err := agg.AddStoragePrev(composite[:20], composite[28:], val, txNumBytes); err != nil {
-			return err
-		}
-	}
 	for addr := range txTask.TraceFroms {
 		if err := agg.AddTraceFrom(addr[:], txNumBytes); err != nil {
 			return err
