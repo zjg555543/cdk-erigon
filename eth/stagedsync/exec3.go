@@ -212,7 +212,7 @@ func ExecV3(ctx context.Context,
 	applyLoopWg := sync.WaitGroup{} // to wait for finishing of applyLoop after applyCtx cancel
 	defer applyLoopWg.Wait()
 
-	applyLoopInner := func(ctx context.Context) error {
+	applyLoopInner := func(ctx context.Context, applyHistCh chan *exec22.TxTask) error {
 		tx, err := chainDb.BeginRo(ctx)
 		if err != nil {
 			return err
@@ -259,7 +259,7 @@ func ExecV3(ctx context.Context,
 			processedResultSize, processedTxNum, conflicts, processedBlockNum, err := func() (processedResultSize int64, processedTxNum, conflicts, processedBlockNum uint64, err error) {
 				rwsLock.Lock()
 				defer rwsLock.Unlock()
-				return processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, notifyReceived, applyWorker)
+				return processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, notifyReceived, applyWorker, applyHistCh)
 			}()
 			if err != nil {
 				return err
@@ -283,7 +283,25 @@ func ExecV3(ctx context.Context,
 	}
 	applyLoop := func(ctx context.Context, errCh chan error) {
 		defer applyLoopWg.Done()
-		if err := applyLoopInner(ctx); err != nil {
+
+		applyHistCh := make(chan *exec22.TxTask)
+		g := &errgroup.Group{}
+		defer func() {
+			close(applyHistCh)
+			if err := g.Wait(); err != nil {
+				errCh <- err
+			}
+		}()
+		g.Go(func() error {
+			for txTask := range applyHistCh {
+				if err := rs.ApplyHistory(txTask, agg); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+
+		if err := applyLoopInner(ctx, applyHistCh); err != nil {
 			if !errors.Is(err, context.Canceled) {
 				errCh <- err
 			}
@@ -365,7 +383,7 @@ func ExecV3(ctx context.Context,
 								}
 							}
 							applyWorker.ResetTx(tx)
-							processedResultSize, processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, func() {}, applyWorker)
+							processedResultSize, processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, func() {}, applyWorker, nil)
 							if err != nil {
 								return err
 							}
@@ -769,7 +787,7 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 	return b, nil
 }
 
-func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, onSuccess func(), applyWorker *exec3.Worker) (resultSize int64, outputTxNum, conflicts, processedBlockNum uint64, err error) {
+func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, onSuccess func(), applyWorker *exec3.Worker, applyHistCh chan *exec22.TxTask) (resultSize int64, outputTxNum, conflicts, processedBlockNum uint64, err error) {
 	var i int
 	outputTxNum = outputTxNumIn
 	for rws.Len() > 0 && (*rws)[0].TxNum == outputTxNum {
@@ -798,8 +816,12 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state
 		triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 		outputTxNum++
 		onSuccess()
-		if err := rs.ApplyHistory(txTask, agg); err != nil {
-			return resultSize, outputTxNum, conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
+		if applyHistCh == nil {
+			if err := rs.ApplyHistory(txTask, agg); err != nil {
+				return resultSize, outputTxNum, conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
+			}
+		} else {
+			applyHistCh <- txTask
 		}
 		//fmt.Printf("Applied %d block %d txIndex %d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
 		processedBlockNum = txTask.BlockNum
