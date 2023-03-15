@@ -507,6 +507,10 @@ func (rs *StateV3) ApplyHistory(txTask *exec22.TxTask, agg *libstate.AggregatorV
 	if dbg.DiscardHistory() {
 		return nil
 	}
+
+	txNumBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(txNumBytes, txTask.TxNum)
+
 	defer agg.BatchHistoryWriteStart().BatchHistoryWriteEnd()
 
 	for addrS, enc0 := range txTask.AccountPrevs {
@@ -520,26 +524,22 @@ func (rs *StateV3) ApplyHistory(txTask *exec22.TxTask, agg *libstate.AggregatorV
 			return err
 		}
 	}
-	if txTask.TraceFroms != nil {
-		for addr := range txTask.TraceFroms {
-			if err := agg.AddTraceFrom(addr[:]); err != nil {
-				return err
-			}
+	for addr := range txTask.TraceFroms {
+		if err := agg.AddTraceFrom(addr[:], txNumBytes); err != nil {
+			return err
 		}
 	}
-	if txTask.TraceTos != nil {
-		for addr := range txTask.TraceTos {
-			if err := agg.AddTraceTo(addr[:]); err != nil {
-				return err
-			}
+	for addr := range txTask.TraceTos {
+		if err := agg.AddTraceTo(addr[:], txNumBytes); err != nil {
+			return err
 		}
 	}
 	for _, log := range txTask.Logs {
-		if err := agg.AddLogAddr(log.Address[:]); err != nil {
+		if err := agg.AddLogAddr(log.Address[:], txNumBytes); err != nil {
 			return fmt.Errorf("adding event log for addr %x: %w", log.Address, err)
 		}
 		for _, topic := range log.Topics {
-			if err := agg.AddLogTopic(topic[:]); err != nil {
+			if err := agg.AddLogTopic(topic[:], txNumBytes); err != nil {
 				return fmt.Errorf("adding event log for topic %x: %w", topic, err)
 			}
 		}
