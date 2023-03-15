@@ -284,7 +284,8 @@ func ExecV3(ctx context.Context,
 	applyLoop := func(ctx context.Context, errCh chan error) {
 		defer applyLoopWg.Done()
 
-		// `applyLoop` will wait for `applyHistoryLoop` to finish
+		// `applyLoop` produce work for `applyHistoryLoop`
+		// so, it create/close the channel and wait for `applyHistoryLoop` to finish
 		applyHistCh := make(chan *exec22.TxTask)
 		g := &errgroup.Group{}
 		defer func() {
