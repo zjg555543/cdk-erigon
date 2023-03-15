@@ -221,7 +221,6 @@ func ExecV3(ctx context.Context,
 
 		applyWorker.ResetTx(tx)
 
-		notifyReceived := func() { rwsReceiveCond.Signal() }
 		var t time.Time
 		var lastBlockNum uint64
 		drainF := func(txTask *exec22.TxTask) (added int64) {
@@ -259,7 +258,7 @@ func ExecV3(ctx context.Context,
 			processedResultSize, processedTxNum, conflicts, processedBlockNum, err := func() (processedResultSize int64, processedTxNum, conflicts, processedBlockNum uint64, err error) {
 				rwsLock.Lock()
 				defer rwsLock.Unlock()
-				return processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, notifyReceived, applyWorker, applyHistCh)
+				return processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, rwsReceiveCond, applyWorker, applyHistCh)
 			}()
 			if err != nil {
 				return err
@@ -385,7 +384,7 @@ func ExecV3(ctx context.Context,
 								}
 							}
 							applyWorker.ResetTx(tx)
-							processedResultSize, processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, func() {}, applyWorker, nil)
+							processedResultSize, processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, nil, applyWorker, nil)
 							if err != nil {
 								return err
 							}
@@ -789,7 +788,7 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 	return b, nil
 }
 
-func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, onSuccess func(), applyWorker *exec3.Worker, applyHistCh chan *exec22.TxTask) (resultSize int64, outputTxNum, conflicts, processedBlockNum uint64, err error) {
+func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, rwsCond *sync.Cond, applyWorker *exec3.Worker, applyHistCh chan *exec22.TxTask) (resultSize int64, outputTxNum, conflicts, processedBlockNum uint64, err error) {
 	var i int
 	outputTxNum = outputTxNumIn
 	for rws.Len() > 0 && (*rws)[0].TxNum == outputTxNum {
@@ -817,7 +816,9 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state
 		}
 		triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 		outputTxNum++
-		onSuccess()
+		if rwsCond != nil {
+			rwsCond.Signal()
+		}
 		if applyHistCh == nil {
 			if err := rs.ApplyHistory(txTask, agg); err != nil {
 				return resultSize, outputTxNum, conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
