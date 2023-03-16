@@ -1237,7 +1237,11 @@ func reconstituteStep(last bool,
 				}
 				lastKey = append(lastKey[:0], k[:len(k)-8]...)
 			}
-			lastVal = append(lastVal[:0], v...)
+			if v == nil { // `nil` value means delete, `empty value []byte{}` means empty value
+				lastVal = nil
+			} else {
+				lastVal = append(lastVal[:0], v...)
+			}
 			return nil
 		}, etl.TransformArgs{}); err != nil {
 			return err
@@ -1265,7 +1269,11 @@ func reconstituteStep(last bool,
 				}
 				lastKey = append(lastKey[:0], k[:len(k)-8]...)
 			}
-			lastVal = append(lastVal[:0], v...)
+			if v == nil {
+				lastVal = nil
+			} else {
+				lastVal = append(lastVal[:0], v...)
+			}
 			return nil
 		}, etl.TransformArgs{}); err != nil {
 			return err
@@ -1293,7 +1301,11 @@ func reconstituteStep(last bool,
 				}
 				lastKey = append(lastKey[:0], k[:len(k)-8]...)
 			}
-			lastVal = append(lastVal[:0], v...)
+			if v == nil {
+				lastVal = nil
+			} else {
+				lastVal = append(lastVal[:0], v...)
+			}
 			return nil
 		}, etl.TransformArgs{}); err != nil {
 			return err
