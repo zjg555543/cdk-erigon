@@ -315,7 +315,7 @@ func (cr EpochReader) GetEpoch(hash libcommon.Hash, number uint64) ([]byte, erro
 	return rawdb.ReadEpoch(cr.tx, number, hash)
 }
 func (cr EpochReader) PutEpoch(hash libcommon.Hash, number uint64, proof []byte) error {
-	panic("")
+	return nil
 }
 func (cr EpochReader) GetPendingEpoch(hash libcommon.Hash, number uint64) ([]byte, error) {
 	return rawdb.ReadPendingEpoch(cr.tx, number, hash)

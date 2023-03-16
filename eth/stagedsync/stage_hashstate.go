@@ -549,6 +549,7 @@ func getCodeUnwindExtractFunc(db kv.Tx, changeSetBucket string) etl.ExtractFunc 
 }
 
 func (p *Promoter) PromoteOnHistoryV3(logPrefix string, agg *state.AggregatorV3, from, to uint64, storage, quiet bool) error {
+	fmt.Printf("PromoteOnHistoryV3\n")
 	if !quiet && to > from+16 {
 		log.Info(fmt.Sprintf("[%s] Incremental promotion", logPrefix), "from", from, "to", to, "storage", storage)
 	}
@@ -655,6 +656,7 @@ func (p *Promoter) PromoteOnHistoryV3(logPrefix string, agg *state.AggregatorV3,
 	return nil
 }
 func (p *Promoter) Promote(logPrefix string, from, to uint64, storage, codes bool, quiet bool) error {
+	fmt.Printf("Promote\n")
 	var changeSetBucket string
 	if storage {
 		changeSetBucket = kv.StorageChangeSet

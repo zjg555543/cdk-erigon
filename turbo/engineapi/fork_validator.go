@@ -53,7 +53,8 @@ type ForkValidator struct {
 	currentHeight uint64
 	tmpDir        string
 	// we want fork validator to be thread safe so let
-	lock sync.Mutex
+	lock  sync.Mutex
+	trace bool
 }
 
 func NewForkValidatorMock(currentHeight uint64) *ForkValidator {
@@ -70,6 +71,10 @@ func NewForkValidator(currentHeight uint64, validatePayload validatePayloadFunc,
 		currentHeight:   currentHeight,
 		tmpDir:          tmpDir,
 	}
+}
+
+func (fv *ForkValidator) SetTrace(trace bool) {
+	fv.trace = trace
 }
 
 // ExtendingForkHeadHash return the fork head hash of the fork that extends the canonical chain.
@@ -159,6 +164,7 @@ func (fv *ForkValidator) ValidatePayload(tx kv.RwTx, header *types.Header, body 
 		// If the new block extends the canonical chain we update extendingFork.
 		if fv.extendingFork == nil {
 			fv.extendingFork = memdb.NewMemoryBatch(tx, fv.tmpDir)
+			fv.extendingFork.SetTrace(fv.trace)
 			fv.extendingForkNotifications = &shards.Notifications{
 				Events:      shards.NewEvents(),
 				Accumulator: shards.NewAccumulator(),
@@ -219,6 +225,7 @@ func (fv *ForkValidator) ValidatePayload(tx kv.RwTx, header *types.Header, body 
 		unwindPoint = 0
 	}
 	batch := memdb.NewMemoryBatch(tx, fv.tmpDir)
+	batch.SetTrace(fv.trace)
 	defer batch.Rollback()
 	notifications := &shards.Notifications{
 		Events:      shards.NewEvents(),

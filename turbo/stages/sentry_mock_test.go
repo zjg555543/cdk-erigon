@@ -772,6 +772,7 @@ func TestPOSWrontTrieRootReorgs(t *testing.T) {
 	stages.SendPayloadStatus(m.HeaderDownload(), headBlockHash, err)
 	payloadStatus2 := m.ReceivePayloadStatus()
 	assert.Equal(t, remote.EngineStatus_VALID, payloadStatus2.Status)
+	t.Fatal("STOP")
 	forkChoiceMessage = engineapi.ForkChoiceMessage{
 		HeadBlockHash:      chain2.TopBlock.Hash(),
 		SafeBlockHash:      chain2.TopBlock.Hash(),

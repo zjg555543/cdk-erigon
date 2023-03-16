@@ -227,11 +227,13 @@ func MockWithEverything(t *testing.T, gspec *core.Genesis, key *ecdsa.PrivateKey
 
 	cfg := ethconfig.Defaults
 	cfg.HistoryV3 = ethconfig.EnableHistoryV3InTest
+	fmt.Printf("HistoryV3 = %t\n", cfg.HistoryV3)
 	cfg.StateStream = true
 	cfg.BatchSize = 1 * datasize.MB
 	cfg.Sync.BodyDownloadTimeoutSeconds = 10
 	cfg.DeprecatedTxPool.Disable = !withTxPool
 	cfg.DeprecatedTxPool.StartOnInit = true
+	cfg.Genesis = gspec
 
 	var db kv.RwDB
 	if t != nil {
@@ -265,7 +267,7 @@ func MockWithEverything(t *testing.T, gspec *core.Genesis, key *ecdsa.PrivateKey
 	}
 
 	erigonGrpcServeer := remotedbserver.NewKvServer(ctx, db, nil, nil)
-	allSnapshots := snapshotsync.NewRoSnapshots(ethconfig.Defaults.Snapshot, dirs.Snap)
+	allSnapshots := snapshotsync.NewRoSnapshots(cfg.Snapshot, dirs.Snap)
 	mock := &MockSentry{
 		Ctx: ctx, cancel: ctxCancel, DB: db, agg: agg,
 		t:           t,
@@ -348,7 +350,7 @@ func MockWithEverything(t *testing.T, gspec *core.Genesis, key *ecdsa.PrivateKey
 	inMemoryExecution := func(batch kv.RwTx, header *types.Header, body *types.RawBody, unwindPoint uint64, headersChain []*types.Header, bodiesChain []*types.RawBody,
 		notifications *shards.Notifications) error {
 		// Needs its own notifications to not update RPC daemon and txpool about pending blocks
-		stateSync, err := NewInMemoryExecution(ctx, mock.DB, &ethconfig.Defaults, mock.sentriesClient, dirs, notifications, allSnapshots, agg)
+		stateSync, err := NewInMemoryExecution(ctx, mock.DB, &cfg, mock.sentriesClient, dirs, notifications, allSnapshots, agg)
 		if err != nil {
 			return err
 		}
@@ -367,6 +369,7 @@ func MockWithEverything(t *testing.T, gspec *core.Genesis, key *ecdsa.PrivateKey
 		return nil
 	}
 	forkValidator := engineapi.NewForkValidator(1, inMemoryExecution, dirs.Tmp)
+	forkValidator.SetTrace(true)
 	networkID := uint64(1)
 	mock.sentriesClient, err = sentry.NewMultiClient(
 		mock.DB,
@@ -457,7 +460,7 @@ func MockWithEverything(t *testing.T, gspec *core.Genesis, key *ecdsa.PrivateKey
 				blockReader,
 				mock.sentriesClient.Hd,
 				mock.gspec,
-				ethconfig.Defaults.Sync,
+				cfg.Sync,
 				mock.agg,
 			),
 			stagedsync.StageHashStateCfg(mock.DB, mock.Dirs, cfg.HistoryV3, mock.agg),

@@ -561,6 +561,7 @@ func (rs *StateV3) Unwind(ctx context.Context, tx kv.RwTx, txUnwindTo uint64, ag
 	agg.SetTx(tx)
 	var currentInc uint64
 	if err := agg.Unwind(ctx, txUnwindTo, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
+		fmt.Printf("Unwind %x %x\n", k, v)
 		if len(k) == length.Addr {
 			if len(v) > 0 {
 				var acc accounts.Account
