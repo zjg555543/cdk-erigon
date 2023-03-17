@@ -459,7 +459,7 @@ func New(stack *node.Node, config *ethconfig.Config, logger log.Logger) (*Ethere
 	}
 	backend.engine = ethconsensusconfig.CreateConsensusEngine(chainConfig, logger, consensusConfig, config.Miner.Notify, config.Miner.Noverify, config.HeimdallgRPCAddress, config.HeimdallURL, config.WithoutHeimdall, stack.DataDir(), allSnapshots, false /* readonly */, backend.chainDB)
 	backend.forkValidator = engineapi.NewForkValidator(currentBlockNumber, inMemoryExecution, tmpdir)
-	//backend.forkValidator.SetTrace(true)
+	backend.forkValidator.SetTrace(true)
 
 	backend.sentriesClient, err = sentry.NewMultiClient(
 		chainKv,
