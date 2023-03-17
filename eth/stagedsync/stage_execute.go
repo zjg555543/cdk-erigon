@@ -474,6 +474,7 @@ Loop:
 			if err = s.Update(tx, stageProgress); err != nil {
 				return err
 			}
+			log.Info("committtt", "useExternalTx", useExternalTx)
 			if !useExternalTx {
 				if err = tx.Commit(); err != nil {
 					return err
@@ -485,6 +486,7 @@ Loop:
 				// TODO: This creates stacked up deferrals
 				defer tx.Rollback()
 			}
+			log.Info("committtt new batch", "tx", tx == nil)
 			batch = olddb.NewHashBatch(tx, quit, cfg.dirs.Tmp)
 		}
 
