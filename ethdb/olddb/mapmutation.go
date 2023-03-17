@@ -234,7 +234,7 @@ func (m *mapmutation) doCommit(tx kv.RwTx) error {
 			}
 		}
 		if err := collector.Load(m.db, table, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
-			log.Warn("load", "table", table, "k", len(k), "v", len(v))
+			log.Warn("load", "table", table, "k", len(k), "kIsNil", k == nil, "v", len(v), "vIsNil", v == nil)
 			return next(k, k, v)
 		}, etl.TransformArgs{Quit: m.quit}); err != nil {
 			return err
