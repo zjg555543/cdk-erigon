@@ -378,6 +378,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		defer tx.Rollback()
 	}
 
+	log.Info("start", "tx", tx == nil, "useExternalTx", useExternalTx, "initialCycle", initialCycle)
 	prevStageProgress, errStart := stages.GetStageProgress(tx, stages.Senders)
 	if errStart != nil {
 		return errStart
