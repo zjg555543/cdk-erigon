@@ -11,6 +11,11 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/log/v3"
+	"github.com/ledgerwatch/secp256k1"
+	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
+
 	chain2 "github.com/ledgerwatch/erigon-lib/chain"
 	"github.com/ledgerwatch/erigon-lib/commitment"
 	common2 "github.com/ledgerwatch/erigon-lib/common"
@@ -21,10 +26,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
-	"github.com/ledgerwatch/log/v3"
-	"github.com/ledgerwatch/secp256k1"
-	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
 
 	"github.com/ledgerwatch/erigon/cmd/hack/tool/fromdb"
 	"github.com/ledgerwatch/erigon/cmd/sentry/sentry"
@@ -351,11 +352,13 @@ var cmdForceSetHistoryV3 = &cobra.Command{
 }
 
 func init() {
+	withConfig(cmdPrintStages)
 	withDataDir(cmdPrintStages)
 	withChain(cmdPrintStages)
 	withHeimdall(cmdPrintStages)
 	rootCmd.AddCommand(cmdPrintStages)
 
+	withConfig(cmdStageSenders)
 	withIntegrityChecks(cmdStageSenders)
 	withReset(cmdStageSenders)
 	withBlock(cmdStageSenders)
@@ -363,29 +366,29 @@ func init() {
 	withDataDir(cmdStageSenders)
 	withChain(cmdStageSenders)
 	withHeimdall(cmdStageSenders)
-
 	rootCmd.AddCommand(cmdStageSenders)
 
+	withConfig(cmdStageSnapshots)
 	withDataDir(cmdStageSnapshots)
 	withReset(cmdStageSnapshots)
-
 	rootCmd.AddCommand(cmdStageSnapshots)
 
+	withConfig(cmdStageHeaders)
 	withDataDir(cmdStageHeaders)
 	withUnwind(cmdStageHeaders)
 	withReset(cmdStageHeaders)
 	withChain(cmdStageHeaders)
 	withHeimdall(cmdStageHeaders)
-
 	rootCmd.AddCommand(cmdStageHeaders)
 
+	withConfig(cmdStageBodies)
 	withDataDir(cmdStageBodies)
 	withUnwind(cmdStageBodies)
 	withChain(cmdStageBodies)
 	withHeimdall(cmdStageBodies)
-
 	rootCmd.AddCommand(cmdStageBodies)
 
+	withConfig(cmdStageExec)
 	withDataDir(cmdStageExec)
 	withReset(cmdStageExec)
 	withBlock(cmdStageExec)
@@ -396,9 +399,9 @@ func init() {
 	withChain(cmdStageExec)
 	withHeimdall(cmdStageExec)
 	withWorkers(cmdStageExec)
-
 	rootCmd.AddCommand(cmdStageExec)
 
+	withConfig(cmdStageHashState)
 	withDataDir(cmdStageHashState)
 	withReset(cmdStageHashState)
 	withBlock(cmdStageHashState)
@@ -407,9 +410,9 @@ func init() {
 	withBatchSize(cmdStageHashState)
 	withChain(cmdStageHashState)
 	withHeimdall(cmdStageHashState)
-
 	rootCmd.AddCommand(cmdStageHashState)
 
+	withConfig(cmdStageTrie)
 	withDataDir(cmdStageTrie)
 	withReset(cmdStageTrie)
 	withBlock(cmdStageTrie)
@@ -418,9 +421,9 @@ func init() {
 	withIntegrityChecks(cmdStageTrie)
 	withChain(cmdStageTrie)
 	withHeimdall(cmdStageTrie)
-
 	rootCmd.AddCommand(cmdStageTrie)
 
+	withConfig(cmdStageHistory)
 	withDataDir(cmdStageHistory)
 	withReset(cmdStageHistory)
 	withBlock(cmdStageHistory)
@@ -428,9 +431,9 @@ func init() {
 	withPruneTo(cmdStageHistory)
 	withChain(cmdStageHistory)
 	withHeimdall(cmdStageHistory)
-
 	rootCmd.AddCommand(cmdStageHistory)
 
+	withConfig(cmdLogIndex)
 	withDataDir(cmdLogIndex)
 	withReset(cmdLogIndex)
 	withBlock(cmdLogIndex)
@@ -438,9 +441,9 @@ func init() {
 	withPruneTo(cmdLogIndex)
 	withChain(cmdLogIndex)
 	withHeimdall(cmdLogIndex)
-
 	rootCmd.AddCommand(cmdLogIndex)
 
+	withConfig(cmdCallTraces)
 	withDataDir(cmdCallTraces)
 	withReset(cmdCallTraces)
 	withBlock(cmdCallTraces)
@@ -448,9 +451,9 @@ func init() {
 	withPruneTo(cmdCallTraces)
 	withChain(cmdCallTraces)
 	withHeimdall(cmdCallTraces)
-
 	rootCmd.AddCommand(cmdCallTraces)
 
+	withConfig(cmdStageTxLookup)
 	withReset(cmdStageTxLookup)
 	withBlock(cmdStageTxLookup)
 	withUnwind(cmdStageTxLookup)
@@ -458,33 +461,36 @@ func init() {
 	withPruneTo(cmdStageTxLookup)
 	withChain(cmdStageTxLookup)
 	withHeimdall(cmdStageTxLookup)
-
 	rootCmd.AddCommand(cmdStageTxLookup)
 
+	withConfig(cmdPrintMigrations)
 	withDataDir(cmdPrintMigrations)
 	rootCmd.AddCommand(cmdPrintMigrations)
 
+	withConfig(cmdRemoveMigration)
 	withDataDir(cmdRemoveMigration)
 	withMigration(cmdRemoveMigration)
 	withChain(cmdRemoveMigration)
 	withHeimdall(cmdRemoveMigration)
 	rootCmd.AddCommand(cmdRemoveMigration)
 
+	withConfig(cmdRunMigrations)
 	withDataDir(cmdRunMigrations)
 	withChain(cmdRunMigrations)
 	withHeimdall(cmdRunMigrations)
 	rootCmd.AddCommand(cmdRunMigrations)
 
+	withConfig(cmdSetSnap)
 	withDataDir2(cmdSetSnap)
 	withChain(cmdSetSnap)
 	rootCmd.AddCommand(cmdSetSnap)
 
+	withConfig(cmdForceSetHistoryV3)
 	withDataDir2(cmdForceSetHistoryV3)
 	cmdForceSetHistoryV3.Flags().BoolVar(&_forceSetHistoryV3, "history.v3", false, "")
 	rootCmd.AddCommand(cmdForceSetHistoryV3)
 
-	rootCmd.AddCommand(cmdForceSetHistoryV3)
-
+	withConfig(cmdSetPrune)
 	withDataDir(cmdSetPrune)
 	withChain(cmdSetPrune)
 	cmdSetPrune.Flags().StringVar(&pruneFlag, "prune", "hrtc", "")
@@ -1234,7 +1240,7 @@ func getBlockReader(db kv.RoDB) (blockReader services.FullBlockReader) {
 var openDomainsOnce sync.Once
 var _aggDomainSingleton *libstate.Aggregator
 
-func allDomains(ctx context.Context, db kv.RoDB, mode libstate.CommitmentMode, trie commitment.TrieVariant) (*snapshotsync.RoSnapshots, *libstate.Aggregator) {
+func allDomains(ctx context.Context, db kv.RoDB, stepSize uint64, mode libstate.CommitmentMode, trie commitment.TrieVariant) (*snapshotsync.RoSnapshots, *libstate.Aggregator) {
 	openDomainsOnce.Do(func() {
 		var useSnapshots bool
 		_ = db.View(context.Background(), func(tx kv.Tx) error {
@@ -1248,7 +1254,7 @@ func allDomains(ctx context.Context, db kv.RoDB, mode libstate.CommitmentMode, t
 		_allSnapshotsSingleton = snapshotsync.NewRoSnapshots(snapCfg, dirs.Snap)
 
 		var err error
-		_aggDomainSingleton, err = libstate.NewAggregator(filepath.Join(dirs.DataDir, "state"), dirs.Tmp, ethconfig.HistoryV3AggregationStep, mode, trie)
+		_aggDomainSingleton, err = libstate.NewAggregator(filepath.Join(dirs.DataDir, "state"), dirs.Tmp, stepSize, mode, trie)
 		if err != nil {
 			panic(err)
 		}
@@ -1273,7 +1279,7 @@ func allDomains(ctx context.Context, db kv.RoDB, mode libstate.CommitmentMode, t
 	return _allSnapshotsSingleton, _aggDomainSingleton
 }
 
-func newDomains(ctx context.Context, db kv.RwDB, mode libstate.CommitmentMode, trie commitment.TrieVariant) (consensus.Engine, ethconfig.Config, *snapshotsync.RoSnapshots, *libstate.Aggregator) {
+func newDomains(ctx context.Context, db kv.RwDB, stepSize uint64, mode libstate.CommitmentMode, trie commitment.TrieVariant) (consensus.Engine, ethconfig.Config, *snapshotsync.RoSnapshots, *libstate.Aggregator) {
 	historyV3, pm := kvcfg.HistoryV3.FromDB(db), fromdb.PruneMode(db)
 	//events := shards.NewEvents()
 	genesis := core.DefaultGenesisBlockByChainName(chain)
@@ -1305,7 +1311,7 @@ func newDomains(ctx context.Context, db kv.RwDB, mode libstate.CommitmentMode, t
 	//}
 	cfg.Dirs = datadir.New(datadirCli)
 
-	allSn, agg := allDomains(ctx, db, mode, trie)
+	allSn, agg := allDomains(ctx, db, stepSize, mode, trie)
 	cfg.Snapshot = allSn.Cfg()
 
 	engine := initConsensusEngine(chainConfig, cfg.Dirs.DataDir, db)

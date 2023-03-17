@@ -30,6 +30,7 @@ import (
 	"github.com/ledgerwatch/log/v3"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 	atomic2 "go.uber.org/atomic"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/cmd/state/exec3"
@@ -220,7 +221,6 @@ func ExecV3(ctx context.Context,
 
 		applyWorker.ResetTx(tx)
 
-		notifyReceived := func() { rwsReceiveCond.Signal() }
 		var t time.Time
 		var lastBlockNum uint64
 		drainF := func(txTask *exec22.TxTask) (added int64) {
@@ -258,7 +258,7 @@ func ExecV3(ctx context.Context,
 			processedResultSize, processedTxNum, conflicts, processedBlockNum, err := func() (processedResultSize int64, processedTxNum, conflicts, processedBlockNum uint64, err error) {
 				rwsLock.Lock()
 				defer rwsLock.Unlock()
-				return processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, notifyReceived, applyWorker)
+				return processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, rwsReceiveCond, applyWorker)
 			}()
 			if err != nil {
 				return err
@@ -328,8 +328,8 @@ func ExecV3(ctx context.Context,
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
 						if agg.CanPrune(tx) {
-							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep/10); err != nil { // prune part of retired data, before commit
-								panic(err)
+							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+								return err
 							}
 						} else {
 							if err = agg.Flush(ctx, tx); err != nil {
@@ -364,7 +364,7 @@ func ExecV3(ctx context.Context,
 								}
 							}
 							applyWorker.ResetTx(tx)
-							processedResultSize, processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, func() {}, applyWorker)
+							processedResultSize, processedTxNum, conflicts, processedBlockNum, err := processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, triggerCount, nil, applyWorker)
 							if err != nil {
 								return err
 							}
@@ -599,7 +599,7 @@ Loop:
 				txTask.Tx = txs[txIndex]
 				txTask.TxAsMessage, err = txTask.Tx.AsMessage(signer, header.BaseFee, txTask.Rules)
 				if err != nil {
-					panic(err)
+					return err
 				}
 
 				if sender, ok := txs[txIndex].GetSender(); ok {
@@ -768,7 +768,7 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 	return b, nil
 }
 
-func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, onSuccess func(), applyWorker *exec3.Worker) (resultSize int64, outputTxNum, conflicts, processedBlockNum uint64, err error) {
+func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, rwsCond *sync.Cond, applyWorker *exec3.Worker) (resultSize int64, outputTxNum, conflicts, processedBlockNum uint64, err error) {
 	var i int
 	outputTxNum = outputTxNumIn
 	for rws.Len() > 0 && (*rws)[0].TxNum == outputTxNum {
@@ -796,7 +796,9 @@ func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state
 		}
 		triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
 		outputTxNum++
-		onSuccess()
+		if rwsCond != nil {
+			rwsCond.Signal()
+		}
 		if err := rs.ApplyHistory(txTask, agg); err != nil {
 			return resultSize, outputTxNum, conflicts, processedBlockNum, fmt.Errorf("StateV3.Apply: %w", err)
 		}
@@ -849,8 +851,6 @@ func reconstituteStep(last bool,
 
 	var maxTxNum = startTxNum
 
-	workCh := make(chan *exec22.TxTask, workerCount*4)
-	rs := state.NewReconState(workCh)
 	scanWorker := exec3.NewScanWorker(txNum, as)
 
 	t := time.Now()
@@ -878,7 +878,6 @@ func reconstituteStep(last bool,
 	}
 	bitmap := scanWorker.Bitmap()
 
-	var wg sync.WaitGroup
 	logEvery := time.NewTicker(logInterval)
 	defer logEvery.Stop()
 
@@ -906,6 +905,16 @@ func reconstituteStep(last bool,
 			return err
 		}
 	}
+	g, reconstWorkersCtx := errgroup.WithContext(ctx)
+	defer g.Wait()
+	workCh := make(chan *exec22.TxTask, workerCount*4)
+	defer func() {
+		fmt.Printf("close1\n")
+		safeCloseTxTaskCh(workCh)
+	}()
+
+	rs := state.NewReconState(workCh)
+	prevCount := rs.DoneCount()
 	for i := 0; i < workerCount; i++ {
 		var localAs *libstate.AggregatorStep
 		if i == 0 {
@@ -913,27 +922,56 @@ func reconstituteStep(last bool,
 		} else {
 			localAs = as.Clone()
 		}
-		reconWorkers[i] = exec3.NewReconWorker(lock.RLocker(), &wg, rs, localAs, blockReader, chainConfig, logger, genesis, engine, chainTxs[i])
+		reconWorkers[i] = exec3.NewReconWorker(lock.RLocker(), reconstWorkersCtx, rs, localAs, blockReader, chainConfig, logger, genesis, engine, chainTxs[i])
 		reconWorkers[i].SetTx(roTxs[i])
 		reconWorkers[i].SetChainTx(chainTxs[i])
 	}
-	wg.Add(workerCount)
 
 	rollbackCount := uint64(0)
-	prevCount := rs.DoneCount()
+
 	for i := 0; i < workerCount; i++ {
-		go reconWorkers[i].Run()
+		i := i
+		g.Go(func() error { return reconWorkers[i].Run() })
 	}
 	commitThreshold := batchSize.Bytes()
 	prevRollbackCount := uint64(0)
 	prevTime := time.Now()
 	reconDone := make(chan struct{})
-	//var bn uint64
-	go func() {
+
+	defer close(reconDone)
+
+	commit := func(ctx context.Context) error {
+		t := time.Now()
+		lock.Lock()
+		defer lock.Unlock()
+		for i := 0; i < workerCount; i++ {
+			roTxs[i].Rollback()
+		}
+		if err := db.Update(ctx, func(tx kv.RwTx) error {
+			if err := rs.Flush(tx); err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		for i := 0; i < workerCount; i++ {
+			var err error
+			if roTxs[i], err = db.BeginRo(ctx); err != nil {
+				return err
+			}
+			reconWorkers[i].SetTx(roTxs[i])
+		}
+		log.Info(fmt.Sprintf("[%s] State reconstitution, commit", s.LogPrefix()), "took", time.Since(t))
+		return nil
+	}
+	g.Go(func() error {
 		for {
 			select {
-			case <-reconDone:
-				return
+			case <-reconDone: // success finish path
+				return nil
+			case <-reconstWorkersCtx.Done(): // force-stop path
+				return reconstWorkersCtx.Err()
 			case <-logEvery.C:
 				var m runtime.MemStats
 				dbg.ReadMemStats(&m)
@@ -960,37 +998,13 @@ func reconstituteStep(last bool,
 					"buffer", fmt.Sprintf("%s/%s", common.ByteCount(sizeEstimate), common.ByteCount(commitThreshold)),
 					"alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 				if sizeEstimate >= commitThreshold {
-					t := time.Now()
-					if err := func() error {
-						lock.Lock()
-						defer lock.Unlock()
-						for i := 0; i < workerCount; i++ {
-							roTxs[i].Rollback()
-						}
-						if err := db.Update(ctx, func(tx kv.RwTx) error {
-							if err := rs.Flush(tx); err != nil {
-								return err
-							}
-							return nil
-						}); err != nil {
-							return err
-						}
-						for i := 0; i < workerCount; i++ {
-							var err error
-							if roTxs[i], err = db.BeginRo(ctx); err != nil {
-								return err
-							}
-							reconWorkers[i].SetTx(roTxs[i])
-						}
-						return nil
-					}(); err != nil {
-						panic(err)
+					if err := commit(reconstWorkersCtx); err != nil {
+						return err
 					}
-					log.Info(fmt.Sprintf("[%s] State reconstitution, commit", s.LogPrefix()), "took", time.Since(t))
 				}
 			}
 		}
-	}()
+	})
 
 	var inputTxNum = startTxNum
 	var b *types.Block
@@ -1018,8 +1032,7 @@ func reconstituteStep(last bool,
 			return err
 		}
 		if b == nil {
-			fmt.Printf("could not find block %d\n", bn)
-			panic("")
+			return fmt.Errorf("could not find block %d\n", bn)
 		}
 		txs := b.Transactions()
 		header := b.HeaderNoCopy()
@@ -1081,8 +1094,11 @@ func reconstituteStep(last bool,
 		}
 	}
 	close(workCh)
-	wg.Wait()
 	reconDone <- struct{}{} // Complete logging and committing go-routine
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
 	for i := 0; i < workerCount; i++ {
 		roTxs[i].Rollback()
 	}
@@ -1197,7 +1213,11 @@ func reconstituteStep(last bool,
 				}
 				lastKey = append(lastKey[:0], k[:len(k)-8]...)
 			}
-			lastVal = append(lastVal[:0], v...)
+			if v == nil { // `nil` value means delete, `empty value []byte{}` means empty value
+				lastVal = nil
+			} else {
+				lastVal = append(lastVal[:0], v...)
+			}
 			return nil
 		}, etl.TransformArgs{}); err != nil {
 			return err
@@ -1225,7 +1245,11 @@ func reconstituteStep(last bool,
 				}
 				lastKey = append(lastKey[:0], k[:len(k)-8]...)
 			}
-			lastVal = append(lastVal[:0], v...)
+			if v == nil {
+				lastVal = nil
+			} else {
+				lastVal = append(lastVal[:0], v...)
+			}
 			return nil
 		}, etl.TransformArgs{}); err != nil {
 			return err
@@ -1253,7 +1277,11 @@ func reconstituteStep(last bool,
 				}
 				lastKey = append(lastKey[:0], k[:len(k)-8]...)
 			}
-			lastVal = append(lastVal[:0], v...)
+			if v == nil {
+				lastVal = nil
+			} else {
+				lastVal = append(lastVal[:0], v...)
+			}
 			return nil
 		}, etl.TransformArgs{}); err != nil {
 			return err
@@ -1276,6 +1304,18 @@ func reconstituteStep(last bool,
 		return err
 	}
 	return nil
+}
+
+func safeCloseTxTaskCh(ch chan *exec22.TxTask) {
+	if ch == nil {
+		return
+	}
+	select {
+	case <-ch:
+		// Channel was already closed
+	default:
+		close(ch)
+	}
 }
 
 func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, workerCount int, batchSize datasize.ByteSize, chainDb kv.RwDB,
@@ -1313,7 +1353,8 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 			return err
 		}
 		if !ok {
-			return fmt.Errorf("blockNum for mininmaxTxNum=%d not found", toTxNum)
+			lastBn, lastTn, _ := rawdbv3.TxNums.Last(tx)
+			return fmt.Errorf("blockNum for mininmaxTxNum=%d not found. See lastBlockNum=%d,lastTxNum=%d", toTxNum, lastBn, lastTn)
 		}
 		if blockNum == 0 {
 			return fmt.Errorf("not enough transactions in the history data")
@@ -1365,17 +1406,23 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 
 	fillWorker := exec3.NewFillWorker(txNum, aggSteps[len(aggSteps)-1])
 	t := time.Now()
-	fillWorker.FillAccounts(plainStateCollector)
+	if err := fillWorker.FillAccounts(plainStateCollector); err != nil {
+		return err
+	}
 	if time.Since(t) > 5*time.Second {
 		log.Info(fmt.Sprintf("[%s] Filled accounts", s.LogPrefix()), "took", time.Since(t))
 	}
 	t = time.Now()
-	fillWorker.FillStorage(plainStateCollector)
+	if err := fillWorker.FillStorage(plainStateCollector); err != nil {
+		return err
+	}
 	if time.Since(t) > 5*time.Second {
 		log.Info(fmt.Sprintf("[%s] Filled storage", s.LogPrefix()), "took", time.Since(t))
 	}
 	t = time.Now()
-	fillWorker.FillCode(codeCollector, plainContractCollector)
+	if err := fillWorker.FillCode(codeCollector, plainContractCollector); err != nil {
+		return err
+	}
 	if time.Since(t) > 5*time.Second {
 		log.Info(fmt.Sprintf("[%s] Filled code", s.LogPrefix()), "took", time.Since(t))
 	}
