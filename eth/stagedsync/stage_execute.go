@@ -465,7 +465,7 @@ Loop:
 
 		shouldUpdateProgress := batch.BatchSize() >= int(cfg.batchSize)
 		if shouldUpdateProgress {
-			log.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState)
+			log.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState, "initialSync", initialCycle, "tx", tx == nil)
 			currentStateGas = 0
 			if err = batch.Commit(); err != nil {
 				return err
