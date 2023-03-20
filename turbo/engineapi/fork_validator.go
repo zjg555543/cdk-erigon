@@ -164,7 +164,7 @@ func (fv *ForkValidator) ValidatePayload(tx kv.RwTx, header *types.Header, body 
 		// If the new block extends the canonical chain we update extendingFork.
 		if fv.extendingFork == nil {
 			fv.extendingFork = memdb.NewMemoryBatch(tx, fv.tmpDir)
-			fv.extendingFork.SetTrace(fv.trace)
+			//fv.extendingFork.SetTrace(fv.trace)
 			fv.extendingForkNotifications = &shards.Notifications{
 				Events:      shards.NewEvents(),
 				Accumulator: shards.NewAccumulator(),
@@ -225,7 +225,7 @@ func (fv *ForkValidator) ValidatePayload(tx kv.RwTx, header *types.Header, body 
 		unwindPoint = 0
 	}
 	batch := memdb.NewMemoryBatch(tx, fv.tmpDir)
-	batch.SetTrace(fv.trace)
+	//batch.SetTrace(fv.trace)
 	defer batch.Rollback()
 	notifications := &shards.Notifications{
 		Events:      shards.NewEvents(),
