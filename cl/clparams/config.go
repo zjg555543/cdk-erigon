@@ -43,8 +43,8 @@ const (
 	MaxDialTimeout               = 2 * time.Second
 	VersionLength  int           = 4
 	MaxChunkSize   uint64        = 1 << 20 // 1 MiB
-	ReqTimeout     time.Duration = 1 * time.Second
-	RespTimeout    time.Duration = 1 * time.Second
+	ReqTimeout     time.Duration = 10 * time.Second
+	RespTimeout    time.Duration = 15 * time.Second
 )
 
 var (
@@ -676,9 +676,9 @@ var MainnetBeaconConfig BeaconChainConfig = BeaconChainConfig{
 	AltairForkVersion:    0x01000000,
 	AltairForkEpoch:      74240,
 	BellatrixForkVersion: 0x02000000,
-	BellatrixForkEpoch:   144869,
+	BellatrixForkEpoch:   144896,
 	CapellaForkVersion:   0x03000000,
-	CapellaForkEpoch:     math.MaxUint64,
+	CapellaForkEpoch:     194048,
 	DenebForkVersion:     0x04000000,
 	DenebForkEpoch:       math.MaxUint64,
 
