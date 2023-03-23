@@ -7,8 +7,10 @@ import (
 
 	"github.com/ledgerwatch/log/v3"
 
+	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/types"
+	"github.com/ledgerwatch/erigon/rlp"
 )
 
 type BlockBuilderFunc func(param *core.BlockBuilderParameters, interrupt *int32) (*types.BlockWithReceipts, error)
@@ -33,7 +35,19 @@ func NewBlockBuilder(build BlockBuilderFunc, param *core.BlockBuilderParameters)
 			log.Warn("Failed to build a block", "err", err)
 		} else {
 			block := result.Block
-			log.Info("Built block", "hash", block.Hash(), "height", block.NumberU64(), "txs", len(block.Transactions()), "gas used %", 100*float64(block.GasUsed())/float64(block.GasLimit()), "time", time.Since(t))
+			var blockRlp []byte
+			blockRlp, err = rlp.EncodeToBytes(block)
+			if err != nil {
+				log.Warn("Failed to serialize built block", "err", err)
+			} else {
+				log.Info("Built block",
+					"hash", block.Hash(),
+					"height", block.NumberU64(),
+					"txs", len(block.Transactions()),
+					"gas used %", 100*float64(block.GasUsed())/float64(block.GasLimit()),
+					"time", time.Since(t),
+					"rlp", common.Bytes2Hex(blockRlp))
+			}
 		}
 
 		builder.syncCond.L.Lock()
