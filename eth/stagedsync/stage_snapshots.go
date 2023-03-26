@@ -308,6 +308,8 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 								return ctx.Err()
 							case <-logEvery.C:
 								log.Info(fmt.Sprintf("[%s] MaxTxNums index: %dk/%dk", logPrefix, blockNum/1000, sn.BlocksAvailable()/1000))
+								lastbn, lasttn, err := rawdbv3.TxNums.Last(tx)
+								fmt.Printf("last: %d, %d, %s\n", lastbn, lasttn, err)
 							default:
 							}
 							maxTxNum := baseTxNum + txAmount - 1
@@ -325,6 +327,8 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 					return fmt.Errorf("build txNum => blockNum mapping: %w", err)
 				}
 			}
+			lastbn, lasttn, err := rawdbv3.TxNums.Last(tx)
+			fmt.Printf("last: %d, %d, %s\n", lastbn, lasttn, err)
 			if err := rawdb.WriteSnapshots(tx, sn.Files(), agg.Files()); err != nil {
 				return err
 			}

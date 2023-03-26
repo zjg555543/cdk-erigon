@@ -540,6 +540,8 @@ func stageHeaders(db kv.RwDB, ctx context.Context) error {
 			if err := reset2.ResetBlocks(tx, db, sn, agg, br, dirs, *chainConfig, engine); err != nil {
 				return err
 			}
+			lastbn, lasttn, err := rawdbv3.TxNums.Last(tx)
+			fmt.Printf("last before commit: %d, %d, %s\n", lastbn, lasttn, err)
 			return nil
 		}
 
