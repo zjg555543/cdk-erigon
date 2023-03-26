@@ -189,7 +189,7 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 
 func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs datadir.Dirs, sn *snapshotsync.RoSnapshots, blockReader services.FullBlockReader, chainConfig chain.Config, engine consensus.Engine, agg *state.AggregatorV3) error {
 	blocksAvailable := sn.BlocksAvailable()
-	logEvery := time.NewTicker(logInterval)
+	logEvery := time.NewTicker(time.Second)
 	defer logEvery.Stop()
 	// updating the progress of further stages (but only forward) that are contained inside of snapshots
 	for _, stage := range []stages.SyncStage{stages.Headers, stages.Bodies, stages.BlockHashes, stages.Senders} {
