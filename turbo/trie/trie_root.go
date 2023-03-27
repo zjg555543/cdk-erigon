@@ -319,7 +319,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, ctx context.Context) (libcommo
 		}
 	}
 
-	if err := r.Receive(CutoffStreamItem, nil, nil, nil, nil, nil, false, len(prefix)); err != nil {
+	if err := r.Receive(CutoffStreamItem, nil, nil, nil, nil, nil, false, 0); err != nil {
 		return EmptyRoot, err
 	}
 
