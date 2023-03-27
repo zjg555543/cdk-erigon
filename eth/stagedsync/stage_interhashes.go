@@ -165,7 +165,7 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
 	loader := trie.NewFlatDBTrieLoader(logPrefix, trie.NewRetainList(0), accTrieCollectorFunc, stTrieCollectorFunc, false)
-	hash, err := loader.CalcTrieRoot(db, ctx)
+	hash, err := loader.CalcTrieRoot(db, []byte{}, ctx)
 	if err != nil {
 		return trie.EmptyRoot, err
 	}
@@ -682,7 +682,7 @@ func UnwindIntermediateHashesForTrieLoader(logPrefix string, rl *trie.RetainList
 	return trie.NewFlatDBTrieLoader(logPrefix, rl, accTrieCollectorFunc, stTrieCollectorFunc, false), nil
 }
 
-func unwindIntermediateHashesStageImpl(logPrefix string, u *UnwindState, s *StageState, db kv.RwTx, cfg TrieCfg, expectedRootHash libcommon.Hash, quit <-chan struct{}) error {
+func unwindIntermediateHashesStageImpl(logPrefix string, u *UnwindState, s *StageState, db kv.RwTx, cfg TrieCfg, expectedRootHash libcommon.Hash, ctx context.Context) error {
 	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, etl.NewSortableBuffer(etl.BufferOptimalSize))
 	defer accTrieCollector.Close()
 	accTrieCollectorFunc := accountTrieCollector(accTrieCollector)
@@ -693,7 +693,7 @@ func unwindIntermediateHashesStageImpl(logPrefix string, u *UnwindState, s *Stag
 
 	rl := trie.NewRetainList(0)
 
-	loader, err := UnwindIntermediateHashesForTrieLoader(logPrefix, rl, u, s, db, cfg, accTrieCollectorFunc, stTrieCollectorFunc, quit)
+	loader, err := UnwindIntermediateHashesForTrieLoader(logPrefix, rl, u, s, db, cfg, accTrieCollectorFunc, stTrieCollectorFunc, ctx)
 	if err != nil {
 		return err
 	}
