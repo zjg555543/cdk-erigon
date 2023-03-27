@@ -6,17 +6,19 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/bits"
+	"sync/atomic"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
 	"github.com/ledgerwatch/erigon-lib/state"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/log/v3"
-	"go.uber.org/atomic"
 	"golang.org/x/exp/slices"
 
 	"github.com/ledgerwatch/erigon/common"
@@ -149,9 +151,9 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 	defer log.Info(fmt.Sprintf("[%s] Regeneration ended", logPrefix))
 	_ = db.ClearBucket(kv.TrieOfAccounts)
 	_ = db.ClearBucket(kv.TrieOfStorage)
-	clean := kv.ReadAhead(ctx, cfg.db, atomic.NewBool(false), kv.HashedAccounts, nil, math.MaxUint32)
+	clean := kv.ReadAhead(ctx, cfg.db, &atomic.Bool{}, kv.HashedAccounts, nil, math.MaxUint32)
 	defer clean()
-	clean2 := kv.ReadAhead(ctx, cfg.db, atomic.NewBool(false), kv.HashedStorage, nil, math.MaxUint32)
+	clean2 := kv.ReadAhead(ctx, cfg.db, &atomic.Bool{}, kv.HashedStorage, nil, math.MaxUint32)
 	defer clean2()
 
 	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, etl.NewSortableBuffer(etl.BufferOptimalSize))
@@ -162,11 +164,8 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := trie.NewFlatDBTrieLoader(logPrefix)
-	if err := loader.Reset(trie.NewRetainList(0), accTrieCollectorFunc, stTrieCollectorFunc, false); err != nil {
-		return trie.EmptyRoot, err
-	}
-	hash, err := loader.CalcTrieRoot(db, []byte{}, ctx)
+	loader := trie.NewFlatDBTrieLoader(logPrefix, trie.NewRetainList(0), accTrieCollectorFunc, stTrieCollectorFunc, false)
+	hash, err := loader.CalcTrieRoot(db, ctx)
 	if err != nil {
 		return trie.EmptyRoot, err
 	}
@@ -216,7 +215,15 @@ func (p *HashPromoter) PromoteOnHistoryV3(logPrefix string, agg *state.Aggregato
 
 	if storage {
 		compositeKey := make([]byte, length.Hash+length.Hash)
-		if err := agg.Storage().MakeContext().IterateRecentlyChanged(txnFrom, txnTo, p.tx, func(k []byte, v []byte) error {
+		it, err := p.tx.(kv.TemporalTx).HistoryRange(temporal.StorageHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+		if err != nil {
+			return err
+		}
+		for it.HasNext() {
+			k, v, err := it.Next()
+			if err != nil {
+				return err
+			}
 			addrHash, err := common.HashData(k[:length.Addr])
 			if err != nil {
 				return err
@@ -233,14 +240,19 @@ func (p *HashPromoter) PromoteOnHistoryV3(logPrefix string, agg *state.Aggregato
 			if err := load(compositeKey, v); err != nil {
 				return err
 			}
-			return nil
-		}); err != nil {
-			return err
 		}
 		return nil
 	}
 
-	if err := agg.Accounts().MakeContext().IterateRecentlyChanged(txnFrom, txnTo, p.tx, func(k []byte, v []byte) error {
+	it, err := p.tx.(kv.TemporalTx).HistoryRange(temporal.AccountsHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+	if err != nil {
+		return err
+	}
+	for it.HasNext() {
+		k, v, err := it.Next()
+		if err != nil {
+			return err
+		}
 		newK, err := transformPlainStateKey(k)
 		if err != nil {
 			return err
@@ -251,9 +263,6 @@ func (p *HashPromoter) PromoteOnHistoryV3(logPrefix string, agg *state.Aggregato
 		if err := load(newK, v); err != nil {
 			return err
 		}
-		return nil
-	}); err != nil {
-		return err
 	}
 	return nil
 }
@@ -357,7 +366,15 @@ func (p *HashPromoter) UnwindOnHistoryV3(logPrefix string, agg *state.Aggregator
 	var deletedAccounts [][]byte
 
 	if storage {
-		if err = agg.Storage().MakeContext().IterateRecentlyChanged(txnFrom, txnTo, p.tx, func(k []byte, v []byte) error {
+		it, err := p.tx.(kv.TemporalTx).HistoryRange(temporal.StorageHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+		if err != nil {
+			return err
+		}
+		for it.HasNext() {
+			k, _, err := it.Next()
+			if err != nil {
+				return err
+			}
 			// Plain state not unwind yet, it means - if key not-exists in PlainState but has value from ChangeSets - then need mark it as "created" in RetainList
 			enc, err := p.tx.GetOne(kv.PlainState, k[:20])
 			if err != nil {
@@ -378,13 +395,19 @@ func (p *HashPromoter) UnwindOnHistoryV3(logPrefix string, agg *state.Aggregator
 				return err
 			}
 			load(newK, value)
-			return nil
-		}); err != nil {
-			return err
 		}
 		return nil
 	}
-	if err = agg.Accounts().MakeContext().IterateRecentlyChanged(txnFrom, txnTo, p.tx, func(k []byte, v []byte) error {
+
+	it, err := p.tx.(kv.TemporalTx).HistoryRange(temporal.AccountsHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+	if err != nil {
+		return err
+	}
+	for it.HasNext() {
+		k, v, err := it.Next()
+		if err != nil {
+			return err
+		}
 		newK, err := transformPlainStateKey(k)
 		if err != nil {
 			return err
@@ -413,9 +436,6 @@ func (p *HashPromoter) UnwindOnHistoryV3(logPrefix string, agg *state.Aggregator
 		}
 
 		load(newK, value)
-		return nil
-	}); err != nil {
-		return err
 	}
 
 	// delete Intermediate hashes of deleted accounts
@@ -580,10 +600,7 @@ func incrementIntermediateHashes(logPrefix string, s *StageState, db kv.RwTx, to
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := trie.NewFlatDBTrieLoader(logPrefix)
-	if err := loader.Reset(rl, accTrieCollectorFunc, stTrieCollectorFunc, false); err != nil {
-		return trie.EmptyRoot, err
-	}
+	loader := trie.NewFlatDBTrieLoader(logPrefix, rl, accTrieCollectorFunc, stTrieCollectorFunc, false)
 	hash, err := loader.CalcTrieRoot(db, []byte{}, ctx)
 	if err != nil {
 		return trie.EmptyRoot, err
@@ -636,19 +653,18 @@ func UnwindIntermediateHashesStage(u *UnwindState, s *StageState, tx kv.RwTx, cf
 	return nil
 }
 
-func unwindIntermediateHashesStageImpl(logPrefix string, u *UnwindState, s *StageState, db kv.RwTx, cfg TrieCfg, expectedRootHash libcommon.Hash, ctx context.Context) error {
+func UnwindIntermediateHashesForTrieLoader(logPrefix string, rl *trie.RetainList, u *UnwindState, s *StageState, db kv.RwTx, cfg TrieCfg, accTrieCollectorFunc trie.HashCollector2, stTrieCollectorFunc trie.StorageHashCollector2, ctx context.Context) (*trie.FlatDBTrieLoader, error) {
 	p := NewHashPromoter(db, cfg.tmpDir, ctx.Done(), logPrefix)
-	rl := trie.NewRetainList(0)
 	if cfg.historyV3 {
 		cfg.agg.SetTx(db)
 		collect := func(k, v []byte) {
 			rl.AddKeyWithMarker(k, len(v) == 0)
 		}
 		if err := p.UnwindOnHistoryV3(logPrefix, cfg.agg, s.BlockNumber, u.UnwindPoint, false, collect); err != nil {
-			return err
+			return nil, err
 		}
 		if err := p.UnwindOnHistoryV3(logPrefix, cfg.agg, s.BlockNumber, u.UnwindPoint, true, collect); err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		collect := func(k, v []byte, _ etl.CurrentTableReader, _ etl.LoadNextFunc) error {
@@ -656,13 +672,17 @@ func unwindIntermediateHashesStageImpl(logPrefix string, u *UnwindState, s *Stag
 			return nil
 		}
 		if err := p.Unwind(logPrefix, s, u, false /* storage */, collect); err != nil {
-			return err
+			return nil, err
 		}
 		if err := p.Unwind(logPrefix, s, u, true /* storage */, collect); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
+	return trie.NewFlatDBTrieLoader(logPrefix, rl, accTrieCollectorFunc, stTrieCollectorFunc, false), nil
+}
+
+func unwindIntermediateHashesStageImpl(logPrefix string, u *UnwindState, s *StageState, db kv.RwTx, cfg TrieCfg, expectedRootHash libcommon.Hash, quit <-chan struct{}) error {
 	accTrieCollector := etl.NewCollector(logPrefix, cfg.tmpDir, etl.NewSortableBuffer(etl.BufferOptimalSize))
 	defer accTrieCollector.Close()
 	accTrieCollectorFunc := accountTrieCollector(accTrieCollector)
@@ -671,8 +691,10 @@ func unwindIntermediateHashesStageImpl(logPrefix string, u *UnwindState, s *Stag
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := trie.NewFlatDBTrieLoader(logPrefix)
-	if err := loader.Reset(rl, accTrieCollectorFunc, stTrieCollectorFunc, false); err != nil {
+	rl := trie.NewRetainList(0)
+
+	loader, err := UnwindIntermediateHashesForTrieLoader(logPrefix, rl, u, s, db, cfg, accTrieCollectorFunc, stTrieCollectorFunc, quit)
+	if err != nil {
 		return err
 	}
 	hash, err := loader.CalcTrieRoot(db, []byte{}, ctx)

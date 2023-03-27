@@ -49,7 +49,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcache"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
-	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 	"github.com/ledgerwatch/erigon-lib/kv/remotedbserver"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
 	txpool2 "github.com/ledgerwatch/erigon-lib/txpool"
@@ -586,7 +585,7 @@ func New(stack *node.Node, config *ethconfig.Config, logger log.Logger) (*Ethere
 			return nil, err
 		}
 
-		lc, err := lightclient.NewLightClient(ctx, memdb.New(tmpdir), genesisCfg, beaconCfg, ethBackendRPC, nil, client, currentBlockNumber, false)
+		lc, err := lightclient.NewLightClient(ctx, genesisCfg, beaconCfg, ethBackendRPC, nil, client, currentBlockNumber, false)
 		if err != nil {
 			return nil, err
 		}
@@ -611,16 +610,14 @@ func New(stack *node.Node, config *ethconfig.Config, logger log.Logger) (*Ethere
 	// 1) Hive tests requires us to do so and starting it from eth_sendRawTransaction is not viable as we have not enough data
 	// to initialize it properly.
 	// 2) we cannot propose for block 1 regardless.
-	go func() {
-		time.Sleep(10 * time.Millisecond)
+	{
 		baseFee := uint64(0)
 		if currentBlock.BaseFee() != nil {
 			baseFee = currentBlock.BaseFee().Uint64()
 		}
 		backend.notifications.Accumulator.StartChange(currentBlock.NumberU64(), currentBlock.Hash(), nil, false)
 		backend.notifications.Accumulator.SendAndReset(ctx, backend.notifications.StateChangesConsumer, baseFee, currentBlock.GasLimit())
-
-	}()
+	}
 
 	if !config.DeprecatedTxPool.Disable {
 		backend.txPool2Fetch.ConnectCore()
