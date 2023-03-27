@@ -205,7 +205,7 @@ func (l *FlatDBTrieLoader) SetProofReturn(accProofResult *accounts.AccProofResul
 //	   SkipAccounts:
 //			use(AccTrie)
 //		}
-func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, prefix []byte, ctx context.Context) (libcommon.Hash, error) {
+func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, ctx context.Context) (libcommon.Hash, error) {
 	r, ctx := NewAsyncReceiver(ctx, l.receiver)
 	quit := ctx.Done()
 
@@ -1575,7 +1575,7 @@ func CastTrieNodeValue(hashes, rootHash []byte) []libcommon.Hash {
 func CalcRoot(logPrefix string, tx kv.Tx) (libcommon.Hash, error) {
 	loader := NewFlatDBTrieLoader(logPrefix, NewRetainList(0), nil, nil, false)
 
-	h, err := loader.CalcTrieRoot(tx, nil, context.Background())
+	h, err := loader.CalcTrieRoot(tx, context.Background())
 	if err != nil {
 		return EmptyRoot, err
 	}
