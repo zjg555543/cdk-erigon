@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -29,7 +30,6 @@ import (
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/torquem-ch/mdbx-go/mdbx"
-	atomic2 "go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
@@ -133,7 +133,7 @@ func ExecV3(ctx context.Context,
 
 	var block, stageProgress uint64
 	var maxTxNum uint64
-	var outputTxNum = atomic2.NewUint64(0)
+	outputTxNum := atomic.Uint64{}
 	var inputTxNum uint64
 	if execStage.BlockNumber > 0 {
 		stageProgress = execStage.BlockNumber
@@ -158,7 +158,7 @@ func ExecV3(ctx context.Context,
 				return err
 			}
 			outputTxNum.Store(_outputTxNum)
-			outputTxNum.Inc()
+			outputTxNum.Add(1)
 			inputTxNum = outputTxNum.Load()
 		}
 	} else {
@@ -174,7 +174,7 @@ func ExecV3(ctx context.Context,
 					return err
 				}
 				outputTxNum.Store(_outputTxNum)
-				outputTxNum.Inc()
+				outputTxNum.Add(1)
 				inputTxNum = outputTxNum.Load()
 			}
 			return nil
@@ -185,10 +185,10 @@ func ExecV3(ctx context.Context,
 	agg.SetTxNum(inputTxNum)
 
 	var outputBlockNum = syncMetrics[stages.Execution]
-	var inputBlockNum = atomic2.NewUint64(0)
+	inputBlockNum := &atomic.Uint64{}
 	var count uint64
-	var repeatCount, triggerCount = atomic2.NewUint64(0), atomic2.NewUint64(0)
-	var resultsSize = atomic2.NewInt64(0)
+	var repeatCount, triggerCount = &atomic.Uint64{}, &atomic.Uint64{}
+	resultsSize := &atomic.Int64{}
 	var lock sync.RWMutex
 
 	queueSize := workerCount // workerCount * 4 // when wait cond can be moved inside txs loop
@@ -658,7 +658,7 @@ Loop:
 					return fmt.Errorf("StateV3.Apply: %w", err)
 				}
 				triggerCount.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum))
-				outputTxNum.Inc()
+				outputTxNum.Add(1)
 
 				if err := rs.ApplyHistory(txTask, agg); err != nil {
 					return fmt.Errorf("StateV3.Apply: %w", err)
@@ -768,7 +768,7 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 	return b, nil
 }
 
-func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic2.Uint64, rwsCond *sync.Cond, applyWorker *exec3.Worker) (resultSize int64, outputTxNum, conflicts, processedBlockNum uint64, err error) {
+func processResultQueue(rws *exec22.TxTaskQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, triggerCount *atomic.Uint64, rwsCond *sync.Cond, applyWorker *exec3.Worker) (resultSize int64, outputTxNum, conflicts, processedBlockNum uint64, err error) {
 	var i int
 	outputTxNum = outputTxNumIn
 	for rws.Len() > 0 && (*rws)[0].TxNum == outputTxNum {
@@ -1024,78 +1024,86 @@ func reconstituteStep(last bool,
 		return h
 	}
 
-	var err error // avoid declare global mutable variable
-	for bn := startBlockNum; bn <= endBlockNum; bn++ {
-		t = time.Now()
-		b, err = blockWithSenders(chainDb, nil, blockReader, bn)
-		if err != nil {
+	if err := func() (err error) {
+		defer func() {
+			close(workCh)
+			reconDone <- struct{}{} // Complete logging and committing go-routine
+			_ = g.Wait()
+		}()
+
+		for bn := startBlockNum; bn <= endBlockNum; bn++ {
+			t = time.Now()
+			b, err = blockWithSenders(chainDb, nil, blockReader, bn)
+			if err != nil {
+				return err
+			}
+			if b == nil {
+				return fmt.Errorf("could not find block %d\n", bn)
+			}
+			txs := b.Transactions()
+			header := b.HeaderNoCopy()
+			skipAnalysis := core.SkipAnalysis(chainConfig, bn)
+			signer := *types.MakeSigner(chainConfig, bn)
+
+			f := core.GetHashFn(header, getHeaderFunc)
+			getHashFnMute := &sync.Mutex{}
+			getHashFn := func(n uint64) common.Hash {
+				getHashFnMute.Lock()
+				defer getHashFnMute.Unlock()
+				return f(n)
+			}
+			blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
+			rules := chainConfig.Rules(bn, b.Time())
+
+			for txIndex := -1; txIndex <= len(txs); txIndex++ {
+				if bitmap.Contains(inputTxNum) {
+					binary.BigEndian.PutUint64(txKey[:], inputTxNum)
+					txTask := &exec22.TxTask{
+						BlockNum:        bn,
+						Header:          header,
+						Coinbase:        b.Coinbase(),
+						Uncles:          b.Uncles(),
+						Rules:           rules,
+						TxNum:           inputTxNum,
+						Txs:             txs,
+						TxIndex:         txIndex,
+						BlockHash:       b.Hash(),
+						SkipAnalysis:    skipAnalysis,
+						Final:           txIndex == len(txs),
+						GetHashFn:       getHashFn,
+						EvmBlockContext: blockContext,
+						Withdrawals:     b.Withdrawals(),
+					}
+					if txIndex >= 0 && txIndex < len(txs) {
+						txTask.Tx = txs[txIndex]
+						txTask.TxAsMessage, err = txTask.Tx.AsMessage(signer, header.BaseFee, txTask.Rules)
+						if err != nil {
+							return err
+						}
+						if sender, ok := txs[txIndex].GetSender(); ok {
+							txTask.Sender = &sender
+						}
+					} else {
+						txTask.Txs = txs
+					}
+
+					select {
+					case workCh <- txTask:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+				}
+				inputTxNum++
+			}
+
+			core.BlockExecutionTimer.UpdateDuration(t)
+			syncMetrics[stages.Execution].Set(bn)
+		}
+		if err := g.Wait(); err != nil {
 			return err
 		}
-		if b == nil {
-			return fmt.Errorf("could not find block %d\n", bn)
-		}
-		txs := b.Transactions()
-		header := b.HeaderNoCopy()
-		skipAnalysis := core.SkipAnalysis(chainConfig, bn)
-		signer := *types.MakeSigner(chainConfig, bn)
-
-		f := core.GetHashFn(header, getHeaderFunc)
-		getHashFnMute := &sync.Mutex{}
-		getHashFn := func(n uint64) common.Hash {
-			getHashFnMute.Lock()
-			defer getHashFnMute.Unlock()
-			return f(n)
-		}
-		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
-		rules := chainConfig.Rules(bn, b.Time())
-
-		for txIndex := -1; txIndex <= len(txs); txIndex++ {
-			if bitmap.Contains(inputTxNum) {
-				binary.BigEndian.PutUint64(txKey[:], inputTxNum)
-				txTask := &exec22.TxTask{
-					BlockNum:        bn,
-					Header:          header,
-					Coinbase:        b.Coinbase(),
-					Uncles:          b.Uncles(),
-					Rules:           rules,
-					TxNum:           inputTxNum,
-					Txs:             txs,
-					TxIndex:         txIndex,
-					BlockHash:       b.Hash(),
-					SkipAnalysis:    skipAnalysis,
-					Final:           txIndex == len(txs),
-					GetHashFn:       getHashFn,
-					EvmBlockContext: blockContext,
-					Withdrawals:     b.Withdrawals(),
-				}
-				if txIndex >= 0 && txIndex < len(txs) {
-					txTask.Tx = txs[txIndex]
-					txTask.TxAsMessage, err = txTask.Tx.AsMessage(signer, header.BaseFee, txTask.Rules)
-					if err != nil {
-						return err
-					}
-					if sender, ok := txs[txIndex].GetSender(); ok {
-						txTask.Sender = &sender
-					}
-				} else {
-					txTask.Txs = txs
-				}
-				workCh <- txTask
-			}
-			inputTxNum++
-		}
-
-		core.BlockExecutionTimer.UpdateDuration(t)
-		syncMetrics[stages.Execution].Set(bn)
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-	}
-	close(workCh)
-	reconDone <- struct{}{} // Complete logging and committing go-routine
-	if err := g.Wait(); err != nil {
+		return nil
+	}(); err != nil {
 		return err
 	}
 
@@ -1103,7 +1111,7 @@ func reconstituteStep(last bool,
 		roTxs[i].Rollback()
 	}
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
-		if err = rs.Flush(tx); err != nil {
+		if err := rs.Flush(tx); err != nil {
 			return err
 		}
 		return nil
@@ -1119,55 +1127,55 @@ func reconstituteStep(last bool,
 	defer plainContractCollector.Close()
 	var transposedKey []byte
 
-	if err = db.View(ctx, func(roTx kv.Tx) error {
-		clear := kv.ReadAhead(ctx, db, atomic2.NewBool(false), kv.PlainStateR, nil, math.MaxUint32)
+	if err := db.View(ctx, func(roTx kv.Tx) error {
+		clear := kv.ReadAhead(ctx, db, &atomic.Bool{}, kv.PlainStateR, nil, math.MaxUint32)
 		defer clear()
-		if err = roTx.ForEach(kv.PlainStateR, nil, func(k, v []byte) error {
+		if err := roTx.ForEach(kv.PlainStateR, nil, func(k, v []byte) error {
 			transposedKey = append(transposedKey[:0], k[8:]...)
 			transposedKey = append(transposedKey, k[:8]...)
 			return plainStateCollector.Collect(transposedKey, v)
 		}); err != nil {
 			return err
 		}
-		clear2 := kv.ReadAhead(ctx, db, atomic2.NewBool(false), kv.PlainStateD, nil, math.MaxUint32)
+		clear2 := kv.ReadAhead(ctx, db, &atomic.Bool{}, kv.PlainStateD, nil, math.MaxUint32)
 		defer clear2()
-		if err = roTx.ForEach(kv.PlainStateD, nil, func(k, v []byte) error {
+		if err := roTx.ForEach(kv.PlainStateD, nil, func(k, v []byte) error {
 			transposedKey = append(transposedKey[:0], v...)
 			transposedKey = append(transposedKey, k...)
 			return plainStateCollector.Collect(transposedKey, nil)
 		}); err != nil {
 			return err
 		}
-		clear3 := kv.ReadAhead(ctx, db, atomic2.NewBool(false), kv.CodeR, nil, math.MaxUint32)
+		clear3 := kv.ReadAhead(ctx, db, &atomic.Bool{}, kv.CodeR, nil, math.MaxUint32)
 		defer clear3()
-		if err = roTx.ForEach(kv.CodeR, nil, func(k, v []byte) error {
+		if err := roTx.ForEach(kv.CodeR, nil, func(k, v []byte) error {
 			transposedKey = append(transposedKey[:0], k[8:]...)
 			transposedKey = append(transposedKey, k[:8]...)
 			return codeCollector.Collect(transposedKey, v)
 		}); err != nil {
 			return err
 		}
-		clear4 := kv.ReadAhead(ctx, db, atomic2.NewBool(false), kv.CodeD, nil, math.MaxUint32)
+		clear4 := kv.ReadAhead(ctx, db, &atomic.Bool{}, kv.CodeD, nil, math.MaxUint32)
 		defer clear4()
-		if err = roTx.ForEach(kv.CodeD, nil, func(k, v []byte) error {
+		if err := roTx.ForEach(kv.CodeD, nil, func(k, v []byte) error {
 			transposedKey = append(transposedKey[:0], v...)
 			transposedKey = append(transposedKey, k...)
 			return codeCollector.Collect(transposedKey, nil)
 		}); err != nil {
 			return err
 		}
-		clear5 := kv.ReadAhead(ctx, db, atomic2.NewBool(false), kv.PlainContractR, nil, math.MaxUint32)
+		clear5 := kv.ReadAhead(ctx, db, &atomic.Bool{}, kv.PlainContractR, nil, math.MaxUint32)
 		defer clear5()
-		if err = roTx.ForEach(kv.PlainContractR, nil, func(k, v []byte) error {
+		if err := roTx.ForEach(kv.PlainContractR, nil, func(k, v []byte) error {
 			transposedKey = append(transposedKey[:0], k[8:]...)
 			transposedKey = append(transposedKey, k[:8]...)
 			return plainContractCollector.Collect(transposedKey, v)
 		}); err != nil {
 			return err
 		}
-		clear6 := kv.ReadAhead(ctx, db, atomic2.NewBool(false), kv.PlainContractD, nil, math.MaxUint32)
+		clear6 := kv.ReadAhead(ctx, db, &atomic.Bool{}, kv.PlainContractD, nil, math.MaxUint32)
 		defer clear6()
-		if err = roTx.ForEach(kv.PlainContractD, nil, func(k, v []byte) error {
+		if err := roTx.ForEach(kv.PlainContractD, nil, func(k, v []byte) error {
 			transposedKey = append(transposedKey[:0], v...)
 			transposedKey = append(transposedKey, k...)
 			return plainContractCollector.Collect(transposedKey, nil)
@@ -1178,33 +1186,33 @@ func reconstituteStep(last bool,
 	}); err != nil {
 		return err
 	}
-	if err = db.Update(ctx, func(tx kv.RwTx) error {
-		if err = tx.ClearBucket(kv.PlainStateR); err != nil {
+	if err := db.Update(ctx, func(tx kv.RwTx) error {
+		if err := tx.ClearBucket(kv.PlainStateR); err != nil {
 			return err
 		}
-		if err = tx.ClearBucket(kv.PlainStateD); err != nil {
+		if err := tx.ClearBucket(kv.PlainStateD); err != nil {
 			return err
 		}
-		if err = tx.ClearBucket(kv.CodeR); err != nil {
+		if err := tx.ClearBucket(kv.CodeR); err != nil {
 			return err
 		}
-		if err = tx.ClearBucket(kv.CodeD); err != nil {
+		if err := tx.ClearBucket(kv.CodeD); err != nil {
 			return err
 		}
-		if err = tx.ClearBucket(kv.PlainContractR); err != nil {
+		if err := tx.ClearBucket(kv.PlainContractR); err != nil {
 			return err
 		}
-		if err = tx.ClearBucket(kv.PlainContractD); err != nil {
+		if err := tx.ClearBucket(kv.PlainContractD); err != nil {
 			return err
 		}
 		return nil
 	}); err != nil {
 		return err
 	}
-	if err = chainDb.Update(ctx, func(tx kv.RwTx) error {
+	if err := chainDb.Update(ctx, func(tx kv.RwTx) error {
 		var lastKey []byte
 		var lastVal []byte
-		if err = plainStateCollector.Load(tx, kv.PlainState, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
+		if err := plainStateCollector.Load(tx, kv.PlainState, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
 			if !bytes.Equal(k[:len(k)-8], lastKey) {
 				if lastKey != nil {
 					if e := next(lastKey, lastKey, lastVal); e != nil {
@@ -1236,7 +1244,7 @@ func reconstituteStep(last bool,
 		}
 		lastKey = nil
 		lastVal = nil
-		if err = codeCollector.Load(tx, kv.Code, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
+		if err := codeCollector.Load(tx, kv.Code, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
 			if !bytes.Equal(k[:len(k)-8], lastKey) {
 				if lastKey != nil {
 					if e := next(lastKey, lastKey, lastVal); e != nil {
@@ -1268,7 +1276,7 @@ func reconstituteStep(last bool,
 		}
 		lastKey = nil
 		lastVal = nil
-		if err = plainContractCollector.Load(tx, kv.PlainContractCode, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
+		if err := plainContractCollector.Load(tx, kv.PlainContractCode, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
 			if !bytes.Equal(k[:len(k)-8], lastKey) {
 				if lastKey != nil {
 					if e := next(lastKey, lastKey, lastVal); e != nil {
