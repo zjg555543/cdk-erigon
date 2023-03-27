@@ -132,6 +132,22 @@ type RootHashAggregator struct {
 	cutoff     bool
 }
 
+type StreamReceiver interface {
+	Receive(
+		itemType StreamItem,
+		accountKey []byte,
+		storageKey []byte,
+		accountValue *accounts.Account,
+		storageValue []byte,
+		hash []byte,
+		hasTree bool,
+		cutoff int,
+	) error
+
+	Result() SubTries
+	Root() libcommon.Hash
+}
+
 func NewRootHashAggregator() *RootHashAggregator {
 	return &RootHashAggregator{
 		hb: NewHashBuilder(false),
@@ -386,8 +402,8 @@ func NewAsyncReceiver(ctx context.Context, r StreamReceiver) (*AsyncReceiver, co
 	})
 	return &AsyncReceiver{ch: ch, g: g, r: r}, ctx
 }
-func (r *AsyncReceiver) Result() SubTries  { return r.r.Result() }
-func (r *AsyncReceiver) Root() common.Hash { return r.r.Root() }
+func (r *AsyncReceiver) Result() SubTries     { return r.r.Result() }
+func (r *AsyncReceiver) Root() libcommon.Hash { return r.r.Root() }
 func (r *AsyncReceiver) Wait() error {
 	close(r.ch)
 	return r.g.Wait()
@@ -586,6 +602,10 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 // 		r.trace = bytes.HasPrefix(r.currAccK, common.FromHex(acc)) && bytes.HasPrefix(r.succStorage.Bytes(), common.FromHex(st))
 // 	}
 // }
+
+func (r *RootHashAggregator) Result() SubTries {
+	panic("don't call me")
+}
 
 func (r *RootHashAggregator) Root() libcommon.Hash {
 	return r.root
