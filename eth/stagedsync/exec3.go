@@ -1026,9 +1026,11 @@ func reconstituteStep(last bool,
 
 	if err := func() (err error) {
 		defer func() {
+			log.Warn("defer done1")
 			close(workCh)
 			reconDone <- struct{}{} // Complete logging and committing go-routine
 			_ = g.Wait()
+			log.Warn("defer done2")
 		}()
 
 		for bn := startBlockNum; bn <= endBlockNum; bn++ {
