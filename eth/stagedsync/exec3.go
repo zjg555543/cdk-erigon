@@ -1029,6 +1029,12 @@ func reconstituteStep(last bool,
 			log.Warn("defer done1")
 			close(workCh)
 			reconDone <- struct{}{} // Complete logging and committing go-routine
+
+			if waitErr := g.Wait(); waitErr != nil {
+				if err == nil {
+					err = waitErr
+				}
+			}
 			_ = g.Wait()
 			log.Warn("defer done2")
 		}()
@@ -1101,10 +1107,7 @@ func reconstituteStep(last bool,
 			core.BlockExecutionTimer.UpdateDuration(t)
 			syncMetrics[stages.Execution].Set(bn)
 		}
-		if err := g.Wait(); err != nil {
-			return err
-		}
-		return nil
+		return err
 	}(); err != nil {
 		return err
 	}
