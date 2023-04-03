@@ -192,8 +192,8 @@ func ExecV3(ctx context.Context,
 	resultsSize := &atomic.Int64{}
 	var lock sync.RWMutex
 
-	execQueueLimit := workerCount // workerCount * 4 // when wait cond can be moved inside txs loop
-	resQueueLimit := workerCount  // workerCount * 4
+	execQueueLimit := workerCount * 4 // workerCount * 4 // when wait cond can be moved inside txs loop
+	resQueueLimit := workerCount      // workerCount * 4
 	execWorkers, applyWorker, resultCh, stopWorkers, waitWorkers := exec3.NewWorkersPool(lock.RLocker(), ctx, parallel, chainDb, rs, blockReader, chainConfig, logger, genesis, engine, workerCount+1)
 	defer stopWorkers()
 	applyWorker.DiscardReadList()
