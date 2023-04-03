@@ -329,9 +329,6 @@ func (rs *StateV3) Finish() {
 }
 
 func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
-	rs.lock.Lock()
-	defer rs.lock.Unlock()
-
 	if len(txTask.AccountDels) > 0 {
 		cursor, err := roTx.Cursor(kv.PlainState)
 		if err != nil {
@@ -438,9 +435,6 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 
 func (rs *StateV3) applyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.AggregatorV3) error {
 	emptyRemoval := txTask.Rules.IsSpuriousDragon
-	rs.lock.Lock()
-	defer rs.lock.Unlock()
-
 	for addr, increase := range txTask.BalanceIncreaseSet {
 		increase := increase
 		addrBytes := addr.Bytes()
@@ -488,6 +482,8 @@ func (rs *StateV3) ApplyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 	defer agg.BatchHistoryWriteStart().BatchHistoryWriteEnd()
 
 	agg.SetTxNum(txTask.TxNum)
+	rs.lock.Lock()
+	defer rs.lock.Unlock()
 	if err := rs.writeStateHistory(roTx, txTask, agg); err != nil {
 		return err
 	}
