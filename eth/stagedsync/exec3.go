@@ -255,11 +255,16 @@ func ExecV3(ctx context.Context,
 			processedTxNum, conflicts, triggers, processedBlockNum, err := func() (processedTxNum uint64, conflicts, triggers int, processedBlockNum uint64, err error) {
 				rwsLock.Lock()
 				defer rwsLock.Unlock()
-				return processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, rwsConsumed, applyWorker)
+				return processResultQueue(rws, outputTxNum.Load(), rs, agg, tx, nil, applyWorker)
 			}()
 			if err != nil {
 				return err
 			}
+			select {
+			case rwsConsumed <- struct{}{}:
+			default:
+			}
+
 			ExecRepeats.Add(conflicts)
 			ExecTriggers.Add(triggers)
 			if processedBlockNum > lastBlockNum {
