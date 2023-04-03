@@ -548,11 +548,7 @@ Loop:
 			}
 
 			func() {
-				//needWait := rs.QueueLen() > queueSize
-				//if !needWait {
-				//	return
-				//}
-				for rs.QueueLen() > execQueueLimit || rws.LenLocked(&rwsLock) > resQueueLimit || rs.SizeEstimate() >= commitThreshold {
+				for rs.SizeEstimate() >= commitThreshold || rs.QueueLen() > execQueueLimit || rws.LenLocked(&rwsLock) > resQueueLimit {
 					select {
 					case <-ctx.Done():
 						return
