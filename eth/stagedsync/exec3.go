@@ -552,7 +552,9 @@ Loop:
 				//if !needWait {
 				//	return
 				//}
-				for rs.QueueLen() > execQueueLimit || rws.LenLocked(&rwsLock) > resQueueLimit || rs.SizeEstimate() >= commitThreshold {
+				rwsLock.Lock()
+				defer rwsLock.Unlock()
+				for rws.Len() > resQueueLimit || rs.QueueLen() > execQueueLimit || rs.SizeEstimate() >= commitThreshold {
 					select {
 					case <-ctx.Done():
 						return
