@@ -15,6 +15,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/state"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 )
 
 //Variables Naming:
@@ -70,6 +71,8 @@ func New(db kv.RwDB, agg *state.AggregatorV3, cb1 tConvertV3toV2, cb2 tRestoreCo
 
 	return &DB{RwDB: db, agg: agg, convertV3toV2: cb1, restoreCodeHash: cb2, parseInc: cb3, systemContractLookup: systemContractLookup}, nil
 }
+func (db *DB) Agg() *state.AggregatorV3 { return db.agg }
+
 func (db *DB) BeginTemporalRo(ctx context.Context) (kv.TemporalTx, error) {
 	kvTx, err := db.RwDB.BeginRo(ctx)
 	if err != nil {
@@ -103,7 +106,7 @@ func (db *DB) View(ctx context.Context, f func(tx kv.Tx) error) error {
 }
 
 func (db *DB) BeginTemporalRw(ctx context.Context) (kv.RwTx, error) {
-	kvTx, err := db.RwDB.BeginRw(ctx)
+	kvTx, err := db.RwDB.BeginRw(ctx) //nolint:gocritic
 	if err != nil {
 		return nil, err
 	}
@@ -121,11 +124,14 @@ func (db *DB) Update(ctx context.Context, f func(tx kv.RwTx) error) error {
 		return err
 	}
 	defer tx.Rollback()
-	return f(tx)
+	if err = f(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (db *DB) BeginTemporalRwNosync(ctx context.Context) (kv.RwTx, error) {
-	kvTx, err := db.RwDB.BeginRwNosync(ctx)
+	kvTx, err := db.RwDB.BeginRwNosync(ctx) //nolint:gocritic
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +141,7 @@ func (db *DB) BeginTemporalRwNosync(ctx context.Context) (kv.RwTx, error) {
 	return tx, nil
 }
 func (db *DB) BeginRwNosync(ctx context.Context) (kv.RwTx, error) {
-	return db.BeginTemporalRwNosync(ctx)
+	return db.BeginTemporalRwNosync(ctx) //nolint:gocritic
 }
 func (db *DB) UpdateNosync(ctx context.Context, f func(tx kv.RwTx) error) error {
 	tx, err := db.BeginTemporalRwNosync(ctx)
@@ -143,7 +149,10 @@ func (db *DB) UpdateNosync(ctx context.Context, f func(tx kv.RwTx) error) error 
 		return err
 	}
 	defer tx.Rollback()
-	return f(tx)
+	if err = f(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 type Tx struct {
@@ -153,6 +162,8 @@ type Tx struct {
 	resourcesToClose []kv.Closer
 }
 
+func (tx *Tx) AggCtx() *state.AggregatorV3Context { return tx.agg }
+func (tx *Tx) Agg() *state.AggregatorV3           { return tx.db.agg }
 func (tx *Tx) Rollback() {
 	for _, closer := range tx.resourcesToClose {
 		closer.Close()
@@ -278,7 +289,28 @@ func (tx *Tx) DomainRange(name kv.Domain, fromKey, toKey []byte, asOfTs uint64, 
 
 	return it, nil
 }
-func (tx *Tx) DomainGet(name kv.Domain, key, key2 []byte, ts uint64) (v []byte, ok bool, err error) {
+func (tx *Tx) DomainGet(name kv.Domain, key, key2 []byte) (v []byte, ok bool, err error) {
+	if ethconfig.EnableHistoryV4InTest {
+		panic("implement me")
+	}
+	switch name {
+	case AccountsDomain:
+		v, err = tx.GetOne(kv.PlainState, key)
+		return v, v != nil, err
+	case StorageDomain:
+		v, err = tx.GetOne(kv.PlainState, append(common.Copy(key), key2...))
+		return v, v != nil, err
+	case CodeDomain:
+		v, err = tx.GetOne(kv.Code, key2)
+		return v, v != nil, err
+	default:
+		panic(fmt.Sprintf("unexpected: %s", name))
+	}
+}
+func (tx *Tx) DomainGetAsOf(name kv.Domain, key, key2 []byte, ts uint64) (v []byte, ok bool, err error) {
+	if ethconfig.EnableHistoryV4InTest {
+		panic("implement me")
+	}
 	switch name {
 	case AccountsDomain:
 		v, ok, err = tx.HistoryGet(AccountsHistory, key, ts)

@@ -290,7 +290,7 @@ func traceFilterBitmapsV3(tx kv.TemporalTx, req TraceFilterRequest, from, to uin
 
 	for _, addr := range req.FromAddress {
 		if addr != nil {
-			it, err := tx.IndexRange(temporal.TracesFromIdx, addr.Bytes(), int(from), int(to), order.Asc, -1)
+			it, err := tx.IndexRange(temporal.TracesFromIdx, addr.Bytes(), int(from), int(to), order.Asc, kv.Unlim)
 			if errors.Is(err, ethdb.ErrKeyNotFound) {
 				continue
 			}
@@ -301,7 +301,7 @@ func traceFilterBitmapsV3(tx kv.TemporalTx, req TraceFilterRequest, from, to uin
 
 	for _, addr := range req.ToAddress {
 		if addr != nil {
-			it, err := tx.IndexRange(temporal.TracesToIdx, addr.Bytes(), int(from), int(to), order.Asc, -1)
+			it, err := tx.IndexRange(temporal.TracesToIdx, addr.Bytes(), int(from), int(to), order.Asc, kv.Unlim)
 			if errors.Is(err, ethdb.ErrKeyNotFound) {
 				continue
 			}
@@ -961,7 +961,7 @@ func (api *TraceAPIImpl) callManyTransactions(
 	}
 	engine := api.engine()
 	consensusHeaderReader := stagedsync.NewChainReaderImpl(cfg, dbtx, nil)
-	err = core.InitializeBlockExecution(engine.(consensus.Engine), consensusHeaderReader, nil, block.HeaderNoCopy(), block.Transactions(), block.Uncles(), cfg, stateDb)
+	err = core.InitializeBlockExecution(engine.(consensus.Engine), consensusHeaderReader, block.HeaderNoCopy(), block.Transactions(), block.Uncles(), cfg, stateDb, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -982,7 +982,7 @@ func (api *TraceAPIImpl) callManyTransactions(
 		// gnosis might have a fee free account here
 		if msg.FeeCap().IsZero() && engine != nil {
 			syscall := func(contract common.Address, data []byte) ([]byte, error) {
-				return core.SysCallContract(contract, data, *cfg, stateDb, header, engine, true /* constCall */)
+				return core.SysCallContract(contract, data, *cfg, stateDb, header, engine, true /* constCall */, nil /*excessDataGas*/)
 			}
 			msg.SetIsFree(engine.IsServiceTransaction(msg.From(), syscall))
 		}
