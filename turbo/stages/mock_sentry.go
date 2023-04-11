@@ -392,6 +392,7 @@ func MockWithEverything(t *testing.T, gspec *types.Genesis, key *ecdsa.PrivateKe
 
 	var snapshotsDownloader proto_downloader.DownloaderClient
 	ethconfig.Defaults.Sync.ExecWorkerCount = 1
+	ethconfig.Defaults.Sync.ReconWorkerCount = 1
 	blockRetire := snapshotsync.NewBlockRetire(1, dirs.Tmp, mock.BlockSnapshots, mock.DB, snapshotsDownloader, mock.Notifications.Events)
 	mock.Sync = stagedsync.New(
 		stagedsync.DefaultStages(mock.Ctx,
