@@ -139,7 +139,7 @@ func TestSetupGenesis(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			db := memdb.NewTestDB(t)
+			db := memdb.NewTestDB(kv.ChainDB, t)
 			config, genesis, err := test.fn(db)
 			// Check the return values.
 			if !reflect.DeepEqual(err, test.wantErr) {

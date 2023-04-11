@@ -28,7 +28,7 @@ func main() {
 	s := grpc.NewServer(grpc.MaxRecvMsgSize(int(maxReceiveSize)))
 	var db kv.RwDB
 	if *datadir == "" {
-		db = memdb.New("")
+		db = memdb.New(kv.ChainDB, "")
 	} else {
 		db, err = mdbx.Open(*datadir, log.Root(), false)
 		if err != nil {

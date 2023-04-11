@@ -26,6 +26,7 @@ import (
 
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 	"github.com/ledgerwatch/erigon/accounts/abi"
 	"github.com/ledgerwatch/erigon/common"
@@ -152,7 +153,7 @@ func BenchmarkCall(b *testing.B) {
 		b.Fatal(err)
 	}
 	cfg := &Config{}
-	db := memdb.New("")
+	db := memdb.New(kv.ChainDB, "")
 	defer db.Close()
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {

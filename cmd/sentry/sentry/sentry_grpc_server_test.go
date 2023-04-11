@@ -68,8 +68,8 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			SpuriousDragonBlock:   big.NewInt(2),
 			ByzantiumBlock:        big.NewInt(3),
 		}
-		dbNoFork  = memdb.NewTestDB(t)
-		dbProFork = memdb.NewTestDB(t)
+		dbNoFork  = memdb.NewTestDB(kv.ChainDB, t)
+		dbProFork = memdb.NewTestDB(kv.ChainDB, t)
 
 		gspecNoFork  = &types.Genesis{Config: configNoFork}
 		gspecProFork = &types.Genesis{Config: configProFork}
@@ -161,7 +161,7 @@ func TestSentryServerImpl_SetStatusInitPanic(t *testing.T) {
 	}()
 
 	configNoFork := &chain.Config{HomesteadBlock: big.NewInt(1), ChainID: big.NewInt(1)}
-	dbNoFork := memdb.NewTestDB(t)
+	dbNoFork := memdb.NewTestDB(kv.ChainDB, t)
 	gspecNoFork := &types.Genesis{Config: configNoFork}
 	genesisNoFork := core.MustCommitGenesis(gspecNoFork, dbNoFork, "")
 	ss := &GrpcServer{p2p: &p2p.Config{}}

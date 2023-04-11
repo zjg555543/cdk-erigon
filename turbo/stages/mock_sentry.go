@@ -316,7 +316,7 @@ func MockWithEverything(t *testing.T, gspec *types.Genesis, key *ecdsa.PrivateKe
 			t.Fatal(err)
 		}
 
-		mock.txPoolDB = memdb.NewPoolDB(tmpdir)
+		mock.txPoolDB = memdb.New(kv.TxPoolDB, tmpdir)
 
 		stateChangesClient := direct.NewStateDiffClientDirect(erigonGrpcServeer)
 

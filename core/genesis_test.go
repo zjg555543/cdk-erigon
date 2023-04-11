@@ -22,7 +22,7 @@ import (
 )
 
 func TestGenesisBlockHashes(t *testing.T) {
-	db := memdb.NewTestDB(t)
+	db := memdb.NewTestDB(kv.ChainDB, t)
 	check := func(network string) {
 		genesis := core.GenesisBlockByChainName(network)
 		tx, err := db.BeginRw(context.Background())
@@ -101,7 +101,7 @@ func TestAllocConstructor(t *testing.T) {
 			address: {Constructor: deploymentCode, Balance: funds},
 		},
 	}
-	db := memdb.NewTestDB(t)
+	db := memdb.NewTestDB(kv.ChainDB, t)
 	defer db.Close()
 	_, _, err := core.CommitGenesisBlock(db, genSpec, "")
 	require.NoError(err)

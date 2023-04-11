@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 	"golang.org/x/crypto/sha3"
 
@@ -35,7 +36,7 @@ import (
 )
 
 func getBlock(transactions int, uncles int, dataSize int, tmpDir string) *types.Block {
-	db := memdb.New(tmpDir)
+	db := memdb.New(kv.ChainDB, tmpDir)
 	defer db.Close()
 	var (
 		aa = libcommon.HexToAddress("0x000000000000000000000000000000000000aaaa")

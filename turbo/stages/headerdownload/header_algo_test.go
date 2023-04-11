@@ -29,7 +29,7 @@ func TestInserter1(t *testing.T) {
 			address: {Balance: funds},
 		},
 	}
-	db := memdb.NewTestDB(t)
+	db := memdb.NewTestDB(kv.ChainDB, t)
 	defer db.Close()
 	_, genesis, err := core.CommitGenesisBlock(db, gspec, "")
 	if err != nil {

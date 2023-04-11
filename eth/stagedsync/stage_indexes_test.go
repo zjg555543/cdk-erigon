@@ -27,7 +27,7 @@ import (
 )
 
 func TestIndexGenerator_GenerateIndex_SimpleCase(t *testing.T) {
-	db := kv2.NewTestDB(t)
+	db := kv2.NewTestDB(kv.ChainDB, t)
 	cfg := StageHistoryCfg(db, prune.DefaultMode, t.TempDir())
 	test := func(blocksNum int, csBucket string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestIndexGenerator_GenerateIndex_SimpleCase(t *testing.T) {
 func TestIndexGenerator_Truncate(t *testing.T) {
 	buckets := []string{kv.AccountChangeSet, kv.StorageChangeSet}
 	tmpDir, ctx := t.TempDir(), context.Background()
-	kv := kv2.NewTestDB(t)
+	kv := kv2.NewTestDB(kv.ChainDB, t)
 	cfg := StageHistoryCfg(kv, prune.DefaultMode, t.TempDir())
 	for i := range buckets {
 		csbucket := buckets[i]

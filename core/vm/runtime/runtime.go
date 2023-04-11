@@ -117,7 +117,7 @@ func Execute(code, input []byte, cfg *Config, bn uint64) ([]byte, *state.IntraBl
 	var tx kv.RwTx
 	var err error
 	if !externalState {
-		db := memdb.New("")
+		db := memdb.New(kv.ChainDB, "")
 		defer db.Close()
 		tx, err = db.BeginRw(context.Background())
 		if err != nil {
@@ -163,7 +163,7 @@ func Create(input []byte, cfg *Config, blockNr uint64) ([]byte, libcommon.Addres
 	var tx kv.RwTx
 	var err error
 	if !externalState {
-		db := memdb.New("")
+		db := memdb.New(kv.ChainDB, "")
 		defer db.Close()
 		tx, err = db.BeginRw(context.Background())
 		if err != nil {

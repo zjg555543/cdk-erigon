@@ -22,7 +22,7 @@ import (
 )
 
 func TestExec(t *testing.T) {
-	ctx, db1, db2 := context.Background(), memdb.NewTestDB(t), memdb.NewTestDB(t)
+	ctx, db1, db2 := context.Background(), memdb.NewTestDB(kv.ChainDB, t), memdb.NewTestDB(kv.ChainDB, t)
 	cfg := ExecuteBlockCfg{}
 
 	t.Run("UnwindExecutionStagePlainStatic", func(t *testing.T) {
@@ -173,7 +173,7 @@ func newAgg(t *testing.T) *libstate.AggregatorV3 {
 }
 
 func TestExec22(t *testing.T) {
-	ctx, db1, db2 := context.Background(), memdb.NewTestDB(t), memdb.NewTestDB(t)
+	ctx, db1, db2 := context.Background(), memdb.NewTestDB(kv.ChainDB, t), memdb.NewTestDB(kv.ChainDB, t)
 	agg := newAgg(t)
 	cfg := ExecuteBlockCfg{historyV3: true, agg: agg}
 

@@ -27,6 +27,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 	"github.com/ledgerwatch/erigon/core/vm"
 	"github.com/ledgerwatch/erigon/eth/tracers/logger"
@@ -51,7 +52,7 @@ func TestState(t *testing.T) {
 	st.skipLoad(`.*vmPerformance/loop.*`)
 
 	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
-		db := memdb.NewTestDB(t)
+		db := memdb.NewTestDB(kv.ChainDB, t)
 		for _, subtest := range test.Subtests() {
 			subtest := subtest
 			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)

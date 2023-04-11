@@ -296,7 +296,7 @@ func OpenDatabase(config *nodecfg.Config, label kv.Label) (kv.RwDB, error) {
 	}
 	var db kv.RwDB
 	if config.Dirs.DataDir == "" {
-		db = memdb.New("")
+		db = memdb.New(kv.ChainDB, "")
 		return db, nil
 	}
 

@@ -97,7 +97,7 @@ import (
 */
 func TestRewardContract(t *testing.T) {
 	t.Skip("not ready yet")
-	auraDB, require := memdb.NewTestDB(t), require.New(t)
+	auraDB, require := memdb.NewTestDB(kv.ChainDB, t), require.New(t)
 	engine, err := aura.NewAuRa(nil, auraDB, libcommon.Address{}, test.AuthorityRoundBlockRewardContract)
 	require.NoError(err)
 	m := stages.MockWithGenesisEngine(t, core.ChiadoGenesisBlock(), engine, false)
@@ -204,7 +204,7 @@ func TestEmptyBlock(t *testing.T) {
 	genesis.Config.TerminalTotalDifficultyPassed = false
 
 	chainConfig := genesis.Config
-	auraDB := memdb.NewTestDB(t)
+	auraDB := memdb.NewTestDB(kv.ChainDB, t)
 	engine, err := aura.NewAuRa(chainConfig.Aura, auraDB, chainConfig.Aura.Etherbase, consensusconfig.GetConfigByChain(chainConfig.ChainName))
 	require.NoError(err)
 	m := stages.MockWithGenesisEngine(t, genesis, engine, false)
