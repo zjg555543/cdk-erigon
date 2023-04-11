@@ -317,7 +317,6 @@ func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chai
 				w.ResetTx(nil)
 			}
 			//applyWorker.ResetTx(nil)
-			log.Warn("before rws.Close()")
 			rws.Close()
 		}
 	}
