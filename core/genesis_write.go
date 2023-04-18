@@ -432,7 +432,7 @@ func GnosisWithdrawalsDevnet4GenesisBlock() *types.Genesis {
 		Config:     params.GnosisWithdrawalsDevnet4ChainConfig,
 		AuRaSeal:   common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 		GasLimit:   0x989680,
-		Difficulty: big.NewInt(0x01),
+		Difficulty: big.NewInt(0x20000),
 		BaseFee:    big.NewInt(0x3b9aca00),
 		Alloc:      readPrealloc("allocs/gnosis_withdrawals_devnet_4.json"),
 	}

@@ -59,7 +59,7 @@ var (
 	BorDevnetGenesisHash                = libcommon.HexToHash("0x5a06b25b0c6530708ea0b98a3409290e39dce6be7f558493aeb6e4b99a172a87")
 	GnosisGenesisHash                   = libcommon.HexToHash("0x4f1dd23188aab3a76b463e4af801b52b1248ef073c648cbdc4c9333d3da79756")
 	ChiadoGenesisHash                   = libcommon.HexToHash("0xada44fd8d2ecab8b08f256af07ad3e777f17fb434f8f8e678b312f576212ba9a")
-	GnosisWithdrawalsDevnet4GenesisHash = libcommon.HexToHash("0xd8a606a9d2ee419fdf0555a6875391fad6ac353299e193274fc7acb3e57520cc")
+	GnosisWithdrawalsDevnet4GenesisHash = libcommon.HexToHash("0xb720b95fd924b7c93e4647cb1f26df93da82c20dd7fed879a95517b4b38302f0")
 )
 
 var (

@@ -13,7 +13,7 @@
     "londonBlock": 0,
     "eip1559FeeCollectorTransition": 0,
     "eip1559FeeCollector": "0x1559000000000000000000000000000000000000",
-    "terminalTotalDifficulty": 8962697262330598189161823785145342921539584,
+    "terminalTotalDifficulty": 5230480261941745121895531090833709178290176,
     "shanghaiTime": 1681901960,
     "aura": {
         "stepDuration": 5,
