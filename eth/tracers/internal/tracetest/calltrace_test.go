@@ -26,8 +26,10 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
 
 	"github.com/ledgerwatch/erigon/common"
@@ -60,7 +62,7 @@ type callContext struct {
 type callLog struct {
 	Address libcommon.Address `json:"address"`
 	Topics  []libcommon.Hash  `json:"topics"`
-	Data    hexutil.Bytes     `json:"data"`
+	Data    hexutility.Bytes  `json:"data"`
 }
 
 // callTrace is the result of a callTracer run.
@@ -69,8 +71,8 @@ type callTrace struct {
 	Gas      *hexutil.Uint64   `json:"gas"`
 	GasUsed  *hexutil.Uint64   `json:"gasUsed"`
 	To       libcommon.Address `json:"to,omitempty"`
-	Input    hexutil.Bytes     `json:"input"`
-	Output   hexutil.Bytes     `json:"output,omitempty"`
+	Input    hexutility.Bytes  `json:"input"`
+	Output   hexutility.Bytes  `json:"output,omitempty"`
 	Error    string            `json:"error,omitempty"`
 	Revertal string            `json:"revertReason,omitempty"`
 	Calls    []callTrace       `json:"calls,omitempty"`
@@ -82,7 +84,7 @@ type callTrace struct {
 
 // callTracerTest defines a single test to check the call tracer against.
 type callTracerTest struct {
-	Genesis      *core.Genesis   `json:"genesis"`
+	Genesis      *types.Genesis  `json:"genesis"`
 	Context      *callContext    `json:"context"`
 	Input        string          `json:"input"`
 	TracerConfig json.RawMessage `json:"tracerConfig"`
@@ -315,12 +317,12 @@ func TestZeroValueToNotExitCall(t *testing.T) {
 		byte(vm.DUP1), byte(vm.PUSH1), 0xff, byte(vm.GAS), // value=0,address=0xff, gas=GAS
 		byte(vm.CALL),
 	}
-	var alloc = core.GenesisAlloc{
-		to: core.GenesisAccount{
+	var alloc = types.GenesisAlloc{
+		to: types.GenesisAccount{
 			Nonce: 1,
 			Code:  code,
 		},
-		origin: core.GenesisAccount{
+		origin: types.GenesisAccount{
 			Nonce:   0,
 			Balance: big.NewInt(500000000000000),
 		},

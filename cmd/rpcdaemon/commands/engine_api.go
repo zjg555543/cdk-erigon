@@ -10,6 +10,7 @@ import (
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/remote"
 	types2 "github.com/ledgerwatch/erigon-lib/gointerfaces/types"
@@ -29,17 +30,18 @@ type ExecutionPayload struct {
 	FeeRecipient  common.Address      `json:"feeRecipient"  gencodec:"required"`
 	StateRoot     common.Hash         `json:"stateRoot"     gencodec:"required"`
 	ReceiptsRoot  common.Hash         `json:"receiptsRoot"  gencodec:"required"`
-	LogsBloom     hexutil.Bytes       `json:"logsBloom"     gencodec:"required"`
+	LogsBloom     hexutility.Bytes    `json:"logsBloom"     gencodec:"required"`
 	PrevRandao    common.Hash         `json:"prevRandao"    gencodec:"required"`
 	BlockNumber   hexutil.Uint64      `json:"blockNumber"   gencodec:"required"`
 	GasLimit      hexutil.Uint64      `json:"gasLimit"      gencodec:"required"`
 	GasUsed       hexutil.Uint64      `json:"gasUsed"       gencodec:"required"`
 	Timestamp     hexutil.Uint64      `json:"timestamp"     gencodec:"required"`
-	ExtraData     hexutil.Bytes       `json:"extraData"     gencodec:"required"`
+	ExtraData     hexutility.Bytes    `json:"extraData"     gencodec:"required"`
 	BaseFeePerGas *hexutil.Big        `json:"baseFeePerGas" gencodec:"required"`
 	BlockHash     common.Hash         `json:"blockHash"     gencodec:"required"`
-	Transactions  []hexutil.Bytes     `json:"transactions"  gencodec:"required"`
+	Transactions  []hexutility.Bytes  `json:"transactions"  gencodec:"required"`
 	Withdrawals   []*types.Withdrawal `json:"withdrawals"`
+	ExcessDataGas *hexutil.Big        `json:"excessDataGas"`
 }
 
 // GetPayloadV2Response represents the response of the getPayloadV2 method
@@ -71,7 +73,7 @@ type TransitionConfiguration struct {
 }
 
 type ExecutionPayloadBodyV1 struct {
-	Transactions []hexutil.Bytes     `json:"transactions" gencodec:"required"`
+	Transactions []hexutility.Bytes  `json:"transactions" gencodec:"required"`
 	Withdrawals  []*types.Withdrawal `json:"withdrawals"  gencodec:"required"`
 }
 
@@ -81,8 +83,8 @@ type EngineAPI interface {
 	NewPayloadV2(context.Context, *ExecutionPayload) (map[string]interface{}, error)
 	ForkchoiceUpdatedV1(ctx context.Context, forkChoiceState *ForkChoiceState, payloadAttributes *PayloadAttributes) (map[string]interface{}, error)
 	ForkchoiceUpdatedV2(ctx context.Context, forkChoiceState *ForkChoiceState, payloadAttributes *PayloadAttributes) (map[string]interface{}, error)
-	GetPayloadV1(ctx context.Context, payloadID hexutil.Bytes) (*ExecutionPayload, error)
-	GetPayloadV2(ctx context.Context, payloadID hexutil.Bytes) (*GetPayloadV2Response, error)
+	GetPayloadV1(ctx context.Context, payloadID hexutility.Bytes) (*ExecutionPayload, error)
+	GetPayloadV2(ctx context.Context, payloadID hexutility.Bytes) (*GetPayloadV2Response, error)
 	ExchangeTransitionConfigurationV1(ctx context.Context, transitionConfiguration *TransitionConfiguration) (*TransitionConfiguration, error)
 	GetPayloadBodiesByHashV1(ctx context.Context, hashes []common.Hash) ([]*ExecutionPayloadBodyV1, error)
 	GetPayloadBodiesByRangeV1(ctx context.Context, start, count hexutil.Uint64) ([]*ExecutionPayloadBodyV1, error)
@@ -139,7 +141,7 @@ func addPayloadId(json map[string]interface{}, payloadId uint64) {
 	if payloadId != 0 {
 		encodedPayloadId := make([]byte, 8)
 		binary.BigEndian.PutUint64(encodedPayloadId, payloadId)
-		json["payloadId"] = hexutil.Bytes(encodedPayloadId)
+		json["payloadId"] = hexutility.Bytes(encodedPayloadId)
 	}
 }
 
@@ -151,13 +153,32 @@ func (e *EngineImpl) ForkchoiceUpdatedV2(ctx context.Context, forkChoiceState *F
 	return e.forkchoiceUpdated(2, ctx, forkChoiceState, payloadAttributes)
 }
 
+// Converts slice of pointers to slice of structs
+func withdrawalValues(ptrs []*types.Withdrawal) []types.Withdrawal {
+	if ptrs == nil {
+		return nil
+	}
+	vals := make([]types.Withdrawal, 0, len(ptrs))
+	for _, w := range ptrs {
+		vals = append(vals, *w)
+	}
+	return vals
+}
+
 func (e *EngineImpl) forkchoiceUpdated(version uint32, ctx context.Context, forkChoiceState *ForkChoiceState, payloadAttributes *PayloadAttributes) (map[string]interface{}, error) {
 	if e.internalCL {
 		log.Error("EXTERNAL CONSENSUS LAYER IS NOT ENABLED, PLEASE RESTART WITH FLAG --externalcl")
 		return nil, fmt.Errorf("engine api should not be used, restart with --externalcl")
 	}
-	log.Debug("Received ForkchoiceUpdated", "version", version, "head", forkChoiceState.HeadHash, "safe", forkChoiceState.HeadHash, "finalized", forkChoiceState.FinalizedBlockHash,
-		"build", payloadAttributes != nil)
+	if payloadAttributes == nil {
+		log.Debug("Received ForkchoiceUpdated", "version", version,
+			"head", forkChoiceState.HeadHash, "safe", forkChoiceState.SafeBlockHash, "finalized", forkChoiceState.FinalizedBlockHash)
+	} else {
+		log.Info("Received ForkchoiceUpdated [build]", "version", version,
+			"head", forkChoiceState.HeadHash, "safe", forkChoiceState.SafeBlockHash, "finalized", forkChoiceState.FinalizedBlockHash,
+			"timestamp", payloadAttributes.Timestamp, "prevRandao", payloadAttributes.PrevRandao, "suggestedFeeRecipient", payloadAttributes.SuggestedFeeRecipient,
+			"withdrawals", withdrawalValues(payloadAttributes.Withdrawals))
+	}
 
 	var attributes *remote.EnginePayloadAttributes
 	if payloadAttributes != nil {
@@ -222,7 +243,7 @@ func (e *EngineImpl) newPayload(version uint32, ctx context.Context, payload *Ex
 		return nil, fmt.Errorf("invalid request")
 	}
 
-	// Convert slice of hexutil.Bytes to a slice of slice of bytes
+	// Convert slice of hexutility.Bytes to a slice of slice of bytes
 	transactions := make([][]byte, len(payload.Transactions))
 	for i, transaction := range payload.Transactions {
 		transactions[i] = transaction
@@ -248,6 +269,17 @@ func (e *EngineImpl) newPayload(version uint32, ctx context.Context, payload *Ex
 		ep.Version = 2
 		ep.Withdrawals = privateapi.ConvertWithdrawalsToRpc(payload.Withdrawals)
 	}
+	if version >= 3 && payload.ExcessDataGas != nil {
+		ep.Version = 3
+		var excessDataGas *uint256.Int
+		var overflow bool
+		excessDataGas, overflow = uint256.FromBig((*big.Int)(payload.ExcessDataGas))
+		if overflow {
+			log.Warn("NewPayload ExcessDataGas overflow")
+			return nil, fmt.Errorf("invalid request, excess data gas overflow")
+		}
+		ep.ExcessDataGas = gointerfaces.ConvertUint256IntToH256(excessDataGas)
+	}
 
 	res, err := e.api.EngineNewPayload(ctx, ep)
 	if err != nil {
@@ -261,8 +293,8 @@ func convertPayloadFromRpc(payload *types2.ExecutionPayload) *ExecutionPayload {
 	var bloom types.Bloom = gointerfaces.ConvertH2048ToBloom(payload.LogsBloom)
 	baseFee := gointerfaces.ConvertH256ToUint256Int(payload.BaseFeePerGas).ToBig()
 
-	// Convert slice of hexutil.Bytes to a slice of slice of bytes
-	transactions := make([]hexutil.Bytes, len(payload.Transactions))
+	// Convert slice of hexutility.Bytes to a slice of slice of bytes
+	transactions := make([]hexutility.Bytes, len(payload.Transactions))
 	for i, transaction := range payload.Transactions {
 		transactions[i] = transaction
 	}
@@ -286,11 +318,14 @@ func convertPayloadFromRpc(payload *types2.ExecutionPayload) *ExecutionPayload {
 	if payload.Version >= 2 {
 		res.Withdrawals = privateapi.ConvertWithdrawalsFromRpc(payload.Withdrawals)
 	}
-
+	if payload.Version >= 3 {
+		edg := gointerfaces.ConvertH256ToUint256Int(payload.ExcessDataGas).ToBig()
+		res.ExcessDataGas = (*hexutil.Big)(edg)
+	}
 	return res
 }
 
-func (e *EngineImpl) GetPayloadV1(ctx context.Context, payloadID hexutil.Bytes) (*ExecutionPayload, error) {
+func (e *EngineImpl) GetPayloadV1(ctx context.Context, payloadID hexutility.Bytes) (*ExecutionPayload, error) {
 	if e.internalCL {
 		log.Error("EXTERNAL CONSENSUS LAYER IS NOT ENABLED, PLEASE RESTART WITH FLAG --externalcl")
 		return nil, fmt.Errorf("engine api should not be used, restart with --externalcl")
@@ -307,7 +342,7 @@ func (e *EngineImpl) GetPayloadV1(ctx context.Context, payloadID hexutil.Bytes) 
 	return convertPayloadFromRpc(response.ExecutionPayload), nil
 }
 
-func (e *EngineImpl) GetPayloadV2(ctx context.Context, payloadID hexutil.Bytes) (*GetPayloadV2Response, error) {
+func (e *EngineImpl) GetPayloadV2(ctx context.Context, payloadID hexutility.Bytes) (*GetPayloadV2Response, error) {
 	if e.internalCL {
 		log.Error("EXTERNAL CONSENSUS LAYER IS NOT ENABLED, PLEASE RESTART WITH FLAG --externalcl")
 		return nil, fmt.Errorf("engine api should not be used, restart with --externalcl")
@@ -448,7 +483,7 @@ func convertExecutionPayloadV1(response *remote.EngineGetPayloadBodiesV1Response
 			result[idx] = nil
 		} else {
 			pl := &ExecutionPayloadBodyV1{
-				Transactions: make([]hexutil.Bytes, len(body.Transactions)),
+				Transactions: make([]hexutility.Bytes, len(body.Transactions)),
 				Withdrawals:  privateapi.ConvertWithdrawalsFromRpc(body.Withdrawals),
 			}
 			for i := range body.Transactions {
