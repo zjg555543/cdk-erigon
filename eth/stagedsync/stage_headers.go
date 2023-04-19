@@ -733,11 +733,13 @@ func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, 
 	}
 	if interrupt == engineapi.Synced && cfg.hd.HeadersCollector() != nil {
 		saveDownloadedPoSHeaders(tx, cfg, headerInserter, false /* validate */)
+		log.Warn("[dbg] return interrupt=true 1", "initialCycle", initialCycle)
 		return true, nil
 	}
 	if initialCycle {
 		return false, nil
 	}
+	log.Warn("[dbg] return interrupt=true 2", "initialCycle", initialCycle)
 	return true, nil
 }
 
