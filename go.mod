@@ -153,6 +153,7 @@ require (
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20220405231054-a1ae3e4bba26 // indirect
+	github.com/iden3/go-iden3-crypto v0.0.14 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/ipfs/go-cid v0.3.2 // indirect
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
