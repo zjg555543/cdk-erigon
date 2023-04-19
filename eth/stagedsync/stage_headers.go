@@ -141,9 +141,15 @@ func SpawnStageHeaders(
 	}
 
 	if transitionedToPoS {
+		defer func() {
+			log.Warn("[dbg] exit after HeadersPOS", "initialCycle", initialCycle)
+		}()
 		libcommon.SafeClose(cfg.hd.QuitPoWMining)
 		return HeadersPOS(s, u, ctx, tx, cfg, initialCycle, test, useExternalTx, preProgress)
 	} else {
+		defer func() {
+			log.Warn("[dbg] exit after HeadersPOW", "initialCycle", initialCycle)
+		}()
 		return HeadersPOW(s, u, ctx, tx, cfg, initialCycle, test, useExternalTx)
 	}
 }
