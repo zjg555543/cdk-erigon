@@ -96,6 +96,8 @@ func SpawnStageHeaders(
 	initialCycle bool,
 	test bool, // Set to true in tests, allows the stage to fail rather than wait indefinitely
 ) error {
+	log.Warn("[dbg] stage headers", "initialCycle", initialCycle)
+
 	useExternalTx := tx != nil
 	if !useExternalTx {
 		var err error
