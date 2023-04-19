@@ -647,7 +647,9 @@ func saveDownloadedPoSHeaders(tx kv.RwTx, cfg HeadersCfg, headerInserter *header
 	var badChainError error
 	var foundPow bool
 
+	i := 0
 	headerLoadFunc := func(key, value []byte, _ etl.CurrentTableReader, _ etl.LoadNextFunc) error {
+		i++
 		var h types.Header
 		// no header to process
 		if value == nil {
@@ -698,6 +700,7 @@ func saveDownloadedPoSHeaders(tx kv.RwTx, cfg HeadersCfg, headerInserter *header
 		},
 	})
 
+	log.Warn("[dbg] saveDownloadedPoSHeaders", "i", i)
 	if err != nil || badChainError != nil {
 		if err == nil {
 			err = badChainError
