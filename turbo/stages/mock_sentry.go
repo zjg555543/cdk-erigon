@@ -426,6 +426,7 @@ func MockWithEverything(t *testing.T, gspec *types.Genesis, key *ecdsa.PrivateKe
 				dirs.Tmp,
 				mock.Notifications,
 				engineapi.NewForkValidatorMock(1),
+				nil,
 			),
 			stagedsync.StageCumulativeIndexCfg(mock.DB),
 			stagedsync.StageBlockHashesCfg(mock.DB, mock.Dirs.Tmp, mock.ChainConfig),
