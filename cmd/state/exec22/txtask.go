@@ -3,6 +3,8 @@ package exec22
 import (
 	"container/heap"
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/holiman/uint256"
@@ -11,6 +13,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/core/vm/evmtypes"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // ReadWriteSet contains ReadSet, WriteSet and BalanceIncrease of a transaction,
@@ -127,6 +130,14 @@ func (q *QueueWithRetry) RetriesLen() (l int) {
 	q.retiresLock.Unlock()
 	return l
 }
+func (q *QueueWithRetry) RetryTxNumsList() (out []uint64) {
+	q.retiresLock.Lock()
+	for _, t := range q.retires {
+		out = append(out, t.TxNum)
+	}
+	q.retiresLock.Unlock()
+	return out
+}
 func (q *QueueWithRetry) Len() (l int) { return q.RetriesLen() + len(q.newTasks) }
 
 // Add "new task" (which was never executed yet). May block internal channel is full.
@@ -170,6 +181,7 @@ func (q *QueueWithRetry) popWait(ctx context.Context) (task *TxTask, ok bool) {
 		case inTask, ok := <-q.newTasks:
 			if !ok {
 				q.retiresLock.Lock()
+				log.Warn("[dbg] Next: see closed chan, read task from queue", "q.retires.Len()", q.retires.Len())
 				if q.retires.Len() > 0 {
 					task = heap.Pop(&q.retires).(*TxTask)
 				}
@@ -316,6 +328,26 @@ func (q *ResultsQueueIter) PopNext() *TxTask {
 }
 
 func (q *ResultsQueue) Drain(ctx context.Context) error {
+	//q.Lock()
+	//l := q.results.Len()
+	//q.Unlock()
+	//if queue is empty, then need block to wait new results
+	//if l > 0 {
+	//	q.drainNoBlock(nil)
+	//	return nil
+	//}
+	q.Lock()
+	msg := []string{}
+	for _, t := range *(q.results) {
+		if t.TxNum > 9300_000 {
+			msg = append(msg, fmt.Sprintf("%d", t.TxNum))
+		}
+	}
+	if len(msg) > 0 {
+		log.Warn("[dbg] before drain resultqueue", "txnum", strings.Join(msg, ","))
+	}
+	q.Unlock()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
