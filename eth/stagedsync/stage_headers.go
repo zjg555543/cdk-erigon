@@ -178,12 +178,15 @@ func HeadersPOS(
 	cfg.hd.SetHeaderReader(&ChainReaderImpl{config: &cfg.chainConfig, tx: tx, blockReader: cfg.blockReader})
 	headerInserter := headerdownload.NewHeaderInserter(s.LogPrefix(), nil, s.BlockNumber, cfg.blockReader)
 
-	interrupted, err := handleInterrupt(interrupt, cfg, tx, headerInserter, useExternalTx)
+	interrupted, err := handleInterrupt(interrupt, cfg, tx, headerInserter, initialCycle)
 	if err != nil {
 		return err
 	}
 
 	if interrupted {
+		if !useExternalTx {
+			return tx.Commit()
+		}
 		return nil
 	}
 
@@ -720,21 +723,22 @@ func forkingPoint(
 	return headerInserter.ForkingPoint(tx, header, parent)
 }
 
-func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, headerInserter *headerdownload.HeaderInserter, useExternalTx bool) (bool, error) {
-	if interrupt != engineapi.None {
-		if interrupt == engineapi.Stopping {
-			close(cfg.hd.ShutdownCh)
-			return false, fmt.Errorf("server is stopping")
-		}
-		if interrupt == engineapi.Synced && cfg.hd.HeadersCollector() != nil {
-			saveDownloadedPoSHeaders(tx, cfg, headerInserter, false /* validate */)
-		}
-		if !useExternalTx {
-			return true, tx.Commit()
-		}
+func handleInterrupt(interrupt engineapi.Interrupt, cfg HeadersCfg, tx kv.RwTx, headerInserter *headerdownload.HeaderInserter, initialCycle bool) (bool, error) {
+	if interrupt == engineapi.None {
+		return false, nil
+	}
+	if interrupt == engineapi.Stopping {
+		close(cfg.hd.ShutdownCh)
+		return false, fmt.Errorf("server is stopping")
+	}
+	if interrupt == engineapi.Synced && cfg.hd.HeadersCollector() != nil {
+		saveDownloadedPoSHeaders(tx, cfg, headerInserter, false /* validate */)
 		return true, nil
 	}
-	return false, nil
+	if initialCycle {
+		return false, nil
+	}
+	return true, nil
 }
 
 // HeadersPOW progresses Headers stage for Proof-of-Work headers
