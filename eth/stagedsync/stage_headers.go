@@ -124,6 +124,7 @@ func SpawnStageHeaders(
 
 	unsettledForkChoice, headHeight := cfg.hd.GetUnsettledForkChoice()
 	if notBor && unsettledForkChoice != nil { // some work left to do after unwind
+		log.Warn("[dbg] stage headers, exit, unsettledForkChoice", "initialCycle", initialCycle)
 		return finishHandlingForkChoice(unsettledForkChoice, headHeight, s, tx, cfg, useExternalTx)
 	}
 
