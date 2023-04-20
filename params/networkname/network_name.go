@@ -11,6 +11,7 @@ const (
 	BorDevnetChainName  = "bor-devnet"
 	GnosisChainName     = "gnosis"
 	ChiadoChainName     = "chiado"
+	KrishnaChainName    = "krishna"
 )
 
 var All = []string{
@@ -23,4 +24,5 @@ var All = []string{
 	BorDevnetChainName,
 	GnosisChainName,
 	ChiadoChainName,
+	KrishnaChainName,
 }

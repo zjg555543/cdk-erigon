@@ -92,6 +92,8 @@ func DataDirForNetwork(datadir string, network string) string {
 		return networkDataDirCheckingLegacy(datadir, "bor-mainnet")
 	case networkname.BorDevnetChainName:
 		return networkDataDirCheckingLegacy(datadir, "bor-devnet")
+	case networkname.KrishnaChainName:
+		return networkDataDirCheckingLegacy(datadir, "krishna")
 	case networkname.SepoliaChainName:
 		return networkDataDirCheckingLegacy(datadir, "sepolia")
 	case networkname.GnosisChainName:

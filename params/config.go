@@ -59,6 +59,7 @@ var (
 	BorDevnetGenesisHash  = libcommon.HexToHash("0x5a06b25b0c6530708ea0b98a3409290e39dce6be7f558493aeb6e4b99a172a87")
 	GnosisGenesisHash     = libcommon.HexToHash("0x4f1dd23188aab3a76b463e4af801b52b1248ef073c648cbdc4c9333d3da79756")
 	ChiadoGenesisHash     = libcommon.HexToHash("0xada44fd8d2ecab8b08f256af07ad3e777f17fb434f8f8e678b312f576212ba9a")
+	KrishnaGenesisHash    = libcommon.HexToHash("0x519965c4602a50d0968c190cf07ad3fc337d7b15e1a08337bad195063d6d41ae")
 )
 
 var (
@@ -125,6 +126,8 @@ var (
 	BorMainnetChainConfig = readChainSpec("chainspecs/bor-mainnet.json")
 
 	BorDevnetChainConfig = readChainSpec("chainspecs/bor-devnet.json")
+
+	KrishnaChainConfig = readChainSpec("chainspecs/krishna.json")
 
 	GnosisChainConfig = readChainSpec("chainspecs/gnosis.json")
 
@@ -210,6 +213,8 @@ func ChainConfigByChainName(chain string) *chain.Config {
 		return GnosisChainConfig
 	case networkname.ChiadoChainName:
 		return ChiadoChainConfig
+	case networkname.KrishnaChainName:
+		return KrishnaChainConfig
 	default:
 		return nil
 	}
@@ -231,6 +236,8 @@ func GenesisHashByChainName(chain string) *libcommon.Hash {
 		return &BorMainnetGenesisHash
 	case networkname.BorDevnetChainName:
 		return &BorDevnetGenesisHash
+	case networkname.KrishnaChainName:
+		return &KrishnaGenesisHash
 	case networkname.GnosisChainName:
 		return &GnosisGenesisHash
 	case networkname.ChiadoChainName:
@@ -260,6 +267,8 @@ func ChainConfigByGenesisHash(genesisHash libcommon.Hash) *chain.Config {
 		return GnosisChainConfig
 	case genesisHash == ChiadoGenesisHash:
 		return ChiadoChainConfig
+	case genesisHash == KrishnaGenesisHash:
+		return KrishnaChainConfig
 	default:
 		return nil
 	}

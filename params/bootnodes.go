@@ -116,6 +116,11 @@ var BorMainnetBootnodes = []string{
 	"enode://88116f4295f5a31538ae409e4d44ad40d22e44ee9342869e7d68bdec55b0f83c1530355ce8b41fbec0928a7d75a5745d528450d30aec92066ab6ba1ee351d710@159.203.9.164:30303",
 }
 
+var KrishnaBootnodes = []string{
+	"enode://d0aed2cd584b6d54b0043c33fe6f3d5722ade9035c4f6150012d2a955f5b80c0a63644c9924aa89db58f413ce2d908a819b167075172f52e9620f34943b917cf@ec2-44-230-85-162.us-west-2.compute.amazonaws.com:30303",
+	"enode://b7371671b530bd277d162212015b9448b8c6576bd44b7b0d66bc866ac91ca11b35c68b110490ee1c4f1c6d820c958e2135c5055829718ca714efae19a7103a6e@ec2-54-71-0-54.us-west-2.compute.amazonaws.com:30303",
+}
+
 var GnosisBootnodes = []string{
 	"enode://6765fff89db92aa8d923e28c438af626c8ae95a43093cdccbd6f550a7b6ce6ab5d1a3dc60dd79af3e6d2c2e6731bae629f0e54446a0d9da408c4eca7ebcd8485@3.75.159.31:30303",
 	"enode://9a7c98e8ee8cdd3199db68092b48868847d4743a471b26afc2ff878bafaa829ed43ee405f9aff58ae13fce53b898f7c2e3c30cb80af8eb111682c3c13f686dbb@18.198.130.54:30303",
@@ -175,6 +180,8 @@ func BootnodeURLsOfChain(chain string) []string {
 		return GnosisBootnodes
 	case networkname.ChiadoChainName:
 		return ChiadoBootnodes
+	case networkname.KrishnaChainName:
+		return KrishnaBootnodes
 	default:
 		return []string{}
 	}

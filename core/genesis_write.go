@@ -405,6 +405,19 @@ func BorDevnetGenesisBlock() *types.Genesis {
 	}
 }
 
+func KrishnaGenesisBlock() *types.Genesis {
+	return &types.Genesis{
+		Config:     params.KrishnaChainConfig,
+		Nonce:      0,
+		Timestamp:  1558348305,
+		GasLimit:   10000000,
+		Difficulty: big.NewInt(1),
+		Mixhash:    libcommon.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		Coinbase:   libcommon.HexToAddress("0x0000000000000000000000000000000000000000"),
+		Alloc:      readPrealloc("allocs/krishna.json"),
+	}
+}
+
 func GnosisGenesisBlock() *types.Genesis {
 	return &types.Genesis{
 		Config:     params.GnosisChainConfig,
@@ -620,6 +633,8 @@ func GenesisBlockByChainName(chain string) *types.Genesis {
 		return GnosisGenesisBlock()
 	case networkname.ChiadoChainName:
 		return ChiadoGenesisBlock()
+	case networkname.KrishnaChainName:
+		return KrishnaGenesisBlock()
 	default:
 		return nil
 	}
