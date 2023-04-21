@@ -193,10 +193,8 @@ func (b *SimulatedBackend) emptyPendingBlock() {
 // stateByBlockNumber retrieves a state by a given blocknumber.
 func (b *SimulatedBackend) stateByBlockNumber(db kv.Tx, blockNumber *big.Int) *state.IntraBlockState {
 	if blockNumber == nil || blockNumber.Cmp(b.pendingBlock.Number()) == 0 {
-		//return state.New(state.NewPlainState(db, b.pendingBlock.NumberU64()+1, nil))
 		return state.New(b.m.NewHistoryStateReader(b.pendingBlock.NumberU64()+1, db))
 	}
-	//return state.New(state.NewPlainState(db, blockNumber.Uint64()+1, nil))
 	return state.New(b.m.NewHistoryStateReader(blockNumber.Uint64()+1, db))
 }
 
@@ -690,7 +688,8 @@ func (b *SimulatedBackend) callContract(_ context.Context, call ethereum.CallMsg
 
 	txContext := core.NewEVMTxContext(msg)
 	header := block.Header()
-	evmContext := core.NewEVMBlockContext(header, core.GetHashFn(header, b.getHeader), b.m.Engine, nil, nil /*excessDataGas*/)
+	excessDataGas := header.ParentExcessDataGas(b.getHeader)
+	evmContext := core.NewEVMBlockContext(header, core.GetHashFn(header, b.getHeader), b.m.Engine, nil, excessDataGas)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmEnv := vm.NewEVM(evmContext, txContext, statedb, b.m.ChainConfig, vm.Config{})
@@ -723,7 +722,8 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx types.Transac
 		&b.pendingHeader.Coinbase, b.gasPool,
 		b.pendingState, state.NewNoopWriter(),
 		b.pendingHeader, tx,
-		&b.pendingHeader.GasUsed, vm.Config{}, nil /*excessDataGas*/); err != nil {
+		&b.pendingHeader.GasUsed, vm.Config{},
+		b.pendingHeader.ParentExcessDataGas(b.getHeader)); err != nil {
 		return err
 	}
 	//fmt.Printf("==== Start producing block %d\n", (b.prependBlock.NumberU64() + 1))
