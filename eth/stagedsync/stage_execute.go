@@ -280,17 +280,6 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 	}
 	parallel := initialCycle && tx == nil
 
-	defer func() {
-		if tx != nil {
-			fmt.Printf("after exec: %d->%d\n", s.BlockNumber, to)
-			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
-				if len(k) == 20 {
-					fmt.Printf("acc: %x, %x\n", k, v)
-				}
-				return nil
-			})
-		}
-	}()
 	if err := ExecV3(ctx, s, u, workersCount, cfg, tx, parallel, logPrefix,
 		to); err != nil {
 		return fmt.Errorf("ExecV3: %w", err)
