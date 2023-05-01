@@ -365,6 +365,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 	}
 	defer func() {
 		if tx != nil {
+			fmt.Printf("after exec: %d-%d\n", s.BlockNumber, toBlock)
 			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
 				if len(k) == 20 {
 					fmt.Printf("acc: %x, %x\n", k, v)
