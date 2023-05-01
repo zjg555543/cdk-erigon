@@ -365,7 +365,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 	}
 	defer func() {
 		if tx != nil {
-			fmt.Printf("after exec: %d-%d\n", s.BlockNumber, toBlock)
+			fmt.Printf("after exec: %d->%d\n", s.BlockNumber, toBlock)
 			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
 				if len(k) == 20 {
 					fmt.Printf("acc: %x, %x\n", k, v)
@@ -556,6 +556,17 @@ func logProgress(logPrefix string, prevBlock uint64, prevTime time.Time, current
 }
 
 func UnwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context, cfg ExecuteBlockCfg, initialCycle bool) (err error) {
+	defer func() {
+		if tx != nil {
+			fmt.Printf("after unwind exec: %d->%d\n", u.CurrentBlockNumber, u.UnwindPoint)
+			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+				if len(k) == 20 {
+					fmt.Printf("acc: %x, %x\n", k, v)
+				}
+				return nil
+			})
+		}
+	}()
 	if u.UnwindPoint >= s.BlockNumber {
 		return nil
 	}
