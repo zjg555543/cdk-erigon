@@ -364,6 +364,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		}
 		return nil
 	}
+
 	quit := ctx.Done()
 	useExternalTx := tx != nil
 	if !useExternalTx {
@@ -396,6 +397,18 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		log.Info(fmt.Sprintf("[%s] Blocks execution", logPrefix), "from", s.BlockNumber, "to", to)
 	}
 	stateStream := !initialCycle && cfg.stateStream && to-s.BlockNumber < stateStreamLimit
+
+	defer func() {
+		if tx != nil {
+			fmt.Printf("after unwind exec: %d->%d\n", s.BlockNumber, to)
+			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+				if len(k) == 20 {
+					fmt.Printf("acc: %x, %x\n", k, v)
+				}
+				return nil
+			})
+		}
+	}()
 
 	// changes are stored through memory buffer
 	logEvery := time.NewTicker(logInterval)
