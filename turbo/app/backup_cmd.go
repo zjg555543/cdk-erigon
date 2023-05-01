@@ -35,7 +35,7 @@ Example: erigon backup --datadir=<your_datadir> --to.datadir=<backup_datadir>
 TODO:
 - support of Consensus DB (copy it manually if you need). Possible to implement in future.
 - support 2 use-cases: create new node (then remove jwt tocken, and nodes folder) and backup exising one (then backup jwt tocken, and nodes folder)
-- support of datadir/snapshots folder. Possible to implement in future. Can copy it manually or rsync or symlink/mount.
+- support of datadir/snapshots folder: it needs to be consistent with db. Maybe move all un-frozen files to "datadir/snapshots/hot" folder - and backup this folder together with chaindb. 
 `,
 	Action: doBackup,
 	Flags: joinFlags([]cli.Flag{
