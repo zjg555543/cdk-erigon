@@ -363,6 +363,16 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		}
 		return nil
 	}
+	defer func() {
+		if tx != nil {
+			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+				if len(k) == 20 {
+					fmt.Printf("acc: %x, %x\n", k, v)
+				}
+				return nil
+			})
+		}
+	}()
 
 	quit := ctx.Done()
 	useExternalTx := tx != nil
