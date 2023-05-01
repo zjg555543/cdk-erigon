@@ -279,6 +279,18 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 		log.Info(fmt.Sprintf("[%s] Blocks execution", logPrefix), "from", s.BlockNumber, "to", to)
 	}
 	parallel := initialCycle && tx == nil
+
+	defer func() {
+		if tx != nil {
+			fmt.Printf("after exec: %d->%d\n", s.BlockNumber, to)
+			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+				if len(k) == 20 {
+					fmt.Printf("acc: %x, %x\n", k, v)
+				}
+				return nil
+			})
+		}
+	}()
 	if err := ExecV3(ctx, s, u, workersCount, cfg, tx, parallel, logPrefix,
 		to); err != nil {
 		return fmt.Errorf("ExecV3: %w", err)
@@ -363,18 +375,6 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		}
 		return nil
 	}
-	defer func() {
-		if tx != nil {
-			fmt.Printf("after exec: %d->%d\n", s.BlockNumber, toBlock)
-			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
-				if len(k) == 20 {
-					fmt.Printf("acc: %x, %x\n", k, v)
-				}
-				return nil
-			})
-		}
-	}()
-
 	quit := ctx.Done()
 	useExternalTx := tx != nil
 	if !useExternalTx {
