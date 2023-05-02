@@ -398,18 +398,6 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 	}
 	stateStream := !initialCycle && cfg.stateStream && to-s.BlockNumber < stateStreamLimit
 
-	defer func() {
-		if tx != nil {
-			fmt.Printf("after exec: %d->%d\n", s.BlockNumber, to)
-			tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
-				if len(k) == 20 {
-					fmt.Printf("acc: %x, %x\n", k, v)
-				}
-				return nil
-			})
-		}
-	}()
-
 	// changes are stored through memory buffer
 	logEvery := time.NewTicker(logInterval)
 	defer logEvery.Stop()
@@ -471,7 +459,16 @@ Loop:
 			break Loop
 		}
 		stageProgress = blockNum
-
+		if err = batch.Commit(); err != nil {
+			return err
+		}
+		fmt.Printf("blockNum: %d, %d->%d\n", blockNum, s.BlockNumber, to)
+		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+			if len(k) == 20 {
+				fmt.Printf("acc: %x, %x\n", k, v)
+			}
+			return nil
+		})
 		shouldUpdateProgress := batch.BatchSize() >= int(cfg.batchSize)
 		if shouldUpdateProgress {
 			log.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState)
