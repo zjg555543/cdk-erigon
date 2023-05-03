@@ -357,7 +357,7 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 		hb.hashStack = hb.hashStack[:len(hb.hashStack)-popped*hashStackStride]
 		hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-popped]
 	}
-	//fmt.Printf("accountLeafHashWithKey [%x]=>[%x]\nHash [%x]\n", key, val, hb.hashBuf[:])
+	fmt.Printf("accountLeafHashWithKey [%x]=>[%x]\nHash [%x]\n", key, hb.valBuf[:valLen], hb.hashBuf[:])
 	hb.hashStack = append(hb.hashStack, hb.hashBuf[:]...)
 	hb.nodeStack = append(hb.nodeStack, nil)
 	if hb.trace {
