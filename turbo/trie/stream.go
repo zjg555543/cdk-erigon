@@ -679,6 +679,8 @@ func StreamHash(it *StreamMergeIterator, storagePrefixLen int, hb *HashBuilder, 
 			itemType = newItemType
 			switch itemType {
 			case AccountStreamItem:
+				fmt.Printf("who set code1: %x\n", aVal.CodeHash[:])
+
 				var a = aVal
 				accData.Balance.Set(&a.Balance)
 				accData.Nonce = a.Nonce

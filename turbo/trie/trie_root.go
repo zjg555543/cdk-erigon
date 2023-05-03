@@ -671,6 +671,7 @@ func (r *RootHashAggregator) saveValueAccount(isIH, hasTree bool, v *accounts.Ac
 	r.a.Copy(v)
 	// Place code on the stack first, the storage will follow
 	if !r.a.IsEmptyCodeHash() {
+		fmt.Printf("read code3: %x\n", r.a.CodeHash[:])
 		// the first item ends up deepest on the stack, the second item - on the top
 		r.accData.FieldSet |= AccountFieldCodeOnly
 		if err := r.hb.hash(r.a.CodeHash[:]); err != nil {
