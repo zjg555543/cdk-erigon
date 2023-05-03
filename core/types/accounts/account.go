@@ -238,6 +238,7 @@ func (a *Account) EncodeForHashing(buffer []byte) {
 		}
 	}
 	pos += 1 + nonceBytes
+	fmt.Printf("enc2: %x\n", buffer[:pos])
 
 	// Encoding balance
 	if a.Balance.LtUint64(128) && !a.Balance.IsZero() {
@@ -255,6 +256,7 @@ func (a *Account) EncodeForHashing(buffer []byte) {
 	pos++
 	copy(buffer[pos:], a.Root[:])
 	pos += 32
+	fmt.Printf("enc3: %x\n", buffer[:pos])
 	buffer[pos] = 128 + 32
 	pos++
 	copy(buffer[pos:], a.CodeHash[:])
