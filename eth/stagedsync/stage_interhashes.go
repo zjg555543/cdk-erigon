@@ -165,7 +165,7 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := trie.NewFlatDBTrieLoader(logPrefix, trie.NewRetainList(0), accTrieCollectorFunc, stTrieCollectorFunc, false)
+	loader := trie.NewFlatDBTrieLoader(logPrefix, trie.NewRetainList(0), accTrieCollectorFunc, stTrieCollectorFunc, true)
 	hash, err := loader.CalcTrieRoot(db, ctx.Done())
 	if err != nil {
 		return trie.EmptyRoot, err
