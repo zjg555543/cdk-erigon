@@ -289,7 +289,7 @@ func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, balance *uint256.I
 
 func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint256.Int, nonce uint64, incarnation uint64, fieldSet uint32) (err error) {
 	if hb.trace {
-		fmt.Printf("ACCOUNTLEAFHASH %d (%b)\n", length, fieldSet)
+		fmt.Printf("ACCOUNTLEAFHASH %d (%b), balance=%s, nonce=%d, inc=%d\n", length, fieldSet, balance.String(), nonce, incarnation)
 	}
 	key := keyHex[len(keyHex)-length:]
 	hb.acc.Nonce = nonce
@@ -356,7 +356,7 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 		hb.hashStack = hb.hashStack[:len(hb.hashStack)-popped*hashStackStride]
 		hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-popped]
 	}
-	fmt.Printf("accountLeafHashWithKey [%x]=>[%x]\nHash [%x]\n", key, val, hb.hashBuf[:])
+	//fmt.Printf("accountLeafHashWithKey [%x]=>[%x]\nHash [%x]\n", key, val, hb.hashBuf[:])
 	hb.hashStack = append(hb.hashStack, hb.hashBuf[:]...)
 	hb.nodeStack = append(hb.nodeStack, nil)
 	if hb.trace {
