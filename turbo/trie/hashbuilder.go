@@ -347,7 +347,7 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	}
 	valLen := hb.acc.EncodingLengthForHashing()
 	hb.acc.EncodeForHashing(hb.valBuf[:])
-	fmt.Printf("Acc rlp: %d, %x\n", valLen, hb.valBuf[:])
+	fmt.Printf("Acc rlp: %d, %x\n", valLen, hb.valBuf[:valLen])
 	val := rlphacks.RlpEncodedBytes(hb.valBuf[:valLen])
 	err := hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
 	if err != nil {
