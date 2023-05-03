@@ -359,10 +359,12 @@ func doRetireCommand(cliCtx *cli.Context) error {
 
 	if to == 0 {
 		var forwardProgress uint64
-		db.View(ctx, func(tx kv.Tx) error {
+		if err := db.View(ctx, func(tx kv.Tx) error {
 			forwardProgress, err = stages.GetStageProgress(tx, stages.Senders)
 			return err
-		})
+		}); err != nil {
+			return err
+		}
 		from2, to2, ok := snapshotsync.CanRetire(forwardProgress, br.Snapshots())
 		if ok {
 			from, to, every = from2, to2, to2-from2

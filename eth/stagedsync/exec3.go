@@ -17,6 +17,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 	"golang.org/x/sync/errgroup"
@@ -630,6 +631,9 @@ Loop:
 					break Loop
 				}
 
+				//if err := rs.ApplyState(applyTx, txTask, agg); err != nil {
+				//	return fmt.Errorf("StateV3.Apply: %w", err)
+				//}
 				ExecTriggers.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum, in))
 				outputTxNum.Add(1)
 
@@ -643,14 +647,27 @@ Loop:
 
 		if !parallel {
 			outputBlockNum.Set(blockNum)
+
+			fmt.Printf("-- in mem state START -- %d, %d-%d\n", blockNum, execStage.BlockNumber, maxBlockNum)
+			agg.MakeContext().IterAcc(nil, func(k, v []byte) {
+				vv, err := accounts.ConvertV3toV2(v)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Printf("acc: %x, %x\n", k, vv)
+			}, applyTx)
+			fmt.Printf("-- in mem state END --\n")
+
 			// MA commitment
 			rh, err := agg.ComputeCommitment(false, false)
 			if err != nil {
 				return fmt.Errorf("StateV3.Apply: %w", err)
 			}
+
 			if !bytes.Equal(rh, header.Root.Bytes()) {
-				log.Error("block hash mismatch", "rh", hex.EncodeToString(rh), "blockRoot", hex.EncodeToString(header.Root.Bytes()), "bn", blockNum, "txn", inputTxNum)
-				return fmt.Errorf("block hash mismatch: %x != %x bn =%d", rh, header.Root.Bytes(), blockNum)
+
+				log.Error(fmt.Sprintf("[%s] block hash mismatch", logPrefix), "rh", hex.EncodeToString(rh), "blockRoot", hex.EncodeToString(header.Root.Bytes()), "bn", blockNum, "txn", inputTxNum)
+				return fmt.Errorf("[%s] block hash mismatch: %x != %x bn =%d", logPrefix, rh, header.Root.Bytes(), blockNum)
 			}
 
 			select {

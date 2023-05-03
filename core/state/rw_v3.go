@@ -331,11 +331,11 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 			return err
 		}
 		defer cursor.Close()
-		addr1 := rs.addrIncBuf
+		//addr1 := rs.addrIncBuf
 		for addrS, original := range txTask.AccountDels {
 			addr := []byte(addrS)
-			copy(addr1, addr)
-			binary.BigEndian.PutUint64(addr1[len(addr):], original.Incarnation)
+			//copy(addr1, addr)
+			//binary.BigEndian.PutUint64(addr1[len(addr):], original.Incarnation)
 
 			prev := rs.applyPrevAccountBuf[:accounts.SerialiseV3Len(original)]
 			accounts.SerialiseV3To(original, prev)
