@@ -96,7 +96,7 @@ func startDownloadService(s *stagedsync.StageState, cfg StageForkChoiceCfg) {
 				utils.GetCurrentSlot(cfg.genesisCfg.GenesisTime, cfg.beaconCfg.SecondsPerSlot) == block.Block.Slot
 			if err := cfg.forkChoice.OnBlock(block, false, true); err != nil {
 				log.Warn("Could not download block", "reason", err)
-				return highestSlotProcessed, libcommon.Hash{}, nil
+				return highestSlotProcessed, libcommon.Hash{}, err
 			}
 			if sendForckchoice {
 				// Import the head
@@ -109,7 +109,10 @@ func startDownloadService(s *stagedsync.StageState, cfg StageForkChoiceCfg) {
 				dbg.ReadMemStats(&m)
 				log.Debug("New block imported",
 					"slot", block.Block.Slot, "head", headSlot, "headRoot", headRoot,
-					"alloc", libcommon.ByteCount(m.Alloc))
+					"alloc", libcommon.ByteCount(m.Alloc),
+					"sys", libcommon.ByteCount(m.Sys),
+					"numGC", m.NumGC,
+				)
 
 				// Do forkchoice if possible
 				if cfg.forkChoice.Engine() != nil {
