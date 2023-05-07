@@ -56,11 +56,6 @@ func (b *BeaconState) SetPreviousStateRoot(root libcommon.Hash) {
 	b.previousStateRoot = root
 }
 
-// MarshallSSZTo retrieve the SSZ encoded length of the state.
-func (b *BeaconState) DecodeSSZ(buf []byte) error {
-	panic("not implemented")
-}
-
 func (b *BeaconState) _updateProposerIndex() (err error) {
 	epoch := Epoch(b.BeaconState)
 
@@ -189,7 +184,7 @@ func (b *BeaconState) _refreshActiveBalances() {
 	*b.totalActiveBalanceCache = 0
 	b.ForEachValidator(func(validator *cltypes.Validator, idx, total int) bool {
 		if validator.Active(epoch) {
-			*b.totalActiveBalanceCache += validator.EffectiveBalance
+			*b.totalActiveBalanceCache += validator.EffectiveBalance()
 		}
 		return true
 	})
@@ -217,7 +212,7 @@ func (b *BeaconState) initBeaconState() error {
 	b.publicKeyIndicies = make(map[[48]byte]uint64)
 
 	b.ForEachValidator(func(validator *cltypes.Validator, i, total int) bool {
-		b.publicKeyIndicies[validator.PublicKey] = uint64(i)
+		b.publicKeyIndicies[validator.PublicKey()] = uint64(i)
 		return true
 	})
 

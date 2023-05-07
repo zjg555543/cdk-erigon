@@ -22,6 +22,7 @@ func RunCases(t *testing.T, app Appendix, root fs.FS) {
 		V  = TestCase
 	)
 	// welcome to hell
+	t.Parallel()
 	cases.tree.Range0(func(s string, m *generic.Map5[K1, K2, K3, K4, K5, V]) bool {
 		t.Run(s, func(t *testing.T) {
 			t.Parallel()

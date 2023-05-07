@@ -22,12 +22,17 @@ func (b *BeaconState) CopyInto(dst *BeaconState) error {
 		dst.eth1DataVotes[i] = b.eth1DataVotes[i].Copy()
 	}
 	dst.eth1DepositIndex = b.eth1DepositIndex
-	dst.validators = make([]*cltypes.Validator, len(b.validators))
-	for i := range b.validators {
-		dst.validators[i] = b.validators[i].Copy()
+	for i, validator := range b.validators {
+		if i >= len(dst.validators) {
+			nv := &cltypes.Validator{}
+			validator.CopyTo(nv)
+			dst.validators = append(dst.validators, nv)
+			continue
+		}
+		validator.CopyTo(dst.validators[i])
 	}
-	dst.balances = make([]uint64, len(b.balances))
-	copy(dst.balances, b.balances)
+	dst.validators = dst.validators[:len(b.validators)]
+	b.balances.CopyTo(dst.balances)
 	copy(dst.randaoMixes[:], b.randaoMixes[:])
 	copy(dst.slashings[:], b.slashings[:])
 	dst.previousEpochParticipation = b.previousEpochParticipation.Copy()
@@ -36,12 +41,12 @@ func (b *BeaconState) CopyInto(dst *BeaconState) error {
 	dst.currentJustifiedCheckpoint = b.currentJustifiedCheckpoint.Copy()
 	dst.previousJustifiedCheckpoint = b.previousJustifiedCheckpoint.Copy()
 	if b.version == clparams.Phase0Version {
-		return dst.init()
+		dst.init()
+		return nil
 	}
 	dst.currentSyncCommittee = b.currentSyncCommittee.Copy()
 	dst.nextSyncCommittee = b.nextSyncCommittee.Copy()
-	dst.inactivityScores = make([]uint64, len(b.inactivityScores))
-	copy(dst.inactivityScores, b.inactivityScores)
+	b.inactivityScores.CopyTo(dst.inactivityScores)
 	dst.justificationBits = b.justificationBits.Copy()
 
 	if b.version >= clparams.BellatrixVersion {
