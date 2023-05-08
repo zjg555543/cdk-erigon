@@ -14,7 +14,7 @@ require (
 require (
 	gfx.cafe/util/go/generic v0.0.0-20230502013805-237fcc25d586
 	github.com/99designs/gqlgen v0.17.30
-	github.com/Giulio2002/bls v0.0.0-20230428210858-67fd06bbe237
+	github.com/Giulio2002/bls v0.0.0-20230507111335-fa36c339a11f
 	github.com/RoaringBitmap/roaring v1.2.3
 	github.com/VictoriaMetrics/fastcache v1.12.1
 	github.com/VictoriaMetrics/metrics v1.23.1
@@ -87,10 +87,10 @@ require (
 	golang.org/x/crypto v0.8.0
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
 	golang.org/x/net v0.9.0
-	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.7.0
+	golang.org/x/sync v0.2.0
+	golang.org/x/sys v0.8.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.54.0
+	google.golang.org/grpc v1.55.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
