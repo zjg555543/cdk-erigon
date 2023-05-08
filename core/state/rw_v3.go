@@ -626,7 +626,9 @@ func (rs *StateV3) DoneCount() uint64 { return ExecTxsDone.Get() }
 func (rs *StateV3) SizeEstimate() (r uint64) {
 	rs.lock.RLock()
 	r = uint64(rs.sizeEstimate) * 2 // multiply 2 here, to cover data-structures overhead. more precise accounting - expensive.
-	r += rs.domains.SizeEstimate()
+	if rs.domains != nil {
+		r += rs.domains.SizeEstimate()
+	}
 	rs.lock.RUnlock()
 
 	return r
@@ -695,7 +697,8 @@ func (rs *StateV3) readsValidBtree(table string, list *exec22.KvList, m *btree2.
 	return true
 }
 
-type StateWriterV3 struct {
+// StateWriterBufferedV3 - used by parallel workers to accumulate updates and then send them to conflict-resolution.
+type StateWriterBufferedV3 struct {
 	rs           *StateV3
 	writeLists   map[string]*exec22.KvList
 	accountPrevs map[string][]byte
@@ -704,18 +707,18 @@ type StateWriterV3 struct {
 	codePrevs    map[string]uint64
 }
 
-func NewStateWriterV3(rs *StateV3) *StateWriterV3 {
-	return &StateWriterV3{
+func NewStateWriterBufferedV3(rs *StateV3) *StateWriterBufferedV3 {
+	return &StateWriterBufferedV3{
 		rs:         rs,
 		writeLists: newWriteList(),
 	}
 }
 
-func (w *StateWriterV3) SetTxNum(txNum uint64) {
+func (w *StateWriterBufferedV3) SetTxNum(txNum uint64) {
 	w.rs.domains.SetTxNum(txNum)
 }
 
-func (w *StateWriterV3) ResetWriteSet() {
+func (w *StateWriterBufferedV3) ResetWriteSet() {
 	w.writeLists = newWriteList()
 	w.accountPrevs = nil
 	w.accountDels = nil
@@ -723,15 +726,15 @@ func (w *StateWriterV3) ResetWriteSet() {
 	w.codePrevs = nil
 }
 
-func (w *StateWriterV3) WriteSet() map[string]*exec22.KvList {
+func (w *StateWriterBufferedV3) WriteSet() map[string]*exec22.KvList {
 	return w.writeLists
 }
 
-func (w *StateWriterV3) PrevAndDels() (map[string][]byte, map[string]*accounts.Account, map[string][]byte, map[string]uint64) {
+func (w *StateWriterBufferedV3) PrevAndDels() (map[string][]byte, map[string]*accounts.Account, map[string][]byte, map[string]uint64) {
 	return w.accountPrevs, w.accountDels, w.storagePrevs, w.codePrevs
 }
 
-func (w *StateWriterV3) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
+func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
 	addressBytes := address.Bytes()
 	value := make([]byte, account.EncodingLengthForStorage())
 	account.EncodeForStorage(value)
@@ -754,7 +757,7 @@ func (w *StateWriterV3) UpdateAccountData(address common.Address, original, acco
 	return nil
 }
 
-func (w *StateWriterV3) UpdateAccountCode(address common.Address, incarnation uint64, codeHash common.Hash, code []byte) error {
+func (w *StateWriterBufferedV3) UpdateAccountCode(address common.Address, incarnation uint64, codeHash common.Hash, code []byte) error {
 	addressBytes, codeHashBytes := address.Bytes(), codeHash.Bytes()
 	w.writeLists[kv.Code].Keys = append(w.writeLists[kv.Code].Keys, string(codeHashBytes))
 	w.writeLists[kv.Code].Vals = append(w.writeLists[kv.Code].Vals, code)
@@ -773,7 +776,7 @@ func (w *StateWriterV3) UpdateAccountCode(address common.Address, incarnation ui
 	return nil
 }
 
-func (w *StateWriterV3) DeleteAccount(address common.Address, original *accounts.Account) error {
+func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *accounts.Account) error {
 	addressBytes := address.Bytes()
 	w.writeLists[kv.PlainState].Keys = append(w.writeLists[kv.PlainState].Keys, string(addressBytes))
 	w.writeLists[kv.PlainState].Vals = append(w.writeLists[kv.PlainState].Vals, nil)
@@ -795,7 +798,7 @@ func (w *StateWriterV3) DeleteAccount(address common.Address, original *accounts
 	return nil
 }
 
-func (w *StateWriterV3) WriteAccountStorage(address common.Address, incarnation uint64, key *common.Hash, original, value *uint256.Int) error {
+func (w *StateWriterBufferedV3) WriteAccountStorage(address common.Address, incarnation uint64, key *common.Hash, original, value *uint256.Int) error {
 	if *original == *value {
 		return nil
 	}
@@ -815,7 +818,7 @@ func (w *StateWriterV3) WriteAccountStorage(address common.Address, incarnation 
 	return nil
 }
 
-func (w *StateWriterV3) CreateContract(address common.Address) error {
+func (w *StateWriterBufferedV3) CreateContract(address common.Address) error {
 	return nil
 }
 
