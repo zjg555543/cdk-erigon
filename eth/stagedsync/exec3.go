@@ -423,7 +423,6 @@ func ExecV3(ctx context.Context,
 		defer rwLoopG.Wait()
 		rwLoopG.Go(func() error {
 			defer rws.Close()
-			defer in.Close()
 			defer applyLoopWg.Wait()
 			return rwLoop(rwLoopCtx)
 		})
