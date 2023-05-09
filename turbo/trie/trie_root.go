@@ -17,6 +17,7 @@ import (
 	"github.com/ledgerwatch/erigon/common/hexutil"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/turbo/rlphacks"
+	"github.com/ledgerwatch/log/v3"
 )
 
 /*
