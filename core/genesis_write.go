@@ -27,6 +27,7 @@ import (
 
 	"github.com/c2h5oh/datasize"
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/exp/slices"
 
@@ -462,7 +463,7 @@ var genesisDBLock sync.Mutex
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
 func GenesisToBlock(g *types.Genesis, tmpDir string) (*types.Block, *state.IntraBlockState, error) {
-	fmt.Printf("GenesisToBlock\n")
+	fmt.Printf("GenesisToBlock: %s\n", dbg.Stack())
 	defer fmt.Printf("end GenesisToBlock\n")
 
 	_ = g.Alloc //nil-check
