@@ -705,7 +705,7 @@ Loop:
 			fmt.Printf("-- in mem state END --\n")
 
 			// MA commitment
-			rh, err := agg.ComputeCommitment(false, true)
+			rh, err := agg.ComputeCommitment(false, false)
 			if err != nil {
 				return fmt.Errorf("StateV3.Apply: %w", err)
 			}
