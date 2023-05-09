@@ -77,6 +77,7 @@ func (w *PlainStateWriter) UpdateAccountCode(address libcommon.Address, incarnat
 }
 
 func (w *PlainStateWriter) DeleteAccount(address libcommon.Address, original *accounts.Account) error {
+	fmt.Printf("DeleteAccount: %x\n", address)
 	//fmt.Printf("delete,%x\n", address)
 	if w.csw != nil {
 		if err := w.csw.DeleteAccount(address, original); err != nil {
