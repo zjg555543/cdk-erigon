@@ -147,7 +147,7 @@ func NewFlatDBTrieLoader(logPrefix string, rd RetainDeciderWithMarker, hc HashCo
 			hb:    NewHashBuilder(true),
 			hc:    hc,
 			shc:   shc,
-			trace: trace,
+			trace: false,
 		},
 		ihSeek:      make([]byte, 0, 128),
 		accSeek:     make([]byte, 0, 128),
