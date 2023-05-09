@@ -38,6 +38,7 @@ func (w *WriterV4) UpdateAccountCode(address libcommon.Address, incarnation uint
 }
 
 func (w *WriterV4) DeleteAccount(address libcommon.Address, original *accounts.Account) error {
+	fmt.Printf("DeleteAccount: %x\n", address)
 	w.agg.SetTx(w.tx.(kv.RwTx))
 	prev := accounts.SerialiseV3(original)
 
