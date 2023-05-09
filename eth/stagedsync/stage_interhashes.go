@@ -621,6 +621,7 @@ func incrementIntermediateHashes(logPrefix string, s *StageState, db kv.RwTx, to
 }
 
 func UnwindIntermediateHashesStage(u *UnwindState, s *StageState, tx kv.RwTx, cfg TrieCfg, ctx context.Context) (err error) {
+	fmt.Printf("UnwindIntermediateHashesStage: %d-%d\n", u.CurrentBlockNumber, u.UnwindPoint)
 	quit := ctx.Done()
 	useExternalTx := tx != nil
 	if !useExternalTx {
