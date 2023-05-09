@@ -214,6 +214,10 @@ func (m *mapmutation) Delete(table string, k []byte) error {
 	return m.Put(table, k, nil)
 }
 
+type CanCommitReadAhead interface {
+	DoCommitReadAhead(db kv.RwDB)
+}
+
 func (m *mapmutation) DoCommitReadAhead(db kv.RwDB) {
 	const workers int = 2
 	for table, bucket := range m.puts {

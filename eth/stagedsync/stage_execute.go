@@ -540,6 +540,7 @@ Loop:
 		if shouldUpdateProgress {
 			logger.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState)
 			currentStateGas = 0
+			batch.(olddb.CanCommitReadAhead).DoCommitReadAhead(cfg.db)
 			if err = batch.Commit(); err != nil {
 				return err
 			}
