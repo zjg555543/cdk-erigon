@@ -138,6 +138,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 	header := txTask.Header
 	if txTask.BlockNum == 0 && txTask.TxIndex == -1 {
 		//fmt.Printf("txNum=%d, blockNum=%d, Genesis\n", txTask.TxNum, txTask.BlockNum)
+		fmt.Printf("worker GenesisToBlock: %d\n", len(rw.genesis.Alloc))
 		// Genesis block
 		_, ibs, err = core.GenesisToBlock(rw.genesis, "")
 		if err != nil {
@@ -221,12 +222,17 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 		//for addr, bal := range txTask.BalanceIncreaseSet {
 		//	fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
 		//}
+		if txTask.BlockNum == 0 && txTask.TxIndex == -1 {
+			//fmt.Printf("txNum=%d, blockNum=%d, Genesis\n", txTask.TxNum, txTask.BlockNum)
+			fmt.Printf("worker GenesisToBlock -> MakeWriteSet, %T, %d, %d, %d\n", rw.stateWriter, len(txTask.BalanceIncreaseSet), len(txTask.ReadLists), len(txTask.WriteLists))
+		}
 		if err = ibs.MakeWriteSet(rules, rw.stateWriter); err != nil {
 			panic(err)
 		}
 		txTask.ReadLists = rw.stateReader.ReadSet()
 		txTask.WriteLists = rw.stateWriter.WriteSet()
 		txTask.AccountPrevs, txTask.AccountDels, txTask.StoragePrevs, txTask.CodePrevs = rw.stateWriter.PrevAndDels()
+
 	}
 }
 

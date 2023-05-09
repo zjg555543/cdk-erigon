@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -237,6 +238,7 @@ func WrapStateIO(s *state.SharedDomains) (*StateWriterV4, *StateReaderV4) {
 }
 
 func (w *StateWriterV4) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
+	fmt.Printf("StateWriterV4 UpdateAccountData: %x, %s, %d, %s\n", address, account.Balance.String(), account.Nonce, dbg.Stack())
 	//fmt.Printf("account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x} txNum: %d\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash, w.txNum)
 	//enc := libstate.EncodeAccountBytes(account.Nonce, &account.Balance, account.CodeHash[:], 0)
 	return w.SharedDomains.UpdateAccountData(address.Bytes(), accounts.SerialiseV3(account), accounts.SerialiseV3(original))

@@ -24,7 +24,7 @@ func NewWriterV4(tx kv.TemporalTx) *WriterV4 {
 }
 
 func (w *WriterV4) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
-	fmt.Printf("UpdateAccountData: %x, %s, %d\n", address, account.Balance.String(), account.Nonce)
+	fmt.Printf("WriterV4 UpdateAccountData: %x, %s, %d\n", address, account.Balance.String(), account.Nonce)
 	value := accounts.SerialiseV3(account)
 	origValue := accounts.SerialiseV3(original)
 	w.agg.SetTx(w.tx.(kv.RwTx))
