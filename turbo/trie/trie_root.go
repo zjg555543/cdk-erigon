@@ -344,8 +344,7 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 	//r.traceIf("9c3dc2561d472d125d8f87dde8f2e3758386463ade768ae1a1546d34101968bb", "00")
 	if storageKey == nil {
 		if accountKey != nil {
-			fmt.Printf("hashedKey: %x\n", accountKey)
-			fmt.Printf("tr acc: %x, %s, %d\n", accountValue.CodeHash[:], accountValue.Balance.String(), accountValue.Nonce)
+			fmt.Printf("List(): hk=%x, balance=%s, nonce=%d, %x\n", accountKey, accountValue.Balance.String(), accountValue.Nonce, accountValue.CodeHash[:])
 		}
 		//	//if bytes.HasPrefix(accountKey, common.FromHex("08050d07")) {
 		//	fmt.Printf("1: %d, %x, %x\n", itemType, accountKey, hash)
