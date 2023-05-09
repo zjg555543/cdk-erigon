@@ -729,6 +729,9 @@ func (sdb *IntraBlockState) MakeWriteSet(chainRules *chain.Rules, stateWriter St
 	return nil
 }
 
+func (sdb *IntraBlockState) DbgList() int  { return len(sdb.stateObjects) }
+func (sdb *IntraBlockState) DbgList2() int { return len(sdb.stateObjectsDirty) }
+func (sdb *IntraBlockState) DbgList3() int { return len(sdb.journal.dirties) }
 func (sdb *IntraBlockState) Print(chainRules chain.Rules) {
 	for addr, stateObject := range sdb.stateObjects {
 		_, isDirty := sdb.stateObjectsDirty[addr]
