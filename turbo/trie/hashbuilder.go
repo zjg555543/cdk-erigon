@@ -308,10 +308,10 @@ func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint2
 	if fieldSet&AccountFieldCodeOnly != 0 {
 		copy(hb.acc.CodeHash[:], hb.hashStack[len(hb.hashStack)-popped*hashStackStride-length2.Hash:len(hb.hashStack)-popped*hashStackStride])
 		popped++
-		fmt.Printf("set code hash1: %x\n", hb.acc.CodeHash[:])
+		//fmt.Printf("set code hash1: %x\n", hb.acc.CodeHash[:])
 	} else {
 		copy(hb.acc.CodeHash[:], EmptyCodeHash[:])
-		fmt.Printf("set code hash2: %x\n", hb.acc.CodeHash[:])
+		//fmt.Printf("set code hash2: %x\n", hb.acc.CodeHash[:])
 	}
 
 	return hb.accountLeafHashWithKey(key, popped)
