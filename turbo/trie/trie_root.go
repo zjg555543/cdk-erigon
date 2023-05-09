@@ -340,7 +340,7 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 	hasTree bool,
 	cutoff int,
 ) error {
-	fmt.Printf("prefix: %x, %x\n", accountKey, storageKey)
+	//fmt.Printf("prefix: %x, %x\n", accountKey, storageKey)
 	//r.traceIf("9c3dc2561d472d125d8f87dde8f2e3758386463ade768ae1a1546d34101968bb", "00")
 	if storageKey == nil {
 		if accountKey != nil {
