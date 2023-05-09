@@ -80,7 +80,7 @@ func (dsw *DbStateWriter) UpdateAccountData(address libcommon.Address, original,
 }
 
 func (dsw *DbStateWriter) DeleteAccount(address libcommon.Address, original *accounts.Account) error {
-	fmt.Printf("hs DeleteAccount: %x\n", addre)
+	fmt.Printf("hs DeleteAccount: %x\n", address)
 	if err := dsw.csw.DeleteAccount(address, original); err != nil {
 		return err
 	}
