@@ -555,7 +555,7 @@ func logProgress(logPrefix string, prevBlock uint64, prevTime time.Time, current
 }
 
 func UnwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context, cfg ExecuteBlockCfg, initialCycle bool) (err error) {
-	fmt.Printf("UnwindExecutionStage\n")
+	fmt.Printf("==== UnwindExecutionStage\n")
 	defer func() {
 		if tx != nil {
 			fmt.Printf("after unwind exec: %d->%d\n", u.CurrentBlockNumber, u.UnwindPoint)
