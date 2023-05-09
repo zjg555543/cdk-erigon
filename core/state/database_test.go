@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -142,6 +143,7 @@ func TestCreate2Revive(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	fmt.Printf("inserttttttt\n")
 	// BLOCK 1
 	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
 		t.Fatal(err)

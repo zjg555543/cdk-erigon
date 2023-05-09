@@ -9,6 +9,7 @@ import (
 	"time"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	length2 "github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -187,7 +188,9 @@ func (l *FlatDBTrieLoader) SetProofRetainer(pr *ProofRetainer) {
 //			use(AccTrie)
 //		}
 func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, quit <-chan struct{}) (libcommon.Hash, error) {
-
+	defer func() {
+		fmt.Printf("end of CalcTrieRoot %s\n", dbg.Stack())
+	}()
 	accC, err := tx.Cursor(kv.HashedAccounts)
 	if err != nil {
 		return EmptyRoot, err
