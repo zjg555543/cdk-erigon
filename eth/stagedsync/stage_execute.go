@@ -22,9 +22,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
-	"github.com/ledgerwatch/log/v3"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/ledgerwatch/erigon/common/changeset"
 	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/common/math"
@@ -46,6 +43,7 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/services"
 	"github.com/ledgerwatch/erigon/turbo/shards"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
+	"github.com/ledgerwatch/log/v3"
 )
 
 const (
@@ -375,6 +373,12 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		defer tx.Rollback()
 	}
 
+	if useExternalTx {
+		if cfg.blockReader.(WithSnapshots).Snapshots().Cfg().Enabled {
+			defer cfg.blockReader.(WithSnapshots).Snapshots().EnableMadvNormal().DisableReadAhead()
+		}
+	}
+
 	prevStageProgress, errStart := stages.GetStageProgress(tx, stages.Senders)
 	if errStart != nil {
 		return errStart
@@ -420,58 +424,10 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		batch.Rollback()
 	}()
 
-	readAheadFunc := func(blockNum uint64) error {
-		tx, err := cfg.db.BeginRo(context.Background())
-		if err != nil {
-			return err
-		}
-		defer tx.Rollback()
-
-		blockHash, err := rawdb.ReadCanonicalHash(tx, blockNum)
-		if err != nil {
-			return err
-		}
-		block, senders, err := cfg.blockReader.BlockWithSenders(ctx, tx, blockHash, blockNum)
-		if err != nil {
-			return err
-		}
-		//stateReader := state.NewPlainStateReader(tx) //TODO: can do on batch! if make batch thread-safe
-		//for _, sender := range senders {
-		//	_, _ = stateReader.ReadAccountData(sender)
-		//}
-		//_, _ = stateReader.ReadAccountData(block.Coinbase())
-		_, _ = block, senders
-		return nil
-	}
-	const readAheadBlocks = 100
-	readAhead := make(chan uint64, 10*readAheadBlocks)
-	defer close(readAhead)
-	if initialCycle {
-		g, _ := errgroup.WithContext(ctx)
-		for i := 0; i < 4; i++ {
-			g.Go(func() error {
-				for bn := range readAhead {
-					if err := readAheadFunc(bn); err != nil {
-						panic(err)
-					}
-				}
-				return nil
-			})
-		}
-	}
-
 Loop:
 	for blockNum := stageProgress + 1; blockNum <= to; blockNum++ {
 		if stoppedErr = common.Stopped(quit); stoppedErr != nil {
 			break
-		}
-		if (blockNum+10)%readAheadBlocks == 0 {
-			for i := blockNum + 10; i < blockNum+10+readAheadBlocks; i++ {
-				select {
-				case readAhead <- i:
-				default:
-				}
-			}
 		}
 
 		blockHash, err := rawdb.ReadCanonicalHash(tx, blockNum)
