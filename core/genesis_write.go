@@ -463,7 +463,7 @@ var genesisDBLock sync.Mutex
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
 func GenesisToBlock(g *types.Genesis, tmpDir string) (*types.Block, *state.IntraBlockState, error) {
-	fmt.Printf("GenesisToBlock: %s\n", dbg.Stack())
+	fmt.Printf("GenesisToBlock: %d, %s\n", len(g.Alloc), dbg.Stack())
 	defer fmt.Printf("end GenesisToBlock\n")
 
 	_ = g.Alloc //nil-check
