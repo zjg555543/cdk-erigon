@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +36,18 @@ func NewSentinelServer(ctx context.Context, sentinel *sentinel.Sentinel) *Sentin
 		ctx:            ctx,
 		gossipNotifier: newGossipNotifier(),
 	}
+}
+
+// extractBlobSideCarIndex takes a topic and extract the blob sidecar
+func extractBlobSideCarIndex(topic string) int {
+	// compute the index prefixless
+	startIndex := strings.Index(topic, string(sentinel.BlobSidecarTopic)) + len(sentinel.BlobSidecarTopic)
+	endIndex := strings.Index(topic[:startIndex], "/")
+	blobIndex, err := strconv.Atoi(topic[startIndex:endIndex])
+	if err != nil {
+		panic(fmt.Sprintf("should not be substribed to %s", topic))
+	}
+	return blobIndex
 }
 
 //BanPeer(context.Context, *Peer) (*EmptyMessage, error)
@@ -68,6 +82,11 @@ func (s *SentinelServer) PublishGossip(_ context.Context, msg *sentinelrpc.Gossi
 		subscription = manager.GetMatchingSubscription(string(sentinel.ProposerSlashingTopic))
 	case sentinelrpc.GossipType_AttesterSlashingGossipType:
 		subscription = manager.GetMatchingSubscription(string(sentinel.AttesterSlashingTopic))
+	case sentinelrpc.GossipType_BlobSidecarType:
+		if msg.BlobIndex == nil {
+			return &sentinelrpc.EmptyMessage{}, errors.New("cannot publish sidecar blob with no index")
+		}
+		subscription = manager.GetMatchingSubscription(fmt.Sprintf(string(sentinel.BlobSidecarTopic), *msg.BlobIndex))
 	default:
 		return &sentinelrpc.EmptyMessage{}, nil
 	}
@@ -97,6 +116,7 @@ func (s *SentinelServer) SubscribeGossip(_ *sentinelrpc.EmptyMessage, stream sen
 				Peer: &sentinelrpc.Peer{
 					Pid: packet.pid,
 				},
+				BlobIndex: packet.blobIndex,
 			}); err != nil {
 				log.Warn("[Sentinel] Could not relay gossip packet", "reason", err)
 			}
@@ -116,7 +136,7 @@ func (s *SentinelServer) SendRequest(_ context.Context, req *sentinelrpc.Request
 	for {
 		select {
 		case <-s.ctx.Done():
-			return nil, fmt.Errorf("interrupted")
+			return nil, context.Canceled
 		case <-retryReqInterval.C:
 			// Spawn new thread for request
 			pid, err := s.sentinel.RandomPeer(req.Topic)
@@ -188,6 +208,8 @@ func (s *SentinelServer) GetPeers(_ context.Context, _ *sentinelrpc.EmptyMessage
 }
 
 func (s *SentinelServer) ListenToGossip() {
+	refreshTicker := time.NewTicker(100 * time.Millisecond)
+	defer refreshTicker.Stop()
 	for {
 		s.mu.RLock()
 		select {
@@ -195,6 +217,7 @@ func (s *SentinelServer) ListenToGossip() {
 			s.handleGossipPacket(pkt)
 		case <-s.ctx.Done():
 			return
+		case <-refreshTicker.C:
 		}
 		s.mu.RUnlock()
 	}
@@ -256,10 +279,10 @@ func (s *SentinelServer) handleGossipPacket(pkt *pubsub.Message) error {
 		s.gossipNotifier.notify(sentinelrpc.GossipType_ProposerSlashingGossipType, data, string(textPid))
 	} else if strings.Contains(*pkt.Topic, string(sentinel.AttesterSlashingTopic)) {
 		s.gossipNotifier.notify(sentinelrpc.GossipType_AttesterSlashingGossipType, data, string(textPid))
-	} else if strings.Contains(*pkt.Topic, string(sentinel.LightClientFinalityUpdateTopic)) {
-		s.gossipNotifier.notify(sentinelrpc.GossipType_LightClientFinalityUpdateGossipType, data, string(textPid))
-	} else if strings.Contains(*pkt.Topic, string(sentinel.LightClientOptimisticUpdateTopic)) {
-		s.gossipNotifier.notify(sentinelrpc.GossipType_LightClientOptimisticUpdateGossipType, data, string(textPid))
+	} else if strings.Contains(*pkt.Topic, string(sentinel.BlobSidecarTopic)) {
+		// extract the index
+
+		s.gossipNotifier.notifyBlob(sentinelrpc.GossipType_BlobSidecarType, data, string(textPid), extractBlobSideCarIndex(*pkt.Topic))
 	}
 	return nil
 }
