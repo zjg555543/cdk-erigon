@@ -130,7 +130,7 @@ func TestCreate2Revive(t *testing.T) {
 			}
 			block.AddTx(tx)
 		}
-		fmt.Printf("insert %d\n", i)
+		fmt.Printf("contractBackend.Commit %d\n", i)
 
 		contractBackend.Commit()
 	}, false /* intermediateHashes */)
