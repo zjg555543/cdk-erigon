@@ -335,10 +335,13 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 			if _, _, _, err := b.engine.FinalizeAndAssemble(config, b.header, ibs, b.txs, b.uncles, b.receipts, nil, nil, nil, nil); err != nil {
 				return nil, nil, fmt.Errorf("call to FinaliseAndAssemble: %w", err)
 			}
+
+			fmt.Printf("ibs.CommitBlock: %T\n", stateWriter)
 			// Write state changes to db
 			if err := ibs.CommitBlock(config.Rules(b.header.Number.Uint64(), b.header.Time), stateWriter); err != nil {
 				return nil, nil, fmt.Errorf("call to CommitBlock to stateWriter: %w", err)
 			}
+			fmt.Printf("ibs.CommitBlock end\n")
 
 			var err error
 			b.header.Root, err = hashRoot(tx, b.header)
