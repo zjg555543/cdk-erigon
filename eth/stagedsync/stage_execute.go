@@ -462,7 +462,7 @@ Loop:
 		if err = batch.Commit(); err != nil {
 			return err
 		}
-		fmt.Printf("blockNum: %d, %d->%d\n", blockNum, s.BlockNumber, to)
+		fmt.Printf("blockNum: txLen=%d, %d, %d->%d\n", block.Transactions().Len(), blockNum, s.BlockNumber, to)
 		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
 			if len(k) == 20 {
 				fmt.Printf("acc: %x, %x\n", k, v)
@@ -555,6 +555,7 @@ func logProgress(logPrefix string, prevBlock uint64, prevTime time.Time, current
 }
 
 func UnwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context, cfg ExecuteBlockCfg, initialCycle bool) (err error) {
+	fmt.Printf("UnwindExecutionStage\n")
 	defer func() {
 		if tx != nil {
 			fmt.Printf("after unwind exec: %d->%d\n", u.CurrentBlockNumber, u.UnwindPoint)
