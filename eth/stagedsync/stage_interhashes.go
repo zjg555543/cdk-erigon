@@ -81,7 +81,7 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 		// we don't do the obvious `if s.BlockNumber > to` to support reorgs more naturally
 		return trie.EmptyRoot, nil
 	}
-	fmt.Printf("SpawnIntermediateHashesStage: %d-%d\n", s.BlockNumber, to)
+	fmt.Printf("===== SpawnIntermediateHashesStage: %d-%d\n", s.BlockNumber, to)
 
 	var expectedRootHash libcommon.Hash
 	var headerHash libcommon.Hash
@@ -622,7 +622,7 @@ func incrementIntermediateHashes(logPrefix string, s *StageState, db kv.RwTx, to
 }
 
 func UnwindIntermediateHashesStage(u *UnwindState, s *StageState, tx kv.RwTx, cfg TrieCfg, ctx context.Context) (err error) {
-	fmt.Printf("UnwindIntermediateHashesStage: %d-%d\n", u.CurrentBlockNumber, u.UnwindPoint)
+	fmt.Printf("===== UnwindIntermediateHashesStage: %d-%d\n", u.CurrentBlockNumber, u.UnwindPoint)
 	quit := ctx.Done()
 	useExternalTx := tx != nil
 	if !useExternalTx {
