@@ -713,6 +713,7 @@ func (sdb *IntraBlockState) BalanceIncreaseSet() map[libcommon.Address]uint256.I
 }
 
 func (sdb *IntraBlockState) MakeWriteSet(chainRules *chain.Rules, stateWriter StateWriter) error {
+	fmt.Printf("make write set: %d\n", sdb.txIndex)
 	for addr := range sdb.journal.dirties {
 		sdb.stateObjectsDirty[addr] = struct{}{}
 	}
