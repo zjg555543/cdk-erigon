@@ -331,7 +331,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 		}
 		if b.engine != nil {
 			// Finalize and seal the block
-			fmt.Printf("FinalizeAndAssemble: %T, %d, %d, %d\n", stateWriter, ibs.DbgList(), ibs.DbgList2(), ibs.DbgList3())
+			fmt.Printf("FinalizeAndAssemble: %T, %T, %d, %d, %d\n", stateWriter, b.engine, ibs.DbgList(), ibs.DbgList2(), ibs.DbgList3())
 			if _, _, _, err := b.engine.FinalizeAndAssemble(config, b.header, ibs, b.txs, b.uncles, b.receipts, nil, nil, nil, nil); err != nil {
 				return nil, nil, fmt.Errorf("call to FinaliseAndAssemble: %w", err)
 			}

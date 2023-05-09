@@ -462,7 +462,7 @@ Loop:
 		if err = batch.Commit(); err != nil {
 			return err
 		}
-		fmt.Printf("blockNum: txLen=%d, %d, %d->%d\n", block.Transactions().Len(), blockNum, s.BlockNumber, to)
+		fmt.Printf("blockNum: txLen=%d, %d, %d->%d, %T\n", block.Transactions().Len(), blockNum, s.BlockNumber, to, cfg.engine)
 		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
 			if len(k) == 20 {
 				fmt.Printf("acc: %x, %x\n", k, v)
