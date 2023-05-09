@@ -63,6 +63,7 @@ func originalAccountData(original *accounts.Account, omitHashes bool) []byte {
 }
 
 func (dsw *DbStateWriter) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
+	fmt.Printf("hs UpdateAccountData: %x, %s, %d\n", address, account.Balance.String(), account.Nonce)
 	if err := dsw.csw.UpdateAccountData(address, original, account); err != nil {
 		return err
 	}
@@ -79,6 +80,7 @@ func (dsw *DbStateWriter) UpdateAccountData(address libcommon.Address, original,
 }
 
 func (dsw *DbStateWriter) DeleteAccount(address libcommon.Address, original *accounts.Account) error {
+	fmt.Printf("hs DeleteAccount: %x\n", addre)
 	if err := dsw.csw.DeleteAccount(address, original); err != nil {
 		return err
 	}
