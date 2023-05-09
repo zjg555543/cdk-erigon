@@ -172,6 +172,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 				return core.SysCallContract(contract, data, *rw.chainConfig, ibs, header, rw.engine, false /* constCall */, nil /*excessDataGas*/)
 			}
 
+			fmt.Printf("FinalizeAndAssemble: bn=%d, %d, %d, %d\n", header.Number.Uint64(), ibs.DbgList(), ibs.DbgList2(), ibs.DbgList3())
 			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall); err != nil {
 				//fmt.Printf("error=%v\n", err)
 				txTask.Error = err
