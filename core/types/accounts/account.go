@@ -238,7 +238,7 @@ func (a *Account) EncodeForHashing(buffer []byte) {
 		}
 	}
 	pos += 1 + nonceBytes
-	fmt.Printf("enc2: %x\n", buffer[:pos])
+	//fmt.Printf("enc2: %x\n", buffer[:pos])
 
 	// Encoding balance
 	if a.Balance.LtUint64(128) && !a.Balance.IsZero() {
@@ -250,19 +250,19 @@ func (a *Account) EncodeForHashing(buffer []byte) {
 		a.Balance.WriteToSlice(buffer[pos : pos+balanceBytes])
 		pos += balanceBytes
 	}
-	fmt.Printf("enc2: %x\n", buffer[:pos])
+	//fmt.Printf("enc2: %x\n", buffer[:pos])
 
 	// Encoding Root and CodeHash
 	buffer[pos] = 128 + 32
 	pos++
 	copy(buffer[pos:], a.Root[:])
 	pos += 32
-	fmt.Printf("enc3: %x, %x\n", buffer[:pos], a.Root[:])
+	//fmt.Printf("enc3: %x, %x\n", buffer[:pos], a.Root[:])
 	buffer[pos] = 128 + 32
 	pos++
 	copy(buffer[pos:], a.CodeHash[:])
 	pos += 32
-	fmt.Printf("enc4: %x, %x\n", buffer[:pos], a.CodeHash[:])
+	//fmt.Printf("enc4: %x, %x\n", buffer[:pos], a.CodeHash[:])
 }
 
 // Copy makes `a` a full, independent (meaning that if the `image` changes in any way, it does not affect `a`) copy of the account `image`.
