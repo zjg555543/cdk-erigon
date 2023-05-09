@@ -81,6 +81,7 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 		// we don't do the obvious `if s.BlockNumber > to` to support reorgs more naturally
 		return trie.EmptyRoot, nil
 	}
+	fmt.Printf("SpawnIntermediateHashesStage: %d-%d\n", s.BlockNumber, to)
 
 	var expectedRootHash libcommon.Hash
 	var headerHash libcommon.Hash
