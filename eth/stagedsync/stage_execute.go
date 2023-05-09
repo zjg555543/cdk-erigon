@@ -283,7 +283,7 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 	if to > s.BlockNumber+16 {
 		log.Info(fmt.Sprintf("[%s] Blocks execution", logPrefix), "from", s.BlockNumber, "to", to)
 	}
-	fmt.Printf("before exec: %d->%d\n", s.BlockNumber, to)
+	fmt.Printf("===== ExecutionStage: %d-%d\n", s.BlockNumber, to)
 	//defer func() {
 	//	if tx != nil {
 	//		fmt.Printf("after exec: %d->%d\n", s.BlockNumber, to)
