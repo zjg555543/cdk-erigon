@@ -98,6 +98,7 @@ func TestCreate2Revive(t *testing.T) {
 	// In the forth block, we create the second child contract, and we expect it to have a "clean slate" of storage,
 	// i.e. without any storage items that "inherited" from the first child contract by mistake
 	chain, err := core.GenerateChain(m.ChainConfig, m.Genesis, m.Engine, m.DB, 4, func(i int, block *core.BlockGen) {
+		fmt.Printf("GenerateChain %d\n", i)
 		var tx types.Transaction
 
 		switch i {
