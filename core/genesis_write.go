@@ -564,6 +564,7 @@ func GenesisToBlock(g *types.Genesis, tmpDir string) (*types.Block, *state.Intra
 				statedb.SetIncarnation(addr, state.FirstContractIncarnation)
 			}
 		}
+		fmt.Printf("GenesisToBlock.FinalizeTx\n")
 		if err = statedb.FinalizeTx(&chain.Rules{}, w); err != nil {
 			return
 		}
