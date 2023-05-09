@@ -597,7 +597,7 @@ func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, add
 		}
 		stateObject.deleted = true
 	}
-	fmt.Printf("MakeWriteSet: stateObjects updateAccount, addr %x, isDirty=%t, stateObject.created=%t, stateObject.selfdestructed=%t  \n", addr, isDirty, stateObject.created, stateObject.selfdestructed)
+	fmt.Printf("MakeWriteSet: stateObjects updateAccount, %T, addr %x, isDirty=%t, stateObject.created=%t, stateObject.selfdestructed=%t  \n", stateWriter, addr, isDirty, stateObject.created, stateObject.selfdestructed)
 	if isDirty && (stateObject.created || !stateObject.selfdestructed) && !emptyRemoval {
 		stateObject.deleted = false
 		// Write any contract code associated with the state object
@@ -614,6 +614,8 @@ func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, add
 		if err := stateObject.updateTrie(stateWriter); err != nil {
 			return err
 		}
+
+		fmt.Printf("MakeWriteSet: before UpdateAccountData %x  \n", addr)
 		if err := stateWriter.UpdateAccountData(addr, &stateObject.original, &stateObject.data); err != nil {
 			return err
 		}

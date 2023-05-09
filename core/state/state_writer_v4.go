@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/holiman/uint256"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -23,6 +25,7 @@ func NewWriterV4(tx kv.TemporalTx) *WriterV4 {
 }
 
 func (w *WriterV4) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
+	fmt.Printf("UpdateAccountData: %x\n", address)
 	value := accounts.SerialiseV3(account)
 	origValue := accounts.SerialiseV3(original)
 	w.agg.SetTx(w.tx.(kv.RwTx))

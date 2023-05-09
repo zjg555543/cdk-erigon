@@ -570,7 +570,6 @@ func (rw *StateReaderV4) ReadAccountIncarnation(address libcommon.Address) (uint
 }
 
 func (ww *StateWriterV4) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
-	fmt.Printf("UpdateAccountData: %x\n", address)
 	value := accounts.SerialiseV3(account)
 	if err := ww.w.UpdateAccountData(address.Bytes(), value); err != nil {
 		return err
@@ -586,7 +585,6 @@ func (ww *StateWriterV4) UpdateAccountCode(address libcommon.Address, incarnatio
 }
 
 func (ww *StateWriterV4) DeleteAccount(address libcommon.Address, original *accounts.Account) error {
-	fmt.Printf("DeleteAccount: %x\n", address)
 	if err := ww.w.DeleteAccount(address.Bytes()); err != nil {
 		return err
 	}
