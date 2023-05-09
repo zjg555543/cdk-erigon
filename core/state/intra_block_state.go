@@ -597,6 +597,7 @@ func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, add
 		}
 		stateObject.deleted = true
 	}
+	fmt.Printf("MakeWriteSet: stateObjects updateAccount, addr %x, isDirty=%t, stateObject.created=%t, stateObject.selfdestructed=%t  \n", addr, isDirty, stateObject.created, stateObject.selfdestructed)
 	if isDirty && (stateObject.created || !stateObject.selfdestructed) && !emptyRemoval {
 		stateObject.deleted = false
 		// Write any contract code associated with the state object
@@ -719,7 +720,7 @@ func (sdb *IntraBlockState) MakeWriteSet(chainRules *chain.Rules, stateWriter St
 	}
 	for addr, stateObject := range sdb.stateObjects {
 		_, isDirty := sdb.stateObjectsDirty[addr]
-		fmt.Printf("MakeWriteSet: stateObjects addr \n", addr)
+		fmt.Printf("MakeWriteSet: stateObjects addr %x \n", addr)
 		if err := updateAccount(chainRules.IsSpuriousDragon, chainRules.IsAura, stateWriter, addr, stateObject, isDirty); err != nil {
 			return err
 		}
