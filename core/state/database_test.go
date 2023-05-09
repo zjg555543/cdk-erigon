@@ -125,6 +125,7 @@ func TestCreate2Revive(t *testing.T) {
 			}
 			block.AddTx(tx)
 		}
+		fmt.Printf("insert %d\n", i)
 		contractBackend.Commit()
 	}, false /* intermediateHashes */)
 	if err != nil {
