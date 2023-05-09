@@ -72,10 +72,15 @@ func TestCreate2Revive(t *testing.T) {
 		signer = types.LatestSignerForChainID(nil)
 	)
 
+	fmt.Printf("test1\n")
+
 	m := stages.MockWithGenesis(t, gspec, key, false)
+	fmt.Printf("test2\n")
 
 	contractBackend := backends.NewTestSimulatedBackendWithConfig(t, gspec.Alloc, gspec.Config, gspec.GasLimit)
 	defer contractBackend.Close()
+	fmt.Printf("test3\n")
+
 	transactOpts, err := bind.NewKeyedTransactorWithChainID(key, m.ChainConfig.ChainID)
 	require.NoError(t, err)
 	transactOpts.GasLimit = 1000000
@@ -125,6 +130,8 @@ func TestCreate2Revive(t *testing.T) {
 			}
 			block.AddTx(tx)
 		}
+		fmt.Printf("insert %d\n", i)
+
 		contractBackend.Commit()
 	}, false /* intermediateHashes */)
 	if err != nil {
