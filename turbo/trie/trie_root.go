@@ -144,10 +144,10 @@ func NewFlatDBTrieLoader(logPrefix string, rd RetainDeciderWithMarker, hc HashCo
 	return &FlatDBTrieLoader{
 		logPrefix: logPrefix,
 		receiver: &RootHashAggregator{
-			hb:    NewHashBuilder(true),
+			hb:    NewHashBuilder(false),
 			hc:    hc,
 			shc:   shc,
-			trace: false,
+			trace: trace,
 		},
 		ihSeek:      make([]byte, 0, 128),
 		accSeek:     make([]byte, 0, 128),
