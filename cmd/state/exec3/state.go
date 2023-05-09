@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ledgerwatch/erigon/consensus/aura"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
 
@@ -159,7 +160,12 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 		}
 		rw.engine.Initialize(rw.chainConfig, rw.chain, header, ibs, txTask.Txs, txTask.Uncles, syscall)
 	} else if txTask.Final {
-		if txTask.BlockNum > 0 {
+		needFinalize := txTask.BlockNum > 0
+		fmt.Printf("rw.engine: %T\n", rw.engine)
+		if txTask.BlockNum == 0 {
+			_, needFinalize = rw.engine.(*aura.AuRa)
+		}
+		if needFinalize {
 			//fmt.Printf("txNum=%d, blockNum=%d, finalisation of the block\n", txTask.TxNum, txTask.BlockNum)
 			// End of block transaction in a block
 			syscall := func(contract libcommon.Address, data []byte) ([]byte, error) {
