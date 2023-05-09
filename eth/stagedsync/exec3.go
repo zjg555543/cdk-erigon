@@ -598,6 +598,7 @@ Loop:
 		rules := chainConfig.Rules(blockNum, b.Time())
 		var gasUsed uint64
 		for txIndex := -1; txIndex <= len(txs); txIndex++ {
+			fmt.Printf("insert %d, %d\n", blockNum, txIndex)
 
 			// Do not oversend, wait for the result heap to go under certain size
 			txTask := &exec22.TxTask{
