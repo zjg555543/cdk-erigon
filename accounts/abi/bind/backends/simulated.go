@@ -121,6 +121,7 @@ func NewTestSimulatedBackendWithConfig(t *testing.T, alloc types.GenesisAlloc, c
 	t.Cleanup(b.Close)
 	return b
 }
+func (b *SimulatedBackend) M() *stages.MockSentry     { return b.m }
 func (b *SimulatedBackend) DB() kv.RwDB               { return b.m.DB }
 func (b *SimulatedBackend) Agg() *state2.AggregatorV3 { return b.m.HistoryV3Components() }
 func (b *SimulatedBackend) BlockReader() *snapshotsync.BlockReaderWithSnapshots {
