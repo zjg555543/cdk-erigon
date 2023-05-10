@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"runtime"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
+	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
 
@@ -572,6 +574,37 @@ func blocksReadAhead(ctx context.Context, cfg *ExecuteBlockCfg, blockNum uint64)
 	}
 	_, _ = stateReader.ReadAccountData(block.Coinbase())
 	_, _ = block, senders
+
+	// where the magic happens
+	getHeader := func(hash common.Hash, number uint64) *types.Header {
+		h, _ := cfg.blockReader.Header(context.Background(), tx, hash, number)
+		return h
+	}
+	getHashFn := core.GetHashFn(block.Header(), getHeader)
+
+	noop := state.NewNoopWriter()
+	vmCfg := *cfg.vmConfig
+	vmCfg.NoReceipts = true
+	vmCfg.Debug = false
+	vmCfg.ReadOnly = true
+	ibs := state.New(stateReader)
+
+	usedGas := new(uint64)
+	gp := new(core.GasPool)
+	gp.AddGas(block.GasLimit()).AddDataGas(params.MaxDataGasPerBlock)
+
+	var excessDataGas *big.Int
+	ph, _ := cfg.blockReader.HeaderByHash(context.Background(), tx, block.ParentHash())
+	if ph != nil {
+		excessDataGas = ph.ExcessDataGas
+	}
+
+	//TODO: need core.InitializeBlockExecution()  ?
+	for i, txn := range block.Transactions() {
+		ibs.Reset()
+		ibs.SetTxContext(txn.Hash(), block.Hash(), i)
+		_, _, _ = core.ApplyTransaction(cfg.chainConfig, getHashFn, cfg.engine, nil, gp, ibs, noop, block.HeaderNoCopy(), txn, usedGas, vmCfg, excessDataGas)
+	}
 	return nil
 }
 
