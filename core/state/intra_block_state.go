@@ -597,7 +597,7 @@ func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, add
 		}
 		stateObject.deleted = true
 	}
-	fmt.Printf("MakeWriteSet: stateObjects updateAccount, addr %x, isDirty=%t, stateObject.created=%t, stateObject.selfdestructed=%t  \n", addr, isDirty, stateObject.created, stateObject.selfdestructed)
+	//fmt.Printf("MakeWriteSet: stateObjects updateAccount, addr %x, isDirty=%t, stateObject.created=%t, stateObject.selfdestructed=%t  \n", addr, isDirty, stateObject.created, stateObject.selfdestructed)
 	if isDirty && (stateObject.created || !stateObject.selfdestructed) && !emptyRemoval {
 		stateObject.deleted = false
 		// Write any contract code associated with the state object
@@ -714,7 +714,7 @@ func (sdb *IntraBlockState) BalanceIncreaseSet() map[libcommon.Address]uint256.I
 }
 
 func (sdb *IntraBlockState) MakeWriteSet(chainRules *chain.Rules, stateWriter StateWriter) error {
-	fmt.Printf("MakeWriteSet: %d\n", sdb.txIndex)
+	//fmt.Printf("MakeWriteSet: %d\n", sdb.txIndex)
 	for addr := range sdb.journal.dirties {
 		sdb.stateObjectsDirty[addr] = struct{}{}
 	}
