@@ -711,9 +711,10 @@ Loop:
 			}
 
 			if !bytes.Equal(rh, header.Root.Bytes()) {
-
 				log.Error(fmt.Sprintf("[%s] block hash mismatch", logPrefix), "rh", hex.EncodeToString(rh), "blockRoot", hex.EncodeToString(header.Root.Bytes()), "bn", blockNum, "txn", inputTxNum)
 				return fmt.Errorf("[%s] block hash mismatch: %x != %x bn =%d", logPrefix, rh, header.Root.Bytes(), blockNum)
+			} else {
+				fmt.Printf("succeed check root hash: %x\n", header.Root.Bytes())
 			}
 
 			select {
