@@ -595,6 +595,16 @@ Loop:
 			}()
 		}
 
+		fmt.Printf("--- State Before block --- %d, %d-%d\n", blockNum, execStage.BlockNumber, maxBlockNum)
+		agg.MakeContext().IterAcc(nil, func(k, v []byte) {
+			vv, err := accounts.ConvertV3toV2(v)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("acc: %x, %x\n", k, vv)
+		}, applyTx)
+		fmt.Printf("--- in mem state END ---\n")
+
 		rules := chainConfig.Rules(blockNum, b.Time())
 		var gasUsed uint64
 		for txIndex := -1; txIndex <= len(txs); txIndex++ {
@@ -694,7 +704,7 @@ Loop:
 		if !parallel {
 			outputBlockNum.Set(blockNum)
 
-			fmt.Printf("-- in mem state START -- %d, %d-%d\n", blockNum, execStage.BlockNumber, maxBlockNum)
+			fmt.Printf("--- State After block --- %d, %d-%d\n", blockNum, execStage.BlockNumber, maxBlockNum)
 			agg.MakeContext().IterAcc(nil, func(k, v []byte) {
 				vv, err := accounts.ConvertV3toV2(v)
 				if err != nil {
@@ -702,7 +712,7 @@ Loop:
 				}
 				fmt.Printf("acc: %x, %x\n", k, vv)
 			}, applyTx)
-			fmt.Printf("-- in mem state END --\n")
+			fmt.Printf("--- in mem state END ---\n")
 
 			// MA commitment
 			rh, err := agg.ComputeCommitment(false, false)

@@ -735,7 +735,7 @@ func (w *StateWriterBufferedV3) PrevAndDels() (map[string][]byte, map[string]*ac
 }
 
 func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
-	fmt.Printf("StateWriterBufferedV3: UpdateAccountData: %x, %s, %d, %s\n", address, account.Balance.String(), account.Nonce, dbg.Stack())
+	fmt.Printf("wV3: UpdateAccountData: %x, %s, %d\n", address, account.Balance.String(), account.Nonce)
 	addressBytes := address.Bytes()
 	value := make([]byte, account.EncodingLengthForStorage())
 	account.EncodeForStorage(value)
