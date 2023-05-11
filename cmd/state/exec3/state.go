@@ -159,30 +159,30 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 		}
 		rw.engine.Initialize(rw.chainConfig, rw.chain, header, ibs, txTask.Txs, txTask.Uncles, syscall)
 	} else if txTask.Final {
-		//if txTask.BlockNum > 0 {
-		//fmt.Printf("txNum=%d, blockNum=%d, finalisation of the block\n", txTask.TxNum, txTask.BlockNum)
-		// End of block transaction in a block
-		syscall := func(contract libcommon.Address, data []byte) ([]byte, error) {
-			return core.SysCallContract(contract, data, *rw.chainConfig, ibs, header, rw.engine, false /* constCall */, nil /*excessDataGas*/)
-		}
+		if txTask.BlockNum > 0 {
+			//fmt.Printf("txNum=%d, blockNum=%d, finalisation of the block\n", txTask.TxNum, txTask.BlockNum)
+			// End of block transaction in a block
+			syscall := func(contract libcommon.Address, data []byte) ([]byte, error) {
+				return core.SysCallContract(contract, data, *rw.chainConfig, ibs, header, rw.engine, false /* constCall */, nil /*excessDataGas*/)
+			}
 
-		fmt.Printf("FinalizeAndAssemble: bn=%d, %d, %d, %d\n", header.Number.Uint64(), ibs.DbgList(), ibs.DbgList2(), ibs.DbgList3())
-		if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall); err != nil {
-			//fmt.Printf("error=%v\n", err)
-			txTask.Error = err
-		} else {
-			//rw.callTracer.AddCoinbase(txTask.Coinbase, txTask.Uncles)
-			txTask.TraceTos = rw.callTracer.Tos()
-			txTask.TraceTos = map[libcommon.Address]struct{}{}
-			txTask.TraceTos[txTask.Coinbase] = struct{}{}
-			for _, uncle := range txTask.Uncles {
-				txTask.TraceTos[uncle.Coinbase] = struct{}{}
+			fmt.Printf("FinalizeAndAssemble: bn=%d, %d, %d, %d\n", header.Number.Uint64(), ibs.DbgList(), ibs.DbgList2(), ibs.DbgList3())
+			if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall); err != nil {
+				//fmt.Printf("error=%v\n", err)
+				txTask.Error = err
+			} else {
+				//rw.callTracer.AddCoinbase(txTask.Coinbase, txTask.Uncles)
+				//txTask.TraceTos = rw.callTracer.Tos()
+				txTask.TraceTos = map[libcommon.Address]struct{}{}
+				txTask.TraceTos[txTask.Coinbase] = struct{}{}
+				for _, uncle := range txTask.Uncles {
+					txTask.TraceTos[uncle.Coinbase] = struct{}{}
+				}
+			}
+			if err := ibs.CommitBlock(txTask.Rules, rw.stateWriter); err != nil {
+				txTask.Error = fmt.Errorf("commit block: %w", err)
 			}
 		}
-		if err := ibs.CommitBlock(txTask.Rules, rw.stateWriter); err != nil {
-			txTask.Error = fmt.Errorf("commit block: %w", err)
-		}
-		//}
 	} else {
 		//fmt.Printf("txNum=%d, blockNum=%d, txIndex=%d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
 		txHash := txTask.Tx.Hash()
