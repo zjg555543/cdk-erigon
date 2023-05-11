@@ -595,7 +595,7 @@ Loop:
 			}()
 		}
 
-		fmt.Printf("--- State Before block --- %d, %d-%d\n", blockNum, execStage.BlockNumber, maxBlockNum)
+		fmt.Printf("--- State Before block --- %d\n", blockNum)
 		agg.MakeContext().IterAcc(nil, func(k, v []byte) {
 			vv, err := accounts.ConvertV3toV2(v)
 			if err != nil {
@@ -704,7 +704,7 @@ Loop:
 		if !parallel {
 			outputBlockNum.Set(blockNum)
 
-			fmt.Printf("--- State After block --- %d, %d-%d\n", blockNum, execStage.BlockNumber, maxBlockNum)
+			fmt.Printf("--- State After block --- %d\n", blockNum)
 			agg.MakeContext().IterAcc(nil, func(k, v []byte) {
 				vv, err := accounts.ConvertV3toV2(v)
 				if err != nil {
