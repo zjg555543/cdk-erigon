@@ -714,13 +714,13 @@ func (sdb *IntraBlockState) BalanceIncreaseSet() map[libcommon.Address]uint256.I
 }
 
 func (sdb *IntraBlockState) MakeWriteSet(chainRules *chain.Rules, stateWriter StateWriter) error {
-	fmt.Printf("MakeWriteSet: txIndex=%d, dirties=%d, stateObjects=%d\n", sdb.txIndex, len(sdb.journal.dirties), len(sdb.stateObjects))
+	//fmt.Printf("MakeWriteSet: txIndex=%d, dirties=%d, stateObjects=%d\n", sdb.txIndex, len(sdb.journal.dirties), len(sdb.stateObjects))
 	for addr := range sdb.journal.dirties {
 		sdb.stateObjectsDirty[addr] = struct{}{}
 	}
 	for addr, stateObject := range sdb.stateObjects {
 		_, isDirty := sdb.stateObjectsDirty[addr]
-		fmt.Printf("MakeWriteSet: stateObjects addr %x \n", addr)
+		//fmt.Printf("MakeWriteSet: stateObjects addr %x \n", addr)
 		if err := updateAccount(chainRules.IsSpuriousDragon, chainRules.IsAura, stateWriter, addr, stateObject, isDirty); err != nil {
 			return err
 		}
