@@ -6,7 +6,6 @@ import (
 
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
-	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/ledgerwatch/erigon/common/dbutils"
@@ -46,7 +45,7 @@ func (w *PlainStateWriter) SetAccumulator(accumulator *shards.Accumulator) *Plai
 }
 
 func (w *PlainStateWriter) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
-	fmt.Printf("UpdateAccountData: %x, %s, %d, %s\n", address, account.Balance.String(), account.Nonce, dbg.Stack())
+	fmt.Printf("UpdateAccountData: %x, %s, %d\n", address, account.Balance.String(), account.Nonce)
 	//fmt.Printf("balance,%x,%d\n", address, &account.Balance)
 	if w.csw != nil {
 		if err := w.csw.UpdateAccountData(address, original, account); err != nil {
