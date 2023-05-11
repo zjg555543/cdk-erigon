@@ -441,6 +441,15 @@ Loop:
 
 		lastLogTx += uint64(block.Transactions().Len())
 
+		fmt.Printf("--- State Before block --- %d\n", blockNum)
+		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+			if len(k) == 20 {
+				fmt.Printf("acc: %x, %x\n", k, v)
+			}
+			return nil
+		})
+		fmt.Printf("--- in mem state END ---\n")
+
 		// Incremental move of next stages depend on fully written ChangeSets, Receipts, CallTraceSet
 		writeChangeSets := nextStagesExpectData || blockNum > cfg.prune.History.PruneTo(to)
 		writeReceipts := nextStagesExpectData || blockNum > cfg.prune.Receipts.PruneTo(to)
@@ -462,13 +471,15 @@ Loop:
 		if err = batch.Commit(); err != nil {
 			return err
 		}
-		fmt.Printf("blockNum: txLen=%d, %d, %d->%d, %T\n", block.Transactions().Len(), blockNum, s.BlockNumber, to, cfg.engine)
+		fmt.Printf("--- State After block --- %d\n", blockNum)
 		tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
 			if len(k) == 20 {
 				fmt.Printf("acc: %x, %x\n", k, v)
 			}
 			return nil
 		})
+		fmt.Printf("--- in mem state END ---\n")
+
 		shouldUpdateProgress := batch.BatchSize() >= int(cfg.batchSize)
 		if shouldUpdateProgress {
 			logger.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState)
