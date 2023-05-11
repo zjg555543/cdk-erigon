@@ -341,7 +341,9 @@ func testReorg(t *testing.T, first, second []int64, td int64) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fmt.Printf("alex1\n")
 	for block.NumberU64() != 0 {
+		fmt.Printf("alex2\n")
 		if prev.ParentHash() != block.Hash() {
 			t.Errorf("parent block hash mismatch: have %x, want %x", prev.ParentHash(), block.Hash())
 		}
