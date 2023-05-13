@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/cmd/ef-tests-cl/spectest"
 	"github.com/ledgerwatch/erigon/cmd/erigon-cl/core/transition"
@@ -64,7 +63,6 @@ var SanityBlocks = spectest.HandlerFunc(func(t *testing.T, root fs.FS, c spectes
 	require.NoError(t, err)
 
 	var block *cltypes.SignedBeaconBlock
-	spew.Dump(blocks)
 	for _, block = range blocks {
 		err = transition.TransitionState(testState, block, true)
 		if err != nil {
