@@ -1,10 +1,13 @@
 package raw
 
 import (
+	"testing"
+
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/cl/clparams"
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/cl/cltypes/solid"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -13,6 +16,74 @@ const (
 	randoMixesLength = 65536
 	slashingsLength  = 8192
 )
+
+func CompareBeaconState(t *testing.T, a, b *BeaconState) error {
+
+	_, err := a.HashSSZ()
+	require.NoError(t, err)
+	_, err = b.HashSSZ()
+	require.NoError(t, err)
+
+	require.EqualValues(t, a.inactivityScores.Length(), b.inactivityScores.Length())
+	require.EqualValues(t, a.GenesisTime(), b.GenesisTime())
+	require.EqualValues(t, a.GenesisValidatorsRoot(), b.GenesisValidatorsRoot())
+	require.EqualValues(t, a.Slot(), b.Slot())
+	require.EqualValues(t, a.Fork(), b.Fork())
+	require.EqualValues(t, a.LatestBlockHeader(), b.LatestBlockHeader())
+	require.EqualValues(t, a.BlockRoots(), b.BlockRoots())
+	require.EqualValues(t, a.StateRoots(), b.StateRoots())
+	require.EqualValues(t, a.HistoricalRoots(), b.HistoricalRoots())
+	require.EqualValues(t, a.Eth1Data(), b.Eth1Data())
+	require.EqualValues(t, a.Eth1DataVotes(), b.Eth1DataVotes())
+	require.EqualValues(t, a.Eth1DepositIndex(), b.Eth1DepositIndex())
+	a.ForEachValidator(func(v *cltypes.Validator, idx, total int) bool {
+		require.EqualValuesf(t, v, v, "validator: %d", idx)
+		return true
+	})
+	require.EqualValues(t, a.balances.Length(), b.balances.Length())
+	a.balances.Range(func(index int, value uint64, length int) bool {
+		require.EqualValuesf(t, value, b.balances.Get(index), "index %d", value)
+		return true
+	})
+
+	require.EqualValues(t, a.balances.Length(), b.balances.Length())
+
+	require.EqualValues(t, a.randaoMixes, b.randaoMixes)
+	require.EqualValues(t, a.slashings, b.slashings)
+	require.EqualValues(t, a.previousEpochParticipation.Length(), b.previousEpochParticipation.Length())
+	//require.EqualValues(t, a.currentEpochParticipation, b.currentEpochParticipation)
+
+	require.EqualValues(t, a.currentJustifiedCheckpoint, b.currentJustifiedCheckpoint)
+	require.EqualValues(t, a.finalizedCheckpoint, b.finalizedCheckpoint)
+	require.EqualValues(t, a.inactivityScores.Length(), b.inactivityScores.Length())
+	a.inactivityScores.Range(func(index int, value uint64, length int) bool {
+		require.EqualValuesf(t, value, b.inactivityScores.Get(index), "index %d", value)
+		return true
+	})
+	require.EqualValues(t, a.currentSyncCommittee, b.currentSyncCommittee)
+	require.EqualValues(t, a.nextSyncCommittee, b.nextSyncCommittee)
+	require.EqualValues(t, a.latestExecutionPayloadHeader, b.latestExecutionPayloadHeader)
+	require.EqualValues(t, a.nextWithdrawalIndex, b.nextWithdrawalIndex)
+	require.EqualValues(t, a.nextWithdrawalValidatorIndex, b.nextWithdrawalValidatorIndex)
+	require.EqualValues(t, a.historicalSummaries, b.historicalSummaries)
+	require.EqualValues(t, a.previousEpochAttestations, b.previousEpochAttestations)
+	require.EqualValues(t, a.currentEpochAttestations, b.currentEpochAttestations)
+
+	for idx := range a.leaves {
+		require.EqualValuesf(t, a.leaves[idx], b.leaves[idx], "leaf %d", idx)
+	}
+
+	//av, err := a.BlockRoot()
+	//if err != nil {
+	//	return err
+	//}
+	//bv, err := b.BlockRoot()
+	//if err != nil {
+	//	return err
+	//}
+	//assert.EqualValues(t, av, bv)
+	return nil
+}
 
 type BeaconState struct {
 	// State fields

@@ -17,11 +17,13 @@ type bitlist struct {
 }
 
 func NewBitList(l int, c int) BitList {
-	return &bitlist{
+	o := &bitlist{
 		u: make([]byte, l+32),
 		l: l,
 		c: c,
 	}
+	o.u = o.u[:l]
+	return o
 }
 func BitlistFromBytes(xs []byte, c int) BitList {
 	return &bitlist{
@@ -38,8 +40,8 @@ func (u *bitlist) Clear() {
 
 func (u *bitlist) CopyTo(target BitList) {
 	target.Clear()
-	for _, v := range u.u {
-		target.Append(v)
+	for idx := 0; idx < u.l; idx++ {
+		target.Append(u.u[idx])
 	}
 }
 
@@ -50,16 +52,17 @@ func (u *bitlist) Range(fn func(index int, value byte, length int) bool) {
 }
 
 func (u *bitlist) Pop() (x byte) {
-	x, u.u = u.u[0], u.u[1:]
+	x, u.u = u.u[len(u.u)-1], u.u[:len(u.u)-1]
 	u.l = u.l - 1
 	return x
 }
 
 func (u *bitlist) Append(v byte) {
 	if len(u.u) <= u.l {
-		u.u = append(u.u, make([]byte, 32)...)
+		u.u = append(u.u, v)
+	} else {
+		u.u[u.l] = v
 	}
-	u.u[u.l] = v
 	u.l = u.l + 1
 }
 
@@ -97,11 +100,12 @@ func (u *bitlist) HashSSZTo(xs []byte) error {
 }
 
 func (arr *bitlist) getBaseHash(xs []byte, depth uint8) error {
+	elements := arr.u
 	offset := 32*(arr.l/32) + 32
 	if len(arr.u) <= offset {
 		arr.u = append(arr.u, make([]byte, offset-len(arr.u))...)
 	}
-	elements := arr.u[:offset]
+	elements = arr.u[:offset]
 	for i := uint8(0); i < depth; i++ {
 		// Sequential
 		layerLen := len(elements)

@@ -32,6 +32,7 @@ func (arr *byteBasedUint64Slice) Clear() {
 	for i := range arr.u {
 		arr.u[i] = 0
 	}
+	arr.u = arr.u[:0]
 }
 
 func (arr *byteBasedUint64Slice) CopyTo(target Uint64Slice) {
@@ -72,13 +73,12 @@ func (arr *byteBasedUint64Slice) Pop() uint64 {
 	val := binary.LittleEndian.Uint64(arr.u[offset : offset+8])
 	binary.LittleEndian.PutUint64(arr.u[offset:offset+8], 0)
 	arr.l = arr.l - 1
+	arr.u = arr.u[:arr.l*8]
 	return val
 }
 
 func (arr *byteBasedUint64Slice) Append(v uint64) {
-	if len(arr.u) <= arr.l*8 {
-		arr.u = append(arr.u, make([]byte, 32)...)
-	}
+	arr.u = append(arr.u, make([]byte, 8)...)
 	offset := arr.l * 8
 	binary.LittleEndian.PutUint64(arr.u[offset:offset+8], v)
 	arr.l = arr.l + 1

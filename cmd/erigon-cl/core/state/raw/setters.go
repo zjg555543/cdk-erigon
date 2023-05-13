@@ -220,26 +220,9 @@ func (b *BeaconState) IncrementSlashingSegmentAt(index int, delta uint64) {
 	b.slashings[index] += delta
 }
 
-func (b *BeaconState) SetEpochParticipationForValidatorIndex(isCurrentEpoch bool, index int, flags cltypes.ParticipationFlags) {
-	if isCurrentEpoch {
-		b.markLeaf(CurrentEpochParticipationLeafIndex)
-		b.currentEpochParticipation.Set(index, byte(flags))
-		return
-	}
-	b.markLeaf(PreviousEpochParticipationLeafIndex)
-	b.previousEpochParticipation.Set(index, byte(flags))
-}
-
 func (b *BeaconState) SetValidatorAtIndex(index int, validator *cltypes.Validator) {
 	b.validators[index] = validator
 	b.markLeaf(ValidatorsLeafIndex)
-}
-
-func (b *BeaconState) ResetEpochParticipation() {
-	b.previousEpochParticipation = b.currentEpochParticipation
-	b.currentEpochParticipation = solid.NewBitList(len(b.validators), state_encoding.ValidatorRegistryLimit)
-	b.markLeaf(CurrentEpochParticipationLeafIndex)
-	b.markLeaf(PreviousEpochParticipationLeafIndex)
 }
 
 func (b *BeaconState) SetJustificationBits(justificationBits cltypes.JustificationBits) {
@@ -321,6 +304,22 @@ func (b *BeaconState) SetValidatorInactivityScore(index int, score uint64) error
 	b.markLeaf(InactivityScoresLeafIndex)
 	b.inactivityScores.Set(index, score)
 	return nil
+}
+
+func (b *BeaconState) SetEpochParticipationForValidatorIndex(isCurrentEpoch bool, index int, flags cltypes.ParticipationFlags) {
+	if isCurrentEpoch {
+		b.markLeaf(CurrentEpochParticipationLeafIndex)
+		b.currentEpochParticipation.Set(index, byte(flags))
+		return
+	}
+	b.markLeaf(PreviousEpochParticipationLeafIndex)
+	b.previousEpochParticipation.Set(index, byte(flags))
+}
+func (b *BeaconState) ResetEpochParticipation() {
+	b.previousEpochParticipation = b.currentEpochParticipation
+	b.currentEpochParticipation = solid.NewBitList(len(b.validators), state_encoding.ValidatorRegistryLimit)
+	b.markLeaf(CurrentEpochParticipationLeafIndex)
+	b.markLeaf(PreviousEpochParticipationLeafIndex)
 }
 
 func (b *BeaconState) SetCurrentEpochParticipationFlags(flags []cltypes.ParticipationFlags) {

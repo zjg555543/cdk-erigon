@@ -7,6 +7,7 @@ import (
 
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/cmd/ef-tests-cl/spectest"
+	"github.com/ledgerwatch/erigon/cmd/erigon-cl/core/state/raw"
 	"github.com/ledgerwatch/erigon/cmd/erigon-cl/core/transition"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,12 +78,14 @@ var SanityBlocks = spectest.HandlerFunc(func(t *testing.T, root fs.FS, c spectes
 		require.NoError(t, err)
 	}
 
-	finalRoot, err := expectedState.HashSSZ()
-	require.NoError(t, err)
-	haveRoot, err := testState.HashSSZ()
-	require.NoError(t, err)
+	err = raw.CompareBeaconState(t, expectedState.BeaconState, testState.BeaconState)
+	assert.NoError(t, err)
+	//finalRoot, err := expectedState.HashSSZ()
+	//require.NoError(t, err)
+	//haveRoot, err := testState.HashSSZ()
+	//require.NoError(t, err)
 
-	assert.EqualValues(t, finalRoot, haveRoot)
+	//assert.EqualValues(t, finalRoot, haveRoot)
 
 	return nil
 })
