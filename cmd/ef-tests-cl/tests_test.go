@@ -15,3 +15,7 @@ import (
 func Test(t *testing.T) {
 	spectest.RunCases(t, consensus_tests.TestFormats, os.DirFS("./tests"))
 }
+
+func TestErigon(t *testing.T) {
+	spectest.RunCases(t, consensus_tests.TestFormats, os.DirFS("./erigon"))
+}
