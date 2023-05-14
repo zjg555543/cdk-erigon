@@ -53,7 +53,7 @@ func NewHashBuilder(trace bool) *HashBuilder {
 	return &HashBuilder{
 		sha:             sha3.NewLegacyKeccak256().(keccakState),
 		byteArrayWriter: &ByteArrayWriter{},
-		trace:           trace,
+		trace:           true,
 	}
 }
 
