@@ -549,11 +549,13 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 	}
 	// Output hasState hashes or embedded RLPs
 	i = 0
+	var cnt int
 	fmt.Printf("branchHash {\n")
 	hb.b[0] = rlp.EmptyStringCode
 	for digit := uint(0); digit < 17; digit++ {
 		if ((1 << digit) & set) != 0 {
 			if hashes[hashStackStride*i] == byte(0x80+length2.Hash) {
+				cnt++
 				fmt.Printf("buf write3: %x\n", hashes[hashStackStride*i:hashStackStride*i+hashStackStride])
 				if _, err := writer.Write(hashes[hashStackStride*i : hashStackStride*i+hashStackStride]); err != nil {
 					return err
@@ -570,6 +572,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 			}
 			i++
 		} else {
+			cnt++
 			fmt.Printf("buf write5: %x\n", hb.b[:])
 			if _, err := writer.Write(hb.b[:]); err != nil {
 				return err
@@ -583,7 +586,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 		return err
 	}
 
-	fmt.Printf("} [%x]\n", hb.hashStack[len(hb.hashStack)-hashStackStride:])
+	fmt.Printf("} [%x], %d\n", hb.hashStack[len(hb.hashStack)-hashStackStride:], cnt)
 
 	if hashStackStride*len(hb.nodeStack) > len(hb.hashStack) {
 		hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-digits+1]
