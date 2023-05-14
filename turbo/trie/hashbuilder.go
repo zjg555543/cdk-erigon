@@ -543,7 +543,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 	fmt.Printf("totalSize: %d\n", totalSize)
 	hb.sha.Reset()
 	pt := rlphacks.GenerateStructLen(hb.lenPrefix[:], totalSize)
-	fmt.Printf("buf write: %x\n", hb.lenPrefix[:pt])
+	fmt.Printf("buf write0: %x\n", hb.lenPrefix[:pt])
 	if _, err := writer.Write(hb.lenPrefix[:pt]); err != nil {
 		return err
 	}
@@ -554,7 +554,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 	for digit := uint(0); digit < 17; digit++ {
 		if ((1 << digit) & set) != 0 {
 			if hashes[hashStackStride*i] == byte(0x80+length2.Hash) {
-				fmt.Printf("buf write: %x\n", hashes[hashStackStride*i:hashStackStride*i+hashStackStride])
+				fmt.Printf("buf write3: %x\n", hashes[hashStackStride*i:hashStackStride*i+hashStackStride])
 				if _, err := writer.Write(hashes[hashStackStride*i : hashStackStride*i+hashStackStride]); err != nil {
 					return err
 				}
@@ -562,7 +562,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 			} else {
 				// Embedded node
 				size := int(hashes[hashStackStride*i]) - rlp.EmptyListCode
-				fmt.Printf("buf write: %x\n", hashes[hashStackStride*i:hashStackStride*i+size+1])
+				fmt.Printf("buf write4: %x\n", hashes[hashStackStride*i:hashStackStride*i+size+1])
 				if _, err := writer.Write(hashes[hashStackStride*i : hashStackStride*i+size+1]); err != nil {
 					return err
 				}
@@ -570,7 +570,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 			}
 			i++
 		} else {
-			fmt.Printf("buf write: %x\n", hb.b[:])
+			fmt.Printf("buf write5: %x\n", hb.b[:])
 			if _, err := writer.Write(hb.b[:]); err != nil {
 				return err
 			}
