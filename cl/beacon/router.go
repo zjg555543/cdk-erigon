@@ -64,4 +64,5 @@ func (a *ApiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.o.Do(func() {
 		a.init()
 	})
+	a.mux.ServeHTTP(w, r)
 }
