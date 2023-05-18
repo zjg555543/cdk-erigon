@@ -556,28 +556,22 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 		if ((1 << digit) & set) != 0 {
 			if hashes[hashStackStride*i] == byte(0x80+length2.Hash) {
 				cnt++
-				fmt.Printf("buf write3: %x\n", hashes[hashStackStride*i:hashStackStride*i+hashStackStride])
 				if _, err := writer.Write(hashes[hashStackStride*i : hashStackStride*i+hashStackStride]); err != nil {
 					return err
 				}
-				fmt.Printf("%x: [%x]\n", digit, hashes[hashStackStride*i:hashStackStride*i+hashStackStride])
 			} else {
 				// Embedded node
 				size := int(hashes[hashStackStride*i]) - rlp.EmptyListCode
-				fmt.Printf("buf write4: %x\n", hashes[hashStackStride*i:hashStackStride*i+size+1])
 				if _, err := writer.Write(hashes[hashStackStride*i : hashStackStride*i+size+1]); err != nil {
 					return err
 				}
-				fmt.Printf("%x: embedded [%x]\n", digit, hashes[hashStackStride*i:hashStackStride*i+size+1])
 			}
 			i++
 		} else {
 			cnt++
-			fmt.Printf("buf write5: %x\n", hb.b[:])
 			if _, err := writer.Write(hb.b[:]); err != nil {
 				return err
 			}
-			fmt.Printf("%x: empty\n", digit)
 		}
 	}
 	hb.hashStack = hb.hashStack[:len(hb.hashStack)-hashStackStride*digits+hashStackStride]
