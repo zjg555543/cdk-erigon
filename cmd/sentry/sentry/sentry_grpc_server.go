@@ -699,6 +699,7 @@ func (ss *GrpcServer) removePeer(peerID [64]byte) {
 }
 
 func (ss *GrpcServer) writePeer(logPrefix string, peerInfo *PeerInfo, msgcode uint64, data []byte, ttl time.Duration) {
+
 	peerInfo.Async(func() {
 		err := peerInfo.rw.WriteMsg(p2p.Msg{Code: msgcode, Size: uint32(len(data)), Payload: bytes.NewReader(data)})
 		if err != nil {

@@ -2,12 +2,14 @@ package sentry
 
 import (
 	"context"
+	"encoding/json"
 	"math/rand"
 
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	proto_sentry "github.com/ledgerwatch/erigon-lib/gointerfaces/sentry"
+	"github.com/ledgerwatch/log/v3"
 	"google.golang.org/grpc"
 
 	"github.com/ledgerwatch/erigon/eth/protocols/eth"
@@ -36,6 +38,13 @@ func (cs *MultiClient) UpdateHead(ctx context.Context, height, time uint64, hash
 		}
 	}
 }
+func mustJson(v interface{}) []byte {
+	r, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
 
 func (cs *MultiClient) SendBodyRequest(ctx context.Context, req *bodydownload.BodyRequest) (peerID [64]byte, ok bool) {
 	// if sentry not found peers to send such message, try next one. stop if found.
@@ -55,6 +64,7 @@ func (cs *MultiClient) SendBodyRequest(ctx context.Context, req *bodydownload.Bo
 			cs.logger.Error("Could not encode block bodies request", "err", err)
 			return [64]byte{}, false
 		}
+		log.Warn("[dbg] SendBodyRequest", "req", mustJson(req.Hashes))
 		outreq := proto_sentry.SendMessageByMinBlockRequest{
 			MinBlock: req.BlockNums[len(req.BlockNums)-1],
 			Data: &proto_sentry.OutboundMessageData{
@@ -84,6 +94,7 @@ func (cs *MultiClient) SendHeaderRequest(ctx context.Context, req *headerdownloa
 			continue
 		}
 		//log.Info(fmt.Sprintf("Sending header request {hash: %x, height: %d, length: %d}", req.Hash, req.Number, req.Length))
+		log.Warn("[dbg] SendHeaderRequest", "req", mustJson(req))
 		reqData := &eth.GetBlockHeadersPacket66{
 			RequestId: rand.Uint64(), // nolint: gosec
 			GetBlockHeadersPacket: &eth.GetBlockHeadersPacket{

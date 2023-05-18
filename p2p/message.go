@@ -18,6 +18,7 @@ package p2p
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -98,9 +99,18 @@ type MsgReadWriter interface {
 	MsgWriter
 }
 
+func mustJson(v interface{}) []byte {
+	r, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
 // Send writes an RLP-encoded message with the given code.
 // data should encode as an RLP list.
 func Send(w MsgWriter, msgcode uint64, data interface{}) error {
+	//log2.Warn("[dbg] p2p.Sned", "type", fmt.Sprintf("%T", data), "req", mustJson(data), "stack", dbg.Stack())
 	size, r, err := rlp.EncodeToReader(data)
 	if err != nil {
 		return err
