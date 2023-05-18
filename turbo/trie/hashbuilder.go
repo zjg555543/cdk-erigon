@@ -526,24 +526,19 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 	// Calculate the size of the resulting RLP
 	totalSize := 17 // These are 17 length prefixes
 	var i int
-	fmt.Printf("totalSize0: %d\n", totalSize)
 	for digit := uint(0); digit < 16; digit++ {
 		if ((1 << digit) & set) != 0 {
 			if hashes[hashStackStride*i] == 0x80+length2.Hash {
 				totalSize += length2.Hash
-				fmt.Printf("totalSize1: %d\n", totalSize)
 			} else {
 				// Embedded node
 				totalSize += int(hashes[hashStackStride*i] - rlp.EmptyListCode)
-				fmt.Printf("totalSize2: %d\n", totalSize)
 			}
 			i++
 		}
 	}
-	fmt.Printf("totalSize: %d\n", totalSize)
 	hb.sha.Reset()
 	pt := rlphacks.GenerateStructLen(hb.lenPrefix[:], totalSize)
-	fmt.Printf("buf write0: %x\n", hb.lenPrefix[:pt])
 	if _, err := writer.Write(hb.lenPrefix[:pt]); err != nil {
 		return err
 	}
