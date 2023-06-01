@@ -499,6 +499,7 @@ func SnapshotsPrune(s *PruneState, cfg SnapshotsCfg, ctx context.Context, tx kv.
 	}
 
 	sn := cfg.blockRetire.Snapshots()
+	fmt.Printf("dbg: SnapshotsPrune: sn.Cfg().Enabled=%t\n", sn.Cfg().Enabled)
 	if sn != nil && sn.Cfg().Enabled && sn.Cfg().Produce {
 		br := cfg.blockRetire
 		if err := br.PruneAncientBlocks(tx, 100); err != nil {
@@ -512,7 +513,7 @@ func SnapshotsPrune(s *PruneState, cfg SnapshotsCfg, ctx context.Context, tx kv.
 			}
 		}
 
-		br.RetireBlocksInBackground(ctx, s.ForwardProgress, log.LvlDebug)
+		br.RetireBlocksInBackground(ctx, s.ForwardProgress, log.LvlInfo)
 		//cfg.agg.BuildFilesInBackground()
 	}
 

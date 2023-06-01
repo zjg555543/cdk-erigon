@@ -1134,6 +1134,7 @@ func (br *BlockRetire) PruneAncientBlocks(tx kv.RwTx, limit int) error {
 
 func (br *BlockRetire) RetireBlocksInBackground(ctx context.Context, forwardProgress uint64, lvl log.Lvl) {
 	ok := br.working.CompareAndSwap(false, true)
+	fmt.Printf("dbg: RetireBlocksInBackground: working changed %t\n", ok)
 	if !ok {
 		// go-routine is still working
 		return
@@ -1142,6 +1143,7 @@ func (br *BlockRetire) RetireBlocksInBackground(ctx context.Context, forwardProg
 		defer br.working.Store(false)
 
 		blockFrom, blockTo, ok := CanRetire(forwardProgress, br.Snapshots())
+		fmt.Printf("dbg: RetireBlocksInBackground: CanRetire forwardProgress=%d, blockFrom=%d, blockTo=%d, ok=%t\n", forwardProgress, blockFrom, blockTo, ok)
 		if !ok {
 			return
 		}
