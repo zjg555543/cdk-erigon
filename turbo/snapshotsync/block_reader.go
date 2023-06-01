@@ -397,7 +397,7 @@ func (r *BlockReader) BlockWithSenders(ctx context.Context, tx kv.Getter, hash l
 	return r.blockWithSenders(ctx, tx, hash, blockHeight, false)
 }
 func (r *BlockReader) blockWithSenders(ctx context.Context, tx kv.Getter, hash libcommon.Hash, blockHeight uint64, forceCanonical bool) (block *types.Block, senders []libcommon.Address, err error) {
-	if blockHeight >= r.sn.BlocksAvailable() {
+	if blockHeight > r.sn.BlocksAvailable() {
 		if r.TransactionsV3 {
 			if forceCanonical {
 				canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
