@@ -1179,30 +1179,6 @@ func dumpBlocksRange(ctx context.Context, blockFrom, blockTo uint64, tmpDir, sna
 	defer logEvery.Stop()
 
 	{
-		segName := snaptype.SegmentFileName(blockFrom, blockTo, snaptype.Headers)
-		f, _ := snaptype.ParseFileName(snapDir, segName)
-
-		sn, err := compress.NewCompressor(ctx, "Snapshot Headers", f.Path, tmpDir, compress.MinPatternScore, workers, log.LvlTrace, logger)
-		if err != nil {
-			return err
-		}
-		defer sn.Close()
-		if err := DumpHeaders(ctx, chainDB, blockFrom, blockTo, workers, lvl, logger, func(v []byte) error {
-			return sn.AddWord(v)
-		}); err != nil {
-			return fmt.Errorf("DumpHeaders: %w", err)
-		}
-		if err := sn.Compress(); err != nil {
-			return fmt.Errorf("compress: %w", err)
-		}
-
-		p := &background.Progress{}
-		if err := buildIdx(ctx, f, *chainId, tmpDir, p, lvl, logger); err != nil {
-			return err
-		}
-	}
-
-	{
 		segName := snaptype.SegmentFileName(blockFrom, blockTo, snaptype.Bodies)
 		f, _ := snaptype.ParseFileName(snapDir, segName)
 
@@ -1215,6 +1191,30 @@ func dumpBlocksRange(ctx context.Context, blockFrom, blockTo uint64, tmpDir, sna
 			return sn.AddWord(v)
 		}); err != nil {
 			return fmt.Errorf("DumpBodies: %w", err)
+		}
+		if err := sn.Compress(); err != nil {
+			return fmt.Errorf("compress: %w", err)
+		}
+
+		p := &background.Progress{}
+		if err := buildIdx(ctx, f, *chainId, tmpDir, p, lvl, logger); err != nil {
+			return err
+		}
+	}
+
+	{
+		segName := snaptype.SegmentFileName(blockFrom, blockTo, snaptype.Headers)
+		f, _ := snaptype.ParseFileName(snapDir, segName)
+
+		sn, err := compress.NewCompressor(ctx, "Snapshot Headers", f.Path, tmpDir, compress.MinPatternScore, workers, log.LvlTrace, logger)
+		if err != nil {
+			return err
+		}
+		defer sn.Close()
+		if err := DumpHeaders(ctx, chainDB, blockFrom, blockTo, workers, lvl, logger, func(v []byte) error {
+			return sn.AddWord(v)
+		}); err != nil {
+			return fmt.Errorf("DumpHeaders: %w", err)
 		}
 		if err := sn.Compress(); err != nil {
 			return fmt.Errorf("compress: %w", err)
@@ -1556,6 +1556,7 @@ func DumpBodies(ctx context.Context, db kv.RoDB, blockFrom, blockTo uint64, firs
 		if err = rlp.DecodeBytes(dataRLP, body); err != nil {
 			return false, err
 		}
+		fmt.Printf("rewrite body: %d -> %d\n", body.BaseTxId, firstTxNum)
 		body.BaseTxId = firstTxNum
 		firstTxNum += uint64(body.TxAmount)
 		dataRLP, err = rlp.EncodeToBytes(body)
