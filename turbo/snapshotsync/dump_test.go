@@ -114,9 +114,26 @@ func TestDump(t *testing.T) {
 	t.Run("body", func(t *testing.T) {
 		require := require.New(t)
 		i := 0
+		txsAmount := uint64(0)
 		var baseIdList []uint64
 		firstTxNum := uint64(0)
-		err := snapshotsync.DumpBodies(m.Ctx, m.DB, 0, 10, firstTxNum, 1, log.LvlInfo, log.New(), func(v []byte) error {
+		err := snapshotsync.DumpBodies(m.Ctx, m.DB, 0, 2, firstTxNum, 1, log.LvlInfo, log.New(), func(v []byte) error {
+			i++
+			body := &types.BodyForStorage{}
+			require.NoError(rlp.DecodeBytes(v, body))
+			txsAmount += uint64(body.TxAmount)
+			baseIdList = append(baseIdList, body.BaseTxId)
+			return nil
+		})
+		require.NoError(err)
+		require.Equal(2, i)
+		require.Equal([]uint64{0, 2}, baseIdList)
+
+		firstTxNum += txsAmount
+		i = 0
+		baseIdList = baseIdList[:0]
+		fmt.Printf("firstTxNum: %d\n", firstTxNum)
+		err = snapshotsync.DumpBodies(m.Ctx, m.DB, 2, 10, firstTxNum, 1, log.LvlInfo, log.New(), func(v []byte) error {
 			i++
 			body := &types.BodyForStorage{}
 			require.NoError(rlp.DecodeBytes(v, body))
@@ -124,8 +141,8 @@ func TestDump(t *testing.T) {
 			return nil
 		})
 		require.NoError(err)
-		require.Equal(1+5, i)
-		require.Equal([]uint64{0, 2, 5, 8, 11, 14}, baseIdList)
+		require.Equal(4, i)
+		require.Equal([]uint64{5, 8, 11, 14}, baseIdList)
 	})
 	t.Run("body_not_from_zero", func(t *testing.T) {
 		require := require.New(t)
