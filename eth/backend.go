@@ -1037,7 +1037,7 @@ func setUpBlockReader(ctx context.Context, db kv.RwDB, dirs datadir.Dirs, snConf
 	var err error
 	if !snConfig.NoDownloader {
 		allSnapshots.OptimisticalyReopenWithDB(db)
-		fmt.Printf("[dbg] OptimisticalyReopenWithDB", "b", allSnapshots.BlocksAvailable(), "s", allSnapshots.SegmentsMax())
+		log.Warn("[dbg] OptimisticalyReopenWithDB", "b", allSnapshots.BlocksAvailable(), "s", allSnapshots.SegmentsMax())
 	}
 	blockReader := snapshotsync.NewBlockReader(allSnapshots, transactionsV3)
 	blockWriter := blockio.NewBlockWriter(histV3, transactionsV3)
