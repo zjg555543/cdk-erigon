@@ -1070,6 +1070,7 @@ func (br *BlockRetire) RetireBlocks(ctx context.Context, blockFrom, blockTo uint
 	logger.Log(lvl, "[snapshots] Retire Blocks", "range", fmt.Sprintf("%dk-%dk", blockFrom/1000, blockTo/1000))
 	snapshots := blockReader.Snapshots().(*RoSnapshots)
 	firstTxNum := blockReader.(*BlockReader).FirstTxNumNotInSnapshots()
+	fmt.Printf("dbg: RetireBlocks firstTxNum=%d\n", firstTxNum)
 
 	// in future we will do it in background
 	if err := DumpBlocks(ctx, blockFrom, blockTo, snaptype.Erigon2SegmentSize, tmpDir, snapshots.Dir(), firstTxNum, db, workers, lvl, logger, blockReader); err != nil {
