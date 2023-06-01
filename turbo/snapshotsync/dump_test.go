@@ -1,7 +1,6 @@
 package snapshotsync_test
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -20,16 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestName(t *testing.T) {
-	var srcB, dstB types.BodyForStorage
-	src := libcommon.FromHex("c6830f440702c0")
-	dst := libcommon.FromHex("c6830f440802c0")
-	rlp.DecodeBytes(src, &srcB)
-	rlp.DecodeBytes(dst, &dstB)
-	fmt.Printf("%d\n", srcB.BaseTxId)
-	fmt.Printf("%d\n", dstB.BaseTxId)
-	t.Fail()
-}
 func TestDump(t *testing.T) {
 	m := createDumpTestKV(t, 5)
 	chainID, _ := uint256.FromBig(m.ChainConfig.ChainID)
