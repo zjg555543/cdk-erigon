@@ -187,6 +187,7 @@ func HeadersPOS(
 	}
 
 	if interrupted {
+		log.Warn("[dbg] header interrupted")
 		return nil
 	}
 
