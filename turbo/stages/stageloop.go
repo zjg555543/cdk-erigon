@@ -155,7 +155,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	if (initialCycle && !isSynced) || (finishProgressBefore == 0) {
 		canRunCycleInOneTransaction = false
 	}
-	log.Warn("[dbg] canRunCycleInOneTransaction", "isSynced", isSynced, "initialCycle", initialCycle, "canRunCycleInOneTransaction", canRunCycleInOneTransaction)
+	log.Warn("[dbg] canRunCycleInOneTransaction", "finishProgressBefore", finishProgressBefore, "blocksInSnapshots", blocksInSnapshots, "isSynced", isSynced, "initialCycle", initialCycle, "canRunCycleInOneTransaction", canRunCycleInOneTransaction)
 
 	// Main steps:
 	// - process new blocks
