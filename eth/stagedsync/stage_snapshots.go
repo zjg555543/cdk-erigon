@@ -395,6 +395,7 @@ func WaitForDownloader(s *StageState, ctx context.Context, cfg SnapshotsCfg, tx 
 	// Check once without delay, for faster erigon re-start
 	stats, err := cfg.snapshotDownloader.Stats(ctx, &proto_downloader.StatsRequest{})
 	if err == nil && stats.Completed {
+		log.Warn("[dbg] sn stats early complete!")
 		goto Finish
 	}
 
@@ -408,6 +409,8 @@ Loop:
 			if stats, err := cfg.snapshotDownloader.Stats(ctx, &proto_downloader.StatsRequest{}); err != nil {
 				log.Warn("Error while waiting for snapshots progress", "err", err)
 			} else if stats.Completed {
+				log.Warn("[dbg] sn stats completed")
+
 				if !snapshots.Cfg().Verify { // will verify after loop
 					if _, err := cfg.snapshotDownloader.Verify(ctx, &proto_downloader.VerifyRequest{}); err != nil {
 						return err
@@ -416,6 +419,7 @@ Loop:
 				log.Info(fmt.Sprintf("[%s] download finished", s.LogPrefix()), "time", time.Since(downloadStartTime).String())
 				break Loop
 			} else {
+				log.Warn("[dbg] sn stats", "stats.MetadataReady", stats.MetadataReady, "stats.FilesTotal", stats.FilesTotal)
 				if stats.MetadataReady < stats.FilesTotal {
 					log.Info(fmt.Sprintf("[%s] Waiting for torrents metadata: %d/%d", s.LogPrefix(), stats.MetadataReady, stats.FilesTotal))
 					continue
@@ -438,6 +442,7 @@ Loop:
 			}
 		}
 	}
+	log.Warn("[dbg] sn stats finish")
 
 Finish:
 	if snapshots.Cfg().Verify {
