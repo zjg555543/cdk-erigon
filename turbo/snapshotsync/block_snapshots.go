@@ -1555,7 +1555,6 @@ func DumpBodies(ctx context.Context, db kv.RoDB, blockFrom, blockTo uint64, firs
 		if err = rlp.DecodeBytes(dataRLP, body); err != nil {
 			return false, err
 		}
-		fmt.Printf("rewrite body: %d -> %d\n", body.BaseTxId, firstTxNum)
 		body.BaseTxId = firstTxNum
 		firstTxNum += uint64(body.TxAmount)
 		dataRLP, err = rlp.EncodeToBytes(body)
