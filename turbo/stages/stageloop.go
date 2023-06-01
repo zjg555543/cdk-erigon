@@ -149,6 +149,8 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	if blockSnapshots != nil {
 		blocksInSnapshots = blockSnapshots.BlocksAvailable()
 	}
+	log.Warn("[dbg] aaaaaaOptimisticalyReopenWithDB", "b", blockSnapshots.BlocksAvailable(), "s", blockSnapshots.SegmentsMax())
+
 	// 2 corner-cases: when sync with --snapshots=false and when executed only blocks from snapshots (in this case all stages progress is equal and > 0, but node is not synced)
 	isSynced := finishProgressBefore > blocksInSnapshots && finishProgressBefore == headersProgressBefore
 	canRunCycleInOneTransaction := true
