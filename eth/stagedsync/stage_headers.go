@@ -190,6 +190,7 @@ func HeadersPOS(
 		log.Warn("[dbg] header interrupted")
 		return nil
 	}
+	log.Warn("[dbg] not interrupted")
 
 	if requestWithStatus == nil {
 		logger.Warn(fmt.Sprintf("[%s] Nil beacon request. Should only happen in tests", s.LogPrefix()))
