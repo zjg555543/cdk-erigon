@@ -187,7 +187,7 @@ func (r *RemoteBlockReader) BodyRlp(ctx context.Context, tx kv.Getter, hash libc
 	return bodyRlp, nil
 }
 
-// BlockReader can read blocks from db and snapshots
+// BlockReader can read blocks From db and snapshots
 type BlockReader struct {
 	sn             *RoSnapshots
 	TransactionsV3 bool
@@ -226,7 +226,7 @@ func (r *BlockReader) HeaderByNumber(ctx context.Context, tx kv.Getter, blockHei
 	return h, nil
 }
 
-// HeaderByHash - will search header in all snapshots starting from recent
+// HeaderByHash - will search header in all snapshots starting From recent
 func (r *BlockReader) HeaderByHash(ctx context.Context, tx kv.Getter, hash libcommon.Hash) (h *types.Header, err error) {
 	h, err = rawdb.ReadHeaderByHash(tx, hash)
 	if err != nil {
@@ -357,6 +357,21 @@ func (r *BlockReader) BodyRlp(ctx context.Context, tx kv.Getter, hash libcommon.
 		return nil, err
 	}
 	return bodyRlp, nil
+}
+
+func (r *BlockReader) DbgBodyStorage(blockHeight uint64) *types.BodyForStorage {
+	view := r.sn.View()
+	defer view.Close()
+
+	seg, ok := view.BodiesSegment(blockHeight)
+	if !ok {
+		panic("why?")
+	}
+	b, _, err := r.bodyForStorageFromSnapshot(blockHeight, seg, nil)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 func (r *BlockReader) Body(ctx context.Context, tx kv.Getter, hash libcommon.Hash, blockHeight uint64) (body *types.Body, txAmount uint32, err error) {
@@ -504,7 +519,7 @@ func (r *BlockReader) headerFromSnapshot(blockHeight uint64, sn *HeaderSegment, 
 func (r *BlockReader) headerFromSnapshotByHash(hash libcommon.Hash, sn *HeaderSegment, buf []byte) (*types.Header, error) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			panic(fmt.Errorf("%+v, snapshot: %d-%d, trace: %s", rec, sn.ranges.from, sn.ranges.to, dbg.Stack()))
+			panic(fmt.Errorf("%+v, snapshot: %d-%d, trace: %s", rec, sn.ranges.From, sn.ranges.to, dbg.Stack()))
 		}
 	}() // avoid crash because Erigon's core does many things
 
@@ -553,7 +568,7 @@ func (r *BlockReader) bodyFromSnapshot(blockHeight uint64, sn *BodySegment, buf 
 func (r *BlockReader) bodyForStorageFromSnapshot(blockHeight uint64, sn *BodySegment, buf []byte) (*types.BodyForStorage, []byte, error) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			panic(fmt.Errorf("%+v, snapshot: %d-%d, trace: %s", rec, sn.ranges.from, sn.ranges.to, dbg.Stack()))
+			panic(fmt.Errorf("%+v, snapshot: %d-%d, trace: %s", rec, sn.Ranges.From, sn.Ranges.to, dbg.Stack()))
 		}
 	}() // avoid crash because Erigon's core does many things
 
@@ -562,7 +577,7 @@ func (r *BlockReader) bodyForStorageFromSnapshot(blockHeight uint64, sn *BodySeg
 	}
 	bodyOffset := sn.idxBodyNumber.OrdinalLookup(blockHeight - sn.idxBodyNumber.BaseDataID())
 
-	gg := sn.seg.MakeGetter()
+	gg := sn.Seg.MakeGetter()
 	gg.Reset(bodyOffset)
 	if !gg.HasNext() {
 		return nil, buf, nil
@@ -578,7 +593,7 @@ func (r *BlockReader) bodyForStorageFromSnapshot(blockHeight uint64, sn *BodySeg
 	}
 
 	if b.BaseTxId < sn.idxBodyNumber.BaseDataID() {
-		return nil, buf, fmt.Errorf(".idx file has wrong baseDataID? %d<%d, %s", b.BaseTxId, sn.idxBodyNumber.BaseDataID(), sn.seg.FilePath())
+		return nil, buf, fmt.Errorf(".idx file has wrong baseDataID? %d<%d, %s", b.BaseTxId, sn.idxBodyNumber.BaseDataID(), sn.Seg.FilePath())
 	}
 	return b, buf, nil
 }
@@ -586,7 +601,7 @@ func (r *BlockReader) bodyForStorageFromSnapshot(blockHeight uint64, sn *BodySeg
 func (r *BlockReader) txsFromSnapshot(baseTxnID uint64, txsAmount uint32, txsSeg *TxnSegment, buf []byte) (txs []types.Transaction, senders []libcommon.Address, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			panic(fmt.Errorf("%+v, snapshot: %d-%d, trace: %s", rec, txsSeg.ranges.from, txsSeg.ranges.to, dbg.Stack()))
+			panic(fmt.Errorf("%+v, snapshot: %d-%d, trace: %s", rec, txsSeg.ranges.From, txsSeg.ranges.to, dbg.Stack()))
 		}
 	}() // avoid crash because Erigon's core does many things
 
@@ -780,11 +795,11 @@ func (r *BlockReader) IterateBodies(f func(blockNum, baseTxNum, txAmount uint64)
 
 	for _, sn := range view.Bodies() {
 		sn := sn
-		defer sn.seg.EnableMadvNormal().DisableReadAhead()
+		defer sn.Seg.EnableMadvNormal().DisableReadAhead()
 
 		var buf []byte
-		g := sn.seg.MakeGetter()
-		blockNum := sn.ranges.from
+		g := sn.Seg.MakeGetter()
+		blockNum := sn.Ranges.From
 		var b types.BodyForStorage
 		for g.HasNext() {
 			buf, _ = g.Next(buf[:0])

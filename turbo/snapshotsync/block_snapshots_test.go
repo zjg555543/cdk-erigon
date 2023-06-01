@@ -178,7 +178,7 @@ func TestOpenAllSnapshot(t *testing.T) {
 	require.False(ok)
 
 	// Erigon may create new snapshots by itself - with high bigger than hardcoded ExpectedBlocks
-	// ExpectedBlocks - says only how much block must come from Torrent
+	// ExpectedBlocks - says only how much block must come From Torrent
 	chainSnapshotCfg.ExpectBlocks = 500_000 - 1
 	s = NewRoSnapshots(cfg, dir, logger)
 	err = s.ReopenFolder()
@@ -203,10 +203,10 @@ func TestParseCompressedFileName(t *testing.T) {
 		"1-a":               &fstest.MapFile{},
 		"1-2-a":             &fstest.MapFile{},
 		"1-2-bodies.info":   &fstest.MapFile{},
-		"1-2-bodies.seg":    &fstest.MapFile{},
-		"v2-1-2-bodies.seg": &fstest.MapFile{},
-		"v0-1-2-bodies.seg": &fstest.MapFile{},
-		"v1-1-2-bodies.seg": &fstest.MapFile{},
+		"1-2-bodies.Seg":    &fstest.MapFile{},
+		"v2-1-2-bodies.Seg": &fstest.MapFile{},
+		"v0-1-2-bodies.Seg": &fstest.MapFile{},
+		"v1-1-2-bodies.Seg": &fstest.MapFile{},
 	}
 	stat := func(name string) string {
 		s, err := fs.Stat(name)
@@ -221,14 +221,14 @@ func TestParseCompressedFileName(t *testing.T) {
 	require.Error(err)
 	_, err = snaptype.ParseFileName("", stat("1-2-bodies.info"))
 	require.Error(err)
-	_, err = snaptype.ParseFileName("", stat("1-2-bodies.seg"))
+	_, err = snaptype.ParseFileName("", stat("1-2-bodies.Seg"))
 	require.Error(err)
-	_, err = snaptype.ParseFileName("", stat("v2-1-2-bodies.seg"))
+	_, err = snaptype.ParseFileName("", stat("v2-1-2-bodies.Seg"))
 	require.Error(err)
-	_, err = snaptype.ParseFileName("", stat("v0-1-2-bodies.seg"))
+	_, err = snaptype.ParseFileName("", stat("v0-1-2-bodies.Seg"))
 	require.Error(err)
 
-	f, err := snaptype.ParseFileName("", stat("v1-1-2-bodies.seg"))
+	f, err := snaptype.ParseFileName("", stat("v1-1-2-bodies.Seg"))
 	require.NoError(err)
 	require.Equal(f.T, snaptype.Bodies)
 	require.Equal(1_000, int(f.From))

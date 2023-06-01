@@ -546,83 +546,20 @@ func extractBodies(datadir string) error {
 	}, filepath.Join(datadir, "snapshots"), log.New())
 	snaps.ReopenFolder()
 
-	/* method Iterate was removed, need re-implement
-	snaps.Bodies.View(func(sns []*snapshotsync.BodySegment) error {
-		for _, sn := range sns {
-			var firstBlockNum, firstBaseTxNum, firstAmount uint64
-			var lastBlockNum, lastBaseTxNum, lastAmount uint64
-			var prevBlockNum, prevBaseTxNum, prevAmount uint64
-			first := true
-			sn.Iterate(func(blockNum uint64, baseTxNum uint64, txAmount uint64) error {
-				if first {
-					firstBlockNum = blockNum
-					firstBaseTxNum = baseTxNum
-					firstAmount = txAmount
-					first = false
-				} else {
-					if blockNum != prevBlockNum+1 {
-						fmt.Printf("Discount block Num: %d => %d\n", prevBlockNum, blockNum)
-					}
-					if baseTxNum != prevBaseTxNum+prevAmount {
-						fmt.Printf("Wrong baseTxNum: %d+%d => %d\n", prevBaseTxNum, prevAmount, baseTxNum)
-					}
-				}
-				prevBlockNum = blockNum
-				lastBlockNum = blockNum
-				prevBaseTxNum = baseTxNum
-				lastBaseTxNum = baseTxNum
-				prevAmount = txAmount
-				lastAmount = txAmount
-				return nil
-			})
-			fmt.Printf("Seg: [%d, %d, %d] => [%d, %d, %d]\n", firstBlockNum, firstBaseTxNum, firstAmount, lastBlockNum, lastBaseTxNum, lastAmount)
-		}
-		return nil
-	})
-	*/
 	db := mdbx.MustOpen(filepath.Join(datadir, "chaindata"))
 	defer db.Close()
 	br, _ := blocksIO(db)
+	_ = br
 
-	tx, err := db.BeginRo(context.Background())
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	c, err := tx.Cursor(kv.BlockBody)
-	if err != nil {
-		return err
-	}
-	defer c.Close()
-	i := 0
-	var txId uint64
-	for k, _, err := c.First(); k != nil; k, _, err = c.Next() {
-		if err != nil {
-			return err
-		}
-		blockNumber := binary.BigEndian.Uint64(k[:8])
-		blockHash := libcommon.BytesToHash(k[8:])
-		var hash libcommon.Hash
-		if hash, err = br.CanonicalHash(context.Background(), tx, blockNumber); err != nil {
-			return err
-		}
-		_, baseTxId, txAmount := rawdb.ReadBody(tx, blockHash, blockNumber)
-		fmt.Printf("Body %d %x: baseTxId %d, txAmount %d\n", blockNumber, blockHash, baseTxId, txAmount)
-		if hash != blockHash {
-			fmt.Printf("Non-canonical\n")
-			continue
-		}
-		i++
-		if txId > 0 {
-			if txId != baseTxId {
-				fmt.Printf("Mismatch txId for block %d, txId = %d, baseTxId = %d\n", blockNumber, txId, baseTxId)
-			}
-		}
-		txId = baseTxId + uint64(txAmount) + 2
-		if i == 50 {
-			break
-		}
-	}
+	b := br.(*snapshotsync.BlockReader).DbgBodyStorage(0)
+	fmt.Printf("blockNum=%d, base=%d\n", 0, b.BaseTxId)
+	b = br.(*snapshotsync.BlockReader).DbgBodyStorage(1)
+	fmt.Printf("blockNum=%d, base=%d\n", 1, b.BaseTxId)
+	b = br.(*snapshotsync.BlockReader).DbgBodyStorage(500_000 - 1)
+	fmt.Printf("blockNum=%d, base=%d\n", 500_000-1, b.BaseTxId)
+	b = br.(*snapshotsync.BlockReader).DbgBodyStorage(500_000)
+	fmt.Printf("blockNum=%d, base=%d\n", 500_000, b.BaseTxId)
+
 	return nil
 }
 
