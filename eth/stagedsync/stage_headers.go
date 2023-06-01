@@ -220,6 +220,7 @@ func HeadersPOS(
 		return err
 	}
 
+	log.Warn("[dbg] absc")
 	if !useExternalTx {
 		if err = tx.Commit(); err != nil {
 			return err
