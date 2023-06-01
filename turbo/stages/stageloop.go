@@ -114,6 +114,7 @@ func StageLoop(ctx context.Context,
 		// 2 corner-cases: when sync with --snapshots=false and when executed only blocks from snapshots (in this case all stages progress is equal and > 0, but node is not synced)
 		isSynced := finishProgressBefore > 0 && finishProgressBefore > blocksInSnapshots && finishProgressBefore == headersProgressBefore
 		initialCycle = !isSynced
+		log.Warn("[dbg] canRunCycleInOneTransaction", "finishProgressBefore", finishProgressBefore, "blocksInSnapshots", blocksInSnapshots, "isSynced", isSynced, "initialCycle", initialCycle)
 
 		// Estimate the current top height seen from the peer
 		headBlockHash, err := StageLoopStep(ctx, db, sync, initialCycle, logger, hook)
