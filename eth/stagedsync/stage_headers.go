@@ -166,6 +166,7 @@ func HeadersPOS(
 		if execProgress, err := s.ExecutionAt(tx); err != nil {
 			return err
 		} else if s.BlockNumber >= execProgress {
+			log.Warn("[dbg] exec skip", "s.BlockNumber", s.BlockNumber, "execProgress", execProgress)
 			return nil
 		}
 	}
