@@ -242,7 +242,7 @@ func PruneTxLookup(s *PruneState, tx kv.RwTx, cfg TxLookupCfg, ctx context.Conte
 		blockTo = cmp.Min(blockTo, blockFrom+10)
 	}
 
-	log.Warn("[dbg] txlookup prune", "blockFrom", blockFrom, "blockTo", blockTo)
+	log.Warn("[dbg] txlookup prune", "blockFrom", blockFrom, "blockTo", blockTo, "cfg.prune.TxIndex.PruneTo(s.ForwardProgress)", cfg.prune.TxIndex.PruneTo(s.ForwardProgress), "s.ForwardProgress", s.ForwardProgress, "snapshotsync.CanDeleteTo(s.ForwardProgress, blockSnapshots)", snapshotsync.CanDeleteTo(s.ForwardProgress, blockSnapshots))
 	t := time.Now()
 	if blockFrom < blockTo {
 		if err = deleteTxLookupRange(tx, logPrefix, blockFrom, blockTo, ctx, cfg, logger); err != nil {
