@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -238,9 +239,11 @@ func PruneTxLookup(s *PruneState, tx kv.RwTx, cfg TxLookupCfg, ctx context.Conte
 	}
 
 	if !initialCycle { // limit time for pruning
-		blockTo = cmp.Min(blockTo, blockFrom+100)
+		blockTo = cmp.Min(blockTo, blockFrom+10)
 	}
 
+	log.Warn("[dbg] txlookup prune", "blockFrom", blockFrom, "blockTo", blockTo)
+	t := time.Now()
 	if blockFrom < blockTo {
 		if err = deleteTxLookupRange(tx, logPrefix, blockFrom, blockTo, ctx, cfg, logger); err != nil {
 			return fmt.Errorf("prune TxLookUp: %w", err)
@@ -256,6 +259,7 @@ func PruneTxLookup(s *PruneState, tx kv.RwTx, cfg TxLookupCfg, ctx context.Conte
 			return err
 		}
 	}
+	log.Warn("[dbg] txlookup prune done", "took", time.Since(t))
 
 	if !useExternalTx {
 		if err = tx.Commit(); err != nil {
