@@ -218,6 +218,9 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	// -- send notifications END
 
 	// -- Prune+commit(sync)
+	defer func(t time.Time) {
+		log.Warn(fmt.Sprintf("[dbg] stageloop.go prune with commit timing: %s\n", time.Since(t)))
+	}(time.Now())
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
 		defer func(t time.Time) { log.Warn(fmt.Sprintf("[dbg] stageloop.go prune timing: %s\n", time.Since(t))) }(time.Now())
 		return sync.RunPrune(db, tx, initialCycle)
