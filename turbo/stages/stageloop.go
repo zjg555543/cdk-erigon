@@ -219,7 +219,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 
 	// -- Prune+commit(sync)
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
-		defer func(t time.Time) { log.Warn("[dbg] stageloop.go prune timing: %s\n", time.Since(t)) }(time.Now())
+		defer func(t time.Time) { log.Warn(fmt.Sprintf("[dbg] stageloop.go prune timing: %s\n", time.Since(t))) }(time.Now())
 		return sync.RunPrune(db, tx, initialCycle)
 	}); err != nil {
 		return headBlockHash, err
