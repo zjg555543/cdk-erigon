@@ -370,7 +370,7 @@ func PruneAccountHistoryIndex(s *PruneState, tx kv.RwTx, cfg HistoryCfg, ctx con
 		}
 		defer tx.Rollback()
 	}
-
+	defer func(t time.Time) { fmt.Printf("stage_indexes.go:373: %s\n", time.Since(t)) }(time.Now())
 	pruneTo := cfg.prune.History.PruneTo(s.ForwardProgress)
 	if err = pruneHistoryIndex(tx, kv.AccountChangeSet, logPrefix, cfg.tmpdir, pruneTo, ctx, logger); err != nil {
 		return err
@@ -401,6 +401,7 @@ func PruneStorageHistoryIndex(s *PruneState, tx kv.RwTx, cfg HistoryCfg, ctx con
 		}
 		defer tx.Rollback()
 	}
+	defer func(t time.Time) { fmt.Printf("stage_indexes.go:404: %s\n", time.Since(t)) }(time.Now())
 	pruneTo := cfg.prune.History.PruneTo(s.ForwardProgress)
 	if err = pruneHistoryIndex(tx, kv.StorageChangeSet, logPrefix, cfg.tmpdir, pruneTo, ctx, logger); err != nil {
 		return err
