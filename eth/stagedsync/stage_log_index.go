@@ -423,7 +423,7 @@ func PruneLogIndex(s *PruneState, tx kv.RwTx, cfg LogIndexCfg, ctx context.Conte
 func pruneLogIndex(logPrefix string, tx kv.RwTx, tmpDir string, pruneTo uint64, ctx context.Context, logger log.Logger) error {
 	logEvery := time.NewTicker(logInterval)
 	defer logEvery.Stop()
-
+	defer func(t time.Time) { fmt.Printf("stage_log_index.go:426: %s\n", time.Since(t)) }(time.Now())
 	bufferSize := etl.BufferOptimalSize
 	topics := etl.NewCollector(logPrefix, tmpDir, etl.NewOldestEntryBuffer(bufferSize), logger)
 	defer topics.Close()
