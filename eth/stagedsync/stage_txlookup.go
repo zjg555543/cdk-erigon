@@ -235,7 +235,7 @@ func PruneTxLookup(s *PruneState, tx kv.RwTx, cfg TxLookupCfg, ctx context.Conte
 	} else if blockSnapshots != nil && blockSnapshots.Cfg().Enabled {
 		blockTo = snapshotsync.CanDeleteTo(s.ForwardProgress, blockSnapshots)
 	}
-	blockTo = cmp.Min(blockTo, blockFrom+10)
+	blockTo = cmp.Min(blockTo, blockFrom+100)
 
 	if blockFrom < blockTo {
 		defer func(t time.Time) { fmt.Printf("stage_txlookup.go:241: %s\n", time.Since(t)) }(time.Now())
