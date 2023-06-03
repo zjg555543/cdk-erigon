@@ -29,6 +29,7 @@ import (
 	"github.com/gballet/go-verkle"
 	common2 "github.com/ledgerwatch/erigon-lib/common"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/common/cmp"
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/common/length"
@@ -336,7 +337,7 @@ func WriteHeaderRaw(db kv.StatelessRwTx, number uint64, hash libcommon.Hash, hea
 	return nil
 }
 
-// DeleteHeader - dangerous, use DeleteAncientBlocks/TruncateBlocks methods
+// DeleteHeader - dangerous, use DeleteAncientBlocks/UnwindBlocks methods
 func DeleteHeader(db kv.Deleter, hash libcommon.Hash, number uint64) {
 	if err := db.Delete(kv.Headers, dbutils.HeaderKey(number, hash)); err != nil {
 		log.Crit("Failed to delete header", "err", err)
@@ -1204,24 +1205,38 @@ func WriteBlock(db kv.RwTx, block *types.Block) error {
 // doesn't change sequences of kv.EthTx and kv.NonCanonicalTxs
 // doesn't delete Receipts, Senders, Canonical markers, TotalDifficulty
 func DeleteAncientBlocks(tx kv.RwTx, blockTo uint64, blocksDeleteLimit int, txsV3 bool) error {
-	from, to := hexutility.EncodeTs(1), hexutility.EncodeTs(blockTo) // preserve genesis
-	iter, err := tx.RangeAscend(kv.Headers, from, to, blocksDeleteLimit)
+	c, err := tx.Cursor(kv.Headers)
 	if err != nil {
 		return err
 	}
+	defer c.Close()
+
+	// find first non-genesis block
+	firstK, _, err := c.Seek(hexutility.EncodeTs(1))
+	if err != nil {
+		return err
+	}
+	if firstK == nil { //nothing to delete
+		return err
+	}
+	blockFrom := binary.BigEndian.Uint64(firstK)
+	stopAtBlock := cmp.Min(blockTo, blockFrom+uint64(blocksDeleteLimit))
 
 	var canonicalHash libcommon.Hash
+	var b *types.BodyForStorage
 
-	txIDBytes := make([]byte, 8)
-	for iter.HasNext() {
-		k, _, err := iter.Next()
+	for k, _, err := c.Current(); k != nil; k, _, err = c.Next() {
 		if err != nil {
 			return err
 		}
 
 		n := binary.BigEndian.Uint64(k)
-		isCanonical := true
-		if !txsV3 {
+		if n >= stopAtBlock { // [from, to)
+			break
+		}
+
+		var isCanonical bool
+		if txsV3 {
 			canonicalHash, err = ReadCanonicalHash(tx, n)
 			if err != nil {
 				return err
@@ -1229,13 +1244,14 @@ func DeleteAncientBlocks(tx kv.RwTx, blockTo uint64, blocksDeleteLimit int, txsV
 			isCanonical = bytes.Equal(k[8:], canonicalHash[:])
 		}
 
-		b, err := ReadBodyForStorageByKey(tx, k)
+		b, err = ReadBodyForStorageByKey(tx, k)
 		if err != nil {
 			return err
 		}
 		if b == nil {
 			log.Debug("DeleteAncientBlocks: block body not found", "height", n)
 		} else {
+			txIDBytes := make([]byte, 8)
 			for txID := b.BaseTxId; txID < b.BaseTxId+uint64(b.TxAmount); txID++ {
 				binary.BigEndian.PutUint64(txIDBytes, txID)
 				if txsV3 {
@@ -1253,14 +1269,16 @@ func DeleteAncientBlocks(tx kv.RwTx, blockTo uint64, blocksDeleteLimit int, txsV
 				}
 			}
 		}
-
-		if err = tx.Delete(kv.Senders, k); err != nil {
+		// Copying k because otherwise the same memory will be reused
+		// for the next key and Delete below will end up deleting 1 more record than required
+		kCopy := common.CopyBytes(k)
+		if err = tx.Delete(kv.Senders, kCopy); err != nil {
 			return err
 		}
-		if err = tx.Delete(kv.BlockBody, k); err != nil {
+		if err = tx.Delete(kv.BlockBody, kCopy); err != nil {
 			return err
 		}
-		if err = tx.Delete(kv.Headers, k); err != nil {
+		if err = tx.Delete(kv.Headers, kCopy); err != nil {
 			return err
 		}
 	}
@@ -1291,8 +1309,8 @@ func TruncateBlocks(ctx context.Context, tx kv.RwTx, blockFrom uint64) error {
 	if k != nil {
 		n := binary.BigEndian.Uint64(k)
 		if n > 1 {
-			log.Info("TruncateBlocks", "block", n)
-			defer log.Info("TruncateBlocks done")
+			log.Info("UnwindBlocks", "block", n)
+			defer log.Info("UnwindBlocks done")
 		}
 	}
 	for ; k != nil; k, _, err = c.Prev() {
@@ -1323,7 +1341,7 @@ func TruncateBlocks(ctx context.Context, tx kv.RwTx, blockFrom uint64) error {
 				case <-ctx.Done():
 					return ctx.Err()
 				case <-logEvery.C:
-					log.Info("TruncateBlocks", "block", n)
+					log.Info("UnwindBlocks", "block", n)
 				default:
 				}
 
@@ -1350,7 +1368,7 @@ func TruncateBlocks(ctx context.Context, tx kv.RwTx, blockFrom uint64) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-logEvery.C:
-			log.Info("TruncateBlocks", "block", n)
+			log.Info("UnwindBlocks", "block", n)
 		default:
 		}
 	}
