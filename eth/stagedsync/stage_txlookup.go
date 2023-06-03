@@ -236,7 +236,7 @@ func PruneTxLookup(s *PruneState, tx kv.RwTx, cfg TxLookupCfg, ctx context.Conte
 		blockTo = snapshotsync.CanDeleteTo(s.ForwardProgress, blockSnapshots)
 	}
 	// can't prune much here: because tx_lookup index has crypto-hashed-keys, and 1 block producing hundreds of deletes
-	blockTo = cmp.Min(blockTo, blockFrom+10)
+	blockTo = cmp.Min(blockTo, blockFrom+100)
 
 	if blockFrom < blockTo {
 		defer func(t time.Time) { fmt.Printf("stage_txlookup.go:241: %s\n", time.Since(t)) }(time.Now())
