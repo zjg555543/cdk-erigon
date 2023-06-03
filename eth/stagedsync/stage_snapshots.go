@@ -497,6 +497,7 @@ func SnapshotsPrune(s *PruneState, initialCycle bool, cfg SnapshotsCfg, ctx cont
 	br := cfg.blockRetire
 	sn := br.Snapshots()
 	if sn.Cfg().Enabled {
+		defer func(t time.Time) { fmt.Printf("stage_snapshots.go:500 prune: %s\n", time.Since(t)) }(time.Now())
 		if err := br.PruneAncientBlocks(tx, 100); err != nil {
 			return err
 		}
