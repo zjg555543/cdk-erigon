@@ -184,6 +184,7 @@ func ExecV3(ctx context.Context,
 	}
 	if applyTx != nil {
 		agg.SetTx(applyTx)
+		fmt.Printf("[dbg] DiscardHistory: %t\n", dbg.DiscardHistory())
 		if dbg.DiscardHistory() {
 			defer agg.DiscardHistory().FinishWrites()
 		} else {
