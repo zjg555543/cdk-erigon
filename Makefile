@@ -146,7 +146,7 @@ test:
 	$(GOTEST) --timeout 100s
 
 test3:
-	$(GOTEST) --timeout 100s -tags $(BUILD_TAGS),erigon3
+	$(GOTEST) --timeout 100s -tags $(BUILD_TAGS),e3
 
 ## test-integration:                  run integration tests with a 30m timeout
 test-integration:
