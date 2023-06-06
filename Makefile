@@ -153,7 +153,7 @@ test-integration:
 	$(GOTEST) --timeout 30m -tags $(BUILD_TAGS),integration
 
 test3-integration:
-	$(GOTEST) --timeout 30m -tags $(BUILD_TAGS),integration,erigon3
+	$(GOTEST) --timeout 30m -tags $(BUILD_TAGS),integration,e3
 
 ## lint:                              run golangci-lint with .golangci.yml config file
 lint:
