@@ -321,9 +321,9 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 		agg := tx.(*temporal.Tx).Agg()
 		stateWriter, stateReader = state.WrapStateIO(agg.SharedDomains())
 		defer agg.CloseSharedDomains()
-		oldTxNum := tx.(*temporal.Tx).Agg().GetTxNum()
+		oldTxNum := agg.GetTxNum()
 		defer func() {
-			tx.(*temporal.Tx).Agg().SetTxNum(oldTxNum)
+			agg.SetTxNum(oldTxNum)
 		}()
 	}
 	txNum := -1
