@@ -25,17 +25,18 @@ import (
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
+	"github.com/ledgerwatch/erigon/core/systemcontracts"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
+	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/consensus/merge"
 	"github.com/ledgerwatch/erigon/consensus/misc"
 	"github.com/ledgerwatch/erigon/core/state"
-	"github.com/ledgerwatch/erigon/core/state/temporal"
-	"github.com/ledgerwatch/erigon/core/systemcontracts"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/core/vm"
-	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/trie"
 )
@@ -314,6 +315,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 		return nil, errBegin
 	}
 	defer tx.Rollback()
+	logger := log.New("generate-chain", config.ChainName)
 
 	var stateReader state.StateReader
 	var stateWriter state.StateWriter
@@ -364,7 +366,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 				misc.ApplyDAOHardFork(ibs)
 			}
 		}
-		systemcontracts.UpgradeBuildInSystemContract(config, b.header.Number, ibs)
+		systemcontracts.UpgradeBuildInSystemContract(config, b.header.Number, ibs, logger)
 		// Execute any user modifications to the block
 		if gen != nil {
 			gen(i, b)
