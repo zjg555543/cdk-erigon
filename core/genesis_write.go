@@ -200,12 +200,8 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	var stateWriter state.StateWriter
 	if ethconfig.EnableHistoryV4InTest {
 		agg := tx.(*temporal.Tx).Agg()
-		agg.SetTxNum(0)
-		stateWriter, _ = state.WrapStateIO(agg.SharedDomains())
-		//stateWriter = state.NewWriterV4(tx.(kv.TemporalTx))
-
-		_ = tx.(*temporal.Tx).Agg().SharedDomains()
-		defer tx.(*temporal.Tx).Agg().StartUnbufferedWrites().FinishWrites()
+		stateWriter = state.NewWriterV4(tx.(kv.TemporalTx))
+		defer agg.StartUnbufferedWrites().FinishWrites()
 	} else {
 		for addr, account := range g.Alloc {
 			if len(account.Code) > 0 || len(account.Storage) > 0 {
@@ -366,18 +362,6 @@ func SepoliaGenesisBlock() *types.Genesis {
 		Difficulty: big.NewInt(131072),
 		Timestamp:  1633267481,
 		Alloc:      readPrealloc("allocs/sepolia.json"),
-	}
-}
-
-// RinkebyGenesisBlock returns the Rinkeby network genesis block.
-func RinkebyGenesisBlock() *types.Genesis {
-	return &types.Genesis{
-		Config:     params.RinkebyChainConfig,
-		Timestamp:  1492009146,
-		ExtraData:  hexutil.MustDecode("0x52657370656374206d7920617574686f7269746168207e452e436172746d616e42eb768f2244c8811c63729a21a3569731535f067ffc57839b00206d1ad20c69a1981b489f772031b279182d99e65703f0076e4812653aab85fca0f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
-		GasLimit:   4700000,
-		Difficulty: big.NewInt(1),
-		Alloc:      readPrealloc("allocs/rinkeby.json"),
 	}
 }
 
@@ -628,8 +612,6 @@ func GenesisBlockByChainName(chain string) *types.Genesis {
 		return MainnetGenesisBlock()
 	case networkname.SepoliaChainName:
 		return SepoliaGenesisBlock()
-	case networkname.RinkebyChainName:
-		return RinkebyGenesisBlock()
 	case networkname.GoerliChainName:
 		return GoerliGenesisBlock()
 	case networkname.MumbaiChainName:

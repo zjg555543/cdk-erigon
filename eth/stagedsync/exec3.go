@@ -151,6 +151,7 @@ func ExecV3(ctx context.Context,
 	parallel bool, logPrefix string,
 	maxBlockNum uint64,
 	logger log.Logger,
+	initialCycle bool,
 ) error {
 	batchSize := cfg.batchSize
 	chainDb := cfg.db
@@ -525,6 +526,8 @@ func ExecV3(ctx context.Context,
 	slowDownLimit := time.NewTicker(time.Second)
 	defer slowDownLimit.Stop()
 
+	stateStream := !initialCycle && cfg.stateStream && maxBlockNum-block < stateStreamLimit
+
 	var b *types.Block
 	var blockNum uint64
 	var err error
@@ -584,6 +587,14 @@ Loop:
 					}
 				}
 			}()
+		} else {
+			if !initialCycle && stateStream {
+				txs, err := blockReader.RawTransactions(context.Background(), applyTx, b.NumberU64(), b.NumberU64())
+				if err != nil {
+					return err
+				}
+				cfg.accumulator.StartChange(b.NumberU64(), b.Hash(), txs, false)
+			}
 		}
 
 		rules := chainConfig.Rules(blockNum, b.Time())
@@ -690,7 +701,6 @@ Loop:
 		if !parallel {
 			outputBlockNum.Set(blockNum)
 			// MA commitment
-			//if blockNum > 0 {
 			rh, err := agg.ComputeCommitment(true, false)
 			if err != nil {
 				return fmt.Errorf("StateV3.Apply: %w", err)
@@ -700,7 +710,6 @@ Loop:
 
 				return fmt.Errorf("block hash mismatch: %x != %x bn =%d", rh, header.Root.Bytes(), blockNum)
 			}
-			//}
 
 			select {
 			case <-logEvery.C:
@@ -728,9 +737,9 @@ Loop:
 					if !bytes.Equal(rh, header.Root.Bytes()) {
 						return fmt.Errorf("root hash mismatch: %x != %x, bn=%d", rh, header.Root.Bytes(), blockNum)
 					}
-					//if err := agg.Flush(ctx, applyTx); err != nil {
-					//	return err
-					//}
+					if err := agg.Flush(ctx, applyTx); err != nil {
+						return err
+					}
 					t3 = time.Since(tt)
 
 					if err = execStage.Update(applyTx, outputBlockNum.Get()); err != nil {

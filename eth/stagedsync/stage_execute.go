@@ -290,7 +290,7 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 	//}()
 
 	parallel := initialCycle && tx == nil
-	if err := ExecV3(ctx, s, u, workersCount, cfg, tx, parallel, logPrefix, to, logger); err != nil {
+	if err := ExecV3(ctx, s, u, workersCount, cfg, tx, parallel, logPrefix, to, logger, initialCycle); err != nil {
 		return fmt.Errorf("ExecV3: %w", err)
 	}
 	return nil
@@ -346,6 +346,10 @@ func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context,
 	if err := rs.Unwind(ctx, tx, txNum, cfg.agg, accumulator); err != nil {
 		return fmt.Errorf("StateV3.Unwind: %w", err)
 	}
+	rs.Domains().Account.MakeContext().IteratePrefix([]byte{}, func(k, v []byte) {
+		n, b, ch := libstate.DecodeAccountBytes(v)
+		fmt.Printf("k %x n %d b %d ch %x\n", k, n, &b, ch)
+	})
 	if err := rawdb.TruncateReceipts(tx, u.UnwindPoint+1); err != nil {
 		return fmt.Errorf("truncate receipts: %w", err)
 	}
