@@ -39,8 +39,8 @@ type TxTask struct {
 	EvmBlockContext evmtypes.BlockContext
 
 	BalanceIncreaseSet map[libcommon.Address]uint256.Int
-	ReadLists          [8]state.KvList
-	WriteLists         [8]state.KvList
+	ReadLists          [8]*state.KvList
+	WriteLists         [8]*state.KvList
 	AccountPrevs       map[string][]byte
 	AccountDels        map[string]*accounts.Account
 	StoragePrevs       map[string][]byte
