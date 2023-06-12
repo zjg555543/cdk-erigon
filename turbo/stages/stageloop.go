@@ -169,7 +169,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	}
 
 	if hook != nil {
-		log.Warn("[dbg] before cycle", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		logger.Warn("[dbg] before cycle", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 		if err = hook.BeforeRun(tx, canRunCycleInOneTransaction); err != nil {
 			return headBlockHash, err
 		}
@@ -184,7 +184,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	if canRunCycleInOneTransaction {
 		tableSizes = stagedsync.PrintTables(db, tx) // Need to do this before commit to access tx
 		commitStart := time.Now()
-		log.Warn("before commit", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		logger.Warn("[dbg] before commit", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 		errTx := tx.Commit()
 		if errTx != nil {
 			return headBlockHash, errTx
@@ -195,28 +195,28 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	// -- send notifications START
 	var head uint64
 	if err := db.View(ctx, func(tx kv.Tx) error {
-		log.Warn("after commit", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		logger.Warn("[dbg] after commit", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 
 		headBlockHash = rawdb.ReadHeadBlockHash(tx)
 		if head, err = stages.GetStageProgress(tx, stages.Headers); err != nil {
 			return err
 		}
 		if hook != nil {
-			log.Warn("before notify", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+			logger.Warn("[dbg] before notify", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 			if err = hook.AfterRun(tx, finishProgressBefore); err != nil {
 				return err
 			}
-			log.Warn("after notify", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+			logger.Warn("[dbg] after notify", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 		}
 		return nil
 	}); err != nil {
 		return headBlockHash, err
 	}
 	if canRunCycleInOneTransaction && (head != finishProgressBefore || commitTime > 500*time.Millisecond) {
-		logger.Info("Commit cycle", "in", commitTime)
+		logger.Info("[dbg] Commit cycle", "in", commitTime)
 	}
 	if head != finishProgressBefore && len(logCtx) > 0 { // No printing of timings or table sizes if there were no progress
-		logger.Info("Timings (slower than 50ms)", logCtx...)
+		logger.Info("[dbg] Timings (slower than 50ms)", logCtx...)
 		if len(tableSizes) > 0 {
 			logger.Info("Tables", tableSizes...)
 		}
@@ -225,7 +225,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 
 	// -- Prune+commit(sync)
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
-		log.Warn("before prune", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		logger.Warn("before prune", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 		return sync.RunPrune(db, tx, initialCycle)
 	}); err != nil {
 		return headBlockHash, err
