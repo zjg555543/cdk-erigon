@@ -626,23 +626,23 @@ func (rs *StateV3) ReadsValid(txTask *exec22.TxTask) bool {
 		t := kvt.Domain(i)
 		switch t {
 		case kvt.AccountsDomain:
-			if !rs.readsValidMap(t, txTask.ReadLists[i], rs.chAccs) {
+			if !rs.readsValidMap(t, txTask, rs.chAccs) {
 				return false
 			}
 		case CodeSizeTable:
-			if !rs.readsValidMap(t, txTask.ReadLists[i], rs.chCode) {
+			if !rs.readsValidMap(t, txTask, rs.chCode) {
 				return false
 			}
 		case StorageTable:
-			if !rs.readsValidBtree(t, txTask.ReadLists[i], rs.chStorage) {
+			if !rs.readsValidBtree(t, txTask, rs.chStorage) {
 				return false
 			}
 		case kvt.CodeDomain:
-			if !rs.readsValidMap(t, txTask.ReadLists[i], rs.chCode) {
+			if !rs.readsValidMap(t, txTask, rs.chCode) {
 				return false
 			}
 		case IncarnationMap:
-			if !rs.readsValidMap(t, txTask.ReadLists[i], rs.chIncs) {
+			if !rs.readsValidMap(t, txTask, rs.chIncs) {
 				return false
 			}
 		}
@@ -650,20 +650,20 @@ func (rs *StateV3) ReadsValid(txTask *exec22.TxTask) bool {
 	return true
 }
 
-func (rs *StateV3) readsValidMap(table kvt.Domain, list libstate.KvList, m map[string][]byte) bool {
+func (rs *StateV3) readsValidMap(table kvt.Domain, txTask *exec22.TxTask, m map[string][]byte) bool {
 	switch table {
 	case CodeSizeTable:
-		for i, key := range list.Keys {
+		for i, key := range txTask.ReadLists[table].Keys {
 			if val, ok := m[key]; ok {
-				if binary.BigEndian.Uint64(list.Vals[i]) != uint64(len(val)) {
+				if binary.BigEndian.Uint64(txTask.ReadLists[table].Vals[i]) != uint64(len(val)) {
 					return false
 				}
 			}
 		}
 	default:
-		for i, key := range list.Keys {
+		for i, key := range txTask.ReadLists[table].Keys {
 			if val, ok := m[key]; ok {
-				if !bytes.Equal(list.Vals[i], val) {
+				if !bytes.Equal(txTask.ReadLists[table].Vals[i], val) {
 					return false
 				}
 			}
@@ -672,10 +672,10 @@ func (rs *StateV3) readsValidMap(table kvt.Domain, list libstate.KvList, m map[s
 	return true
 }
 
-func (rs *StateV3) readsValidBtree(table kvt.Domain, list libstate.KvList, m *btree2.Map[string, []byte]) bool {
-	for i, key := range list.Keys {
+func (rs *StateV3) readsValidBtree(table kvt.Domain, txTask *exec22.TxTask, m *btree2.Map[string, []byte]) bool {
+	for i, key := range txTask.ReadLists[table].Keys {
 		if val, ok := m.Get(key); ok {
-			if !bytes.Equal(list.Vals[i], val) {
+			if !bytes.Equal(txTask.ReadLists[table].Vals[i], val) {
 				return false
 			}
 		}
