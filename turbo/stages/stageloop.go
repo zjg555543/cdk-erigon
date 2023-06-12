@@ -169,6 +169,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	}
 
 	if hook != nil {
+		log.Warn("[dbg] before cycle", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 		if err = hook.BeforeRun(tx, canRunCycleInOneTransaction); err != nil {
 			return headBlockHash, err
 		}
@@ -183,9 +184,8 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	if canRunCycleInOneTransaction {
 		tableSizes = stagedsync.PrintTables(db, tx) // Need to do this before commit to access tx
 		commitStart := time.Now()
-		log.Warn("before commitll")
+		log.Warn("before commit", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 		errTx := tx.Commit()
-		log.Warn("after commitll")
 		if errTx != nil {
 			return headBlockHash, errTx
 		}
@@ -195,16 +195,18 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	// -- send notifications START
 	var head uint64
 	if err := db.View(ctx, func(tx kv.Tx) error {
+		log.Warn("after commit", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+
 		headBlockHash = rawdb.ReadHeadBlockHash(tx)
 		if head, err = stages.GetStageProgress(tx, stages.Headers); err != nil {
 			return err
 		}
 		if hook != nil {
-			log.Warn("before notify")
+			log.Warn("before notify", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 			if err = hook.AfterRun(tx, finishProgressBefore); err != nil {
 				return err
 			}
-			log.Warn("after notify")
+			log.Warn("after notify", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 		}
 		return nil
 	}); err != nil {
@@ -222,7 +224,10 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	// -- send notifications END
 
 	// -- Prune+commit(sync)
-	if err := db.Update(ctx, func(tx kv.RwTx) error { return sync.RunPrune(db, tx, initialCycle) }); err != nil {
+	if err := db.Update(ctx, func(tx kv.RwTx) error {
+		log.Warn("before prune", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		return sync.RunPrune(db, tx, initialCycle)
+	}); err != nil {
 		return headBlockHash, err
 	}
 
