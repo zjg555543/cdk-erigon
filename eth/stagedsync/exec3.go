@@ -767,7 +767,7 @@ func processResultQueue(in *exec22.QueueWithRetry, rws *exec22.ResultsQueue, out
 	outputTxNum = outputTxNumIn
 	for rwsIt.HasNext(outputTxNum) {
 		txTask := rwsIt.PopNext()
-		if txTask.Error != nil || !rs.ReadsValid(txTask.ReadLists) {
+		if txTask.Error != nil || !rs.ReadsValid(txTask) {
 			conflicts++
 
 			if i > 0 && canRetry {

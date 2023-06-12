@@ -619,30 +619,30 @@ func (rs *StateV3) SizeEstimate() (r uint64) {
 	return r * 2 // multiply 2 here, to cover data-structures overhead. more precise accounting - expensive.
 }
 
-func (rs *StateV3) ReadsValid(readLists [DomainsAmount]libstate.KvList) bool {
+func (rs *StateV3) ReadsValid(txTask *exec22.TxTask) bool {
 	rs.lock.RLock()
 	defer rs.lock.RUnlock()
-	for table, list := range readLists {
-		t := kvt.Domain(table)
+	for i := range txTask.ReadLists {
+		t := kvt.Domain(i)
 		switch t {
 		case kvt.AccountsDomain:
-			if !rs.readsValidMap(t, list, rs.chAccs) {
+			if !rs.readsValidMap(t, txTask.ReadLists[i], rs.chAccs) {
 				return false
 			}
 		case CodeSizeTable:
-			if !rs.readsValidMap(t, list, rs.chCode) {
+			if !rs.readsValidMap(t, txTask.ReadLists[i], rs.chCode) {
 				return false
 			}
 		case StorageTable:
-			if !rs.readsValidBtree(t, list, rs.chStorage) {
+			if !rs.readsValidBtree(t, txTask.ReadLists[i], rs.chStorage) {
 				return false
 			}
 		case kvt.CodeDomain:
-			if !rs.readsValidMap(t, list, rs.chCode) {
+			if !rs.readsValidMap(t, txTask.ReadLists[i], rs.chCode) {
 				return false
 			}
 		case IncarnationMap:
-			if !rs.readsValidMap(t, list, rs.chIncs) {
+			if !rs.readsValidMap(t, txTask.ReadLists[i], rs.chIncs) {
 				return false
 			}
 		}
