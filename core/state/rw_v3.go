@@ -936,11 +936,10 @@ var kvListPool = sync.Pool{
 }
 
 func newKvList() *libstate.KvList {
-	v := kvListPool.Get().(*libstate.KvList)
-	v.Keys = v.Keys[:0]
-	v.Vals = v.Vals[:0]
-	return v
+	return kvListPool.Get().(*libstate.KvList)
 }
 func returnKvList(l *libstate.KvList) {
+	l.Keys = l.Keys[:0]
+	l.Vals = l.Vals[:0]
 	kvListPool.Put(l)
 }
