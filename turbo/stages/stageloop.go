@@ -183,7 +183,9 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	if canRunCycleInOneTransaction {
 		tableSizes = stagedsync.PrintTables(db, tx) // Need to do this before commit to access tx
 		commitStart := time.Now()
+		log.Warn("before commitll")
 		errTx := tx.Commit()
+		log.Warn("after commitll")
 		if errTx != nil {
 			return headBlockHash, errTx
 		}
@@ -198,9 +200,11 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 			return err
 		}
 		if hook != nil {
+			log.Warn("before notify")
 			if err = hook.AfterRun(tx, finishProgressBefore); err != nil {
 				return err
 			}
+			log.Warn("after notify")
 		}
 		return nil
 	}); err != nil {
