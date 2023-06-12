@@ -166,7 +166,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 			return headBlockHash, err
 		}
 		defer tx.Rollback()
-		logger.Warn("[dbg] before cycle", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		logger.Warn("[dbg] before cycle", "current_block", *rawdb.ReadCurrentBlockNumber(tx))
 	}
 
 	if hook != nil {
@@ -184,7 +184,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	if canRunCycleInOneTransaction {
 		tableSizes = stagedsync.PrintTables(db, tx) // Need to do this before commit to access tx
 		commitStart := time.Now()
-		logger.Warn("[dbg] before commit", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		logger.Warn("[dbg] before commit", "current_block", *rawdb.ReadCurrentBlockNumber(tx))
 		errTx := tx.Commit()
 		if errTx != nil {
 			return headBlockHash, errTx
@@ -195,18 +195,18 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	// -- send notifications START
 	var head uint64
 	if err := db.View(ctx, func(tx kv.Tx) error {
-		logger.Warn("[dbg] after commit", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		logger.Warn("[dbg] after commit", "current_block", *rawdb.ReadCurrentBlockNumber(tx))
 
 		headBlockHash = rawdb.ReadHeadBlockHash(tx)
 		if head, err = stages.GetStageProgress(tx, stages.Headers); err != nil {
 			return err
 		}
 		if hook != nil {
-			logger.Warn("[dbg] before notify", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+			logger.Warn("[dbg] before notify", "current_block", *rawdb.ReadCurrentBlockNumber(tx))
 			if err = hook.AfterRun(tx, finishProgressBefore); err != nil {
 				return err
 			}
-			logger.Warn("[dbg] after notify", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+			logger.Warn("[dbg] after notify", "current_block", *rawdb.ReadCurrentBlockNumber(tx))
 		}
 		return nil
 	}); err != nil {
@@ -225,7 +225,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 
 	// -- Prune+commit(sync)
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
-		logger.Warn("before prune", "current_block", rawdb.ReadCurrentBlockNumber(tx))
+		logger.Warn("before prune", "current_block", *rawdb.ReadCurrentBlockNumber(tx))
 		return sync.RunPrune(db, tx, initialCycle)
 	}); err != nil {
 		return headBlockHash, err
