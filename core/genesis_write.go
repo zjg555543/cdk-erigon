@@ -201,7 +201,7 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	if ethconfig.EnableHistoryV4InTest {
 		panic("implement me")
 		//tx.(*temporal.Tx).Agg().SetTxNum(0)
-		//stateWriter = state.NewWriterV4(tx.(kv.TemporalTx))
+		//stateWriter = state.NewWriterV4(tx.(kvt.TemporalTx))
 		//defer tx.(*temporal.Tx).Agg().StartUnbufferedWrites().FinishWrites()
 	} else {
 		for addr, account := range g.Alloc {

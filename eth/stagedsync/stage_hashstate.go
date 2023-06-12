@@ -17,6 +17,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
@@ -565,7 +566,7 @@ func (p *Promoter) PromoteOnHistoryV3(logPrefix string, from, to uint64, storage
 	defer collector.Close()
 
 	if storage {
-		it, err := p.tx.(kv.TemporalTx).HistoryRange(kv.StorageHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+		it, err := p.tx.(kvt.TemporalTx).HistoryRange(kvt.StorageHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
 		if err != nil {
 			return err
 		}
@@ -611,7 +612,7 @@ func (p *Promoter) PromoteOnHistoryV3(logPrefix string, from, to uint64, storage
 	codeCollector := etl.NewCollector(logPrefix, p.dirs.Tmp, etl.NewSortableBuffer(etl.BufferOptimalSize), p.logger)
 	defer codeCollector.Close()
 
-	it, err := p.tx.(kv.TemporalTx).HistoryRange(kv.AccountsHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+	it, err := p.tx.(kvt.TemporalTx).HistoryRange(kvt.AccountsHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
 	if err != nil {
 		return err
 	}
@@ -730,7 +731,7 @@ func (p *Promoter) UnwindOnHistoryV3(logPrefix string, unwindFrom, unwindTo uint
 
 	acc := accounts.NewAccount()
 	if codes {
-		it, err := p.tx.(kv.TemporalTx).HistoryRange(kv.AccountsHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+		it, err := p.tx.(kvt.TemporalTx).HistoryRange(kvt.AccountsHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
 		if err != nil {
 			return err
 		}
@@ -769,7 +770,7 @@ func (p *Promoter) UnwindOnHistoryV3(logPrefix string, unwindFrom, unwindTo uint
 	}
 
 	if storage {
-		it, err := p.tx.(kv.TemporalTx).HistoryRange(kv.StorageHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+		it, err := p.tx.(kvt.TemporalTx).HistoryRange(kvt.StorageHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
 		if err != nil {
 			return err
 		}
@@ -799,7 +800,7 @@ func (p *Promoter) UnwindOnHistoryV3(logPrefix string, unwindFrom, unwindTo uint
 		return collector.Load(p.tx, kv.HashedStorage, etl.IdentityLoadFunc, etl.TransformArgs{Quit: p.ctx.Done()})
 	}
 
-	it, err := p.tx.(kv.TemporalTx).HistoryRange(kv.AccountsHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
+	it, err := p.tx.(kvt.TemporalTx).HistoryRange(kvt.AccountsHistory, int(txnFrom), int(txnTo), order.Asc, kv.Unlim)
 	if err != nil {
 		return err
 	}

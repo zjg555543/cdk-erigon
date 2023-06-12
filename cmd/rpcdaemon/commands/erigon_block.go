@@ -11,6 +11,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
@@ -221,7 +222,7 @@ func (api *ErigonImpl) GetBalanceChangesInBlock(ctx context.Context, blockNrOrHa
 
 	if api.historyV3(tx) {
 		minTxNum, _ := rawdbv3.TxNums.Min(tx, blockNumber)
-		it, err := tx.(kv.TemporalTx).HistoryRange(kv.AccountsHistory, int(minTxNum), -1, order.Asc, -1)
+		it, err := tx.(kvt.TemporalTx).HistoryRange(kvt.AccountsHistory, int(minTxNum), -1, order.Asc, -1)
 		if err != nil {
 			return nil, err
 		}

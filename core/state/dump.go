@@ -24,6 +24,7 @@ import (
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 
@@ -150,7 +151,7 @@ func (d *Dumper) DumpToCollector(c DumpCollector, excludeCode, excludeStorage bo
 
 	var txNum, txNumForStorage uint64
 	if d.historyV3 {
-		ttx := d.db.(kv.TemporalTx)
+		ttx := d.db.(kvt.TemporalTx)
 		var err error
 		// Why only account does +1?
 		txNum, err = rawdbv3.TxNums.Min(ttx, d.blockNumber+1)
@@ -162,7 +163,7 @@ func (d *Dumper) DumpToCollector(c DumpCollector, excludeCode, excludeStorage bo
 			return nil, err
 		}
 
-		it, err := ttx.DomainRange(kv.AccountsDomain, startAddress[:], nil, txNum, order.Asc, maxResults+1)
+		it, err := ttx.DomainRange(kvt.AccountsDomain, startAddress[:], nil, txNum, order.Asc, maxResults+1)
 		if err != nil {
 			return nil, err
 		}
@@ -259,7 +260,7 @@ func (d *Dumper) DumpToCollector(c DumpCollector, excludeCode, excludeStorage bo
 		if !excludeStorage {
 			t := trie.New(libcommon.Hash{})
 			if d.historyV3 {
-				r, err := d.db.(kv.TemporalTx).DomainRange(kv.StorageDomain, addr[:], nil, txNumForStorage, order.Asc, kv.Unlim)
+				r, err := d.db.(kvt.TemporalTx).DomainRange(kvt.StorageDomain, addr[:], nil, txNumForStorage, order.Asc, kv.Unlim)
 				if err != nil {
 					return nil, fmt.Errorf("walking over storage for %x: %w", addr, err)
 				}

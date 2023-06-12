@@ -6,6 +6,7 @@ import (
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 )
@@ -14,7 +15,7 @@ import (
 type HistoryReaderV3 struct {
 	txNum uint64
 	trace bool
-	ttx   kv.TemporalTx
+	ttx   kvt.TemporalTx
 }
 
 func NewHistoryReaderV3() *HistoryReaderV3 {
@@ -22,7 +23,7 @@ func NewHistoryReaderV3() *HistoryReaderV3 {
 }
 
 func (hr *HistoryReaderV3) SetTx(tx kv.Tx) {
-	if ttx, casted := tx.(kv.TemporalTx); casted {
+	if ttx, casted := tx.(kvt.TemporalTx); casted {
 		hr.ttx = ttx
 	} else {
 		panic("why")
@@ -32,7 +33,7 @@ func (hr *HistoryReaderV3) SetTxNum(txNum uint64) { hr.txNum = txNum }
 func (hr *HistoryReaderV3) SetTrace(trace bool)   { hr.trace = trace }
 
 func (hr *HistoryReaderV3) ReadAccountData(address libcommon.Address) (*accounts.Account, error) {
-	enc, ok, err := hr.ttx.DomainGetAsOf(kv.AccountsDomain, address.Bytes(), nil, hr.txNum)
+	enc, ok, err := hr.ttx.DomainGetAsOf(kvt.AccountsDomain, address.Bytes(), nil, hr.txNum)
 	if err != nil || !ok || len(enc) == 0 {
 		if hr.trace {
 			fmt.Printf("ReadAccountData [%x] => []\n", address)
@@ -58,7 +59,7 @@ func (hr *HistoryReaderV3) ReadAccountStorage(address libcommon.Address, incarna
 		copy(acc, address.Bytes())
 		binary.BigEndian.PutUint64(acc[20:], incarnation)
 	}
-	enc, _, err := hr.ttx.DomainGetAsOf(kv.StorageDomain, acc, key.Bytes(), hr.txNum)
+	enc, _, err := hr.ttx.DomainGetAsOf(kvt.StorageDomain, acc, key.Bytes(), hr.txNum)
 	if hr.trace {
 		fmt.Printf("ReadAccountStorage [%x] [%x] => [%x]\n", address, *key, enc)
 	}
@@ -69,7 +70,7 @@ func (hr *HistoryReaderV3) ReadAccountCode(address libcommon.Address, incarnatio
 	if codeHash == emptyCodeHashH {
 		return nil, nil
 	}
-	code, _, err := hr.ttx.DomainGetAsOf(kv.CodeDomain, address.Bytes(), codeHash.Bytes(), hr.txNum)
+	code, _, err := hr.ttx.DomainGetAsOf(kvt.CodeDomain, address.Bytes(), codeHash.Bytes(), hr.txNum)
 	if hr.trace {
 		fmt.Printf("ReadAccountCode [%x %x] => [%x]\n", address, codeHash, code)
 	}
@@ -77,12 +78,12 @@ func (hr *HistoryReaderV3) ReadAccountCode(address libcommon.Address, incarnatio
 }
 
 func (hr *HistoryReaderV3) ReadAccountCodeSize(address libcommon.Address, incarnation uint64, codeHash libcommon.Hash) (int, error) {
-	enc, _, err := hr.ttx.DomainGetAsOf(kv.CodeDomain, address.Bytes(), codeHash.Bytes(), hr.txNum)
+	enc, _, err := hr.ttx.DomainGetAsOf(kvt.CodeDomain, address.Bytes(), codeHash.Bytes(), hr.txNum)
 	return len(enc), err
 }
 
 func (hr *HistoryReaderV3) ReadAccountIncarnation(address libcommon.Address) (uint64, error) {
-	enc, ok, err := hr.ttx.DomainGetAsOf(kv.AccountsDomain, address.Bytes(), nil, hr.txNum)
+	enc, ok, err := hr.ttx.DomainGetAsOf(kvt.AccountsDomain, address.Bytes(), nil, hr.txNum)
 	if err != nil || !ok || len(enc) == 0 {
 		if hr.trace {
 			fmt.Printf("ReadAccountIncarnation [%x] => [0]\n", address)

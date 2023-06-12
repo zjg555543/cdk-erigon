@@ -15,6 +15,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/bitmapdb"
 	"github.com/ledgerwatch/erigon-lib/kv/iter"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/log/v3"
@@ -137,7 +138,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) (t
 	}
 
 	if api.historyV3(tx) {
-		return api.getLogsV3(ctx, tx.(kv.TemporalTx), begin, end, crit)
+		return api.getLogsV3(ctx, tx.(kvt.TemporalTx), begin, end, crit)
 	}
 
 	blockNumbers := bitmapdb.NewBitmap()
@@ -303,7 +304,7 @@ func applyFilters(out *roaring.Bitmap, tx kv.Tx, begin, end uint64, crit filters
 
 /*
 
-func applyFiltersV3(out *roaring64.Bitmap, tx kv.TemporalTx, begin, end uint64, crit filters.FilterCriteria) error {
+func applyFiltersV3(out *roaring64.Bitmap, tx kvt.TemporalTx, begin, end uint64, crit filters.FilterCriteria) error {
 	//[from,to)
 	var fromTxNum, toTxNum uint64
 	var err error
@@ -338,7 +339,7 @@ func applyFiltersV3(out *roaring64.Bitmap, tx kv.TemporalTx, begin, end uint64, 
 }
 */
 
-func applyFiltersV3(tx kv.TemporalTx, begin, end uint64, crit filters.FilterCriteria) (out iter.U64, err error) {
+func applyFiltersV3(tx kvt.TemporalTx, begin, end uint64, crit filters.FilterCriteria) (out iter.U64, err error) {
 	//[from,to)
 	var fromTxNum, toTxNum uint64
 	if begin > 0 {
@@ -377,7 +378,7 @@ func applyFiltersV3(tx kv.TemporalTx, begin, end uint64, crit filters.FilterCrit
 	return out, nil
 }
 
-func (api *APIImpl) getLogsV3(ctx context.Context, tx kv.TemporalTx, begin, end uint64, crit filters.FilterCriteria) ([]*types.Log, error) {
+func (api *APIImpl) getLogsV3(ctx context.Context, tx kvt.TemporalTx, begin, end uint64, crit filters.FilterCriteria) ([]*types.Log, error) {
 	logs := []*types.Log{}
 
 	txNumbers, err := applyFiltersV3(tx, begin, end, crit)
@@ -462,7 +463,7 @@ type intraBlockExec struct {
 	ibs         *state.IntraBlockState
 	stateReader *state.HistoryReaderV3
 	engine      consensus.EngineReader
-	tx          kv.TemporalTx
+	tx          kvt.TemporalTx
 	br          services.FullBlockReader
 	chainConfig *chain.Config
 	evm         *vm.EVM
@@ -479,7 +480,7 @@ type intraBlockExec struct {
 	vmConfig  *vm.Config
 }
 
-func txnExecutor(tx kv.TemporalTx, chainConfig *chain.Config, engine consensus.EngineReader, br services.FullBlockReader, tracer GenericTracer) *intraBlockExec {
+func txnExecutor(tx kvt.TemporalTx, chainConfig *chain.Config, engine consensus.EngineReader, br services.FullBlockReader, tracer GenericTracer) *intraBlockExec {
 	stateReader := state.NewHistoryReaderV3()
 	stateReader.SetTx(tx)
 
@@ -545,12 +546,12 @@ func (e *intraBlockExec) execTx(txNum uint64, txIndex int, txn types.Transaction
 // {{}, {B}}          matches any topic in first position AND B in second position
 // {{A}, {B}}         matches topic A in first position AND B in second position
 // {{A, B}, {C, D}}   matches topic (A OR B) in first position AND (C OR D) in second position
-func getTopicsBitmapV3(tx kv.TemporalTx, topics [][]common.Hash, from, to uint64) (res iter.U64, err error) {
+func getTopicsBitmapV3(tx kvt.TemporalTx, topics [][]common.Hash, from, to uint64) (res iter.U64, err error) {
 	for _, sub := range topics {
 
 		var topicsUnion iter.U64
 		for _, topic := range sub {
-			it, err := tx.IndexRange(kv.LogTopicIdx, topic.Bytes(), int(from), int(to), order.Asc, kv.Unlim)
+			it, err := tx.IndexRange(kvt.LogTopicIdx, topic.Bytes(), int(from), int(to), order.Asc, kv.Unlim)
 			if err != nil {
 				return nil, err
 			}
@@ -566,9 +567,9 @@ func getTopicsBitmapV3(tx kv.TemporalTx, topics [][]common.Hash, from, to uint64
 	return res, nil
 }
 
-func getAddrsBitmapV3(tx kv.TemporalTx, addrs []common.Address, from, to uint64) (res iter.U64, err error) {
+func getAddrsBitmapV3(tx kvt.TemporalTx, addrs []common.Address, from, to uint64) (res iter.U64, err error) {
 	for _, addr := range addrs {
-		it, err := tx.IndexRange(kv.LogAddrIdx, addr[:], int(from), int(to), true, kv.Unlim)
+		it, err := tx.IndexRange(kvt.LogAddrIdx, addr[:], int(from), int(to), true, kv.Unlim)
 		if err != nil {
 			return nil, err
 		}

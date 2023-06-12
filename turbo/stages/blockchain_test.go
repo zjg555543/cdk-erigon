@@ -813,19 +813,19 @@ func doModesTest(t *testing.T, pm prune.Mode) error {
 		//TODO: e3 not implemented Prune feature yet
 		/*
 			if pm.History.Enabled() {
-				it, err := tx.(kv.TemporalTx).HistoryRange(temporal.AccountsHistory, 0, int(pm.History.PruneTo(head)), order.Asc, -1)
+				it, err := tx.(kvt.TemporalTx).HistoryRange(temporal.AccountsHistory, 0, int(pm.History.PruneTo(head)), order.Asc, -1)
 				require.NoError(err)
 				count, err := iter.CountKV(it)
 				require.NoError(err)
 				require.Zero(count)
 
-				it, err = tx.(kv.TemporalTx).HistoryRange(temporal.AccountsHistory, int(pm.History.PruneTo(head)), -1, order.Asc, -1)
+				it, err = tx.(kvt.TemporalTx).HistoryRange(temporal.AccountsHistory, int(pm.History.PruneTo(head)), -1, order.Asc, -1)
 				require.NoError(err)
 				count, err = iter.CountKV(it)
 				require.NoError(err)
 				require.Equal(3, count)
 			} else {
-				it, err := tx.(kv.TemporalTx).HistoryRange(temporal.AccountsHistory, 0, -1, order.Asc, -1)
+				it, err := tx.(kvt.TemporalTx).HistoryRange(temporal.AccountsHistory, 0, -1, order.Asc, -1)
 				require.NoError(err)
 				count, err := iter.CountKV(it)
 				require.NoError(err)

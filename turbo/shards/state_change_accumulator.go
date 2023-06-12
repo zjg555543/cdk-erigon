@@ -78,9 +78,9 @@ func (a *Accumulator) ChangeAccount(address libcommon.Address, incarnation uint6
 	}
 	accountChange := a.latestChange.Changes[i]
 	switch accountChange.Action {
-	case remote.Action_STORAGE:
+	case remote.Action_UPDATE_STORAGE:
 		accountChange.Action = remote.Action_UPSERT
-	case remote.Action_CODE:
+	case remote.Action_UPDATE_CODE:
 		accountChange.Action = remote.Action_UPSERT_CODE
 	case remote.Action_REMOVE:
 		panic("")
@@ -99,7 +99,7 @@ func (a *Accumulator) DeleteAccount(address libcommon.Address) {
 		a.accountChangeIndex[address] = i
 	}
 	accountChange := a.latestChange.Changes[i]
-	if accountChange.Action != remote.Action_STORAGE {
+	if accountChange.Action != remote.Action_UPDATE_STORAGE {
 		panic("")
 	}
 	accountChange.Data = nil
@@ -115,14 +115,14 @@ func (a *Accumulator) ChangeCode(address libcommon.Address, incarnation uint64, 
 	if !ok || incarnation > a.latestChange.Changes[i].Incarnation {
 		// Account has not been changed in the latest block yet
 		i = len(a.latestChange.Changes)
-		a.latestChange.Changes = append(a.latestChange.Changes, &remote.AccountChange{Address: gointerfaces.ConvertAddressToH160(address), Action: remote.Action_CODE})
+		a.latestChange.Changes = append(a.latestChange.Changes, &remote.AccountChange{Address: gointerfaces.ConvertAddressToH160(address), Action: remote.Action_UPDATE_CODE})
 		a.accountChangeIndex[address] = i
 		delete(a.storageChangeIndex, address)
 	}
 	accountChange := a.latestChange.Changes[i]
 	switch accountChange.Action {
-	case remote.Action_STORAGE:
-		accountChange.Action = remote.Action_CODE
+	case remote.Action_UPDATE_STORAGE:
+		accountChange.Action = remote.Action_UPDATE_CODE
 	case remote.Action_UPSERT:
 		accountChange.Action = remote.Action_UPSERT_CODE
 	case remote.Action_REMOVE:
@@ -137,7 +137,7 @@ func (a *Accumulator) ChangeStorage(address libcommon.Address, incarnation uint6
 	if !ok || incarnation > a.latestChange.Changes[i].Incarnation {
 		// Account has not been changed in the latest block yet
 		i = len(a.latestChange.Changes)
-		a.latestChange.Changes = append(a.latestChange.Changes, &remote.AccountChange{Address: gointerfaces.ConvertAddressToH160(address), Action: remote.Action_STORAGE})
+		a.latestChange.Changes = append(a.latestChange.Changes, &remote.AccountChange{Address: gointerfaces.ConvertAddressToH160(address), Action: remote.Action_UPDATE_STORAGE})
 		a.accountChangeIndex[address] = i
 		delete(a.storageChangeIndex, address)
 	}

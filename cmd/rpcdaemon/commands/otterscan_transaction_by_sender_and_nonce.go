@@ -10,6 +10,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/cmp"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
@@ -27,8 +28,8 @@ func (api *OtterscanAPIImpl) GetTransactionBySenderAndNonce(ctx context.Context,
 
 	var acc accounts.Account
 	if api.historyV3(tx) {
-		ttx := tx.(kv.TemporalTx)
-		it, err := ttx.IndexRange(kv.AccountsHistoryIdx, addr[:], -1, -1, order.Asc, kv.Unlim)
+		ttx := tx.(kvt.TemporalTx)
+		it, err := ttx.IndexRange(kvt.AccountsIdx, addr[:], -1, -1, order.Asc, kv.Unlim)
 		if err != nil {
 			return nil, err
 		}
@@ -45,7 +46,7 @@ func (api *OtterscanAPIImpl) GetTransactionBySenderAndNonce(ctx context.Context,
 				continue
 			}
 
-			v, ok, err := ttx.HistoryGet(kv.AccountsHistory, addr[:], txnID)
+			v, ok, err := ttx.HistoryGet(kvt.AccountsHistory, addr[:], txnID)
 			if err != nil {
 				log.Error("Unexpected error, couldn't find changeset", "txNum", i, "addr", addr)
 				return nil, err
@@ -85,7 +86,7 @@ func (api *OtterscanAPIImpl) GetTransactionBySenderAndNonce(ctx context.Context,
 		// can be replaced by full-scan over ttx.HistoryRange([prevTxnID, nextTxnID])?
 		idx := sort.Search(int(nextTxnID-prevTxnID), func(i int) bool {
 			txnID := uint64(i) + prevTxnID
-			v, ok, err := ttx.HistoryGet(kv.AccountsHistory, addr[:], txnID)
+			v, ok, err := ttx.HistoryGet(kvt.AccountsHistory, addr[:], txnID)
 			if err != nil {
 				log.Error("[rpc] Unexpected error, couldn't find changeset", "txNum", i, "addr", addr)
 				panic(err)

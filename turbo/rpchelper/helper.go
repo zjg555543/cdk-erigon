@@ -134,7 +134,7 @@ func CreateHistoryStateReader(tx kv.Tx, blockNumber uint64, txnIndex int, histor
 func NewLatestStateReader(tx kv.Getter) state.StateReader {
 	if ethconfig.EnableHistoryV4InTest {
 		panic("implement me")
-		//b.pendingReader = state.NewReaderV4(b.pendingReaderTx.(kv.TemporalTx))
+		//b.pendingReader = state.NewReaderV4(b.pendingReaderTx.(kvt.TemporalTx))
 	}
 	return state.NewPlainStateReader(tx)
 }

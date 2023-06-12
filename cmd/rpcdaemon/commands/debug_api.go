@@ -8,6 +8,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 
@@ -79,7 +80,7 @@ func (api *PrivateDebugAPIImpl) StorageRangeAt(ctx context.Context, blockHash co
 		if err != nil {
 			return StorageRangeResult{}, err
 		}
-		return storageRangeAtV3(tx.(kv.TemporalTx), contractAddress, keyStart, minTxNum+txIndex, maxResult)
+		return storageRangeAtV3(tx.(kvt.TemporalTx), contractAddress, keyStart, minTxNum+txIndex, maxResult)
 	}
 
 	block, err := api.blockByHashWithSenders(ctx, tx, blockHash)
@@ -199,15 +200,15 @@ func (api *PrivateDebugAPIImpl) GetModifiedAccountsByNumber(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		return getModifiedAccountsV3(tx.(kv.TemporalTx), startTxNum, endTxNum)
+		return getModifiedAccountsV3(tx.(kvt.TemporalTx), startTxNum, endTxNum)
 	}
 	return changeset.GetModifiedAccounts(tx, startNum, endNum)
 }
 
 // getModifiedAccountsV3 returns a list of addresses that were modified in the block range
 // [startNum:endNum)
-func getModifiedAccountsV3(tx kv.TemporalTx, startTxNum, endTxNum uint64) ([]common.Address, error) {
-	it, err := tx.HistoryRange(kv.AccountsHistory, int(startTxNum), int(endTxNum), order.Asc, kv.Unlim)
+func getModifiedAccountsV3(tx kvt.TemporalTx, startTxNum, endTxNum uint64) ([]common.Address, error) {
+	it, err := tx.HistoryRange(kvt.AccountsHistory, int(startTxNum), int(endTxNum), order.Asc, kv.Unlim)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +279,7 @@ func (api *PrivateDebugAPIImpl) GetModifiedAccountsByHash(ctx context.Context, s
 		if err != nil {
 			return nil, err
 		}
-		return getModifiedAccountsV3(tx.(kv.TemporalTx), startTxNum, endTxNum)
+		return getModifiedAccountsV3(tx.(kvt.TemporalTx), startTxNum, endTxNum)
 	}
 	return changeset.GetModifiedAccounts(tx, startNum, endNum)
 }
@@ -305,8 +306,8 @@ func (api *PrivateDebugAPIImpl) AccountAt(ctx context.Context, blockHash common.
 		if err != nil {
 			return nil, err
 		}
-		ttx := tx.(kv.TemporalTx)
-		v, ok, err := ttx.DomainGetAsOf(kv.AccountsDomain, address[:], nil, minTxNum+txIndex+1)
+		ttx := tx.(kvt.TemporalTx)
+		v, ok, err := ttx.DomainGetAsOf(kvt.AccountsDomain, address[:], nil, minTxNum+txIndex+1)
 		if err != nil {
 			return nil, err
 		}
@@ -323,7 +324,7 @@ func (api *PrivateDebugAPIImpl) AccountAt(ctx context.Context, blockHash common.
 		result.Nonce = hexutil.Uint64(a.Nonce)
 		result.CodeHash = a.CodeHash
 
-		code, _, err := ttx.DomainGetAsOf(kv.CodeDomain, address[:], a.CodeHash[:], minTxNum+txIndex)
+		code, _, err := ttx.DomainGetAsOf(kvt.CodeDomain, address[:], a.CodeHash[:], minTxNum+txIndex)
 		if err != nil {
 			return nil, err
 		}

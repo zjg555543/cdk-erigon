@@ -6,6 +6,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/chain"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon/turbo/rpchelper"
 	"github.com/ledgerwatch/log/v3"
 
@@ -24,7 +25,7 @@ type GenericTracer interface {
 
 func (api *OtterscanAPIImpl) genericTracer(dbtx kv.Tx, ctx context.Context, blockNum, txnID uint64, txIndex int, chainConfig *chain.Config, tracer GenericTracer) error {
 	if api.historyV3(dbtx) {
-		ttx := dbtx.(kv.TemporalTx)
+		ttx := dbtx.(kvt.TemporalTx)
 		executor := txnExecutor(ttx, chainConfig, api.engine(), api._blockReader, tracer)
 
 		// if block number changed, calculate all related field

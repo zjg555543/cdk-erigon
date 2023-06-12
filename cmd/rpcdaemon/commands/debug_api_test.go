@@ -12,6 +12,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/iter"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcache"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon/cmd/rpcdaemon/rpcdaemontest"
 	common2 "github.com/ledgerwatch/erigon/common"
@@ -430,12 +431,12 @@ func TestMapTxNum2BlockNum(t *testing.T) {
 		dbtx, err := m.DB.BeginRo(m.Ctx)
 		require.NoError(t, err)
 		defer dbtx.Rollback()
-		tx := dbtx.(kv.TemporalTx)
+		tx := dbtx.(kvt.TemporalTx)
 
-		txNums, err := tx.IndexRange(kv.LogAddrIdx, addr[:], 1024, -1, order.Desc, kv.Unlim)
+		txNums, err := tx.IndexRange(kvt.LogAddrIdx, addr[:], 1024, -1, order.Desc, kv.Unlim)
 		require.NoError(t, err)
 		txNumsIter := MapDescendTxNum2BlockNum(tx, txNums)
-		expectTxNums, err := tx.IndexRange(kv.LogAddrIdx, addr[:], 1024, -1, order.Desc, kv.Unlim)
+		expectTxNums, err := tx.IndexRange(kvt.LogAddrIdx, addr[:], 1024, -1, order.Desc, kv.Unlim)
 		require.NoError(t, err)
 		checkIter(t, expectTxNums, txNumsIter)
 	})
@@ -443,12 +444,12 @@ func TestMapTxNum2BlockNum(t *testing.T) {
 		dbtx, err := m.DB.BeginRo(m.Ctx)
 		require.NoError(t, err)
 		defer dbtx.Rollback()
-		tx := dbtx.(kv.TemporalTx)
+		tx := dbtx.(kvt.TemporalTx)
 
-		txNums, err := tx.IndexRange(kv.LogAddrIdx, addr[:], 0, 1024, order.Asc, kv.Unlim)
+		txNums, err := tx.IndexRange(kvt.LogAddrIdx, addr[:], 0, 1024, order.Asc, kv.Unlim)
 		require.NoError(t, err)
 		txNumsIter := MapDescendTxNum2BlockNum(tx, txNums)
-		expectTxNums, err := tx.IndexRange(kv.LogAddrIdx, addr[:], 0, 1024, order.Asc, kv.Unlim)
+		expectTxNums, err := tx.IndexRange(kvt.LogAddrIdx, addr[:], 0, 1024, order.Asc, kv.Unlim)
 		require.NoError(t, err)
 		checkIter(t, expectTxNums, txNumsIter)
 	})
@@ -456,12 +457,12 @@ func TestMapTxNum2BlockNum(t *testing.T) {
 		dbtx, err := m.DB.BeginRo(m.Ctx)
 		require.NoError(t, err)
 		defer dbtx.Rollback()
-		tx := dbtx.(kv.TemporalTx)
+		tx := dbtx.(kvt.TemporalTx)
 
-		txNums, err := tx.IndexRange(kv.LogAddrIdx, addr[:], 0, 1024, order.Asc, 2)
+		txNums, err := tx.IndexRange(kvt.LogAddrIdx, addr[:], 0, 1024, order.Asc, 2)
 		require.NoError(t, err)
 		txNumsIter := MapDescendTxNum2BlockNum(tx, txNums)
-		expectTxNums, err := tx.IndexRange(kv.LogAddrIdx, addr[:], 0, 1024, order.Asc, 2)
+		expectTxNums, err := tx.IndexRange(kvt.LogAddrIdx, addr[:], 0, 1024, order.Asc, 2)
 		require.NoError(t, err)
 		checkIter(t, expectTxNums, txNumsIter)
 	})

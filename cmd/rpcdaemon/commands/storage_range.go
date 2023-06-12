@@ -6,6 +6,7 @@ import (
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon/common"
 )
@@ -47,13 +48,13 @@ func storageRangeAt(stateReader walker, contractAddress libcommon.Address, start
 	return result, nil
 }
 
-func storageRangeAtV3(ttx kv.TemporalTx, contractAddress libcommon.Address, start []byte, txNum uint64, maxResult int) (StorageRangeResult, error) {
+func storageRangeAtV3(ttx kvt.TemporalTx, contractAddress libcommon.Address, start []byte, txNum uint64, maxResult int) (StorageRangeResult, error) {
 	result := StorageRangeResult{Storage: storageMap{}}
 
 	fromKey := append(libcommon.Copy(contractAddress.Bytes()), start...)
 	toKey, _ := kv.NextSubtree(contractAddress.Bytes())
 
-	r, err := ttx.DomainRange(kv.StorageDomain, fromKey, toKey, txNum, order.Asc, maxResult+1)
+	r, err := ttx.DomainRange(kvt.StorageDomain, fromKey, toKey, txNum, order.Asc, maxResult+1)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}

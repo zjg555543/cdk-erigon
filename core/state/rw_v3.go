@@ -17,6 +17,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/kvt"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/common/dbutils"
@@ -483,24 +484,24 @@ func (rs *StateV3) ApplyHistory(txTask *exec22.TxTask, agg *libstate.AggregatorV
 	}
 	if txTask.TraceFroms != nil {
 		for addr := range txTask.TraceFroms {
-			if err := agg.PutIdx(kv.TracesFromIdx, addr[:]); err != nil {
+			if err := agg.PutIdx(kvt.TracesFromIdx, addr[:]); err != nil {
 				return err
 			}
 		}
 	}
 	if txTask.TraceTos != nil {
 		for addr := range txTask.TraceTos {
-			if err := agg.PutIdx(kv.TracesToIdx, addr[:]); err != nil {
+			if err := agg.PutIdx(kvt.TracesToIdx, addr[:]); err != nil {
 				return err
 			}
 		}
 	}
 	for _, log := range txTask.Logs {
-		if err := agg.PutIdx(kv.LogAddrIdx, log.Address[:]); err != nil {
+		if err := agg.PutIdx(kvt.LogAddrIdx, log.Address[:]); err != nil {
 			return err
 		}
 		for _, topic := range log.Topics {
-			if err := agg.PutIdx(kv.LogTopicIdx, topic[:]); err != nil {
+			if err := agg.PutIdx(kvt.LogTopicIdx, topic[:]); err != nil {
 				return err
 			}
 		}
