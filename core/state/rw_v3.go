@@ -939,6 +939,9 @@ func newKvList() *libstate.KvList {
 	return kvListPool.Get().(*libstate.KvList)
 }
 func returnKvList(l *libstate.KvList) {
+	if l == nil {
+		return
+	}
 	l.Keys = l.Keys[:0]
 	l.Vals = l.Vals[:0]
 	kvListPool.Put(l)
