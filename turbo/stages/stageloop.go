@@ -166,10 +166,10 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 			return headBlockHash, err
 		}
 		defer tx.Rollback()
+		logger.Warn("[dbg] before cycle", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 	}
 
 	if hook != nil {
-		logger.Warn("[dbg] before cycle", "current_block", rawdb.ReadCurrentBlockNumber(tx))
 		if err = hook.BeforeRun(tx, canRunCycleInOneTransaction); err != nil {
 			return headBlockHash, err
 		}
