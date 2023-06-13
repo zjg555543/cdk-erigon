@@ -564,7 +564,6 @@ Loop:
 		if err = tx.Commit(); err != nil {
 			return err
 		}
-		cfg.db.BeginRw(context.Background())
 	}
 
 	logger.Info(fmt.Sprintf("[%s] Completed on", logPrefix), "block", stageProgress)
