@@ -218,7 +218,14 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	// -- send notifications END
 
 	// -- Prune+commit(sync)
-	if err := db.Update(ctx, func(tx kv.RwTx) error { return sync.RunPrune(db, tx, initialCycle) }); err != nil {
+	if err := db.Update(ctx, func(tx kv.RwTx) error {
+		if err := sync.RunPrune(db, tx, initialCycle); err != nil {
+			return err
+		}
+		logCtx := sync.PrintTimings()
+		logger.Info("Timings2 (slower than 50ms)", logCtx...)
+		return nil
+	}); err != nil {
 		return headBlockHash, err
 	}
 
