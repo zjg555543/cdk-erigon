@@ -191,12 +191,8 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	}
 
 	// -- send notifications START
-	var head uint64
 	if err := db.View(ctx, func(tx kv.Tx) error {
 		headBlockHash = rawdb.ReadHeadBlockHash(tx)
-		if head, err = stages.GetStageProgress(tx, stages.Headers); err != nil {
-			return err
-		}
 		if hook != nil {
 			if err = hook.AfterRun(tx, finishProgressBefore); err != nil {
 				return err
