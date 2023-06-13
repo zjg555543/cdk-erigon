@@ -36,7 +36,7 @@ type Filters struct {
 	pendingBlockSubs *SyncMap[PendingBlockSubID, Sub[*types.Block]]
 	pendingTxsSubs   *SyncMap[PendingTxsSubID, Sub[[]types.Transaction]]
 	logsSubs         *LogsFilterAggregator
-	logsRequestor    atomic.Value
+	logsRequestor    atomic.Pointer[func(*remote.LogsFilterRequest) error]
 	onNewSnapshot    func()
 
 	storeMu            sync.Mutex
@@ -403,7 +403,7 @@ func (ff *Filters) SubscribeLogs(size int, crit filters.FilterCriteria) (<-chan 
 
 	loaded := ff.loadLogsRequester()
 	if loaded != nil {
-		if err := loaded.(func(*remote.LogsFilterRequest) error)(lfr); err != nil {
+		if err := loaded(lfr); err != nil {
 			ff.logger.Warn("Could not update remote logs filter", "err", err)
 			ff.logsSubs.removeLogsFilter(id)
 		}
@@ -412,10 +412,12 @@ func (ff *Filters) SubscribeLogs(size int, crit filters.FilterCriteria) (<-chan 
 	return sub.ch, id
 }
 
-func (ff *Filters) loadLogsRequester() any {
-	ff.mu.Lock()
-	defer ff.mu.Unlock()
-	return ff.logsRequestor.Load()
+func (ff *Filters) loadLogsRequester() func(*remote.LogsFilterRequest) error {
+	f := ff.logsRequestor.Load()
+	if f != nil {
+		return *f
+	}
+	return nil
 }
 
 func (ff *Filters) UnsubscribeLogs(id LogsSubID) bool {
@@ -434,7 +436,7 @@ func (ff *Filters) UnsubscribeLogs(id LogsSubID) bool {
 	}
 	loaded := ff.loadLogsRequester()
 	if loaded != nil {
-		if err := loaded.(func(*remote.LogsFilterRequest) error)(lfr); err != nil {
+		if err := loaded(lfr); err != nil {
 			ff.logger.Warn("Could not update remote logs filter", "err", err)
 			return isDeleted || ff.logsSubs.removeLogsFilter(id)
 		}

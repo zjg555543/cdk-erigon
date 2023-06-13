@@ -179,7 +179,7 @@ func (back *RemoteBackend) Subscribe(ctx context.Context, onNewEvent func(*remot
 	return nil
 }
 
-func (back *RemoteBackend) SubscribeLogs(ctx context.Context, onNewLogs func(reply *remote.SubscribeLogsReply), requestor *atomic.Value) error {
+func (back *RemoteBackend) SubscribeLogs(ctx context.Context, onNewLogs func(reply *remote.SubscribeLogsReply), requestor *atomic.Pointer[func(*remote.LogsFilterRequest) error]) error {
 	subscription, err := back.remoteEthBackend.SubscribeLogs(ctx, grpc.WaitForReady(true))
 	if err != nil {
 		if s, ok := status.FromError(err); ok {
@@ -187,7 +187,8 @@ func (back *RemoteBackend) SubscribeLogs(ctx context.Context, onNewLogs func(rep
 		}
 		return err
 	}
-	requestor.Store(subscription.Send)
+	a := subscription.Send
+	requestor.Store(&a)
 	for {
 		logs, err := subscription.Recv()
 		if errors.Is(err, io.EOF) {

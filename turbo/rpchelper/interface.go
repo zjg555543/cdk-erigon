@@ -23,7 +23,7 @@ type ApiBackend interface {
 	ProtocolVersion(ctx context.Context) (uint64, error)
 	ClientVersion(ctx context.Context) (string, error)
 	Subscribe(ctx context.Context, cb func(*remote.SubscribeReply)) error
-	SubscribeLogs(ctx context.Context, cb func(*remote.SubscribeLogsReply), requestor *atomic.Value) error
+	SubscribeLogs(ctx context.Context, cb func(*remote.SubscribeLogsReply), requestor *atomic.Pointer[func(*remote.LogsFilterRequest) error]) error
 	BlockWithSenders(ctx context.Context, tx kv.Getter, hash libcommon.Hash, blockHeight uint64) (block *types.Block, senders []libcommon.Address, err error)
 	EngineNewPayload(ctx context.Context, payload *types2.ExecutionPayload) (*remote.EnginePayloadStatus, error)
 	EngineForkchoiceUpdated(ctx context.Context, request *remote.EngineForkChoiceUpdatedRequest) (*remote.EngineForkChoiceUpdatedResponse, error)
