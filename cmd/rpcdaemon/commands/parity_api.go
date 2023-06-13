@@ -47,6 +47,7 @@ func (api *ParityAPIImpl) ListStorageKeys(ctx context.Context, account libcommon
 		return nil, err
 	}
 	keys := make([]hexutility.Bytes, 0)
+
 	tx, err := api.db.BeginRo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listStorageKeys cannot open tx: %w", err)
