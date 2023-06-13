@@ -311,7 +311,7 @@ func ExecV3(ctx context.Context,
 		defer applyLoopWg.Done()
 		defer func() {
 			if rec := recover(); rec != nil {
-				log.Warn("[dbg] apply loop panic", "rec", rec)
+				log.Warn("[dbg] apply loop panic", "rec", rec, "stack", dbg.Stack())
 			}
 			log.Warn("[dbg] apply loop exit")
 		}()
