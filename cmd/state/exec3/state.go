@@ -244,9 +244,9 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 	//}
 	//}
 	txTask.BalanceIncreaseSet = ibs.BalanceIncreaseSet()
-	for addr, bal := range txTask.BalanceIncreaseSet {
-		fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
-	}
+	//for addr, bal := range txTask.BalanceIncreaseSet {
+	//	fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
+	//}
 	txTask.ReadLists = rw.stateReader.ReadSet()
 	txTask.WriteLists = rw.bufferedWriter.WriteSet()
 	txTask.AccountPrevs, txTask.AccountDels, txTask.StoragePrevs, txTask.CodePrevs = rw.bufferedWriter.PrevAndDels()
