@@ -46,7 +46,6 @@ func (api *ParityAPIImpl) ListStorageKeys(ctx context.Context, account libcommon
 	if err := api.checkBlockNumber(blockNumberOrTag); err != nil {
 		return nil, err
 	}
-
 	keys := make([]hexutility.Bytes, 0)
 	tx, err := api.db.BeginRo(ctx)
 	if err != nil {
@@ -80,7 +79,6 @@ func (api *ParityAPIImpl) ListStorageKeys(ctx context.Context, account libcommon
 		}
 		return keys, nil
 	}
-
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, a.GetIncarnation())
 	seekBytes := append(account.Bytes(), b...)
