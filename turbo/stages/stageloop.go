@@ -206,14 +206,10 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, sync *stagedsync.Sync, initi
 	}); err != nil {
 		return headBlockHash, err
 	}
-	if canRunCycleInOneTransaction && (head != finishProgressBefore || commitTime > 500*time.Millisecond) {
-		logger.Info("Commit cycle", "in", commitTime)
-	}
-	if head != finishProgressBefore && len(logCtx) > 0 { // No printing of timings or table sizes if there were no progress
-		logger.Info("Timings (slower than 50ms)", logCtx...)
-		if len(tableSizes) > 0 {
-			logger.Info("Tables", tableSizes...)
-		}
+	logger.Info("Commit cycle", "in", commitTime)
+	logger.Info("Timings (slower than 50ms)", logCtx...)
+	if len(tableSizes) > 0 {
+		logger.Info("Tables", tableSizes...)
 	}
 	// -- send notifications END
 
