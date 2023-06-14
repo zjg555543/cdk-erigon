@@ -22,6 +22,7 @@ import (
 type TxTask struct {
 	TxNum           uint64
 	BlockNum        uint64
+	BlockRoot       libcommon.Hash
 	Rules           *chain.Rules
 	Header          *types.Header
 	Txs             types.Transactions

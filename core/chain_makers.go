@@ -25,6 +25,9 @@ import (
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
+	"github.com/ledgerwatch/erigon/core/systemcontracts"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon/common"
@@ -32,12 +35,9 @@ import (
 	"github.com/ledgerwatch/erigon/consensus/merge"
 	"github.com/ledgerwatch/erigon/consensus/misc"
 	"github.com/ledgerwatch/erigon/core/state"
-	"github.com/ledgerwatch/erigon/core/systemcontracts"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/core/vm"
-	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/params"
-	"github.com/ledgerwatch/erigon/turbo/rpchelper"
 	"github.com/ledgerwatch/erigon/turbo/trie"
 )
 
@@ -58,6 +58,8 @@ type BlockGen struct {
 
 	config *chain.Config
 	engine consensus.Engine
+
+	beforeAddTx func()
 }
 
 // SetCoinbase sets the coinbase of the generated block.
@@ -114,6 +116,9 @@ func (b *BlockGen) AddFailedTx(tx types.Transaction) {
 // added. If contract code relies on the BLOCKHASH instruction,
 // the block in chain will be returned.
 func (b *BlockGen) AddTxWithChain(getHeader func(hash libcommon.Hash, number uint64) *types.Header, engine consensus.Engine, tx types.Transaction) {
+	if b.beforeAddTx != nil {
+		b.beforeAddTx()
+	}
 	if b.gasPool == nil {
 		b.SetCoinbase(libcommon.Address{})
 	}
@@ -310,12 +315,50 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 		return nil, errBegin
 	}
 	defer tx.Rollback()
-
 	logger := log.New("generate-chain", config.ChainName)
 
+	var stateReader state.StateReader
+	var stateWriter state.StateWriter
+	if ethconfig.EnableHistoryV4InTest {
+		agg := tx.(*temporal.Tx).Agg()
+		sd := agg.SharedDomains()
+		defer agg.StartUnbufferedWrites().FinishWrites()
+		agg.SetTx(tx)
+		stateWriter, stateReader = state.WrapStateIO(sd)
+		sd.SetTx(tx)
+		defer agg.CloseSharedDomains()
+		oldTxNum := agg.GetTxNum()
+		defer func() {
+			agg.SetTxNum(oldTxNum)
+		}()
+	}
+	txNum := -1
+	setBlockNum := func(blockNum uint64) {
+		if ethconfig.EnableHistoryV4InTest {
+			stateReader.(*state.StateReaderV4).SetBlockNum(blockNum)
+			stateWriter.(*state.StateWriterV4).SetBlockNum(blockNum)
+		} else {
+			stateReader = state.NewPlainStateReader(tx)
+			stateWriter = state.NewPlainStateWriter(tx, nil, parent.NumberU64()+blockNum+1)
+		}
+	}
+	txNumIncrement := func() {
+		txNum++
+		if ethconfig.EnableHistoryV4InTest {
+			tx.(*temporal.Tx).Agg().SetTxNum(uint64(txNum))
+			stateReader.(*state.StateReaderV4).SetTxNum(uint64(txNum))
+			stateWriter.(*state.StateWriterV4).SetTxNum(uint64(txNum))
+		}
+	}
 	genblock := func(i int, parent *types.Block, ibs *state.IntraBlockState, stateReader state.StateReader,
 		stateWriter state.StateWriter) (*types.Block, types.Receipts, error) {
-		b := &BlockGen{i: i, chain: blocks, parent: parent, ibs: ibs, stateReader: stateReader, config: config, engine: engine, txs: make([]types.Transaction, 0, 1), receipts: make([]*types.Receipt, 0, 1), uncles: make([]*types.Header, 0, 1)}
+		txNumIncrement()
+
+		b := &BlockGen{i: i, chain: blocks, parent: parent, ibs: ibs, stateReader: stateReader, config: config, engine: engine, txs: make([]types.Transaction, 0, 1), receipts: make([]*types.Receipt, 0, 1), uncles: make([]*types.Header, 0, 1),
+			beforeAddTx: func() {
+				txNumIncrement()
+			},
+		}
 		b.header = makeHeader(chainreader, parent, ibs, b.engine)
 		// Mutate the state and block according to any hard-fork specs
 		if daoBlock := config.DAOForkBlock; daoBlock != nil {
@@ -332,6 +375,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 		if gen != nil {
 			gen(i, b)
 		}
+		txNumIncrement()
 		if b.engine != nil {
 			// Finalize and seal the block
 			if _, _, _, err := b.engine.FinalizeAndAssemble(config, b.header, ibs, b.txs, b.uncles, b.receipts, nil, nil, nil, nil); err != nil {
@@ -354,15 +398,8 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 		return nil, nil, fmt.Errorf("no engine to generate blocks")
 	}
 
-	var txNum uint64
 	for i := 0; i < n; i++ {
-		stateReader := rpchelper.NewLatestStateReader(tx)
-		var stateWriter state.StateWriter
-		if ethconfig.EnableHistoryV4InTest {
-			panic("implement me on v4")
-		} else {
-			stateWriter = state.NewPlainStateWriter(tx, nil, parent.NumberU64()+uint64(i)+1)
-		}
+		setBlockNum(uint64(i))
 		ibs := state.New(stateReader)
 		block, receipt, err := genblock(i, parent, ibs, stateReader, stateWriter)
 		if err != nil {
@@ -372,8 +409,6 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 		blocks[i] = block
 		receipts[i] = receipt
 		parent = block
-		//TODO: genblock must call agg.SetTxNum after each txNum???
-		txNum += uint64(block.Transactions().Len() + 2) //2 system txsr
 	}
 
 	tx.Rollback()
@@ -384,9 +419,15 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 func hashRoot(tx kv.RwTx, header *types.Header) (hashRoot libcommon.Hash, err error) {
 	if ethconfig.EnableHistoryV4InTest {
 		if GenerateTrace {
-			panic("implement me on v4")
+			panic("implement me")
 		}
-		panic("implement me on v4")
+		agg := tx.(*temporal.Tx).Agg()
+		agg.SetTx(tx)
+		h, err := agg.ComputeCommitment(false, false)
+		if err != nil {
+			return libcommon.Hash{}, fmt.Errorf("call to CalcTrieRoot: %w", err)
+		}
+		return libcommon.BytesToHash(h), nil
 	}
 
 	if err := tx.ClearBucket(kv.HashedAccounts); err != nil {

@@ -276,8 +276,10 @@ func loopProcessDomains(chainDb, stateDb kv.RwDB, ctx context.Context, logger lo
 	}
 	mode := libstate.ParseCommitmentMode(commitmentMode)
 
-	engine, _, _, agg := newDomains(ctx, chainDb, stepSize, mode, trieVariant, logger)
+	engine, cfg, _, agg := newDomains(ctx, chainDb, stepSize, mode, trieVariant, logger)
 	defer agg.Close()
+
+	agg.SetDB(stateDb)
 
 	histTx, err := chainDb.BeginRo(ctx)
 	must(err)
@@ -287,6 +289,7 @@ func loopProcessDomains(chainDb, stateDb kv.RwDB, ctx context.Context, logger lo
 	must(err)
 	defer stateTx.Rollback()
 
+	_ = cfg
 	agg.SetTx(stateTx)
 	defer agg.StartWrites().FinishWrites()
 
@@ -407,19 +410,30 @@ func (b *blockProcessor) commit(ctx context.Context) error {
 	s := time.Now()
 	defer mxCommitTook.UpdateDuration(s)
 
-	var spaceDirty uint64
+	//var spaceDirty uint64
 	var err error
-	if spaceDirty, _, err = b.stateTx.(*kv2.MdbxTx).SpaceDirty(); err != nil {
-		return fmt.Errorf("retrieving spaceDirty: %w", err)
-	}
-	if spaceDirty >= dirtySpaceThreshold {
-		b.logger.Info("Initiated tx commit", "block", b.blockNum, "space dirty", libcommon.ByteCount(spaceDirty))
-	}
+	//if spaceDirty, _, err = b.stateTx.(*kv2.MdbxTx).SpaceDirty(); err != nil {
+	//	return fmt.Errorf("retrieving spaceDirty: %w", err)
+	//}
+	//if spaceDirty >= dirtySpaceThreshold {
+	//	b.logger.Info("Initiated tx commit", "block", b.blockNum, "space dirty", libcommon.ByteCount(spaceDirty))
+	//}
+
+	//if err = b.stateTx.Commit(); err != nil {
+	//	return err
+	//}
+	//
+	//if b.stateTx, err = b.stateDb.BeginRw(ctx); err != nil {
+	//	return err
+	//}
+
+	//b.agg.SetTx(b.stateTx)
+	//b.reader.SetTx(b.stateTx, b.agg.MakeContext())
 
 	b.logger.Info("database commitment", "block", b.blockNum, "txNum", b.txNum, "uptime", time.Since(b.stat.startedAt))
-	if err := b.agg.Flush(ctx); err != nil {
-		return err
-	}
+	//if err := b.agg.Flush(ctx); err != nil {
+	//	return err
+	//}
 	if err = b.stateTx.Commit(); err != nil {
 		return err
 	}
@@ -582,10 +596,10 @@ func (b *blockProcessor) applyBlock(
 	}
 
 	if b.txNum >= b.startTxNum {
-		if b.chainConfig.IsByzantium(block.NumberU64()) {
+		if b.chainConfig.IsByzantium(b.blockNum) {
 			receiptSha := types.DeriveSha(receipts)
 			if receiptSha != block.ReceiptHash() {
-				fmt.Printf("mismatched receipt headers for block %d\n", block.NumberU64())
+				fmt.Printf("mismatched receipt headers for block %d\n", b.blockNum)
 				for j, receipt := range receipts {
 					fmt.Printf("tx %d, used gas: %d\n", j, receipt.GasUsed)
 				}

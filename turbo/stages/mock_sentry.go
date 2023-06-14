@@ -233,7 +233,7 @@ func MockWithEverything(tb testing.TB, gspec *types.Genesis, key *ecdsa.PrivateK
 
 	logger := log.New()
 	ctx, ctxCancel := context.WithCancel(context.Background())
-	histV3, db, agg := temporal.NewTestDB(tb, dirs, nil)
+	histV3, db, agg := temporal.NewTestDB(tb, dirs, gspec)
 	cfg.HistoryV3 = histV3
 
 	erigonGrpcServeer := remotedbserver.NewKvServer(ctx, db, nil, nil, logger)
@@ -703,21 +703,19 @@ func (ms *MockSentry) NewHistoryStateReader(blockNum uint64, tx kv.Tx) state.Sta
 
 func (ms *MockSentry) NewStateReader(tx kv.Tx) state.StateReader {
 	if ethconfig.EnableHistoryV4InTest {
-		panic("implement me")
+		return state.NewReaderV4(tx.(kv.TemporalTx))
 	}
 	return state.NewPlainStateReader(tx)
 }
 
-func (ms *MockSentry) NewStateWriter(tx kv.RwTx, blockNum uint64) state.StateWriter {
-	if ethconfig.EnableHistoryV4InTest {
-		panic("implement me")
-	}
-	return state.NewPlainStateWriter(tx, tx, blockNum)
-}
-
 func (ms *MockSentry) CalcStateRoot(tx kv.Tx) libcommon.Hash {
 	if ethconfig.EnableHistoryV4InTest {
-		panic("implement me")
+		//aggCtx := tx.(kv.TemporalTx).(*temporal.Tx).AggCtx()
+		rootBytes, err := tx.(kv.TemporalTx).(*temporal.Tx).Agg().ComputeCommitment(false, false)
+		if err != nil {
+			panic(fmt.Errorf("ComputeCommitment: %w", err))
+		}
+		return libcommon.BytesToHash(rootBytes)
 	}
 
 	h, err := trie.CalcRoot("test", tx)

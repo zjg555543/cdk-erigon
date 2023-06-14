@@ -44,6 +44,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/rawdb/blockio"
 	"github.com/ledgerwatch/erigon/core/state"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
@@ -52,6 +53,9 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
 	"github.com/ledgerwatch/erigon/turbo/trie"
 )
+
+//go:embed allocs
+var allocs embed.FS
 
 // CommitGenesisBlock writes or updates the genesis block in db.
 // The block that will be used is:
@@ -199,10 +203,9 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 
 	var stateWriter state.StateWriter
 	if ethconfig.EnableHistoryV4InTest {
-		panic("implement me")
-		//tx.(*temporal.Tx).Agg().SetTxNum(0)
-		//stateWriter = state.NewWriterV4(tx.(kv.TemporalTx))
-		//defer tx.(*temporal.Tx).Agg().StartUnbufferedWrites().FinishWrites()
+		agg := tx.(*temporal.Tx).Agg()
+		stateWriter = state.NewWriterV4(tx.(kv.TemporalTx))
+		defer agg.StartUnbufferedWrites().FinishWrites()
 	} else {
 		for addr, account := range g.Alloc {
 			if len(account.Code) > 0 || len(account.Storage) > 0 {
@@ -593,9 +596,6 @@ func sortedAllocKeys(m types.GenesisAlloc) []string {
 	slices.Sort(keys)
 	return keys
 }
-
-//go:embed allocs
-var allocs embed.FS
 
 func readPrealloc(filename string) types.GenesisAlloc {
 	f, err := allocs.Open(filename)

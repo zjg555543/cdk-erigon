@@ -2,6 +2,7 @@ package exec3
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"sync"
 
@@ -25,17 +26,18 @@ import (
 )
 
 type Worker struct {
-	lock        sync.Locker
-	chainDb     kv.RoDB
-	chainTx     kv.Tx
-	background  bool // if true - worker does manage RoTx (begin/rollback) in .ResetTx()
-	blockReader services.FullBlockReader
-	in          *exec22.QueueWithRetry
-	rs          *state.StateV3
-	stateWriter *state.StateWriterBufferedV3
-	stateReader *state.StateReaderV3
-	chainConfig *chain.Config
-	getHeader   func(hash libcommon.Hash, number uint64) *types.Header
+	lock           sync.Locker
+	chainDb        kv.RoDB
+	chainTx        kv.Tx
+	background     bool // if true - worker does manage RoTx (begin/rollback) in .ResetTx()
+	blockReader    services.FullBlockReader
+	in             *exec22.QueueWithRetry
+	rs             *state.StateV3
+	bufferedWriter *state.StateWriterBufferedV3
+	stateWriter    state.StateWriter
+	stateReader    *state.StateReaderV3
+	chainConfig    *chain.Config
+	getHeader      func(hash libcommon.Hash, number uint64) *types.Header
 
 	ctx      context.Context
 	engine   consensus.Engine
@@ -52,15 +54,15 @@ type Worker struct {
 
 func NewWorker(lock sync.Locker, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, in *exec22.QueueWithRetry, blockReader services.FullBlockReader, chainConfig *chain.Config, genesis *types.Genesis, results *exec22.ResultsQueue, engine consensus.Engine) *Worker {
 	w := &Worker{
-		lock:        lock,
-		chainDb:     chainDb,
-		in:          in,
-		rs:          rs,
-		background:  background,
-		blockReader: blockReader,
-		stateWriter: state.NewStateWriterBufferedV3(rs),
-		stateReader: state.NewStateReaderV3(rs),
-		chainConfig: chainConfig,
+		lock:           lock,
+		chainDb:        chainDb,
+		in:             in,
+		rs:             rs,
+		background:     background,
+		blockReader:    blockReader,
+		bufferedWriter: state.NewStateWriterBufferedV3(rs),
+		stateReader:    state.NewStateReaderV3(rs),
+		chainConfig:    chainConfig,
 
 		ctx:      ctx,
 		genesis:  genesis,
@@ -71,6 +73,9 @@ func NewWorker(lock sync.Locker, ctx context.Context, background bool, chainDb k
 		callTracer:  NewCallTracer(),
 		taskGasPool: new(core.GasPool),
 	}
+	//w4, _ := state.WrapStateIO(rs.Domains())
+	w.stateWriter = state.NewMultiStateWriter( /*w4,*/ w.bufferedWriter)
+
 	w.getHeader = func(hash libcommon.Hash, number uint64) *types.Header {
 		h, err := blockReader.Header(ctx, w.chainTx, hash, number)
 		if err != nil {
@@ -124,13 +129,15 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 		rw.chain = ChainReader{config: rw.chainConfig, tx: rw.chainTx, blockReader: rw.blockReader}
 	}
 	txTask.Error = nil
+
 	rw.stateReader.SetTxNum(txTask.TxNum)
-	rw.stateWriter.SetTxNum(txTask.TxNum)
+	rw.bufferedWriter.SetTxNum(txTask.TxNum)
 	rw.stateReader.ResetReadSet()
-	rw.stateWriter.ResetWriteSet()
+	rw.bufferedWriter.ResetWriteSet()
+
 	rw.ibs.Reset()
 	ibs := rw.ibs
-	//ibs.SetTrace(true)
+	ibs.SetTrace(true)
 
 	rules := txTask.Rules
 	daoForkTx := rw.chainConfig.DAOForkBlock != nil && rw.chainConfig.DAOForkBlock.Uint64() == txTask.BlockNum && txTask.TxIndex == -1
@@ -141,7 +148,9 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 	case daoForkTx:
 		//fmt.Printf("txNum=%d, blockNum=%d, DAO fork\n", txTask.TxNum, txTask.BlockNum)
 		misc.ApplyDAOHardFork(ibs)
-		ibs.SoftFinalise()
+		if err = ibs.FinalizeTx(rules, rw.stateWriter); err != nil {
+			panic(err)
+		}
 	case txTask.TxIndex == -1:
 		if txTask.BlockNum == 0 {
 			// Genesis block
@@ -171,12 +180,19 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 			return core.SysCallContract(contract, data, rw.chainConfig, ibs, header, rw.engine, false /* constCall */)
 		}
 
-		if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall); err != nil {
-			//fmt.Printf("error=%v\n", err)
+		_, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall)
+		if err != nil {
 			txTask.Error = err
 		} else {
-			//rw.callTracer.AddCoinbase(txTask.Coinbase, txTask.Uncles)
-			//txTask.TraceTos = rw.callTracer.Tos()
+			if rw.callTracer != nil {
+				//rw.callTracer.AddCoinbase(txTask.Coinbase, txTask.Uncles)
+				txTask.TraceTos = rw.callTracer.Tos()
+			}
+			//incorrect unwind to block 2
+			if err := ibs.CommitBlock(rules, rw.stateWriter); err != nil {
+				txTask.Error = err
+			}
+
 			txTask.TraceTos = map[libcommon.Address]struct{}{}
 			txTask.TraceTos[txTask.Coinbase] = struct{}{}
 			for _, uncle := range txTask.Uncles {
@@ -206,9 +222,10 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 		if err != nil {
 			txTask.Error = err
 		} else {
+			if err = ibs.FinalizeTx(rules, rw.stateWriter); err != nil {
+				panic(err)
+			}
 			txTask.UsedGas = applyRes.UsedGas
-			// Update the state with pending changes
-			ibs.SoftFinalise()
 			txTask.Logs = ibs.GetLogs(txHash)
 			txTask.TraceFroms = rw.callTracer.Froms()
 			txTask.TraceTos = rw.callTracer.Tos()
@@ -216,18 +233,23 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 
 	}
 	// Prepare read set, write set and balanceIncrease set and send for serialisation
-	if txTask.Error == nil {
-		txTask.BalanceIncreaseSet = ibs.BalanceIncreaseSet()
-		//for addr, bal := range txTask.BalanceIncreaseSet {
-		//	fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
-		//}
-		if err = ibs.MakeWriteSet(rules, rw.stateWriter); err != nil {
-			panic(err)
-		}
-		txTask.ReadLists = rw.stateReader.ReadSet()
-		txTask.WriteLists = rw.stateWriter.WriteSet()
-		txTask.AccountPrevs, txTask.AccountDels, txTask.StoragePrevs, txTask.CodePrevs = rw.stateWriter.PrevAndDels()
+	if txTask.Error != nil {
+		fmt.Printf("[ERR] %v\n", txTask.Error)
+		return
 	}
+
+	//if txTask.Final {
+	//if err = ibs.MakeWriteSet(rules, rw.stateWriter); err != nil {
+	//	panic(err)
+	//}
+	//}
+	txTask.BalanceIncreaseSet = ibs.BalanceIncreaseSet()
+	for addr, bal := range txTask.BalanceIncreaseSet {
+		fmt.Printf("BalanceIncreaseSet [%x]=>[%d]\n", addr, &bal)
+	}
+	txTask.ReadLists = rw.stateReader.ReadSet()
+	txTask.WriteLists = rw.bufferedWriter.WriteSet()
+	txTask.AccountPrevs, txTask.AccountDels, txTask.StoragePrevs, txTask.CodePrevs = rw.bufferedWriter.PrevAndDels()
 }
 
 type ChainReader struct {

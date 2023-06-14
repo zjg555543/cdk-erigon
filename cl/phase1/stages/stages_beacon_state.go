@@ -2,6 +2,7 @@ package stages
 
 import (
 	"context"
+
 	"github.com/ledgerwatch/erigon/cl/transition"
 
 	"github.com/ledgerwatch/erigon/cl/phase1/core/rawdb"

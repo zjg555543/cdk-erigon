@@ -962,8 +962,13 @@ func stageExec(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 		}
 		return nil
 	}
+	tx, err := db.BeginRw(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 
-	err := stagedsync.SpawnExecuteBlocksStage(s, sync, nil, block, ctx, cfg, true /* initialCycle */, logger)
+	err = stagedsync.SpawnExecuteBlocksStage(s, sync, tx, block, ctx, cfg, true /* initialCycle */, logger)
 	if err != nil {
 		return err
 	}
@@ -1374,6 +1379,7 @@ func allSnapshots(ctx context.Context, db kv.RoDB, logger log.Logger) (*snapshot
 		dirs := datadir.New(datadirCli)
 		dir.MustExist(dirs.SnapHistory)
 
+		//useSnapshots = true
 		snapCfg := ethconfig.NewSnapCfg(useSnapshots, true, true)
 		_allSnapshotsSingleton = snapshotsync.NewRoSnapshots(snapCfg, dirs.Snap, logger)
 

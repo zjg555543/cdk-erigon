@@ -5,7 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
@@ -19,10 +20,12 @@ import (
 	"github.com/ledgerwatch/erigon/ethdb/prune"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/log/v3"
-	"github.com/stretchr/testify/require"
 )
 
 func TestExec(t *testing.T) {
+	if ethconfig.EnableHistoryV4InTest {
+		t.Skip()
+	}
 	logger := log.New()
 	ctx, db1, db2 := context.Background(), memdb.NewTestDB(t), memdb.NewTestDB(t)
 	cfg := ExecuteBlockCfg{}
@@ -131,7 +134,7 @@ func apply(tx kv.RwTx, agg *libstate.AggregatorV3, logger log.Logger) (beforeBlo
 	agg.SetTx(tx)
 	agg.StartWrites()
 
-	rs := state.NewStateV3("", logger)
+	rs := state.NewStateV3(agg.SharedDomains(), logger)
 	stateWriter := state.NewStateWriterBufferedV3(rs)
 	return func(n, from, numberOfBlocks uint64) {
 			stateWriter.SetTxNum(n)
@@ -146,17 +149,17 @@ func apply(tx kv.RwTx, agg *libstate.AggregatorV3, logger log.Logger) (beforeBlo
 				WriteLists: stateWriter.WriteSet(),
 			}
 			txTask.AccountPrevs, txTask.AccountDels, txTask.StoragePrevs, txTask.CodePrevs = stateWriter.PrevAndDels()
-			if err := rs.ApplyState(tx, txTask, agg); err != nil {
+			if err := rs.ApplyState4(txTask, agg); err != nil {
 				panic(err)
 			}
-			if err := rs.ApplyHistory(txTask, agg); err != nil {
+			if err := rs.ApplyLogsAndTraces(txTask, agg); err != nil {
 				panic(err)
 			}
 			if n == from+numberOfBlocks-1 {
-				err := rs.Flush(context.Background(), tx, "", time.NewTicker(time.Minute))
-				if err != nil {
-					panic(err)
-				}
+				//err := rs.Flush(context.Background(), tx, "", time.NewTicker(time.Minute))
+				//if err != nil {
+				//	panic(err)
+				//}
 				if err := agg.Flush(context.Background(), tx); err != nil {
 					panic(err)
 				}
@@ -175,6 +178,9 @@ func newAgg(t *testing.T, logger log.Logger) *libstate.AggregatorV3 {
 }
 
 func TestExec22(t *testing.T) {
+	if ethconfig.EnableHistoryV4InTest {
+		t.Skip()
+	}
 	logger := log.New()
 	ctx, db1, db2 := context.Background(), memdb.NewTestDB(t), memdb.NewTestDB(t)
 	agg := newAgg(t, logger)
