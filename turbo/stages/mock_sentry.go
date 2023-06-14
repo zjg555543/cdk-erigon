@@ -60,7 +60,7 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/trie"
 )
 
-const MockInsertAsInitialCycle = false
+const MockInsertAsInitialCycle = true
 
 type MockSentry struct {
 	proto_sentry.UnimplementedSentryServer
