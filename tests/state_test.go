@@ -52,7 +52,7 @@ func TestState(t *testing.T) {
 	st.skipLoad(`.*vmPerformance/loop.*`)
 
 	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
-		_, db, _ := temporal.NewTestDB(t, context.Background(), datadir.New(t.TempDir()), nil, log.New())
+		_, db, _ := temporal.NewTestDB(t, datadir.New(t.TempDir()), nil)
 		for _, subtest := range test.Subtests() {
 			subtest := subtest
 			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
