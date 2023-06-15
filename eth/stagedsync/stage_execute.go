@@ -289,7 +289,7 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 	//	}
 	//}()
 
-	parallel := initialCycle && tx == nil
+	parallel := tx == nil
 	if parallel {
 		panic(fmt.Sprintf("in: %t, %t\n", initialCycle, tx == nil))
 	}

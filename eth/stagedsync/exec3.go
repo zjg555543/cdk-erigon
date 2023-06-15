@@ -43,7 +43,6 @@ import (
 	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/turbo/services"
-	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
 )
 
 var ExecStepsInDB = metrics.NewCounter(`exec_steps_in_db`) //nolint
@@ -158,7 +157,6 @@ func ExecV3(ctx context.Context,
 	blockReader := cfg.blockReader
 	agg, engine := cfg.agg, cfg.engine
 	chainConfig, genesis := cfg.chainConfig, cfg.genesis
-	blockSnapshots := blockReader.Snapshots().(*snapshotsync.RoSnapshots)
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -492,7 +490,7 @@ func ExecV3(ctx context.Context,
 		})
 	}
 
-	if block < blockSnapshots.BlocksAvailable() {
+	if block < cfg.blockReader.FrozenBlocks() {
 		agg.KeepInDB(0)
 		defer agg.KeepInDB(ethconfig.HistoryV3AggregationStep)
 	}
@@ -756,7 +754,7 @@ Loop:
 			}
 		}
 
-		if blockSnapshots.Cfg().Produce {
+		if cfg.blockReader.FreezingCfg().Produce {
 			//agg.BuildFilesInBackground(outputTxNum.Load())
 			agg.AggregateFilesInBackground()
 		}
@@ -793,7 +791,7 @@ Loop:
 		}
 	}
 
-	if blockSnapshots.Cfg().Produce {
+	if cfg.blockReader.FreezingCfg().Produce {
 		//agg.BuildFilesInBackground(outputTxNum.Load())
 		agg.AggregateFilesInBackground()
 	}
@@ -1402,8 +1400,6 @@ func ReconstituteState(ctx context.Context, s *StageState, dirs datadir.Dirs, wo
 	chainConfig *chain.Config, genesis *types.Genesis) (err error) {
 	startTime := time.Now()
 	defer agg.EnableMadvNormal().DisableReadAhead()
-	blockSnapshots := blockReader.Snapshots().(*snapshotsync.RoSnapshots)
-	defer blockSnapshots.EnableReadAhead().DisableReadAhead()
 
 	// force merge snapshots before reconstitution, to allign domains progress
 	// un-finished merge can happen at "kill -9" during merge
