@@ -526,6 +526,8 @@ func ExecV3(ctx context.Context,
 
 	stateStream := !initialCycle && cfg.stateStream && maxBlockNum-block < stateStreamLimit
 
+	fmt.Printf("start from: %x\n", block)
+
 	var b *types.Block
 	var blockNum uint64
 	var err error
@@ -703,9 +705,11 @@ Loop:
 			//if err != nil {
 			//	return fmt.Errorf("StateV3.Apply: %w", err)
 			//}
-			//_ = rh
 			//if !bytes.Equal(rh, header.Root.Bytes()) {
-			//	oldAlogNonIncrementalHahs, err := core.CalcHashRootForTests(applyTx, header)
+			//	if err := agg.Flush(ctx, applyTx); err != nil {
+			//		panic(err)
+			//	}
+			//	oldAlogNonIncrementalHahs, err := core.CalcHashRootForTests(applyTx, header, true)
 			//	if err != nil {
 			//		panic(err)
 			//	}
@@ -745,6 +749,7 @@ Loop:
 					//if !bytes.Equal(rh, header.Root.Bytes()) {
 					//	return fmt.Errorf("root hash mismatch: %x != %x, bn=%d", rh, header.Root.Bytes(), blockNum)
 					//}
+					//fmt.Printf("flush\n")
 					if err := agg.Flush(ctx, applyTx); err != nil {
 						return err
 					}
