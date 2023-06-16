@@ -699,26 +699,26 @@ Loop:
 		if !parallel {
 			outputBlockNum.Set(blockNum)
 			// MA commitment
-			//rh, err := agg.ComputeCommitment(true, false)
-			//if err != nil {
-			//	return fmt.Errorf("StateV3.Apply: %w", err)
-			//}
-			//_ = rh
-			//if !bytes.Equal(rh, header.Root.Bytes()) {
-			//	oldAlogNonIncrementalHahs, err := core.CalcHashRootForTests(applyTx, header)
-			//	if err != nil {
-			//		panic(err)
-			//	}
-			//	if common.BytesToHash(rh) != oldAlogNonIncrementalHahs {
-			//		err := fmt.Errorf("block hash mismatch - but new-algorithm hash is bad! (means latest state is correct): %x != %x != %x bn =%d", common.BytesToHash(rh), oldAlogNonIncrementalHahs, header.Root, blockNum)
-			//		log.Error(err.Error())
-			//		//return err
-			//	} else {
-			//		err := fmt.Errorf("block hash mismatch - and new-algorithm hash is good! (means latest state is NOT correct): %x == %x != %x bn =%d", common.BytesToHash(rh), oldAlogNonIncrementalHahs, header.Root, blockNum)
-			//		log.Error(err.Error())
-			//		//return err
-			//	}
-			//}
+			rh, err := agg.ComputeCommitment(true, false)
+			if err != nil {
+				return fmt.Errorf("StateV3.Apply: %w", err)
+			}
+			root := common.BytesToHash(rh)
+			if blockNum > 0 && root != header.Root {
+				oldAlogNonIncrementalHahs, err := core.CalcHashRootForTests(applyTx, header)
+				if err != nil {
+					panic(err)
+				}
+				if root != oldAlogNonIncrementalHahs {
+					err := fmt.Errorf("block hash mismatch - but new-algorithm hash is bad! (means latest state is correct): %x != %x != %x bn =%d", common.BytesToHash(rh), oldAlogNonIncrementalHahs, header.Root, blockNum)
+					log.Error(err.Error())
+					//return err
+				} else {
+					err := fmt.Errorf("block hash mismatch - and new-algorithm hash is good! (means latest state is NOT correct): %x == %x != %x bn =%d", common.BytesToHash(rh), oldAlogNonIncrementalHahs, header.Root, blockNum)
+					log.Error(err.Error())
+					//return err
+				}
+			}
 
 			select {
 			case <-logEvery.C:
