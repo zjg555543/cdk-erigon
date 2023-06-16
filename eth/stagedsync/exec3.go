@@ -755,6 +755,17 @@ Loop:
 					}
 
 					applyTx.CollectMetrics()
+					if !useExternalTx {
+						if err = applyTx.Commit(); err != nil {
+							return err
+						}
+						applyTx, err = cfg.db.BeginRw(context.Background())
+						if err != nil {
+							return err
+						}
+						// TODO: This creates stacked up deferrals
+						defer applyTx.Rollback()
+					}
 
 					return nil
 				}(); err != nil {
