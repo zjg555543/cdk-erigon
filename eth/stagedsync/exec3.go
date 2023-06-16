@@ -703,13 +703,13 @@ Loop:
 			if err != nil {
 				return fmt.Errorf("StateV3.Apply: %w", err)
 			}
-			root := common.BytesToHash(rh)
-			if blockNum > 0 && root != header.Root {
+			_ = rh
+			if !bytes.Equal(rh, header.Root.Bytes()) {
 				oldAlogNonIncrementalHahs, err := core.CalcHashRootForTests(applyTx, header)
 				if err != nil {
 					panic(err)
 				}
-				if root != oldAlogNonIncrementalHahs {
+				if common.BytesToHash(rh) != oldAlogNonIncrementalHahs {
 					err := fmt.Errorf("block hash mismatch - but new-algorithm hash is bad! (means latest state is correct): %x != %x != %x bn =%d", common.BytesToHash(rh), oldAlogNonIncrementalHahs, header.Root, blockNum)
 					log.Error(err.Error())
 					//return err
@@ -755,17 +755,26 @@ Loop:
 					}
 
 					applyTx.CollectMetrics()
-					if !useExternalTx {
-						if err = applyTx.Commit(); err != nil {
-							return err
-						}
-						applyTx, err = cfg.db.BeginRw(context.Background())
-						if err != nil {
-							return err
-						}
-						// TODO: This creates stacked up deferrals
-						defer applyTx.Rollback()
-					}
+					//if !useExternalTx {
+					//	if err = applyTx.Commit(); err != nil {
+					//		return err
+					//	}
+					//	applyTx, err = cfg.db.BeginRw(context.Background())
+					//	if err != nil {
+					//		return err
+					//	}
+					//	// TODO: This creates stacked up deferrals
+					//	defer applyTx.Rollback()
+					//	applyWorker.ResetTx(applyTx)
+					//	agg.SetTx(applyTx)
+					//	doms.SetTx(applyTx)
+					//	agg.FinishWrites()
+					//	if dbg.DiscardHistory() {
+					//		defer agg.DiscardHistory().FinishWrites()
+					//	} else {
+					//		defer agg.StartWrites().FinishWrites()
+					//	}
+					//}
 
 					return nil
 				}(); err != nil {
