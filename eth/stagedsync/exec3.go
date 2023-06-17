@@ -796,6 +796,7 @@ Loop:
 						} else {
 							defer agg.StartWrites().FinishWrites()
 						}
+						doms.Clean()
 					}
 
 					return nil
@@ -832,6 +833,7 @@ Loop:
 		if err = agg.Flush(ctx, applyTx); err != nil {
 			return err
 		}
+		doms.Clean()
 		//rh, err := rs.Commitment(inputTxNum, agg)
 		//if err != nil {
 		//	return err
