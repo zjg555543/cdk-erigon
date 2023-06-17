@@ -797,6 +797,7 @@ Loop:
 							defer agg.StartWrites().FinishWrites()
 						}
 						doms.Clean()
+						fmt.Printf("alex: %d\n", rs.SizeEstimate())
 					}
 
 					return nil
