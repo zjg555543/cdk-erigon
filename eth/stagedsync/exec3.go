@@ -770,7 +770,6 @@ Loop:
 					if err := agg.Flush(ctx, applyTx); err != nil {
 						return err
 					}
-					doms.Clean()
 					t3 = time.Since(tt)
 
 					if err = execStage.Update(applyTx, outputBlockNum.Get()); err != nil {
@@ -786,17 +785,16 @@ Loop:
 						if err != nil {
 							return err
 						}
-						// TODO: This creates stacked up deferrals
 						applyWorker.ResetTx(applyTx)
 						agg.SetTx(applyTx)
 						doms.SetTx(applyTx)
-						agg.FinishWrites()
-						if dbg.DiscardHistory() {
-							defer agg.DiscardHistory().FinishWrites()
-						} else {
-							defer agg.StartWrites().FinishWrites()
-						}
-						fmt.Printf("alex: %d\n", rs.SizeEstimate())
+						//agg.FinishWrites()
+						//if dbg.DiscardHistory() {
+						//	defer agg.DiscardHistory().FinishWrites()
+						//} else {
+						//	defer agg.StartWrites().FinishWrites()
+						//}
+						//fmt.Printf("alex: %d\n", rs.SizeEstimate())
 					}
 
 					return nil
