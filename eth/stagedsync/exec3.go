@@ -777,26 +777,26 @@ Loop:
 					}
 
 					applyTx.CollectMetrics()
-					//if !useExternalTx {
-					//	if err = applyTx.Commit(); err != nil {
-					//		return err
-					//	}
-					//	applyTx, err = cfg.db.BeginRw(context.Background())
-					//	if err != nil {
-					//		return err
-					//	}
-					//	// TODO: This creates stacked up deferrals
-					//	defer applyTx.Rollback()
-					//	applyWorker.ResetTx(applyTx)
-					//	agg.SetTx(applyTx)
-					//	doms.SetTx(applyTx)
-					//	agg.FinishWrites()
-					//	if dbg.DiscardHistory() {
-					//		defer agg.DiscardHistory().FinishWrites()
-					//	} else {
-					//		defer agg.StartWrites().FinishWrites()
-					//	}
-					//}
+					if !useExternalTx {
+						if err = applyTx.Commit(); err != nil {
+							return err
+						}
+						applyTx, err = cfg.db.BeginRw(context.Background())
+						if err != nil {
+							return err
+						}
+						// TODO: This creates stacked up deferrals
+						defer applyTx.Rollback()
+						applyWorker.ResetTx(applyTx)
+						agg.SetTx(applyTx)
+						doms.SetTx(applyTx)
+						agg.FinishWrites()
+						if dbg.DiscardHistory() {
+							defer agg.DiscardHistory().FinishWrites()
+						} else {
+							defer agg.StartWrites().FinishWrites()
+						}
+					}
 
 					return nil
 				}(); err != nil {
