@@ -19,9 +19,11 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
 
@@ -304,30 +306,143 @@ func reconstituteBlock(agg *libstate.AggregatorV3, db kv.RoDB, tx kv.Tx) (n uint
 }
 
 func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context, cfg ExecuteBlockCfg, accumulator *shards.Accumulator, logger log.Logger) (err error) {
-	cfg.agg.SetLogPrefix(s.LogPrefix())
-	rs := state.NewStateV3(cfg.dirs.Tmp, logger)
+	from, to := u.UnwindPoint+1, uint64(math.MaxUint64)
+	ttx := tx.(kv.TemporalTx)
+	stateChanges := etl.NewCollector(s.LogPrefix(), cfg.dirs.Tmp, etl.NewOldestEntryBuffer(etl.BufferOptimalSize), logger)
+	defer stateChanges.Close()
+	{
+		iter, err := ttx.HistoryRange(kv.AccountsHistory, int(from), int(to), order.Asc, -1)
+		if err != nil {
+			return err
+		}
+		for iter.HasNext() {
+			k, v, err := iter.Next()
+			if err != nil {
+				return err
+			}
+			if err := stateChanges.Collect(k, v); err != nil {
+				return err
+			}
+		}
+	}
+	{
+		iter, err := ttx.HistoryRange(kv.StorageHistory, int(from), int(to), order.Asc, -1)
+		if err != nil {
+			return err
+		}
+		for iter.HasNext() {
+			k, v, err := iter.Next()
+			if err != nil {
+				return err
+			}
+			if err := stateChanges.Collect(k, v); err != nil {
+				return err
+			}
+		}
+	}
+
+	var currentInc uint64
+	if err := stateChanges.Load(tx, kv.PlainState, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
+		if len(k) == length.Addr {
+			if len(v) > 0 {
+				var acc accounts.Account
+				if err := accounts.DeserialiseV3(&acc, v); err != nil {
+					return fmt.Errorf("%w, %x", err, v)
+				}
+				currentInc = acc.Incarnation
+				// Fetch the code hash
+				var address common.Address
+				copy(address[:], k)
+
+				// cleanup contract code bucket
+				original, err := state.NewPlainStateReader(tx).ReadAccountData(address)
+				if err != nil {
+					return fmt.Errorf("read account for %x: %w", address, err)
+				}
+				if original != nil {
+					// clean up all the code incarnations original incarnation and the new one
+					for incarnation := original.Incarnation; incarnation > acc.Incarnation && incarnation > 0; incarnation-- {
+						err = tx.Delete(kv.PlainContractCode, dbutils.PlainGenerateStoragePrefix(address[:], incarnation))
+						if err != nil {
+							return fmt.Errorf("writeAccountPlain for %x: %w", address, err)
+						}
+					}
+				}
+
+				newV := make([]byte, acc.EncodingLengthForStorage())
+				acc.EncodeForStorage(newV)
+				if accumulator != nil {
+					accumulator.ChangeAccount(address, acc.Incarnation, newV)
+				}
+				if err := next(k, k, newV); err != nil {
+					return err
+				}
+			} else {
+				var address common.Address
+				copy(address[:], k)
+				original, err := state.NewPlainStateReader(tx).ReadAccountData(address)
+				if err != nil {
+					return err
+				}
+				if original != nil {
+					currentInc = original.Incarnation
+				} else {
+					currentInc = 1
+				}
+
+				if accumulator != nil {
+					accumulator.DeleteAccount(address)
+				}
+				if err := next(k, k, nil); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		if accumulator != nil {
+			var address common.Address
+			var location common.Hash
+			copy(address[:], k[:length.Addr])
+			copy(location[:], k[length.Addr:])
+			accumulator.ChangeStorage(address, currentInc, location, common.Copy(v))
+		}
+		newKeys := dbutils.PlainGenerateCompositeStorageKey(k[:20], currentInc, k[20:])
+		if len(v) > 0 {
+			if err := next(k, newKeys, v); err != nil {
+				return err
+			}
+		} else {
+			if err := next(k, newKeys, nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, etl.TransformArgs{Quit: ctx.Done()}); err != nil {
+		return err
+	}
+	logEvery := time.NewTicker(30 * time.Second)
+	defer logEvery.Stop()
+
 	// unwind all txs of u.UnwindPoint block. 1 txn in begin/end of block - system txs
 	txNum, err := rawdbv3.TxNums.Min(tx, u.UnwindPoint+1)
 	if err != nil {
 		return err
 	}
-	if err := rs.Unwind(ctx, tx, txNum, cfg.agg, accumulator); err != nil {
-		return fmt.Errorf("StateV3.Unwind: %w", err)
-	}
-	if err := rs.Flush(ctx, tx, s.LogPrefix(), time.NewTicker(30*time.Second)); err != nil {
-		return fmt.Errorf("StateV3.Flush: %w", err)
+	if err := ttx.(*temporal.Tx).Agg().Unwind(ctx, txNum); err != nil {
+		return err
 	}
 
-	if err := rawdb.TruncateReceipts(tx, u.UnwindPoint+1); err != nil {
-		return fmt.Errorf("truncate receipts: %w", err)
-	}
-	if err := rawdb.TruncateBorReceipts(tx, u.UnwindPoint+1); err != nil {
-		return fmt.Errorf("truncate bor receipts: %w", err)
-	}
-	if err := rawdb.DeleteNewerEpochs(tx, u.UnwindPoint+1); err != nil {
-		return fmt.Errorf("delete newer epochs: %w", err)
-	}
-
+	/*
+		if err := rawdb.TruncateReceipts(tx, u.UnwindPoint+1); err != nil {
+			return fmt.Errorf("truncate receipts: %w", err)
+		}
+		if err := rawdb.TruncateBorReceipts(tx, u.UnwindPoint+1); err != nil {
+			return fmt.Errorf("truncate bor receipts: %w", err)
+		}
+		if err := rawdb.DeleteNewerEpochs(tx, u.UnwindPoint+1); err != nil {
+			return fmt.Errorf("delete newer epochs: %w", err)
+		}
+	*/
 	return nil
 }
 

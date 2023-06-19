@@ -14,14 +14,12 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
-	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
-	"github.com/ledgerwatch/erigon/turbo/shards"
 	"github.com/ledgerwatch/log/v3"
 	btree2 "github.com/tidwall/btree"
 )
@@ -516,90 +514,6 @@ func recoverCodeHashPlain(acc *accounts.Account, db kv.Tx, key []byte) {
 			copy(acc.CodeHash[:], codeHash)
 		}
 	}
-}
-
-func (rs *StateV3) Unwind(ctx context.Context, tx kv.RwTx, txUnwindTo uint64, agg *libstate.AggregatorV3, accumulator *shards.Accumulator) error {
-	agg.SetTx(tx)
-	var currentInc uint64
-	if err := agg.Unwind(ctx, txUnwindTo, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
-		if len(k) == length.Addr {
-			if len(v) > 0 {
-				var acc accounts.Account
-				if err := accounts.DeserialiseV3(&acc, v); err != nil {
-					return fmt.Errorf("%w, %x", err, v)
-				}
-				currentInc = acc.Incarnation
-				// Fetch the code hash
-				var address common.Address
-				copy(address[:], k)
-
-				// cleanup contract code bucket
-				original, err := NewPlainStateReader(tx).ReadAccountData(address)
-				if err != nil {
-					return fmt.Errorf("read account for %x: %w", address, err)
-				}
-				if original != nil {
-					// clean up all the code incarnations original incarnation and the new one
-					for incarnation := original.Incarnation; incarnation > acc.Incarnation && incarnation > 0; incarnation-- {
-						err = tx.Delete(kv.PlainContractCode, dbutils.PlainGenerateStoragePrefix(address[:], incarnation))
-						if err != nil {
-							return fmt.Errorf("writeAccountPlain for %x: %w", address, err)
-						}
-					}
-				}
-
-				newV := make([]byte, acc.EncodingLengthForStorage())
-				acc.EncodeForStorage(newV)
-				if accumulator != nil {
-					accumulator.ChangeAccount(address, acc.Incarnation, newV)
-				}
-				if err := next(k, k, newV); err != nil {
-					return err
-				}
-			} else {
-				var address common.Address
-				copy(address[:], k)
-				original, err := NewPlainStateReader(tx).ReadAccountData(address)
-				if err != nil {
-					return err
-				}
-				if original != nil {
-					currentInc = original.Incarnation
-				} else {
-					currentInc = 1
-				}
-
-				if accumulator != nil {
-					accumulator.DeleteAccount(address)
-				}
-				if err := next(k, k, nil); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		if accumulator != nil {
-			var address common.Address
-			var location common.Hash
-			copy(address[:], k[:length.Addr])
-			copy(location[:], k[length.Addr:])
-			accumulator.ChangeStorage(address, currentInc, location, common.Copy(v))
-		}
-		newKeys := dbutils.PlainGenerateCompositeStorageKey(k[:20], currentInc, k[20:])
-		if len(v) > 0 {
-			if err := next(k, newKeys, v); err != nil {
-				return err
-			}
-		} else {
-			if err := next(k, newKeys, nil); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (rs *StateV3) DoneCount() uint64 { return ExecTxsDone.Get() }
