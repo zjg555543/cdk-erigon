@@ -152,6 +152,7 @@ func ExecV3(ctx context.Context,
 	logger log.Logger,
 	initialCycle bool,
 ) error {
+	parallel = false // TODO: e35 doesn't support it yet
 	batchSize := cfg.batchSize
 	chainDb := cfg.db
 	blockReader := cfg.blockReader
@@ -831,7 +832,6 @@ Loop:
 		if err = agg.Flush(ctx, applyTx); err != nil {
 			return err
 		}
-		doms.Clean()
 		//rh, err := rs.Commitment(inputTxNum, agg)
 		//if err != nil {
 		//	return err
