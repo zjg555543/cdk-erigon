@@ -428,7 +428,7 @@ func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context,
 	if err != nil {
 		return err
 	}
-	if err := ttx.(*temporal.Tx).Agg().Unwind(ctx, txNum); err != nil {
+	if err := ttx.(*temporal.Tx).Agg().Unwind(ctx, txNum, tx); err != nil {
 		return err
 	}
 
