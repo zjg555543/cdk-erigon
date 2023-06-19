@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"testing"
 
@@ -227,6 +228,49 @@ func TestAddMod(t *testing.T) {
 		stack.Push(x)
 		opAddmod(&pc, evmInterpreter, &ScopeContext{nil, stack, nil})
 		actual := stack.Pop()
+		if actual.Cmp(expected) != 0 {
+			t.Errorf("Testcase %d, expected  %x, got %x", i, expected, actual)
+		}
+	}
+}
+
+func TestBlockhashV2(t *testing.T) {
+	gethashFn := func(bn uint64) libcommon.Hash {
+		return libcommon.BigToHash(new(big.Int).SetUint64(bn))
+	}
+
+	var (
+		env            = NewEVM(evmtypes.BlockContext{GetHash: gethashFn}, evmtypes.TxContext{}, nil, params.TestChainConfig, Config{})
+		stack          = stack.New()
+		evmInterpreter = NewEVMInterpreter(env, env.Config())
+		pc             = uint64(0)
+	)
+
+	tests := []struct {
+		blockNumber uint64
+		expected    libcommon.Hash
+	}{
+		{
+			blockNumber: 2,
+			expected:    libcommon.BigToHash(new(big.Int).SetUint64(2)),
+		}, {
+			blockNumber: 2000,
+			expected:    libcommon.BigToHash(new(big.Int).SetUint64(2000)),
+		}, {
+			blockNumber: 2000000000,
+			expected:    libcommon.BigToHash(new(big.Int).SetUint64(2000000000)),
+		},
+	}
+
+	for i, test := range tests {
+		expected := new(uint256.Int).SetBytes(test.expected.Bytes())
+		blockNumberBytes := new(uint256.Int).SetUint64(test.blockNumber)
+		stack.Push(blockNumberBytes)
+
+		opBlockhashV2(&pc, evmInterpreter, &ScopeContext{nil, stack, nil})
+		actual := stack.Pop()
+
+		fmt.Println(actual)
 		if actual.Cmp(expected) != 0 {
 			t.Errorf("Testcase %d, expected  %x, got %x", i, expected, actual)
 		}
