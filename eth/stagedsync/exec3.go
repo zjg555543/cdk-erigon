@@ -794,6 +794,12 @@ Loop:
 
 					applyTx.CollectMetrics()
 					if !useExternalTx {
+						if agg.CanPrune(applyTx) { //TODO: sequential exec likely will work on tip of chain: means no prune here, but parallel exec doesn't work yet
+							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+								return err
+							}
+						}
+
 						if err = applyTx.Commit(); err != nil {
 							return err
 						}
@@ -804,16 +810,14 @@ Loop:
 						applyWorker.ResetTx(applyTx)
 						agg.SetTx(applyTx)
 						doms.SetTx(applyTx)
-						//agg.FinishWrites()
-						//agg.StartWrites()
 
-						//agg.FinishWrites()
-						//if dbg.DiscardHistory() {
-						//	defer agg.DiscardHistory().FinishWrites()
-						//} else {
-						//	defer agg.StartWrites().FinishWrites()
-						//}
-						//fmt.Printf("alex: %d\n", rs.SizeEstimate())
+						agg.AggregateFilesInBackground()
+
+						if agg.CanPrune(applyTx) { //TODO: sequential exec likely will work on tip of chain: means no prune here, but parallel exec doesn't work yet
+							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+								return err
+							}
+						}
 					}
 
 					return nil
