@@ -528,7 +528,6 @@ func ExecV3(ctx context.Context,
 	defer slowDownLimit.Stop()
 
 	stateStream := !initialCycle && cfg.stateStream && maxBlockNum-block < stateStreamLimit
-	agg.Check()
 
 	var readAhead chan uint64
 	if !parallel {
@@ -763,7 +762,6 @@ Loop:
 				if rs.SizeEstimate() < commitThreshold {
 					break
 				}
-				agg.Check()
 
 				var t1, t2, t3, t4 time.Duration
 				commitStart := time.Now()
@@ -800,7 +798,6 @@ Loop:
 							}
 						}
 
-						agg.Check()
 						if err = applyTx.Commit(); err != nil {
 							return err
 						}
@@ -819,7 +816,6 @@ Loop:
 								return err
 							}
 						}
-						agg.Check()
 					}
 
 					return nil
@@ -829,9 +825,7 @@ Loop:
 				logger.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3, "tx.commit", t4)
 			default:
 			}
-			agg.Check()
 		}
-		agg.Check()
 
 		if cfg.blockReader.FreezingCfg().Produce {
 			//agg.BuildFilesInBackground(outputTxNum.Load())
