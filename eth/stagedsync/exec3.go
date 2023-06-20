@@ -528,6 +528,7 @@ func ExecV3(ctx context.Context,
 	defer slowDownLimit.Stop()
 
 	stateStream := !initialCycle && cfg.stateStream && maxBlockNum-block < stateStreamLimit
+	agg.Check()
 
 	var readAhead chan uint64
 	if !parallel {
@@ -539,6 +540,7 @@ func ExecV3(ctx context.Context,
 		defer clean()
 	}
 
+	agg.Check()
 	var b *types.Block
 	var blockNum uint64
 	var err error
@@ -550,9 +552,11 @@ Loop:
 			default:
 			}
 		}
+		agg.Check()
 
 		inputBlockNum.Store(blockNum)
 		doms.SetBlockNum(blockNum)
+		agg.Check()
 
 		b, err = blockWithSenders(chainDb, applyTx, blockReader, blockNum)
 		if err != nil {
@@ -575,6 +579,7 @@ Loop:
 			return f(n)
 		}
 		blockContext := core.NewEVMBlockContext(header, getHashFn, engine, nil /* author */)
+		agg.Check()
 
 		if parallel {
 			select {
@@ -614,6 +619,7 @@ Loop:
 				cfg.accumulator.StartChange(b.NumberU64(), b.Hash(), txs, false)
 			}
 		}
+		agg.Check()
 
 		rules := chainConfig.Rules(blockNum, b.Time())
 		var gasUsed uint64
@@ -669,7 +675,9 @@ Loop:
 				if txTask.Error != nil {
 					break Loop
 				}
+				agg.Check()
 				applyWorker.RunTxTask(txTask)
+				agg.Check()
 				if err := func() error {
 					if txTask.Error != nil {
 						return txTask.Error
@@ -702,19 +710,23 @@ Loop:
 					break Loop
 				}
 
+				agg.Check()
 				// MA applystate
 				if err := rs.ApplyState4(txTask, agg); err != nil {
 					return fmt.Errorf("StateV3.ApplyState: %w", err)
 				}
+				agg.Check()
 				if err := rs.ApplyLogsAndTraces(txTask, agg); err != nil {
 					return fmt.Errorf("StateV3.ApplyLogsAndTraces: %w", err)
 				}
 				ExecTriggers.Add(rs.CommitTxNum(txTask.Sender, txTask.TxNum, in))
 				outputTxNum.Add(1)
 			}
+			agg.Check()
 			stageProgress = blockNum
 			inputTxNum++
 		}
+		agg.Check()
 
 		if !parallel {
 			outputBlockNum.Set(blockNum)
@@ -762,6 +774,7 @@ Loop:
 				if rs.SizeEstimate() < commitThreshold {
 					break
 				}
+				agg.Check()
 
 				var t1, t2, t3, t4 time.Duration
 				commitStart := time.Now()
@@ -798,6 +811,7 @@ Loop:
 							}
 						}
 
+						agg.Check()
 						if err = applyTx.Commit(); err != nil {
 							return err
 						}
@@ -816,6 +830,7 @@ Loop:
 								return err
 							}
 						}
+						agg.Check()
 					}
 
 					return nil
@@ -825,7 +840,9 @@ Loop:
 				logger.Info("Committed", "time", time.Since(commitStart), "drain", t1, "rs.flush", t2, "agg.flush", t3, "tx.commit", t4)
 			default:
 			}
+			agg.Check()
 		}
+		agg.Check()
 
 		if cfg.blockReader.FreezingCfg().Produce {
 			//agg.BuildFilesInBackground(outputTxNum.Load())
