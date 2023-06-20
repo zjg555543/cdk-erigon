@@ -174,7 +174,9 @@ func ExecV3(ctx context.Context,
 		if err != nil {
 			return err
 		}
-		defer applyTx.Rollback()
+		defer func() { // need callback - because tx may be committed
+			applyTx.Rollback()
+		}()
 		//} else {
 		//	if blockSnapshots.Cfg().Enabled {
 		//defer blockSnapshots.EnableMadvNormal().DisableReadAhead()
@@ -738,8 +740,21 @@ Loop:
 				} else {
 					err := fmt.Errorf("block hash mismatch - and new-algorithm hash is good! (means latest state is NOT correct): %x == %x != %x bn =%d", common.BytesToHash(rh), oldAlogNonIncrementalHahs, header.Root, blockNum)
 					log.Error(err.Error())
+					if cfg.hd != nil {
+						cfg.hd.ReportBadHeaderPoS(header.Hash(), header.ParentHash)
+					}
+					if maxBlockNum > execStage.BlockNumber {
+						unwindTo := (maxBlockNum + execStage.BlockNumber) / 2 // Binary search for the correct block, biased to the lower numbers
+						//unwindTo := outputBlockNum.Get()
+
+						logger.Warn("Unwinding due to incorrect root hash", "to", unwindTo)
+						u.UnwindTo(unwindTo, header.Hash())
+						//agg.Unwind(ctx, unwindTo)
+					}
+					break Loop
 					//return err
 				}
+				panic("What?")
 			}
 
 			select {
