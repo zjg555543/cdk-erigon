@@ -593,11 +593,16 @@ func (sdb *IntraBlockState) GetRefund() uint64 {
 
 func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, addr libcommon.Address, stateObject *stateObject, isDirty bool) error {
 	emptyRemoval := EIP161Enabled && stateObject.empty() && (!isAura || addr != SystemAddress)
-	if stateObject.created || stateObject.selfdestructed || (isDirty && emptyRemoval) {
+	if stateObject.selfdestructed || (isDirty && emptyRemoval) {
 		if err := stateWriter.DeleteAccount(addr, &stateObject.original); err != nil {
 			return err
 		}
 		stateObject.deleted = true
+	} else if stateObject.created {
+		fmt.Printf("del: %d, %d\n", stateObject.data.Incarnation, stateObject.original.Incarnation)
+		if err := stateWriter.DeleteAccount(addr, &stateObject.original); err != nil {
+			return err
+		}
 	}
 	if isDirty && (stateObject.created || !stateObject.selfdestructed) && !emptyRemoval {
 		stateObject.deleted = false
