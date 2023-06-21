@@ -34,6 +34,7 @@ import (
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/rpchelper"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMemoryGasCost(t *testing.T) {
@@ -141,7 +142,8 @@ func TestCreateGas(t *testing.T) {
 	for i, tt := range createGasTests {
 		address := libcommon.BytesToAddress([]byte("contract"))
 
-		tx, _ := db.BeginRw(context.Background())
+		tx, err := db.BeginRw(context.Background())
+		require.NoError(t, err)
 		defer tx.Rollback()
 
 		stateReader := rpchelper.NewLatestStateReader(tx, ethconfig.EnableHistoryV4InTest)
