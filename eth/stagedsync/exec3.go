@@ -689,9 +689,7 @@ Loop:
 					}
 					return nil
 				}(); err != nil {
-					if errors.Is(err, context.Canceled) || errors.Is(err, common.ErrStopped) {
-						return err
-					} else {
+					if !errors.Is(err, context.Canceled) && !errors.Is(err, common.ErrStopped) {
 						logger.Warn(fmt.Sprintf("[%s] Execution failed", logPrefix), "block", blockNum, "hash", header.Hash().String(), "err", err)
 						if cfg.hd != nil {
 							cfg.hd.ReportBadHeaderPoS(header.Hash(), header.ParentHash)
@@ -779,6 +777,7 @@ Loop:
 					}
 					t1 = time.Since(commitStart)
 
+					// prune befor flush, to speedup flush
 					tt := time.Now()
 					if agg.CanPrune(applyTx) { //TODO: sequential exec likely will work on tip of chain: means no prune here, but parallel exec doesn't work yet
 						if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
