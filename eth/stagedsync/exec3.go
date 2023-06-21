@@ -539,6 +539,8 @@ func ExecV3(ctx context.Context,
 		defer clean()
 	}
 
+	blocksFreezeCfg := cfg.blockReader.FreezingCfg()
+
 	var b *types.Block
 	var blockNum uint64
 	var err error
@@ -786,6 +788,13 @@ Loop:
 					//	return fmt.Errorf("root hash mismatch: %x != %x, bn=%d", rh, header.Root.Bytes(), blockNum)
 					//}
 					//fmt.Printf("flush\n")
+
+					if agg.CanPrune(applyTx) { //TODO: sequential exec likely will work on tip of chain: means no prune here, but parallel exec doesn't work yet
+						if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+							return err
+						}
+					}
+
 					if err := agg.Flush(ctx, applyTx); err != nil {
 						return err
 					}
@@ -797,11 +806,6 @@ Loop:
 
 					applyTx.CollectMetrics()
 					if !useExternalTx {
-						if agg.CanPrune(applyTx) { //TODO: sequential exec likely will work on tip of chain: means no prune here, but parallel exec doesn't work yet
-							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
-								return err
-							}
-						}
 
 						if err = applyTx.Commit(); err != nil {
 							return err
@@ -813,14 +817,6 @@ Loop:
 						applyWorker.ResetTx(applyTx)
 						agg.SetTx(applyTx)
 						doms.SetTx(applyTx)
-
-						agg.AggregateFilesInBackground()
-
-						if agg.CanPrune(applyTx) { //TODO: sequential exec likely will work on tip of chain: means no prune here, but parallel exec doesn't work yet
-							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
-								return err
-							}
-						}
 					}
 
 					return nil
@@ -832,7 +828,7 @@ Loop:
 			}
 		}
 
-		if cfg.blockReader.FreezingCfg().Produce {
+		if blocksFreezeCfg.Produce {
 			//agg.BuildFilesInBackground(outputTxNum.Load())
 			agg.AggregateFilesInBackground()
 		}
@@ -869,7 +865,7 @@ Loop:
 		}
 	}
 
-	if cfg.blockReader.FreezingCfg().Produce {
+	if blocksFreezeCfg.Produce {
 		//agg.BuildFilesInBackground(outputTxNum.Load())
 		agg.AggregateFilesInBackground()
 	}
