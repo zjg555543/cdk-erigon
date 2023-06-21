@@ -770,7 +770,7 @@ Loop:
 					break
 				}
 
-				var t1, t2, t3, t4 time.Duration
+				var t1, t2, t3, t4, t5 time.Duration
 				commitStart := time.Now()
 				if err := func() error {
 					_, err := agg.ComputeCommitment(true, false)
@@ -791,13 +791,14 @@ Loop:
 					if err := agg.Flush(ctx, applyTx); err != nil {
 						return err
 					}
-					t3 = time.Since(tt)
-
 					if err = execStage.Update(applyTx, outputBlockNum.Get()); err != nil {
 						return err
 					}
+					t3 = time.Since(tt)
 
+					tt = time.Now()
 					applyTx.CollectMetrics()
+					t5 = time.Since(tt)
 					if !useExternalTx {
 						tt = time.Now()
 						if err = applyTx.Commit(); err != nil {
@@ -817,7 +818,7 @@ Loop:
 				}(); err != nil {
 					return err
 				}
-				logger.Info("Committed", "time", time.Since(commitStart), "commitment", t1, "agg.prune", t2, "agg.flush", t3, "tx.commit", t4)
+				logger.Info("Committed", "time", time.Since(commitStart), "commitment", t1, "agg.prune", t2, "agg.flush", t3, "tx.commit", t4, "tx.CollectMetrics", t5)
 			default:
 			}
 		}
