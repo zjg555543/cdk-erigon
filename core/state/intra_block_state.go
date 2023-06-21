@@ -599,7 +599,6 @@ func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, add
 		}
 		stateObject.deleted = true
 	} else if stateObject.created {
-		fmt.Printf("del: %d, %d\n", stateObject.data.Incarnation, stateObject.original.Incarnation)
 		if err := stateWriter.DeleteAccount(addr, &stateObject.original); err != nil {
 			return err
 		}
