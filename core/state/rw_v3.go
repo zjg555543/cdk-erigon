@@ -149,12 +149,15 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 					if err != nil {
 						return fmt.Errorf("latest account %x: %w", key, err)
 					}
+
 					if list.Vals[k] == nil {
+						fmt.Printf("put write list nil: accounts, %x, prev=%x,%+v\n", kb, prev)
 						//if err := domains.DeleteAccount(kb, prev); err != nil {
 						//	return err
 						//}
 						//fmt.Printf("applied %x DELETE\n", kb)
 					} else {
+						fmt.Printf("put write list not-nil: accounts, %x, prev=%x\n", kb, prev)
 						if err := domains.UpdateAccountData(kb, list.Vals[k], prev); err != nil {
 							return err
 						}
