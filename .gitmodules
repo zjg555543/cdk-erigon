@@ -1,0 +1,3 @@
+[submodule "smt"]
+	path = smt
+	url = git@github.com:RevittConsulting/smt.git
