@@ -18,6 +18,7 @@ package vm
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -494,6 +495,19 @@ func opBlockhash(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) (
 	return nil, nil
 }
 
+func opBlockhashV2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	num := scope.Stack.Peek()
+	num64, overflow := num.Uint64WithOverflow()
+	if overflow {
+		num.Clear()
+		return nil, nil
+	}
+
+	num.SetBytes(interpreter.evm.Context().GetHash(num64).Bytes())
+
+	return nil, nil
+}
+
 func opCoinbase(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	scope.Stack.Push(new(uint256.Int).SetBytes(interpreter.evm.Context().Coinbase.Bytes()))
 	return nil, nil
@@ -511,6 +525,16 @@ func opNumber(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 	return nil, nil
 }
 
+func opNumberV2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	txCount, err := interpreter.evm.IntraBlockState().GetTxCount()
+	if err != nil {
+		return nil, err
+	}
+	v := new(uint256.Int).SetUint64(txCount)
+	scope.Stack.Push(v)
+	return nil, nil
+}
+
 func opDifficulty(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	var v *uint256.Int
 	if interpreter.evm.Context().PrevRanDao != nil {
@@ -523,6 +547,13 @@ func opDifficulty(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) 
 			return nil, fmt.Errorf("interpreter.evm.Context.Difficulty higher than 2^256-1")
 		}
 	}
+	scope.Stack.Push(v)
+	return nil, nil
+}
+
+func opDifficultyV2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	zeroInt := new(big.Int).SetUint64(0)
+	v, _ := uint256.FromBig(zeroInt)
 	scope.Stack.Push(v)
 	return nil, nil
 }
