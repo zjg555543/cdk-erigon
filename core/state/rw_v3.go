@@ -410,6 +410,7 @@ func (rs *StateV3) applyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 	for addr, increase := range txTask.BalanceIncreaseSet {
 		increase := increase
 		addrBytes := addr.Bytes()
+		fmt.Printf("balance increase: %x\n", addrBytes)
 		enc0, ok := rs.get(kv.PlainState, addrBytes)
 		if !ok {
 			var err error
@@ -443,6 +444,7 @@ func (rs *StateV3) applyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 	if txTask.WriteLists != nil {
 		for table, list := range txTask.WriteLists {
 			for i, key := range list.Keys {
+				fmt.Printf("put write list %s: %x, %+v\n", table, key, list.Vals[i])
 				rs.puts(table, key, list.Vals[i])
 			}
 		}
