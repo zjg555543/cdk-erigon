@@ -444,7 +444,11 @@ func (rs *StateV3) applyState(roTx kv.Tx, txTask *exec22.TxTask, agg *libstate.A
 	if txTask.WriteLists != nil {
 		for table, list := range txTask.WriteLists {
 			for i, key := range list.Keys {
-				fmt.Printf("put write list %s: %x, %+v\n", table, key, list.Vals[i])
+				if list.Vals[i] == nil {
+					fmt.Printf("put write list nil %s: %x, %+v\n", table, key, list.Vals[i])
+				} else {
+					fmt.Printf("put write list not-nil %s: %x, %+v\n", table, key, list.Vals[i])
+				}
 				rs.puts(table, key, list.Vals[i])
 			}
 		}
