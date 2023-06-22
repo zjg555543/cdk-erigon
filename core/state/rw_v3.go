@@ -409,7 +409,7 @@ type StateWriterBufferedV3 struct {
 func NewStateWriterBufferedV3(rs *StateV3) *StateWriterBufferedV3 {
 	return &StateWriterBufferedV3{
 		rs:         rs,
-		trace:      true,
+		trace:      false,
 		writeLists: newWriteList(),
 	}
 }
@@ -440,9 +440,9 @@ func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, origin
 	value := accounts.SerialiseV3(account)
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, value)
 
+	fmt.Printf("account [%v, tn=%d]=>original %t, %+v\n", address, w.rs.domains.GetTxNum(), original != nil, original)
 	if w.trace {
 		//fmt.Printf("[v3_buff] account [%v, %d]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, w.rs.domains.GetTxNum(), &account.Balance, account.Nonce, account.Root, account.CodeHash)
-		fmt.Printf("account [%v, tn=%d]=>original %t, %+v\n", address, w.rs.domains.GetTxNum(), original != nil, original)
 	}
 
 	var prev []byte
@@ -476,6 +476,7 @@ func (w *StateWriterBufferedV3) UpdateAccountCode(address common.Address, incarn
 func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *accounts.Account) error {
 	addr := hex.EncodeToString(address.Bytes())
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, nil)
+	fmt.Printf("delete [%x]\n", address)
 	if w.trace {
 		fmt.Printf("[v3_buff] account [%x] deleted\n", address)
 	}
