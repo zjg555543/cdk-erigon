@@ -510,6 +510,7 @@ func ExecV3(ctx context.Context,
 	var err error
 Loop:
 	for blockNum = block; blockNum <= maxBlockNum; blockNum++ {
+		fmt.Printf("block: %d, %d\n", blockNum, inputTxNum)
 		inputBlockNum.Store(blockNum)
 		b, err = blockWithSenders(chainDb, applyTx, blockReader, blockNum)
 		if err != nil {
