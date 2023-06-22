@@ -442,7 +442,7 @@ func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, origin
 
 	if w.trace {
 		//fmt.Printf("[v3_buff] account [%v, %d]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, w.rs.domains.GetTxNum(), &account.Balance, account.Nonce, account.Root, account.CodeHash)
-		fmt.Printf("[v3_buff] account [%v, %d]=>original %+v\n", addr, w.rs.domains.GetTxNum(), original)
+		fmt.Printf("account [%v, tn=%d]=>original %t, %+v\n", address, w.rs.domains.GetTxNum(), original != nil, original)
 	}
 
 	var prev []byte
