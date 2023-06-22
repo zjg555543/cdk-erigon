@@ -311,7 +311,7 @@ func (rs *StateV3) writeStateHistory(roTx kv.Tx, txTask *exec22.TxTask, agg *lib
 
 			prev := rs.applyPrevAccountBuf[:accounts.SerialiseV3Len(original)]
 			accounts.SerialiseV3To(original, prev)
-			fmt.Printf("del add hist: %x, %+v\n", original)
+			fmt.Printf("del add hist: %x, %+v\n", addr, original)
 			if err := agg.AddAccountPrev(addr, prev); err != nil {
 				return err
 			}
