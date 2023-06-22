@@ -492,7 +492,7 @@ Loop:
 		writeChangeSets := nextStagesExpectData || blockNum > cfg.prune.History.PruneTo(to)
 		writeReceipts := nextStagesExpectData || blockNum > cfg.prune.Receipts.PruneTo(to)
 		writeCallTraces := nextStagesExpectData || blockNum > cfg.prune.CallTraces.PruneTo(to)
-
+		fmt.Printf("block: %d\n", blockNum)
 		if err = executeBlock(block, tx, batch, cfg, *cfg.vmConfig, writeChangeSets, writeReceipts, writeCallTraces, initialCycle, stateStream); err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Warn(fmt.Sprintf("[%s] Execution failed", logPrefix), "block", blockNum, "hash", block.Hash().String(), "err", err)

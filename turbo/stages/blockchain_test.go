@@ -1063,8 +1063,9 @@ func TestDoubleAccountRemoval(t *testing.T) {
 		return
 	}
 	defer tx.Rollback()
+	fmt.Printf("--------gen done-----\n")
 	err = m.InsertChain(chain, tx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	st := state.New(m.NewStateReader(tx))
 	assert.NoError(t, err)

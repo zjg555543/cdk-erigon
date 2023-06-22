@@ -538,9 +538,11 @@ func (sdb *IntraBlockState) CreateAccount(addr libcommon.Address, contractCreati
 	if contractCreation {
 		if previous != nil && previous.selfdestructed {
 			prevInc = previous.data.Incarnation
+			fmt.Printf("Creation1: %x, prevInc=%d\n", addr, prevInc)
 		} else {
 			if inc, err := sdb.stateReader.ReadAccountIncarnation(addr); err == nil {
 				prevInc = inc
+				fmt.Printf("Creation2: %x, prevInc=%d\n", addr, prevInc)
 			} else {
 				sdb.savedErr = err
 			}
@@ -556,6 +558,7 @@ func (sdb *IntraBlockState) CreateAccount(addr libcommon.Address, contractCreati
 	if contractCreation {
 		newObj.created = true
 		newObj.data.Incarnation = prevInc + 1
+		fmt.Printf("Creation3: %x, newObj.data.Incarnation=%d\n", newObj.address, newObj.data.Incarnation)
 	} else {
 		newObj.selfdestructed = false
 	}
@@ -593,11 +596,13 @@ func (sdb *IntraBlockState) GetRefund() uint64 {
 func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, addr libcommon.Address, stateObject *stateObject, isDirty bool) error {
 	emptyRemoval := EIP161Enabled && stateObject.empty() && (!isAura || addr != SystemAddress)
 	if stateObject.selfdestructed || (isDirty && emptyRemoval) {
+		fmt.Printf("ibs.delete1: %x, %t, %t\n", stateObject.address, stateObject.selfdestructed, isDirty && emptyRemoval)
 		if err := stateWriter.DeleteAccount(addr, &stateObject.original); err != nil {
 			return err
 		}
 		stateObject.deleted = true
 	} else if stateObject.created && stateObject.data.Incarnation > 0 {
+		fmt.Printf("ibs.delete2: %x, %d\n", stateObject.address, stateObject.data.Incarnation)
 		//if err := stateWriter.DeleteAccount(addr, &stateObject.original); err != nil {
 		//	return err
 		//}

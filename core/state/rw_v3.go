@@ -409,6 +409,7 @@ type StateWriterBufferedV3 struct {
 func NewStateWriterBufferedV3(rs *StateV3) *StateWriterBufferedV3 {
 	return &StateWriterBufferedV3{
 		rs:         rs,
+		trace:      true,
 		writeLists: newWriteList(),
 	}
 }
@@ -440,7 +441,7 @@ func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, origin
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, value)
 
 	if w.trace {
-		fmt.Printf("[v3_buff] account [%v]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, &account.Balance, account.Nonce, account.Root, account.CodeHash)
+		fmt.Printf("[v3_buff] account [%v, %d]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, w.rs.domains.GetTxNum(), &account.Balance, account.Nonce, account.Root, account.CodeHash)
 	}
 
 	var prev []byte
