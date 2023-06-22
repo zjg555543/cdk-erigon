@@ -476,7 +476,7 @@ func (w *StateWriterBufferedV3) UpdateAccountCode(address common.Address, incarn
 func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *accounts.Account) error {
 	addr := hex.EncodeToString(address.Bytes())
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, nil)
-	fmt.Printf("delete [%x], %t, %+v\n", address, original != nil, original)
+	fmt.Printf("delete [%x, %d], %t, %+v\n", address, w.rs.domains.GetTxNum(), original != nil, original)
 	if w.trace {
 		fmt.Printf("[v3_buff] account [%x] deleted\n", address)
 	}
