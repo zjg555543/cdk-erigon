@@ -138,7 +138,6 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 		if err := domains.DeleteAccount(addrB, originalBytes); err != nil {
 			return err
 		}
-		fmt.Printf("del add hist: %x, %x, %+v\n", addrB, originalBytes, original)
 	}
 	if txTask.WriteLists != nil {
 		for table, list := range txTask.WriteLists {
@@ -150,16 +149,10 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 					if err != nil {
 						return fmt.Errorf("latest account %x: %w", key, err)
 					}
-					if prev != nil {
-						acc.Reset()
-						accounts.DeserialiseV3(&acc, prev)
-						fmt.Printf("put write list: accounts, %x, prev=%x,%+v\n", kb, prev, acc)
-					}
-
 					if list.Vals[k] == nil {
-						if err := domains.DeleteAccount(kb, prev); err != nil {
-							return err
-						}
+						//if err := domains.DeleteAccount(kb, prev); err != nil {
+						//	return err
+						//}
 						//fmt.Printf("applied %x DELETE\n", kb)
 					} else {
 						if err := domains.UpdateAccountData(kb, list.Vals[k], prev); err != nil {
