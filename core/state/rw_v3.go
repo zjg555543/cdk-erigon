@@ -191,6 +191,7 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 	for addr, increase := range txTask.BalanceIncreaseSet {
 		increase := increase
 		addrBytes := addr.Bytes()
+		fmt.Printf("balance increase: %x\n", addrBytes)
 		enc0, err := domains.LatestAccount(addrBytes)
 		if err != nil {
 			return err
