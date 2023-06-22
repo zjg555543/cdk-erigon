@@ -140,6 +140,7 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 						return fmt.Errorf("latest account %x: %w", key, err)
 					}
 					if list.Vals[k] == nil {
+						fmt.Printf("del add hist2: %x, %+v\n", kb, list.Vals[k])
 						if err := domains.DeleteAccount(kb, list.Vals[k]); err != nil {
 							return err
 						}
@@ -182,9 +183,9 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 			}
 		}
 	}
-	//for addr, _ := range txTask.AccountDels {
-	//	fmt.Printf("skipped txTask.AccountDels %x\n", addr)
-	//}
+	for addr, original := range txTask.AccountDels {
+		fmt.Printf("del add hist: %x, %+v\n", addr, original)
+	}
 
 	emptyRemoval := txTask.Rules.IsSpuriousDragon
 	for addr, increase := range txTask.BalanceIncreaseSet {
