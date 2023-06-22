@@ -2,7 +2,6 @@ package state
 
 import (
 	"encoding/binary"
-	"fmt"
 
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -45,7 +44,6 @@ func (w *PlainStateWriter) SetAccumulator(accumulator *shards.Accumulator) *Plai
 }
 
 func (w *PlainStateWriter) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
-	fmt.Printf("account [%v, bn=%d]=>original %t, %+v\n", address, w.csw.blockNumber, original != nil, original)
 	//fmt.Printf("balance,%x,%d\n", address, &account.Balance)
 	if w.csw != nil {
 		if err := w.csw.UpdateAccountData(address, original, account); err != nil {
@@ -77,7 +75,7 @@ func (w *PlainStateWriter) UpdateAccountCode(address libcommon.Address, incarnat
 }
 
 func (w *PlainStateWriter) DeleteAccount(address libcommon.Address, original *accounts.Account) error {
-	fmt.Printf("delete [%x], %t, %+v\n", address, original != nil, original)
+	//fmt.Printf("delete [%x], %t, %+v\n", address, original != nil, original)
 	if w.csw != nil {
 		if err := w.csw.DeleteAccount(address, original); err != nil {
 			return err

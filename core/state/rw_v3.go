@@ -763,6 +763,7 @@ func (w *StateWriterBufferedV3) PrevAndDels() (map[string][]byte, map[string]*ac
 }
 
 func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
+	fmt.Printf("account [%v, tn=%d]=>original %t, %+v\n", address, w.txNum, original != nil, original)
 	addressBytes := address.Bytes()
 	value := make([]byte, account.EncodingLengthForStorage())
 	account.EncodeForStorage(value)
@@ -796,6 +797,7 @@ func (w *StateWriterBufferedV3) UpdateAccountCode(address common.Address, incarn
 
 func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *accounts.Account) error {
 	addressBytes := address.Bytes()
+	fmt.Printf("delete [%x, tn=%d], %t, %+v\n", address, w.txNum, original != nil, original)
 	w.writeLists[kv.PlainState].Push(string(addressBytes), nil)
 	if original.Incarnation > 0 {
 		var b [8]byte
