@@ -138,7 +138,7 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 		if err := domains.DeleteAccount(addrB, originalBytes); err != nil {
 			return err
 		}
-		fmt.Printf("del add hist: %x, %+v\n", addrB, original)
+		fmt.Printf("del add hist: %x, %x, %+v\n", addrB, originalBytes, original)
 	}
 	if txTask.WriteLists != nil {
 		for table, list := range txTask.WriteLists {
