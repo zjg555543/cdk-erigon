@@ -18,6 +18,7 @@ package core
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 
@@ -303,9 +304,7 @@ func (cp *ChainPack) NumberOfPoWBlocks() int {
 // Blocks created by GenerateChain do not contain valid proof of work
 // values. Inserting them into BlockChain requires use of FakePow or
 // a similar non-validating proof of work implementation.
-func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.Engine, db kv.RwDB, n int, gen func(int, *BlockGen),
-	intermediateHashes bool,
-) (*ChainPack, error) {
+func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.Engine, db kv.RwDB, n int, gen func(int, *BlockGen)) (*ChainPack, error) {
 	if config == nil {
 		config = params.TestChainConfig
 	}
@@ -415,7 +414,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 	return &ChainPack{Headers: headers, Blocks: blocks, Receipts: receipts, TopBlock: blocks[n-1]}, nil
 }
 
-func hashKV(k []byte, h *common.Hasher) (newK []byte, err error) {
+func hashKeyAndAddIncarnation(k []byte, h *common.Hasher) (newK []byte, err error) {
 	if len(k) == length.Addr {
 		newK = make([]byte, length.Hash)
 	} else {
@@ -426,18 +425,25 @@ func hashKV(k []byte, h *common.Hasher) (newK []byte, err error) {
 	h.Sha.Write(k[:length.Addr])
 	//nolint:errcheck
 	h.Sha.Read(newK[:length.Hash])
-	if len(k) > length.Addr {
+	if len(k) == length.Addr+length.Incarnation+length.Hash { // PlainState storage
 		copy(newK[length.Hash:], k[length.Addr:length.Addr+length.Incarnation])
 		h.Sha.Reset()
 		//nolint:errcheck
 		h.Sha.Write(k[length.Addr+length.Incarnation:])
 		//nolint:errcheck
 		h.Sha.Read(newK[length.Hash+length.Incarnation:])
+	} else if len(k) == length.Addr+length.Hash { // e4 Domain storage
+		binary.BigEndian.PutUint64(newK[length.Hash:], 1)
+		h.Sha.Reset()
+		//nolint:errcheck
+		h.Sha.Write(k[len(k)-length.Hash:])
+		//nolint:errcheck
+		h.Sha.Read(newK[length.Hash+length.Incarnation:])
 	}
 	return newK, nil
 }
 
-func CalcHashRootForTests(tx kv.RwTx, header *types.Header, histV3 bool) (hashRoot libcommon.Hash, err error) {
+func CalcHashRootForTests(tx kv.RwTx, header *types.Header, histV4 bool) (hashRoot libcommon.Hash, err error) {
 	if err := tx.ClearBucket(kv.HashedAccounts); err != nil {
 		return hashRoot, fmt.Errorf("clear HashedAccounts bucket: %w", err)
 	}
@@ -451,7 +457,7 @@ func CalcHashRootForTests(tx kv.RwTx, header *types.Header, histV3 bool) (hashRo
 		return hashRoot, fmt.Errorf("clear TrieOfStorage bucket: %w", err)
 	}
 
-	if histV3 {
+	if histV4 {
 		if GenerateTrace {
 			panic("implement me")
 		}
@@ -476,7 +482,7 @@ func CalcHashRootForTests(tx kv.RwTx, header *types.Header, histV3 bool) (hashRo
 					return hashRoot, fmt.Errorf("interate over plain state: %w", err)
 				}
 			}
-			newK, err := hashKV(k, h)
+			newK, err := hashKeyAndAddIncarnation(k, h)
 			if err != nil {
 				return hashRoot, fmt.Errorf("clear HashedAccounts bucket: %w", err)
 			}
@@ -494,7 +500,7 @@ func CalcHashRootForTests(tx kv.RwTx, header *types.Header, histV3 bool) (hashRo
 			if err != nil {
 				return hashRoot, fmt.Errorf("interate over plain state: %w", err)
 			}
-			newK, err := hashKV(k, h)
+			newK, err := hashKeyAndAddIncarnation(k, h)
 			if err != nil {
 				return hashRoot, fmt.Errorf("clear HashedStorage bucket: %w", err)
 			}
@@ -518,7 +524,7 @@ func CalcHashRootForTests(tx kv.RwTx, header *types.Header, histV3 bool) (hashRo
 		if err != nil {
 			return hashRoot, fmt.Errorf("interate over plain state: %w", err)
 		}
-		newK, err := hashKV(k, h)
+		newK, err := hashKeyAndAddIncarnation(k, h)
 		if err != nil {
 			return hashRoot, fmt.Errorf("insert hashed key: %w", err)
 		}

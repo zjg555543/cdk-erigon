@@ -452,8 +452,7 @@ func (sdb *IntraBlockState) GetTransientState(addr libcommon.Address, key libcom
 
 func (sdb *IntraBlockState) getStateObject(addr libcommon.Address) (stateObject *stateObject) {
 	// Prefer 'live' objects.
-	if obj, ok := sdb.stateObjects[addr]; obj != nil && ok {
-		//fmt.Printf("getStateObject: %x %v n=%d\n", addr, obj.data.Balance.Uint64(), obj.data.Nonce)
+	if obj := sdb.stateObjects[addr]; obj != nil {
 		return obj
 	}
 
@@ -598,10 +597,10 @@ func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, add
 			return err
 		}
 		stateObject.deleted = true
-	} else if stateObject.created {
-		if err := stateWriter.DeleteAccount(addr, &stateObject.original); err != nil {
-			return err
-		}
+	} else if stateObject.created && stateObject.data.Incarnation > 0 {
+		//if err := stateWriter.DeleteAccount(addr, &stateObject.original); err != nil {
+		//	return err
+		//}
 	}
 	if isDirty && (stateObject.created || !stateObject.selfdestructed) && !emptyRemoval {
 		stateObject.deleted = false

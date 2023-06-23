@@ -521,7 +521,7 @@ func chainWithDeployedContract(t *testing.T) (*stages.MockSentry, libcommon.Addr
 			assert.NoError(t, err)
 			block.AddTx(txn)
 		}
-	}, false /* intermediateHashes */)
+	})
 	if err != nil {
 		t.Fatalf("generate blocks: %v", err)
 	}

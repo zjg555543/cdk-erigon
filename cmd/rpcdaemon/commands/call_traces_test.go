@@ -44,7 +44,7 @@ func TestCallTraceOneByOne(t *testing.T) {
 	m := stages.Mock(t)
 	chain, err := core.GenerateChain(m.ChainConfig, m.Genesis, m.Engine, m.DB, 10, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(common.Address{1})
-	}, false /* intermediateHashes */)
+	})
 	if err != nil {
 		t.Fatalf("generate chain: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestCallTraceUnwind(t *testing.T) {
 	var err error
 	chainA, err = core.GenerateChain(m.ChainConfig, m.Genesis, m.Engine, m.DB, 10, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(common.Address{1})
-	}, false /* intermediateHashes */)
+	})
 	if err != nil {
 		t.Fatalf("generate chainA: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestCallTraceUnwind(t *testing.T) {
 		} else {
 			gen.SetCoinbase(common.Address{2})
 		}
-	}, false /* intermediateHashes */)
+	})
 	if err != nil {
 		t.Fatalf("generate chainB: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestFilterNoAddresses(t *testing.T) {
 	m := stages.Mock(t)
 	chain, err := core.GenerateChain(m.ChainConfig, m.Genesis, m.Engine, m.DB, 10, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(common.Address{1})
-	}, false /* intermediateHashes */)
+	})
 	if err != nil {
 		t.Fatalf("generate chain: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestFilterAddressIntersection(t *testing.T) {
 			t.Fatal(err)
 		}
 		block.AddTx(txn)
-	}, false /* intermediateHashes */)
+	})
 	require.NoError(t, err, "generate chain")
 
 	err = m.InsertChain(chain, nil)

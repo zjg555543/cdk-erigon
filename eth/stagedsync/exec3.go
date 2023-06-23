@@ -716,9 +716,8 @@ Loop:
 			inputTxNum++
 		}
 
-		if !parallel {
-			outputBlockNum.Set(blockNum)
-			// MA commitment
+		if !parallel && !dbg.DiscardCommitment() {
+
 			rh, err := agg.ComputeCommitment(true, false)
 			if err != nil {
 				return fmt.Errorf("StateV3.Apply: %w", err)
@@ -727,7 +726,7 @@ Loop:
 				if cfg.badBlockHalt {
 					return fmt.Errorf("wrong trie root")
 				}
-				logger.Error(fmt.Sprintf("[%s] Wrong trie root of block %d: %x, expected (from header): %x. Block hash: %x", logPrefix, block, rh, header.Root.Bytes(), header.Hash()))
+				logger.Error(fmt.Sprintf("[%s] Wrong trie root of block %d: %x, expected (from header): %x. Block hash: %x", logPrefix, blockNum, rh, header.Root.Bytes(), header.Hash()))
 
 				if err := agg.Flush(ctx, applyTx); err != nil {
 					panic(err)
@@ -759,7 +758,10 @@ Loop:
 				*/
 				break Loop
 			}
-
+		}
+		if !parallel {
+			outputBlockNum.Set(blockNum)
+			// MA commitment
 			select {
 			case <-logEvery.C:
 				stepsInDB := rawdbhelpers.IdxStepsCountV3(applyTx)
@@ -779,7 +781,8 @@ Loop:
 
 					// prune befor flush, to speedup flush
 					tt := time.Now()
-					if agg.CanPrune(applyTx) { //TODO: sequential exec likely will work on tip of chain: means no prune here, but parallel exec doesn't work yet
+					//TODO: bronen, uncomment after fix tests
+					if agg.CanPrune(applyTx) {
 						if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
 							return err
 						}
