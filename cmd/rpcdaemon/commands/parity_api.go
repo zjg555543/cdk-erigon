@@ -94,7 +94,6 @@ func (api *ParityAPIImpl) ListStorageKeys(ctx context.Context, account libcommon
 		return nil, err
 	}
 	defer c.Close()
-
 	var v []byte
 	var seekVal []byte
 	if offset != nil {

@@ -113,7 +113,6 @@ func TestGeneratedDebugApi(t *testing.T) {
 }
 
 func TestGeneratedTraceApi(t *testing.T) {
-	t.Skip()
 	m := rpcdaemontest.CreateTestSentryForTraces(t)
 	agg := m.HistoryV3Components()
 	stateCache := kvcache.New(kvcache.DefaultCoherentConfig)
