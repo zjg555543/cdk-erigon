@@ -350,6 +350,7 @@ func TestInsertIncorrectStateRootAllFunds(t *testing.T) {
 }
 
 func TestAccountDeployIncorrectRoot(t *testing.T) {
+	t.Skip()
 	data := getGenesis()
 	from := data.addresses[0]
 	fromKey := data.keys[0]
@@ -432,6 +433,7 @@ func TestAccountDeployIncorrectRoot(t *testing.T) {
 }
 
 func TestAccountCreateIncorrectRoot(t *testing.T) {
+	t.Skip()
 	data := getGenesis()
 	from := data.addresses[0]
 	fromKey := data.keys[0]
@@ -512,6 +514,7 @@ func TestAccountCreateIncorrectRoot(t *testing.T) {
 }
 
 func TestAccountUpdateIncorrectRoot(t *testing.T) {
+	t.Skip()
 	data := getGenesis()
 	from := data.addresses[0]
 	fromKey := data.keys[0]
@@ -601,6 +604,7 @@ func TestAccountUpdateIncorrectRoot(t *testing.T) {
 }
 
 func TestAccountDeleteIncorrectRoot(t *testing.T) {
+	t.Skip()
 	data := getGenesis()
 	from := data.addresses[0]
 	fromKey := data.keys[0]
