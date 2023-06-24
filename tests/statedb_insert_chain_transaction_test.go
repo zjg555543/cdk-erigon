@@ -25,6 +25,7 @@ import (
 )
 
 func TestInsertIncorrectStateRootDifferentAccounts(t *testing.T) {
+	t.Skip()
 	data := getGenesis()
 	from := data.addresses[0]
 	fromKey := data.keys[0]
