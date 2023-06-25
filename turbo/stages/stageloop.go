@@ -153,6 +153,7 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, tx kv.RwTx, sync *stagedsync
 	// - Prune(limited time)+Commit(sync). Write to disk happening here.
 
 	if canRunCycleInOneTransaction && !externalTx {
+		log.Warn(fmt.Sprintf("start tx: %t, %t\n", canRunCycleInOneTransaction, !externalTx))
 		tx, err = db.BeginRwNosync(ctx)
 		if err != nil {
 			return err
@@ -172,9 +173,11 @@ func StageLoopStep(ctx context.Context, db kv.RwDB, tx kv.RwTx, sync *stagedsync
 	logCtx := sync.PrintTimings()
 	var tableSizes []interface{}
 	var commitTime time.Duration
+	log.Warn(fmt.Sprintf("before commit: %t, %t\n", canRunCycleInOneTransaction, !externalTx))
 	if canRunCycleInOneTransaction && !externalTx {
 		tableSizes = stagedsync.PrintTables(db, tx) // Need to do this before commit to access tx
 		commitStart := time.Now()
+		log.Warn("commit")
 		errTx := tx.Commit()
 		tx = nil
 		if errTx != nil {
