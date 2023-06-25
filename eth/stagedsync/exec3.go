@@ -826,8 +826,20 @@ Loop:
 								if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
 									return err
 								}
+
+								//commit after prune: then can re-use free-pages
+								if err = applyTx.Commit(); err != nil {
+									return err
+								}
+								applyTx, err = cfg.db.BeginRw(context.Background())
+								if err != nil {
+									return err
+								}
+								agg.StartWrites()
+								applyWorker.ResetTx(applyTx)
+								agg.SetTx(applyTx)
+								doms.SetTx(applyTx)
 							}
-							t6 = time.Since(tt)
 						}
 					}
 
