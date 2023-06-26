@@ -259,12 +259,12 @@ func ExecBlockV3(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint64, ctx cont
 	if err != nil {
 		return err
 	}
-
 	logPrefix := s.LogPrefix()
 	var to = prevStageProgress
 	if toBlock > 0 {
 		to = cmp.Min(prevStageProgress, toBlock)
 	}
+	//fmt.Printf("ExecV3: start: %d -> %d, %d\n", s.BlockNumber, prevStageProgress, toBlock)
 	if to <= s.BlockNumber {
 		return nil
 	}
