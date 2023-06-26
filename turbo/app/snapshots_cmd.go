@@ -25,6 +25,8 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
+	"github.com/urfave/cli/v2"
+
 	"github.com/ledgerwatch/erigon/cmd/hack/tool/fromdb"
 	"github.com/ledgerwatch/erigon/cmd/utils"
 	"github.com/ledgerwatch/erigon/core/rawdb"
@@ -36,7 +38,6 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/logging"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync/freezeblocks"
 	"github.com/ledgerwatch/log/v3"
-	"github.com/urfave/cli/v2"
 )
 
 func joinFlags(lists ...[]cli.Flag) (res []cli.Flag) {
@@ -467,7 +468,7 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	}
 
 	logger.Info("Prune state history")
-	for i := 0; i < 1024; i++ {
+	for i := 0; i < 100; i++ {
 		if err := db.UpdateNosync(ctx, func(tx kv.RwTx) error {
 			agg.SetTx(tx)
 			if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep/2); err != nil {
@@ -511,9 +512,8 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	}); err != nil {
 		return err
 	}
-
 	logger.Info("Prune state history")
-	for i := 0; i < 1024; i++ {
+	for i := 0; i < 100; i++ {
 		if err := db.UpdateNosync(ctx, func(tx kv.RwTx) error {
 			agg.SetTx(tx)
 			if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep/10); err != nil {

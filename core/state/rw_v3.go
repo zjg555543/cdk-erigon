@@ -26,8 +26,6 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/shards"
 )
 
-const CodeSizeTable = "CodeSize"
-
 var ExecTxsDone = metrics.NewCounter(`exec_txs_done`)
 
 type StateV3 struct {
@@ -68,15 +66,6 @@ func (rs *StateV3) resetTxTask(txTask *exec22.TxTask) {
 	txTask.Logs = nil
 	txTask.TraceFroms = nil
 	txTask.TraceTos = nil
-
-	/*
-		txTask.ReadLists = nil
-		txTask.WriteLists = nil
-		txTask.AccountPrevs = nil
-		txTask.AccountDels = nil
-		txTask.StoragePrevs = nil
-		txTask.CodePrevs = nil
-	*/
 }
 
 func (rs *StateV3) RegisterSender(txTask *exec22.TxTask) bool {
@@ -401,12 +390,7 @@ func (rs *StateV3) SizeEstimate() (r uint64) {
 }
 
 func (rs *StateV3) ReadsValid(readLists map[string]*libstate.KvList) bool {
-	for table, list := range readLists {
-		if !rs.domains.ReadsValidBtree(kv.Domain(table), list) {
-			return false
-		}
-	}
-	return true
+	return rs.domains.ReadsValid(readLists)
 }
 
 // StateWriterBufferedV3 - used by parallel workers to accumulate updates and then send them to conflict-resolution.
@@ -457,14 +441,14 @@ func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, origin
 		fmt.Printf("[v3_buff] account [%v]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, &account.Balance, account.Nonce, account.Root, account.CodeHash)
 	}
 
-	var prev []byte
-	if original.Initialised {
-		prev = accounts.SerialiseV3(original)
-	}
-	if w.accountPrevs == nil {
-		w.accountPrevs = map[string][]byte{}
-	}
-	w.accountPrevs[string(addressBytes)] = prev
+	//var prev []byte
+	//if original.Initialised {
+	//	prev = accounts.SerialiseV3(original)
+	//}
+	//if w.accountPrevs == nil {
+	//	w.accountPrevs = map[string][]byte{}
+	//}
+	//w.accountPrevs[string(addressBytes)] = prev
 	return nil
 }
 
@@ -478,10 +462,10 @@ func (w *StateWriterBufferedV3) UpdateAccountCode(address common.Address, incarn
 		}
 		//w.writeLists[kv.PlainContractCode].Push(addr, code)
 	}
-	if w.codePrevs == nil {
-		w.codePrevs = map[string]uint64{}
-	}
-	w.codePrevs[addr] = incarnation
+	//if w.codePrevs == nil {
+	//	w.codePrevs = map[string]uint64{}
+	//}
+	//w.codePrevs[addr] = incarnation
 	return nil
 }
 
@@ -491,12 +475,12 @@ func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *
 	if w.trace {
 		fmt.Printf("[v3_buff] account [%x] deleted\n", address)
 	}
-	if original.Initialised {
-		if w.accountDels == nil {
-			w.accountDels = map[string]*accounts.Account{}
-		}
-		w.accountDels[addr] = original
-	}
+	//if original.Initialised {
+	//	if w.accountDels == nil {
+	//		w.accountDels = map[string]*accounts.Account{}
+	//	}
+	//	w.accountDels[addr] = original
+	//}
 	return nil
 }
 
@@ -510,10 +494,10 @@ func (w *StateWriterBufferedV3) WriteAccountStorage(address common.Address, inca
 		fmt.Printf("[v3_buff] storage [%x] [%x] => [%x]\n", address, key.Bytes(), value.Bytes())
 	}
 
-	if w.storagePrevs == nil {
-		w.storagePrevs = map[string][]byte{}
-	}
-	w.storagePrevs[compositeS] = original.Bytes()
+	//if w.storagePrevs == nil {
+	//	w.storagePrevs = map[string][]byte{}
+	//}
+	//w.storagePrevs[compositeS] = original.Bytes()
 	return nil
 }
 
@@ -616,7 +600,7 @@ func (r *StateReaderV3) ReadAccountCodeSize(address common.Address, incarnation 
 	var sizebuf [8]byte
 	binary.BigEndian.PutUint64(sizebuf[:], uint64(len(enc)))
 	if !r.discardReadList {
-		r.readLists[CodeSizeTable].Push(string(address[:]), sizebuf[:])
+		r.readLists[libstate.CodeSizeTableFake].Push(string(address[:]), sizebuf[:])
 	}
 	size := len(enc)
 	if r.trace {
@@ -656,10 +640,10 @@ func returnWriteList(v map[string]*libstate.KvList) {
 var readListPool = sync.Pool{
 	New: func() any {
 		return map[string]*libstate.KvList{
-			string(kv.AccountsDomain): {},
-			string(kv.CodeDomain):     {},
-			CodeSizeTable:             {},
-			string(kv.StorageDomain):  {},
+			string(kv.AccountsDomain):  {},
+			string(kv.CodeDomain):      {},
+			libstate.CodeSizeTableFake: {},
+			string(kv.StorageDomain):   {},
 		}
 	},
 }
