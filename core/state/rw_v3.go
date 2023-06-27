@@ -436,6 +436,7 @@ func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, origin
 	addr := hex.EncodeToString(addressBytes)
 	value := accounts.SerialiseV3(account)
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, value)
+	fmt.Printf("account [%v]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, &account.Balance, account.Nonce, account.Root, account.CodeHash)
 
 	if w.trace {
 		fmt.Printf("[v3_buff] account [%v]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, &account.Balance, account.Nonce, account.Root, account.CodeHash)
@@ -472,6 +473,7 @@ func (w *StateWriterBufferedV3) UpdateAccountCode(address common.Address, incarn
 func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *accounts.Account) error {
 	addr := hex.EncodeToString(address.Bytes())
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, nil)
+	fmt.Printf("del [%x]\n", address)
 	if w.trace {
 		fmt.Printf("[v3_buff] account [%x] deleted\n", address)
 	}
