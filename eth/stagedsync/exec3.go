@@ -762,11 +762,9 @@ Loop:
 		}
 		if !parallel {
 			outputBlockNum.Set(blockNum)
-			if blockNum%10 == 0 {
-				doms.ClearRam()
-				if err := agg.Flush(ctx, applyTx); err != nil {
-					return err
-				}
+			doms.ClearRam()
+			if err := agg.Flush(ctx, applyTx); err != nil {
+				return err
 			}
 
 			// MA commitment
