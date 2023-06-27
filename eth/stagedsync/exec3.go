@@ -340,14 +340,11 @@ func ExecV3(ctx context.Context,
 					}
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
-						if agg.CanPrune(tx) {
-							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
-								return err
-							}
-						} else {
-							if err = agg.Flush(ctx, tx); err != nil {
-								return err
-							}
+						if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+							return err
+						}
+						if err = agg.Flush(ctx, tx); err != nil {
+							return err
 						}
 						break
 					}
@@ -710,6 +707,9 @@ Loop:
 
 		if cfg.blockReader.FreezingCfg().Produce {
 			agg.BuildFilesInBackground(outputTxNum.Load())
+			if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+				return err
+			}
 		}
 		select {
 		case <-ctx.Done():
