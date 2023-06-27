@@ -246,6 +246,7 @@ func ExecV3(ctx context.Context,
 
 	// MA setio
 	doms := cfg.agg.SharedDomains()
+	defer doms.Close()
 	rs := state.NewStateV3(doms, logger)
 
 	//TODO: owner of `resultCh` is main goroutine, but owner of `retryQueue` is applyLoop.
@@ -727,7 +728,7 @@ Loop:
 					return fmt.Errorf("wrong trie root")
 				}
 				logger.Error(fmt.Sprintf("[%s] Wrong trie root of block %d: %x, expected (from header): %x. Block hash: %x", logPrefix, blockNum, rh, header.Root.Bytes(), header.Hash()))
-				doms.Close()
+
 				if err := agg.Flush(ctx, applyTx); err != nil {
 					panic(err)
 				}
