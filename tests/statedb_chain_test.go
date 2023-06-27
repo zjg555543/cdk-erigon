@@ -69,7 +69,7 @@ func TestSelfDestructReceive(t *testing.T) {
 	var contractAddress libcommon.Address
 	var selfDestructorContract *contracts.SelfDestructor
 
-	fmt.Printf("---- gen finish\n")
+	fmt.Printf("---- gen start\n")
 	// There are two blocks
 	// First block deploys a contract, then makes it self-destruct, and then sends 1 wei to the address of the contract,
 	// effectively turning it from contract account to a non-contract account
@@ -105,6 +105,7 @@ func TestSelfDestructReceive(t *testing.T) {
 		panic(err)
 	}
 	defer tx.Rollback()
+	fmt.Printf("---- gen finish\n")
 
 	st := state.New(m.NewStateReader(tx))
 	if !st.Exist(address) {
