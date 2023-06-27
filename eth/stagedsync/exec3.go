@@ -151,6 +151,7 @@ func ExecV3(ctx context.Context,
 	logger log.Logger,
 	initialCycle bool,
 ) error {
+	log.Warn("par", "parallel", parallel)
 	batchSize := cfg.batchSize
 	chainDb := cfg.db
 	blockReader := cfg.blockReader
@@ -707,8 +708,10 @@ Loop:
 
 		if cfg.blockReader.FreezingCfg().Produce {
 			agg.BuildFilesInBackground(outputTxNum.Load())
-			if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
-				return err
+			if agg.CanPrune(applyTx) {
+				if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+					return err
+				}
 			}
 		}
 		select {
