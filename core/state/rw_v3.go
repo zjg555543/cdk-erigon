@@ -766,7 +766,7 @@ func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, origin
 	addressBytes := address.Bytes()
 	value := make([]byte, account.EncodingLengthForStorage())
 	account.EncodeForStorage(value)
-	//fmt.Printf("account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x} txNum: %d\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash, w.txNum)
+	fmt.Printf("account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x} txNum: %d\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash, w.txNum)
 	w.writeLists[kv.PlainState].Push(string(addressBytes), value)
 	var prev []byte
 	if original.Initialised {
@@ -795,6 +795,7 @@ func (w *StateWriterBufferedV3) UpdateAccountCode(address common.Address, incarn
 }
 
 func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *accounts.Account) error {
+	fmt.Printf("del [%x], txNum: %d\n", address, w.txNum)
 	addressBytes := address.Bytes()
 	w.writeLists[kv.PlainState].Push(string(addressBytes), nil)
 	if original.Incarnation > 0 {
