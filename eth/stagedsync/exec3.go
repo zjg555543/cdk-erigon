@@ -266,7 +266,7 @@ func ExecV3(ctx context.Context,
 
 	commitThreshold := batchSize.Bytes()
 	progress := NewProgress(block, commitThreshold, workerCount, execStage.LogPrefix(), logger)
-	logEvery := time.NewTicker(20 * time.Second)
+	logEvery := time.NewTicker(2 * time.Second)
 	defer logEvery.Stop()
 	pruneEvery := time.NewTicker(2 * time.Second)
 	defer pruneEvery.Stop()
@@ -762,6 +762,12 @@ Loop:
 		}
 		if !parallel {
 			outputBlockNum.Set(blockNum)
+			//if blockNum%10 == 0 {
+			//	doms.ClearRam()
+			//	if err := agg.Flush(ctx, applyTx); err != nil {
+			//		return err
+			//	}
+
 			// MA commitment
 			select {
 			case <-logEvery.C:
