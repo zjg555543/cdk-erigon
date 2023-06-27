@@ -133,6 +133,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 	rw.bufferedWriter.SetTxNum(txTask.TxNum)
 	rw.stateReader.ResetReadSet()
 	rw.bufferedWriter.ResetWriteSet()
+	rw.stateReader.SetTrace(true)
 
 	rw.ibs.Reset()
 	ibs := rw.ibs
