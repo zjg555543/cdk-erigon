@@ -18,6 +18,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -68,6 +69,7 @@ func TestSelfDestructReceive(t *testing.T) {
 	var contractAddress libcommon.Address
 	var selfDestructorContract *contracts.SelfDestructor
 
+	fmt.Printf("---- gen finish\n")
 	// There are two blocks
 	// First block deploys a contract, then makes it self-destruct, and then sends 1 wei to the address of the contract,
 	// effectively turning it from contract account to a non-contract account
