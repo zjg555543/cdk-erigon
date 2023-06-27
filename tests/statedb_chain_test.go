@@ -69,7 +69,7 @@ func TestSelfDestructReceive(t *testing.T) {
 	var contractAddress libcommon.Address
 	var selfDestructorContract *contracts.SelfDestructor
 
-	fmt.Printf("---- gen finish\n")
+	fmt.Printf("---- gen start\n")
 	// There are two blocks
 	// First block deploys a contract, then makes it self-destruct, and then sends 1 wei to the address of the contract,
 	// effectively turning it from contract account to a non-contract account
@@ -99,6 +99,7 @@ func TestSelfDestructReceive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate blocks: %v", err)
 	}
+	fmt.Printf("---- gen finish\n")
 
 	tx, err := m.DB.BeginRw(context.Background())
 	if err != nil {
