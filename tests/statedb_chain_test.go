@@ -77,6 +77,7 @@ func TestSelfDestructReceive(t *testing.T) {
 	// from the database.
 	chain, err := core.GenerateChain(m.ChainConfig, m.Genesis, m.Engine, m.DB, 2, func(i int, block *core.BlockGen) {
 		var txn types.Transaction
+		fmt.Printf("---- gen %d\n", i)
 
 		switch i {
 		case 0:
