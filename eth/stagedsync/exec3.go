@@ -151,7 +151,6 @@ func ExecV3(ctx context.Context,
 	logger log.Logger,
 	initialCycle bool,
 ) error {
-	log.Warn("par", "parallel", parallel)
 	batchSize := cfg.batchSize
 	chainDb := cfg.db
 	blockReader := cfg.blockReader
@@ -341,11 +340,14 @@ func ExecV3(ctx context.Context,
 					}
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
-						if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
-							return err
-						}
-						if err = agg.Flush(ctx, tx); err != nil {
-							return err
+						if agg.CanPrune(tx) {
+							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+								return err
+							}
+						} else {
+							if err = agg.Flush(ctx, tx); err != nil {
+								return err
+							}
 						}
 						break
 					}
@@ -432,6 +434,11 @@ func ExecV3(ctx context.Context,
 					}
 					defer tx.Rollback()
 					agg.SetTx(tx)
+					if agg.CanPrune(tx) {
+						if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+							return err
+						}
+					}
 
 					applyCtx, cancelApplyCtx = context.WithCancel(ctx)
 					defer cancelApplyCtx()
@@ -708,11 +715,6 @@ Loop:
 
 		if cfg.blockReader.FreezingCfg().Produce {
 			agg.BuildFilesInBackground(outputTxNum.Load())
-			if agg.CanPrune(applyTx) {
-				if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
-					return err
-				}
-			}
 		}
 		select {
 		case <-ctx.Done():
