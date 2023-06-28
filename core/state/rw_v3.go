@@ -555,7 +555,8 @@ func (r *StateReaderV3) ReadAccountStorage(address common.Address, incarnation u
 	}
 
 	if !r.discardReadList {
-		composite := common.Append(addrBytes, locBytes)
+		composite := make([]byte, 0, len(addrBytes)+len(locBytes))
+		composite = append(append(composite, addrBytes...), locBytes...)
 		r.readLists[string(kv.StorageDomain)].Push(string(composite), enc)
 	}
 	if r.trace {
