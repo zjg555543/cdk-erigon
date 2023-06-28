@@ -72,7 +72,7 @@ func (s *StateReaderV4) ReadAccountData(address common.Address) (*accounts.Accou
 }
 
 func (s *StateReaderV4) ReadAccountStorage(address common.Address, incarnation uint64, key *common.Hash) ([]byte, error) {
-	enc, err := s.LatestStorage(address.Bytes(), key.Bytes())
+	enc, err := s.LatestStorage(common.Append(address.Bytes(), key.Bytes()))
 	if err != nil {
 		return nil, err
 	}

@@ -168,7 +168,7 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 			case kv.StorageDomain:
 				for k, key := range list.Keys {
 					addr, loc := []byte(key[:20]), []byte(key[20:])
-					prev, err := domains.LatestStorage(addr, loc)
+					prev, err := domains.LatestStorage([]byte(key))
 					if err != nil {
 						return fmt.Errorf("latest account %x: %w", key, err)
 					}
@@ -510,6 +510,7 @@ func NewStateReaderV3(rs *StateV3) *StateReaderV3 {
 		rs:        rs,
 		trace:     false,
 		readLists: newReadList(),
+		composite: make([]byte, 20+32),
 	}
 }
 
@@ -549,15 +550,14 @@ func (r *StateReaderV3) ReadAccountData(address common.Address) (*accounts.Accou
 
 func (r *StateReaderV3) ReadAccountStorage(address common.Address, incarnation uint64, key *common.Hash) ([]byte, error) {
 	addrBytes, locBytes := address.Bytes(), key.Bytes()
-	enc, err := r.rs.domains.LatestStorage(addrBytes, locBytes)
+	r.composite = append(append(r.composite[:0], addrBytes...), locBytes...)
+	enc, err := r.rs.domains.LatestStorage(r.composite)
 	if err != nil {
 		return nil, err
 	}
 
 	if !r.discardReadList {
-		composite := make([]byte, 0, len(addrBytes)+len(locBytes))
-		composite = append(append(composite, addrBytes...), locBytes...)
-		r.readLists[string(kv.StorageDomain)].Push(string(composite), enc)
+		r.readLists[string(kv.StorageDomain)].Push(string(r.composite), enc)
 	}
 	if r.trace {
 		if enc == nil {
