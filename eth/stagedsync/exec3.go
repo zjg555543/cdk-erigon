@@ -16,6 +16,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 	"golang.org/x/sync/errgroup"
@@ -246,7 +247,7 @@ func ExecV3(ctx context.Context,
 
 	// MA setio
 	doms := cfg.agg.SharedDomains()
-	defer doms.Close()
+	defer cfg.agg.CloseSharedDomains()
 	rs := state.NewStateV3(doms, logger)
 
 	//TODO: owner of `resultCh` is main goroutine, but owner of `retryQueue` is applyLoop.
@@ -266,7 +267,7 @@ func ExecV3(ctx context.Context,
 
 	commitThreshold := batchSize.Bytes()
 	progress := NewProgress(block, commitThreshold, workerCount, execStage.LogPrefix(), logger)
-	logEvery := time.NewTicker(20 * time.Second)
+	logEvery := time.NewTicker(1 * time.Second)
 	defer logEvery.Stop()
 	pruneEvery := time.NewTicker(2 * time.Second)
 	defer pruneEvery.Stop()
@@ -782,7 +783,6 @@ Loop:
 
 					// prune befor flush, to speedup flush
 					tt := time.Now()
-					//TODO: bronen, uncomment after fix tests
 					if agg.CanPrune(applyTx) {
 						if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
 							return err
@@ -809,7 +809,16 @@ Loop:
 						if err = applyTx.Commit(); err != nil {
 							return err
 						}
+						doms.SetContext(nil)
+						doms.SetTx(nil)
+
 						t4 = time.Since(tt)
+						tt = time.Now()
+						if blocksFreezeCfg.Produce {
+							tt = time.Now()
+							agg.BuildFilesInBackground(outputTxNum.Load())
+						}
+						t5 = time.Since(tt)
 						applyTx, err = cfg.db.BeginRw(context.Background())
 						if err != nil {
 							return err
@@ -817,20 +826,9 @@ Loop:
 						agg.StartWrites()
 						applyWorker.ResetTx(applyTx)
 						agg.SetTx(applyTx)
+
+						doms.SetContext(applyTx.(*temporal.Tx).AggCtx())
 						doms.SetTx(applyTx)
-						if blocksFreezeCfg.Produce {
-							//agg.BuildFilesInBackground(outputTxNum.Load())
-							tt = time.Now()
-							agg.AggregateFilesInBackground()
-							t5 = time.Since(tt)
-							tt = time.Now()
-							if agg.CanPrune(applyTx) {
-								if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
-									return err
-								}
-							}
-							t6 = time.Since(tt)
-						}
 					}
 
 					return nil
@@ -844,8 +842,7 @@ Loop:
 		}
 
 		if parallel && blocksFreezeCfg.Produce { // sequential exec - does aggregate right after commit
-			//agg.BuildFilesInBackground(outputTxNum.Load())
-			agg.AggregateFilesInBackground()
+			agg.BuildFilesInBackground(outputTxNum.Load())
 		}
 		select {
 		case <-ctx.Done():
@@ -880,9 +877,8 @@ Loop:
 		}
 	}
 
-	if blocksFreezeCfg.Produce {
-		//agg.BuildFilesInBackground(outputTxNum.Load())
-		agg.AggregateFilesInBackground()
+	if parallel && blocksFreezeCfg.Produce {
+		agg.BuildFilesInBackground(outputTxNum.Load())
 	}
 
 	if !useExternalTx && applyTx != nil {

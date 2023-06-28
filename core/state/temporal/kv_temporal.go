@@ -143,8 +143,8 @@ func (db *DB) BeginTemporalRw(ctx context.Context) (kv.RwTx, error) {
 	tx := &Tx{MdbxTx: kvTx.(*mdbx.MdbxTx), db: db}
 
 	tx.aggCtx = db.agg.MakeContext()
-	//db.agg.StartUnbufferedWrites()
-	//db.agg.SetTx(tx.MdbxTx)
+	db.agg.StartUnbufferedWrites()
+	db.agg.SetTx(tx.MdbxTx)
 	return tx, nil
 }
 func (db *DB) BeginRw(ctx context.Context) (kv.RwTx, error) {
@@ -170,8 +170,8 @@ func (db *DB) BeginTemporalRwNosync(ctx context.Context) (kv.RwTx, error) {
 	tx := &Tx{MdbxTx: kvTx.(*mdbx.MdbxTx), db: db}
 
 	tx.aggCtx = db.agg.MakeContext()
-	//db.agg.StartUnbufferedWrites()
-	//db.agg.SetTx(tx.MdbxTx)
+	db.agg.StartUnbufferedWrites()
+	db.agg.SetTx(tx.MdbxTx)
 	return tx, nil
 }
 func (db *DB) BeginRwNosync(ctx context.Context) (kv.RwTx, error) {
@@ -206,10 +206,10 @@ func (tx *Tx) autoClose() {
 	for _, closer := range tx.resourcesToClose {
 		closer.Close()
 	}
-	//if !tx.MdbxTx.IsRo() {
-	//	tx.db.agg.FinishWrites()
-	//	tx.db.agg.SetTx(nil)
-	//}
+	if !tx.MdbxTx.IsRo() {
+		tx.db.agg.FinishWrites()
+		tx.db.agg.SetTx(nil)
+	}
 	if tx.aggCtx != nil {
 		tx.aggCtx.Close()
 	}
@@ -231,33 +231,13 @@ func (tx *Tx) DomainRange(name kv.Domain, fromKey, toKey []byte, asOfTs uint64, 
 }
 
 func (tx *Tx) DomainGet(name kv.Domain, key, key2 []byte) (v []byte, ok bool, err error) {
-	switch name {
-	case kv.AccountsDomain:
-		return tx.aggCtx.AccountLatest(key, tx.MdbxTx)
-	case kv.StorageDomain:
-		return tx.aggCtx.StorageLatest(key, key2, tx.MdbxTx)
-	case kv.CodeDomain:
-		return tx.aggCtx.CodeLatest(key, tx.MdbxTx)
-	case kv.CommitmentDomain:
-		return tx.aggCtx.CommitmentLatest(key, tx.MdbxTx)
-	default:
-		panic(fmt.Sprintf("unexpected: %s", name))
-	}
+	return tx.aggCtx.GetLatest(name, key, key2, tx.MdbxTx)
 }
 func (tx *Tx) DomainGetAsOf(name kv.Domain, key, key2 []byte, ts uint64) (v []byte, ok bool, err error) {
-	switch name {
-	case kv.AccountsDomain:
-		v, err := tx.aggCtx.ReadAccountData(key, ts, tx.MdbxTx)
-		return v, v != nil, err
-	case kv.StorageDomain:
-		v, err := tx.aggCtx.ReadAccountStorage(append(common.Copy(key), key2...), ts, tx.MdbxTx)
-		return v, v != nil, err
-	case kv.CodeDomain:
-		v, err := tx.aggCtx.ReadAccountCode(key, ts, tx.MdbxTx)
-		return v, v != nil, err
-	default:
-		panic(fmt.Sprintf("unexpected: %s", name))
+	if key2 != nil {
+		key = append(common.Copy(key), key2...)
 	}
+	return tx.aggCtx.DomainGetAsOf(tx.MdbxTx, name, key, ts)
 }
 
 func (tx *Tx) HistoryGet(name kv.History, key []byte, ts uint64) (v []byte, ok bool, err error) {
