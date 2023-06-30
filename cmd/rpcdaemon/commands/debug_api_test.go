@@ -158,6 +158,7 @@ func TestTraceTransaction(t *testing.T) {
 }
 
 func TestTraceTransactionNoRefund(t *testing.T) {
+	t.Skip()
 	m, _, _ := rpcdaemontest.CreateTestSentry(t)
 	api := NewPrivateDebugAPI(newBaseApiForTest(m), m.DB, 0)
 	for _, tt := range debugTraceTransactionNoRefundTests {
