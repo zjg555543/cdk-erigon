@@ -719,7 +719,7 @@ Loop:
 		}
 
 		if !parallel {
-			if ok, err := checkStateRootV3(b.HeaderNoCopy(), agg, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u); err != nil {
+			if ok, err := checkCommitmentV3(b.HeaderNoCopy(), agg, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u); err != nil {
 				return err
 			} else if !ok {
 				break Loop
@@ -839,7 +839,7 @@ Loop:
 			return err
 		}
 	}
-	if _, err := checkStateRootV3(b.HeaderNoCopy(), agg, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u); err != nil {
+	if _, err := checkCommitmentV3(b.HeaderNoCopy(), agg, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u); err != nil {
 		return err
 	}
 
@@ -854,7 +854,7 @@ Loop:
 	return nil
 }
 
-func checkStateRootV3(header *types.Header, agg *state2.AggregatorV3, badBlockHalt bool, hd headerDownloader, e *StageState, maxBlockNum uint64, logger log.Logger, u Unwinder) (bool, error) {
+func checkCommitmentV3(header *types.Header, agg *state2.AggregatorV3, badBlockHalt bool, hd headerDownloader, e *StageState, maxBlockNum uint64, logger log.Logger, u Unwinder) (bool, error) {
 	if dbg.DiscardCommitment() {
 		return true, nil
 	}
