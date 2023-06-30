@@ -16,6 +16,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 	"golang.org/x/sync/errgroup"
@@ -245,8 +246,10 @@ func ExecV3(ctx context.Context,
 	var lock sync.RWMutex
 
 	// MA setio
-	doms := cfg.agg.SharedDomains()
+	doms := cfg.agg.SharedDomains(applyTx.(*temporal.Tx).AggCtx())
+	defer cfg.agg.CloseSharedDomains()
 	rs := state.NewStateV3(doms, logger)
+	doms.ClearRam()
 
 	//TODO: owner of `resultCh` is main goroutine, but owner of `retryQueue` is applyLoop.
 	// Now rwLoop closing both (because applyLoop we completely restart)
@@ -265,7 +268,7 @@ func ExecV3(ctx context.Context,
 
 	commitThreshold := batchSize.Bytes()
 	progress := NewProgress(block, commitThreshold, workerCount, execStage.LogPrefix(), logger)
-	logEvery := time.NewTicker(20 * time.Second)
+	logEvery := time.NewTicker(1 * time.Second)
 	defer logEvery.Stop()
 	pruneEvery := time.NewTicker(2 * time.Second)
 	defer pruneEvery.Stop()
@@ -361,7 +364,7 @@ func ExecV3(ctx context.Context,
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
 						if agg.CanPrune(tx) {
-							if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+							if err = agg.Prune(ctx, 10); err != nil { // prune part of retired data, before commit
 								return err
 							}
 						} else {
@@ -494,8 +497,7 @@ func ExecV3(ctx context.Context,
 	}
 
 	if block < cfg.blockReader.FrozenBlocks() {
-		agg.KeepInDB(0)
-		defer agg.KeepInDB(ethconfig.HistoryV3AggregationStep)
+		defer agg.KeepStepsInDB(0).KeepStepsInDB(1)
 	}
 
 	getHeaderFunc := func(hash common.Hash, number uint64) (h *types.Header) {
@@ -535,7 +537,7 @@ func ExecV3(ctx context.Context,
 		// can't use OS-level ReadAhead - because Data >> RAM
 		// it also warmsup state a bit - by touching senders/coninbase accounts and code
 		var clean func()
-		readAhead, clean = blocksReadAhead(ctx, &cfg, 4)
+		readAhead, clean = blocksReadAhead(ctx, &cfg, 4, true)
 		defer clean()
 	}
 
@@ -716,7 +718,7 @@ Loop:
 			inputTxNum++
 		}
 
-		if !parallel && !dbg.DiscardCommitment() {
+		if !parallel && !dbg.DiscardCommitment() && blockNum&100 == 0 {
 
 			rh, err := agg.ComputeCommitment(true, false)
 			if err != nil {
@@ -781,15 +783,15 @@ Loop:
 
 					// prune befor flush, to speedup flush
 					tt := time.Now()
-					//TODO: bronen, uncomment after fix tests
 					if agg.CanPrune(applyTx) {
-						if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
+						if err = agg.Prune(ctx, 10); err != nil { // prune part of retired data, before commit
 							return err
 						}
 					}
 					t2 = time.Since(tt)
 
 					tt = time.Now()
+					doms.ClearRam()
 					if err := agg.Flush(ctx, applyTx); err != nil {
 						return err
 					}
@@ -807,7 +809,16 @@ Loop:
 						if err = applyTx.Commit(); err != nil {
 							return err
 						}
+						doms.SetContext(nil)
+						doms.SetTx(nil)
+
 						t4 = time.Since(tt)
+						tt = time.Now()
+						if blocksFreezeCfg.Produce {
+							tt = time.Now()
+							agg.BuildFilesInBackground(outputTxNum.Load())
+						}
+						t5 = time.Since(tt)
 						applyTx, err = cfg.db.BeginRw(context.Background())
 						if err != nil {
 							return err
@@ -815,20 +826,9 @@ Loop:
 						agg.StartWrites()
 						applyWorker.ResetTx(applyTx)
 						agg.SetTx(applyTx)
+
+						doms = agg.SharedDomains(applyTx.(*temporal.Tx).AggCtx())
 						doms.SetTx(applyTx)
-						if blocksFreezeCfg.Produce {
-							//agg.BuildFilesInBackground(outputTxNum.Load())
-							tt = time.Now()
-							agg.AggregateFilesInBackground()
-							t5 = time.Since(tt)
-							tt = time.Now()
-							if agg.CanPrune(applyTx) {
-								if err = agg.Prune(ctx, ethconfig.HistoryV3AggregationStep*10); err != nil { // prune part of retired data, before commit
-									return err
-								}
-							}
-							t6 = time.Since(tt)
-						}
 					}
 
 					return nil
@@ -842,8 +842,7 @@ Loop:
 		}
 
 		if parallel && blocksFreezeCfg.Produce { // sequential exec - does aggregate right after commit
-			//agg.BuildFilesInBackground(outputTxNum.Load())
-			agg.AggregateFilesInBackground()
+			agg.BuildFilesInBackground(outputTxNum.Load())
 		}
 		select {
 		case <-ctx.Done():
@@ -878,9 +877,8 @@ Loop:
 		}
 	}
 
-	if blocksFreezeCfg.Produce {
-		//agg.BuildFilesInBackground(outputTxNum.Load())
-		agg.AggregateFilesInBackground()
+	if parallel && blocksFreezeCfg.Produce {
+		agg.BuildFilesInBackground(outputTxNum.Load())
 	}
 
 	if !useExternalTx && applyTx != nil {
@@ -900,90 +898,6 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 		defer tx.Rollback()
 	}
 	return blockReader.BlockByNumber(context.Background(), tx, blockNum)
-}
-
-func blocksReadAheadV3(ctx context.Context, cfg *ExecuteBlockCfg, workers int) (chan uint64, context.CancelFunc) {
-	const readAheadBlocks = 100
-	readAhead := make(chan uint64, readAheadBlocks)
-	g, gCtx := errgroup.WithContext(ctx)
-	for workerNum := 0; workerNum < workers; workerNum++ {
-		g.Go(func() (err error) {
-			var bn uint64
-			var ok bool
-			var tx kv.Tx
-			defer func() {
-				if tx != nil {
-					tx.Rollback()
-				}
-			}()
-
-			for i := 0; ; i++ {
-				select {
-				case bn, ok = <-readAhead:
-					if !ok {
-						return
-					}
-				case <-gCtx.Done():
-					return gCtx.Err()
-				}
-
-				if i%100 == 0 {
-					if tx != nil {
-						tx.Rollback()
-					}
-					tx, err = cfg.db.BeginRo(ctx)
-					if err != nil {
-						return err
-					}
-				}
-
-				if err := blocksReadAheadFunc(gCtx, tx, cfg, bn+readAheadBlocks); err != nil {
-					return err
-				}
-			}
-		})
-	}
-	return readAhead, func() {
-		close(readAhead)
-		_ = g.Wait()
-	}
-}
-func blocksReadAheadFuncV3(ctx context.Context, tx kv.Tx, cfg *ExecuteBlockCfg, blockNum uint64) error {
-	block, err := cfg.blockReader.BlockByNumber(ctx, tx, blockNum)
-	if err != nil {
-		return err
-	}
-	if block == nil {
-		return nil
-	}
-	senders := block.Body().SendersFromTxs()             //TODO: BlockByNumber can return senders
-	stateReader := state.NewReaderV4(tx.(kv.TemporalTx)) //TODO: can do on batch! if make batch thread-safe
-	for _, sender := range senders {
-		a, _ := stateReader.ReadAccountData(sender)
-		if a == nil || a.Incarnation == 0 {
-			continue
-		}
-		if code, _ := stateReader.ReadAccountCode(sender, a.Incarnation, a.CodeHash); len(code) > 0 {
-			_, _ = code[0], code[len(code)-1]
-		}
-	}
-
-	for _, txn := range block.Transactions() {
-		to := txn.GetTo()
-		if to == nil {
-			continue
-		}
-		a, _ := stateReader.ReadAccountData(*to)
-		if a == nil || a.Incarnation == 0 {
-			continue
-		}
-		if code, _ := stateReader.ReadAccountCode(*to, a.Incarnation, a.CodeHash); len(code) > 0 {
-			_, _ = code[0], code[len(code)-1]
-		}
-	}
-	_, _ = stateReader.ReadAccountData(block.Coinbase())
-	_, _ = block, senders
-	return nil
 }
 
 func processResultQueue(in *exec22.QueueWithRetry, rws *exec22.ResultsQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, backPressure chan struct{}, applyWorker *exec3.Worker, canRetry, forceStopAtBlockEnd bool) (outputTxNum uint64, conflicts, triggers int, processedBlockNum uint64, stopedAtBlockEnd bool, err error) {
