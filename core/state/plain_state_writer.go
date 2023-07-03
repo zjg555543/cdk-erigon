@@ -46,7 +46,7 @@ func (w *PlainStateWriter) SetAccumulator(accumulator *shards.Accumulator) *Plai
 
 func (w *PlainStateWriter) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
 	if original.Incarnation < account.Incarnation {
-		fmt.Printf("Create new acccccccc %x\n", address)
+		fmt.Printf("Create new acccccccc %x, %d, orig=%d\n", address, account.Incarnation, original.Incarnation)
 	}
 	if w.csw != nil {
 		if err := w.csw.UpdateAccountData(address, original, account); err != nil {

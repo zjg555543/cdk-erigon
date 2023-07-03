@@ -26,7 +26,7 @@ func NewWriterV4(tx kv.TemporalTx) *WriterV4 {
 
 func (w *WriterV4) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
 	if original.Incarnation < account.Incarnation {
-		fmt.Printf("Create new acccccccc %x\n", address)
+		fmt.Printf("Create new acccccccc %x, %d, orig=%d\n", address, account.Incarnation, original.Incarnation)
 	}
 	value, origValue := accounts.SerialiseV3(account), accounts.SerialiseV3(original)
 	w.domains.SetTx(w.tx.(kv.RwTx))
