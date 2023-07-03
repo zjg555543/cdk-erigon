@@ -28,7 +28,7 @@ func (w *WriterV4) UpdateAccountData(address libcommon.Address, original, accoun
 	fmt.Printf("Create new acccccccc %x, %d, orig=%d\n", address, account.Incarnation, original.Incarnation)
 	value, origValue := accounts.SerialiseV3(account), accounts.SerialiseV3(original)
 	w.domains.SetTx(w.tx.(kv.RwTx))
-	fmt.Printf("v4 account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash)
+	fmt.Printf("v4 account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x, Inc=%d}\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash, account.Incarnation)
 	return w.domains.UpdateAccountData(address.Bytes(), value, origValue)
 }
 

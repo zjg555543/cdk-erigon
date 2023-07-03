@@ -1,10 +1,14 @@
 package state
 
 import (
+	"bytes"
 	"fmt"
 
+	"github.com/ledgerwatch/erigon-lib/commitment"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/order"
+	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 )
 
@@ -26,6 +30,7 @@ func (r *ReaderV4) ReadAccountData(address libcommon.Address) (*accounts.Account
 	if !ok || len(enc) == 0 {
 		return nil, nil
 	}
+	fmt.Printf("enc: %x, %x\n", address, enc)
 	var a accounts.Account
 	if err = accounts.DeserialiseV3(&a, enc); err != nil {
 		return nil, err
@@ -65,7 +70,25 @@ func (r *ReaderV4) ReadAccountCodeSize(address libcommon.Address, incarnation ui
 }
 
 func (r *ReaderV4) ReadAccountIncarnation(address libcommon.Address) (uint64, error) {
-	fmt.Printf("ReadAccountIncarnation: %x, %d\n", address, 0)
+	a, _ := r.ReadAccountData(address)
+	if a == nil {
+		var hasStorage bool
+		it, err := r.tx.DomainRange(kv.StorageDomain, address[:], nil, math.MaxUint64, order.Asc, 1)
+		if err != nil {
+			panic(err)
+		}
+		hasStorage = it.HasNext()
+		fmt.Printf("ReadAccountIncarnation: %x, %t\n", address, hasStorage)
+		if hasStorage {
+			return 1, nil
+		}
+		return 0, nil
+	}
+	if !bytes.Equal(a.CodeHash[:], commitment.EmptyCodeHash) {
+		fmt.Printf("ReadAccountIncarnation2: %x, %t\n", address, 1)
+		return 1, nil
+	}
+	fmt.Printf("ReadAccountIncarnation3: %x, %d, inc=%d, %d, %d\n", address, 0, a.Incarnation, &a.Balance, a.Nonce)
 	return 0, nil
 }
 

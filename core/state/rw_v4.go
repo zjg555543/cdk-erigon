@@ -25,7 +25,7 @@ func WrapStateIO(s *state.SharedDomains) (*StateWriterV4, *StateReaderV4) {
 func (r *StateWriterV4) SetTxNum(txNum uint64) { r.SharedDomains.SetTxNum(txNum) }
 
 func (w *StateWriterV4) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
-	//fmt.Printf("account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x} txNum: %d\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash, w.txNum)
+	fmt.Printf("[rw_v4.go]account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x} inc: %d\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash, account.Incarnation)
 	return w.SharedDomains.UpdateAccountData(address.Bytes(), accounts.SerialiseV3(account), accounts.SerialiseV3(original))
 }
 

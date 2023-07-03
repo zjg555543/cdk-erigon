@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon-lib/commitment"
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -604,6 +605,21 @@ func (r *StateReaderV3) ReadAccountCodeSize(address common.Address, incarnation 
 }
 
 func (r *StateReaderV3) ReadAccountIncarnation(address common.Address) (uint64, error) {
+	a, _ := r.ReadAccountData(address)
+	if a == nil {
+		var hasStorage bool
+		r.rs.domains.IterateStoragePrefix(r.tx, address[:], func(k, v []byte) {
+			hasStorage = true
+		})
+		fmt.Printf("ReadAccountIncarnation: %x, %t\n", address, hasStorage)
+		if hasStorage {
+			return 1, nil
+		}
+		return 0, nil
+	}
+	if !bytes.Equal(a.CodeHash[:], commitment.EmptyCodeHash) {
+		return 1, nil
+	}
 	return 0, nil
 }
 
