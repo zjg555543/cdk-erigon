@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
@@ -269,7 +270,13 @@ func (t *StateTest) RunNoVerify(tx kv.RwTx, subtest StateSubtest, vmconfig vm.Co
 	h := common.NewHasher()
 	defer common.ReturnHasherToPool(h)
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
-		fmt.Printf("plain: %x, %x\n", k, v)
+		if len(k) > 20 {
+			fmt.Printf("plain: %x, %x\n", k, v)
+		} else {
+			var acc accounts.Account
+			acc.DecodeForStorage(v)
+			fmt.Printf("plain: %x, %d, %d\n", k, acc.Balance, acc.Nonce)
+		}
 		if err != nil {
 			return nil, libcommon.Hash{}, fmt.Errorf("interate over plain state: %w", err)
 		}
