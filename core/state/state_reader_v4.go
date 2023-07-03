@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
@@ -36,6 +38,7 @@ func (r *ReaderV4) ReadAccountStorage(address libcommon.Address, incarnation uin
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("read storage: %x, %d, %x -> %x, ok=%t\n", address, incarnation, *key, enc, ok)
 	if !ok || len(enc) == 0 {
 		return nil, nil
 	}
