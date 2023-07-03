@@ -145,7 +145,7 @@ func NewFlatDBTrieLoader(logPrefix string, rd RetainDeciderWithMarker, hc HashCo
 	return &FlatDBTrieLoader{
 		logPrefix: logPrefix,
 		receiver: &RootHashAggregator{
-			hb:    NewHashBuilder(false),
+			hb:    NewHashBuilder(true),
 			hc:    hc,
 			shc:   shc,
 			trace: trace,
@@ -1523,7 +1523,7 @@ func CastTrieNodeValue(hashes, rootHash []byte) []libcommon.Hash {
 // CalcRoot is a combination of `ResolveStateTrie` and `UpdateStateTrie`
 // DESCRIBED: docs/programmers_guide/guide.md#organising-ethereum-state-into-a-merkle-tree
 func CalcRoot(logPrefix string, tx kv.Tx) (libcommon.Hash, error) {
-	loader := NewFlatDBTrieLoader(logPrefix, NewRetainList(0), nil, nil, false)
+	loader := NewFlatDBTrieLoader(logPrefix, NewRetainList(0), nil, nil, true)
 
 	h, err := loader.CalcTrieRoot(tx, nil)
 	if err != nil {
