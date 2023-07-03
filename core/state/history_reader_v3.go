@@ -69,8 +69,8 @@ func (hr *HistoryReaderV3) ReadAccountCode(address common.Address, incarnation u
 }
 
 func (hr *HistoryReaderV3) ReadAccountCodeSize(address common.Address, incarnation uint64, codeHash common.Hash) (int, error) {
-	enc, _, err := hr.ttx.DomainGetAsOf(kv.CodeDomain, address.Bytes(), nil, hr.txNum)
 	//enc, _, err := hr.ttx.DomainGetAsOf(kv.CodeDomain, address.Bytes(), codeHash.Bytes(), hr.txNum)
+	enc, _, err := hr.ttx.DomainGetAsOf(kv.CodeDomain, address.Bytes(), nil, hr.txNum)
 	return len(enc), err
 }
 
