@@ -845,6 +845,7 @@ func NewStateReaderV3(rs *StateV3) *StateReaderV3 {
 	return &StateReaderV3{
 		rs:        rs,
 		readLists: newReadList(),
+		trace:     true,
 	}
 }
 
