@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -47,6 +48,7 @@ func (r *PlainStateReader) ReadAccountStorage(address libcommon.Address, incarna
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("read storage: %x, %d, %x -> %x\n", address, incarnation, *key, enc)
 	if len(enc) == 0 {
 		return nil, nil
 	}
