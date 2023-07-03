@@ -195,6 +195,9 @@ func (t *StateTest) RunNoVerify(tx kv.RwTx, subtest StateSubtest, vmconfig vm.Co
 		return nil, libcommon.Hash{}, UnsupportedForkError{subtest.Fork}
 	}
 
+	if ethconfig.EnableHistoryV4InTest {
+		//tx.(kv.TemporalTx).(*temporal.Tx).Agg().SharedDomains(tx.(*temporal.Tx).AggCtx()).ClearRam()
+	}
 	r := rpchelper.NewLatestStateReader(tx, ethconfig.EnableHistoryV4InTest)
 	w := rpchelper.NewLatestStateWriter(tx, writeBlockNr, ethconfig.EnableHistoryV4InTest)
 	statedb := state.New(r)
