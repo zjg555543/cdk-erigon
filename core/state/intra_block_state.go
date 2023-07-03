@@ -607,6 +607,7 @@ func updateAccount(EIP161Enabled bool, isAura bool, stateWriter StateWriter, add
 				return err
 			}
 		}
+		fmt.Printf("before update trie: %x, %t\n", addr, stateObject.created)
 		if stateObject.created {
 			if err := stateWriter.CreateContract(addr); err != nil {
 				return err
