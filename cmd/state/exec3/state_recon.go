@@ -291,6 +291,7 @@ func (rw *ReconWorker) runTxTask(txTask *exec22.TxTask) error {
 	rw.stateWriter.SetTxNum(txTask.TxNum)
 	rw.ibs.Reset()
 	ibs := rw.ibs
+	ibs.SetTrace(true)
 	rules := txTask.Rules
 	daoForkTx := rw.chainConfig.DAOForkBlock != nil && rw.chainConfig.DAOForkBlock.Uint64() == txTask.BlockNum && txTask.TxIndex == -1
 	var err error

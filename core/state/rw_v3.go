@@ -401,6 +401,7 @@ func NewStateWriterBufferedV3(rs *StateV3) *StateWriterBufferedV3 {
 	return &StateWriterBufferedV3{
 		rs:         rs,
 		writeLists: newWriteList(),
+		trace:      true,
 	}
 }
 
