@@ -74,7 +74,6 @@ func TestCallTraceOneByOne(t *testing.T) {
 }
 
 func TestCallTraceUnwind(t *testing.T) {
-	t.Skip()
 	m := stages.Mock(t)
 	var chainA, chainB *core.ChainPack
 	var err error
