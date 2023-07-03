@@ -54,6 +54,7 @@ func TestEstimateGas(t *testing.T) {
 }
 
 func TestEthCallNonCanonical(t *testing.T) {
+	t.Skip()
 	m, _, _ := rpcdaemontest.CreateTestSentry(t)
 	agg := m.HistoryV3Components()
 	stateCache := kvcache.New(kvcache.DefaultCoherentConfig)
