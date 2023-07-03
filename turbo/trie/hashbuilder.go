@@ -306,6 +306,7 @@ func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint2
 	}
 
 	if fieldSet&AccountFieldCodeOnly != 0 {
+		fmt.Printf("code only: %d, %d\n", hb.acc.Balance, hb.acc.Nonce)
 		copy(hb.acc.CodeHash[:], hb.hashStack[len(hb.hashStack)-popped*hashStackStride-length2.Hash:len(hb.hashStack)-popped*hashStackStride])
 		popped++
 	} else {
@@ -348,6 +349,7 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	valLen := hb.acc.EncodingLengthForHashing()
 	hb.acc.EncodeForHashing(hb.valBuf[:])
 	val := rlphacks.RlpEncodedBytes(hb.valBuf[:valLen])
+	fmt.Printf("enc for hashing: %x, %x\n", hb.valBuf[:valLen], val)
 	err := hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
 	if err != nil {
 		return err
