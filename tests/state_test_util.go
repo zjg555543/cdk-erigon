@@ -275,7 +275,7 @@ func (t *StateTest) RunNoVerify(tx kv.RwTx, subtest StateSubtest, vmconfig vm.Co
 		} else {
 			var acc accounts.Account
 			acc.DecodeForStorage(v)
-			fmt.Printf("plain: %x, %d, %d\n", k, acc.Balance, acc.Nonce)
+			fmt.Printf("plain: %x, %d, %d\n", k, &acc.Balance, acc.Nonce)
 		}
 		if err != nil {
 			return nil, libcommon.Hash{}, fmt.Errorf("interate over plain state: %w", err)
