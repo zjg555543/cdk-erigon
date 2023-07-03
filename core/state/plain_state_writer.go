@@ -6,6 +6,7 @@ import (
 
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/kv"
 
 	"github.com/ledgerwatch/erigon/common/dbutils"
@@ -45,6 +46,9 @@ func (w *PlainStateWriter) SetAccumulator(accumulator *shards.Accumulator) *Plai
 }
 
 func (w *PlainStateWriter) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
+	if original.Incarnation < account.Incarnation {
+		fmt.Printf("Create new acccccccc %x\n", address)
+	}
 	fmt.Printf("UpdateAccountData [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash)
 	if w.csw != nil {
 		if err := w.csw.UpdateAccountData(address, original, account); err != nil {
@@ -99,7 +103,7 @@ func (w *PlainStateWriter) DeleteAccount(address libcommon.Address, original *ac
 }
 
 func (w *PlainStateWriter) WriteAccountStorage(address libcommon.Address, incarnation uint64, key *libcommon.Hash, original, value *uint256.Int) error {
-	fmt.Printf("write storage %x,%d, %x,%x\n", address, incarnation, *key, value.Bytes())
+	fmt.Printf("write storage %x,%d, %x,%x, %s\n", address, incarnation, *key, value.Bytes(), dbg.Stack())
 	if w.csw != nil {
 		if err := w.csw.WriteAccountStorage(address, incarnation, key, original, value); err != nil {
 			return err
