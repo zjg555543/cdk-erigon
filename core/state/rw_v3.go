@@ -432,7 +432,7 @@ func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, origin
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, value)
 
 	if w.trace {
-		fmt.Printf("[v3_buff] UpdateAccountData [%v]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, &account.Balance, account.Nonce, account.Root, account.CodeHash)
+		fmt.Printf("UpdateAccountData [%v]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, &account.Balance, account.Nonce, account.Root, account.CodeHash)
 	}
 
 	//var prev []byte
@@ -467,7 +467,7 @@ func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *
 	addr := hex.EncodeToString(address.Bytes())
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, nil)
 	if w.trace {
-		fmt.Printf("[v3_buff] delete [%x]\n", address)
+		fmt.Printf("delete [%x]\n", address)
 	}
 	//if original.Initialised {
 	//	if w.accountDels == nil {
