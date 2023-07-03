@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/holiman/uint256"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -41,6 +43,7 @@ func (w *WriterV4) DeleteAccount(address libcommon.Address, original *accounts.A
 
 func (w *WriterV4) WriteAccountStorage(address libcommon.Address, incarnation uint64, key *libcommon.Hash, original, value *uint256.Int) error {
 	w.domains.SetTx(w.tx.(kv.RwTx))
+	fmt.Printf("write storage: %x, %d, %x -> %x\n", address, incarnation, *key, value.Bytes())
 	return w.domains.WriteAccountStorage(address.Bytes(), key.Bytes(), value.Bytes(), original.Bytes())
 }
 
