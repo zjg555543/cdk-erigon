@@ -198,6 +198,7 @@ func (t *StateTest) RunNoVerify(tx kv.RwTx, subtest StateSubtest, vmconfig vm.Co
 	r := rpchelper.NewLatestStateReader(tx, ethconfig.EnableHistoryV4InTest)
 	w := rpchelper.NewLatestStateWriter(tx, writeBlockNr, ethconfig.EnableHistoryV4InTest)
 	statedb := state.New(r)
+	statedb.SetTrace(true)
 
 	var baseFee *big.Int
 	if config.IsLondon(0) {
