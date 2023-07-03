@@ -99,7 +99,7 @@ func (w *PlainStateWriter) DeleteAccount(address libcommon.Address, original *ac
 }
 
 func (w *PlainStateWriter) WriteAccountStorage(address libcommon.Address, incarnation uint64, key *libcommon.Hash, original, value *uint256.Int) error {
-	fmt.Printf("write storage %x,%x,%x\n", address, *key, value.Bytes())
+	fmt.Printf("write storage %x,%d, %x,%x\n", address, incarnation, *key, value.Bytes())
 	if w.csw != nil {
 		if err := w.csw.WriteAccountStorage(address, incarnation, key, original, value); err != nil {
 			return err
