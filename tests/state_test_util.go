@@ -200,6 +200,7 @@ func (t *StateTest) RunNoVerify(tx kv.RwTx, subtest StateSubtest, vmconfig vm.Co
 	statedb := state.New(r)
 	statedb.SetTrace(true)
 	fmt.Printf("--- start\n")
+	defer fmt.Printf("--- end\n")
 
 	var baseFee *big.Int
 	if config.IsLondon(0) {
