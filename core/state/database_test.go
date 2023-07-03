@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -774,6 +775,7 @@ func TestCreateOnExistingStorage(t *testing.T) {
 	// We expect the pre-existing storage items to be removed by the deployment
 	chain, err := core.GenerateChain(m.ChainConfig, m.Genesis, m.Engine, m.DB, 4, func(i int, block *core.BlockGen) {
 		var tx types.Transaction
+		fmt.Printf("------- gen: %d\n", i)
 
 		switch i {
 		case 0:
@@ -801,6 +803,7 @@ func TestCreateOnExistingStorage(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	fmt.Printf("------- after gen\n")
 	// BLOCK 1
 	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
