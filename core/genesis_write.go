@@ -27,6 +27,7 @@ import (
 
 	"github.com/c2h5oh/datasize"
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/exp/slices"
 
@@ -195,6 +196,8 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	var stateWriter state.StateWriter
 	if ethconfig.EnableHistoryV4InTest {
 		stateWriter = state.NewWriterV4(tx.(kv.TemporalTx))
+		tx.(kv.TemporalTx).(*temporal.Tx).Agg().SharedDomains(tx.(*temporal.Tx).AggCtx()).PrintUpdates()
+		tx.(kv.TemporalTx).(*temporal.Tx).Agg().SharedDomains(tx.(*temporal.Tx).AggCtx()).ClearRam()
 	} else {
 		for addr, account := range g.Alloc {
 			if len(account.Code) > 0 || len(account.Storage) > 0 {

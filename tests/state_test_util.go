@@ -189,15 +189,21 @@ func (t *StateTest) RunNoVerify(tx kv.RwTx, subtest StateSubtest, vmconfig vm.Co
 
 	readBlockNr := block.NumberU64()
 	writeBlockNr := readBlockNr + 1
+	if ethconfig.EnableHistoryV4InTest {
+		fmt.Printf("clear\n")
+		tx.(kv.TemporalTx).(*temporal.Tx).Agg().SharedDomains(tx.(*temporal.Tx).AggCtx()).PrintUpdates()
+		tx.(kv.TemporalTx).(*temporal.Tx).Agg().SharedDomains(tx.(*temporal.Tx).AggCtx()).ClearRam()
+	}
 
+	fmt.Printf("before pre-state\n")
+	tx.(kv.TemporalTx).(*temporal.Tx).Agg().SharedDomains(tx.(*temporal.Tx).AggCtx()).PrintUpdates()
 	_, err = MakePreState(&chain.Rules{}, tx, t.json.Pre, readBlockNr, ethconfig.EnableHistoryV4InTest)
 	if err != nil {
 		return nil, libcommon.Hash{}, UnsupportedForkError{subtest.Fork}
 	}
+	fmt.Printf("after pre-state\n")
+	tx.(kv.TemporalTx).(*temporal.Tx).Agg().SharedDomains(tx.(*temporal.Tx).AggCtx()).PrintUpdates()
 
-	if ethconfig.EnableHistoryV4InTest {
-		//tx.(kv.TemporalTx).(*temporal.Tx).Agg().SharedDomains(tx.(*temporal.Tx).AggCtx()).ClearRam()
-	}
 	r := rpchelper.NewLatestStateReader(tx, ethconfig.EnableHistoryV4InTest)
 	w := rpchelper.NewLatestStateWriter(tx, writeBlockNr, ethconfig.EnableHistoryV4InTest)
 	statedb := state.New(r)
