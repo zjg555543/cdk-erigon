@@ -824,6 +824,7 @@ func TestCreateOnExistingStorage(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+	t.Fail()
 }
 
 func TestReproduceCrash(t *testing.T) {
