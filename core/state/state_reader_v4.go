@@ -65,6 +65,7 @@ func (r *ReaderV4) ReadAccountCodeSize(address libcommon.Address, incarnation ui
 }
 
 func (r *ReaderV4) ReadAccountIncarnation(address libcommon.Address) (uint64, error) {
+	fmt.Printf("ReadAccountIncarnation: %x, %d\n", address, 0)
 	return 0, nil
 }
 
