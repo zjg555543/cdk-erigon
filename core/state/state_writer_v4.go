@@ -25,9 +25,12 @@ func NewWriterV4(tx kv.TemporalTx) *WriterV4 {
 }
 
 func (w *WriterV4) UpdateAccountData(address libcommon.Address, original, account *accounts.Account) error {
+	if original.Incarnation < account.Incarnation {
+		fmt.Printf("Create new acccccccc %x\n", address)
+	}
 	value, origValue := accounts.SerialiseV3(account), accounts.SerialiseV3(original)
 	w.domains.SetTx(w.tx.(kv.RwTx))
-	//fmt.Printf("v4 account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash)
+	fmt.Printf("v4 account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash)
 	return w.domains.UpdateAccountData(address.Bytes(), value, origValue)
 }
 
@@ -38,6 +41,7 @@ func (w *WriterV4) UpdateAccountCode(address libcommon.Address, incarnation uint
 
 func (w *WriterV4) DeleteAccount(address libcommon.Address, original *accounts.Account) error {
 	w.domains.SetTx(w.tx.(kv.RwTx))
+	fmt.Printf("delete: %x\n", address)
 	return w.domains.DeleteAccount(address.Bytes(), accounts.SerialiseV3(original))
 }
 
