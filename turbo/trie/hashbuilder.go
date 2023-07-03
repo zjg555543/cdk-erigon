@@ -300,9 +300,11 @@ func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint2
 	popped := 0
 	if fieldSet&AccountFieldStorageOnly != 0 {
 		copy(hb.acc.Root[:], hb.hashStack[len(hb.hashStack)-popped*hashStackStride-length2.Hash:len(hb.hashStack)-popped*hashStackStride])
+		fmt.Printf("set root1: %x, %d, %d, %x\n", keyHex, balance, nonce, hb.acc.Root)
 		popped++
 	} else {
 		copy(hb.acc.Root[:], EmptyRoot[:])
+		fmt.Printf("set root2: %x, %d, %d, %x\n", keyHex, balance, nonce, hb.acc.Root)
 	}
 
 	if fieldSet&AccountFieldCodeOnly != 0 {
