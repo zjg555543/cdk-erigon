@@ -157,7 +157,6 @@ func TestGetStorageAt_ByBlockHash_WithRequireCanonicalTrue_BlockNotFoundError(t 
 }
 
 func TestGetStorageAt_ByBlockHash_WithRequireCanonicalDefault_NonCanonicalBlock(t *testing.T) {
-	t.Skip()
 	assert := assert.New(t)
 	m, _, orphanedChain := rpcdaemontest.CreateTestSentry(t)
 	api := NewEthAPI(newBaseApiForTest(m), m.DB, nil, nil, nil, 5000000, 100_000, log.New())
@@ -178,7 +177,6 @@ func TestGetStorageAt_ByBlockHash_WithRequireCanonicalDefault_NonCanonicalBlock(
 }
 
 func TestGetStorageAt_ByBlockHash_WithRequireCanonicalTrue_NonCanonicalBlock(t *testing.T) {
-	t.Skip()
 	m, _, orphanedChain := rpcdaemontest.CreateTestSentry(t)
 	api := NewEthAPI(newBaseApiForTest(m), m.DB, nil, nil, nil, 5000000, 100_000, log.New())
 	addr := common.HexToAddress("0x71562b71999873db5b286df957af199ec94617f7")
@@ -195,7 +193,6 @@ func TestGetStorageAt_ByBlockHash_WithRequireCanonicalTrue_NonCanonicalBlock(t *
 }
 
 func TestCall_ByBlockHash_WithRequireCanonicalDefault_NonCanonicalBlock(t *testing.T) {
-	t.Skip()
 	m, _, orphanedChain := rpcdaemontest.CreateTestSentry(t)
 	api := NewEthAPI(newBaseApiForTest(m), m.DB, nil, nil, nil, 5000000, 100_000, log.New())
 	from := common.HexToAddress("0x71562b71999873db5b286df957af199ec94617f7")
@@ -219,7 +216,6 @@ func TestCall_ByBlockHash_WithRequireCanonicalDefault_NonCanonicalBlock(t *testi
 }
 
 func TestCall_ByBlockHash_WithRequireCanonicalTrue_NonCanonicalBlock(t *testing.T) {
-	t.Skip()
 	m, _, orphanedChain := rpcdaemontest.CreateTestSentry(t)
 	api := NewEthAPI(newBaseApiForTest(m), m.DB, nil, nil, nil, 5000000, 100_000, log.New())
 	from := common.HexToAddress("0x71562b71999873db5b286df957af199ec94617f7")

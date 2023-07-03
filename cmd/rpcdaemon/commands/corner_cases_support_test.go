@@ -15,7 +15,6 @@ import (
 // TestNotFoundMustReturnNil - next methods - when record not found in db - must return nil instead of error
 // see https://github.com/ledgerwatch/erigon/issues/1645
 func TestNotFoundMustReturnNil(t *testing.T) {
-	t.Skip()
 	require := require.New(t)
 	m, _, _ := rpcdaemontest.CreateTestSentry(t)
 	api := NewEthAPI(newBaseApiForTest(m),
