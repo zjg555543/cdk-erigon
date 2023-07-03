@@ -269,6 +269,7 @@ func (t *StateTest) RunNoVerify(tx kv.RwTx, subtest StateSubtest, vmconfig vm.Co
 	h := common.NewHasher()
 	defer common.ReturnHasherToPool(h)
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
+		fmt.Printf("plain: %x\n", k)
 		if err != nil {
 			return nil, libcommon.Hash{}, fmt.Errorf("interate over plain state: %w", err)
 		}
