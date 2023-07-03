@@ -196,6 +196,7 @@ func (t *StateTest) RunNoVerify(tx kv.RwTx, subtest StateSubtest, vmconfig vm.Co
 
 	r := rpchelper.NewLatestStateReader(tx)
 	statedb := state.New(r)
+	statedb.SetTrace(true)
 
 	var w state.StateWriter
 	if ethconfig.EnableHistoryV4InTest {
