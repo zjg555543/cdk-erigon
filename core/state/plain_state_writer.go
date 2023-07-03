@@ -125,6 +125,7 @@ func (w *PlainStateWriter) WriteAccountStorage(address libcommon.Address, incarn
 }
 
 func (w *PlainStateWriter) CreateContract(address libcommon.Address) error {
+	fmt.Printf("CreateContract skip: %x\n", address)
 	if w.csw != nil {
 		if err := w.csw.CreateContract(address); err != nil {
 			return err
