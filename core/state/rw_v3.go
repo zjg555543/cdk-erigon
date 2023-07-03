@@ -432,7 +432,7 @@ func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, origin
 	w.writeLists[string(kv.AccountsDomain)].Push(addr, value)
 
 	if w.trace {
-		fmt.Printf("UpdateAccountData [%v]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", addr, &account.Balance, account.Nonce, account.Root, account.CodeHash)
+		fmt.Printf("UpdateAccountData [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", address, &account.Balance, account.Nonce, account.Root, account.CodeHash)
 	}
 
 	//var prev []byte
