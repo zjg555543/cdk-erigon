@@ -553,6 +553,7 @@ func (sdb *IntraBlockState) CreateAccount(addr libcommon.Address, contractCreati
 	}
 	newObj.data.Initialised = true
 
+	fmt.Printf("CreateAccount: %x, %t, inc=%d\n", addr, contractCreation, prevInc+1)
 	if contractCreation {
 		newObj.created = true
 		newObj.data.Incarnation = prevInc + 1
