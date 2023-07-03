@@ -600,6 +600,8 @@ func (ww *StateWriterV4) WriteAccountStorage(address libcommon.Address, incarnat
 }
 
 func (ww *StateWriterV4) CreateContract(address libcommon.Address) error {
+	fmt.Printf("v4 CreateContract skip! : %x\n", address)
+
 	return nil
 }
 
