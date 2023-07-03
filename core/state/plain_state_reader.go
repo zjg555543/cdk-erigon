@@ -76,10 +76,10 @@ func (r *PlainStateReader) ReadAccountIncarnation(address libcommon.Address) (ui
 	if err != nil {
 		return 0, err
 	}
-	fmt.Printf("inc map: %d\n", 0)
 	if len(b) == 0 {
+		fmt.Printf("ReadAccountIncarnation: %x, %d\n", address, 0)
 		return 0, nil
 	}
-	fmt.Printf("inc map: %d\n", binary.BigEndian.Uint64(b))
+	fmt.Printf("ReadAccountIncarnation: %x, %d\n", address, binary.BigEndian.Uint64(b))
 	return binary.BigEndian.Uint64(b), nil
 }
