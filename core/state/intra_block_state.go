@@ -637,7 +637,7 @@ func printAccount(EIP161Enabled bool, addr libcommon.Address, stateObject *state
 		}
 		stateObject.printTrie()
 		if stateObject.data.Balance.IsUint64() {
-			fmt.Printf("UpdateAccountData: %x, balance=%d, nonce=%d\n", addr, stateObject.data.Balance.Uint64(), stateObject.data.Nonce)
+			fmt.Printf("UpdateAccountData: %x, balance=%d, nonce=%d\n", addr, &stateObject.data.Balance, stateObject.data.Nonce)
 		} else {
 			div := uint256.NewInt(1_000_000_000)
 			fmt.Printf("UpdateAccountData: %x, balance=%d*%d, nonce=%d\n", addr, uint256.NewInt(0).Div(&stateObject.data.Balance, div).Uint64(), div.Uint64(), stateObject.data.Nonce)

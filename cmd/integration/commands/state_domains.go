@@ -195,7 +195,7 @@ func requestDomains(chainDb, stateDb kv.RwDB, ctx context.Context, readDomain st
 				logger.Error("failed to read account", "addr", addr, "err", err)
 				continue
 			}
-			fmt.Printf("%x: nonce=%d balance=%d code=%x root=%x\n", addr, acc.Nonce, acc.Balance.Uint64(), acc.CodeHash, acc.Root)
+			fmt.Printf("%x: nonce=%d balance=%d code=%x root=%x\n", addr, acc.Nonce, &acc.Balance, acc.CodeHash, acc.Root)
 		}
 	case "storage":
 		for _, addr := range addrs {
