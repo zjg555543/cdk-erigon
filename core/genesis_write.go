@@ -517,6 +517,7 @@ func GenesisToBlock(g *types.Genesis, tmpDir string) (*types.Block, *state.Intra
 		statedb = state.New(r)
 		statedb.SetTrace(true)
 		fmt.Printf("-- genesis\n")
+		defer fmt.Printf("-- genesis end\n")
 
 		hasConstructorAllocation := false
 		for _, account := range g.Alloc {

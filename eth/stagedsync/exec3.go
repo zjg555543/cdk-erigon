@@ -858,7 +858,7 @@ func checkCommitmentV3(header *types.Header, agg *state2.AggregatorV3, badBlockH
 	if dbg.DiscardCommitment() {
 		return true, nil
 	}
-	rh, err := agg.ComputeCommitment(true, false)
+	rh, err := agg.ComputeCommitment(true, true)
 	if err != nil {
 		return false, fmt.Errorf("StateV3.Apply: %w", err)
 	}
