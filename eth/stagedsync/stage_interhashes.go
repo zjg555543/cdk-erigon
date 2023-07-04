@@ -133,6 +133,7 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 			return trie.EmptyRoot, err
 		}
 	}
+	fmt.Printf("root: %d, %x\n", to, root)
 
 	if cfg.checkRoot && root != expectedRootHash {
 		logger.Error(fmt.Sprintf("[%s] Wrong trie root of block %d: %x, expected (from header): %x. Block hash: %x", logPrefix, to, root, expectedRootHash, headerHash))
@@ -184,7 +185,6 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 		return trie.EmptyRoot, err
 	}
 
-	fmt.Printf("root: %x\n", hash)
 	if cfg.checkRoot && hash != expectedRootHash {
 		return hash, nil
 	}
@@ -622,7 +622,6 @@ func IncrementIntermediateHashes(logPrefix string, s *StageState, db kv.RwTx, to
 		return trie.EmptyRoot, err
 	}
 
-	fmt.Printf("root: %x\n", hash)
 	if cfg.checkRoot && hash != expectedRootHash {
 		return hash, nil
 	}
