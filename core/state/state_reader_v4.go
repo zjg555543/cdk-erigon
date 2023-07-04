@@ -66,18 +66,16 @@ func (r *ReaderV4) ReadAccountCodeSize(address libcommon.Address, incarnation ui
 }
 
 func (r *ReaderV4) ReadAccountIncarnation(address libcommon.Address) (uint64, error) {
+	//it, err := r.tx.(*temporal.Tx).AggCtx().DomainRangeLatest(r.tx, kv.StorageDomain, address[:], nil, 1)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//hasStorage := it.HasNext()
+	//if hasStorage {
+	//	return 1, nil
+	//}
+	fmt.Printf("ReadAccountIncarnation: %x, %d\n", address, 0)
 	return 0, nil
-	/*
-		it, err := r.tx.(*temporal.Tx).AggCtx().DomainRangeLatest(r.tx, kv.StorageDomain, address[:], nil, 1)
-		if err != nil {
-			panic(err)
-		}
-		hasStorage := it.HasNext()
-		if hasStorage {
-			return 1, nil
-		}
-		return 0, nil
-	*/
 }
 
 func (r *ReaderV4) ReadCommitment(prefix []byte) (enc []byte, err error) {

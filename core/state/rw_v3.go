@@ -10,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/holiman/uint256"
-	"github.com/ledgerwatch/erigon-lib/commitment"
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -137,9 +136,6 @@ func (rs *StateV3) applyState(txTask *exec22.TxTask, domains *libstate.SharedDom
 							var originalBytes []byte
 							if original != nil {
 								originalBytes = accounts.SerialiseV3(original)
-							}
-							if err := domains.DeleteAccount(kb, prev); err != nil {
-								return err
 							}
 							if !bytes.Equal(prev, originalBytes) {
 								panic(fmt.Sprintf("different prev value %x, %x, %x, %t, %t\n", kb, prev, originalBytes, prev == nil, originalBytes == nil))
@@ -396,6 +392,8 @@ type StateWriterBufferedV3 struct {
 	accountDels  map[string]*accounts.Account
 	storagePrevs map[string][]byte
 	codePrevs    map[string]uint64
+
+	tx kv.Tx
 }
 
 func NewStateWriterBufferedV3(rs *StateV3) *StateWriterBufferedV3 {
@@ -409,6 +407,7 @@ func NewStateWriterBufferedV3(rs *StateV3) *StateWriterBufferedV3 {
 func (w *StateWriterBufferedV3) SetTxNum(txNum uint64) {
 	w.rs.domains.SetTxNum(txNum)
 }
+func (w *StateWriterBufferedV3) SetTx(tx kv.Tx) { w.tx = tx }
 
 func (w *StateWriterBufferedV3) ResetWriteSet() {
 	w.writeLists = newWriteList()
@@ -496,7 +495,15 @@ func (w *StateWriterBufferedV3) WriteAccountStorage(address common.Address, inca
 	return nil
 }
 
-func (w *StateWriterBufferedV3) CreateContract(address common.Address) error { return nil }
+func (w *StateWriterBufferedV3) CreateContract(address common.Address) error {
+	err := w.rs.domains.IterateStoragePrefix(w.tx, address[:], func(k, v []byte) {
+		w.writeLists[string(kv.StorageDomain)].Push(hex.EncodeToString(k), nil)
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 type StateReaderV3 struct {
 	tx        kv.Tx
@@ -605,21 +612,17 @@ func (r *StateReaderV3) ReadAccountCodeSize(address common.Address, incarnation 
 }
 
 func (r *StateReaderV3) ReadAccountIncarnation(address common.Address) (uint64, error) {
-	a, _ := r.ReadAccountData(address)
-	if a == nil {
-		var hasStorage bool
-		r.rs.domains.IterateStoragePrefix(r.tx, address[:], func(k, v []byte) {
-			hasStorage = true
-		})
-		fmt.Printf("ReadAccountIncarnation: %x, %t\n", address, hasStorage)
-		if hasStorage {
-			return 1, nil
-		}
-		return 0, nil
-	}
-	if !bytes.Equal(a.CodeHash[:], commitment.EmptyCodeHash) {
-		return 1, nil
-	}
+	//hasStorage := false
+	//err := r.rs.domains.IterateStoragePrefix(r.tx, address[:], func(k, v []byte) {
+	//	hasStorage = true
+	//})
+	//if err != nil {
+	//	return 0, err
+	//}
+	//if hasStorage {
+	//	return 1, nil
+	//}
+	fmt.Printf("ReadAccountIncarnation: %x, %d\n", address, 0)
 	return 0, nil
 }
 
