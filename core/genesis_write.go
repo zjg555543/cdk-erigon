@@ -564,6 +564,7 @@ func GenesisToBlock(g *types.Genesis, tmpDir string) (*types.Block, *state.Intra
 		if root, err = trie.CalcRoot("genesis", tx); err != nil {
 			return
 		}
+		fmt.Printf("genesis root: %x\n", root)
 	}()
 	wg.Wait()
 	if err != nil {
