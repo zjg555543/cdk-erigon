@@ -113,6 +113,17 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 		}
 		tooBigJump = s.BlockNumber < n
 	}
+
+	tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+		if len(k) > 20 {
+			fmt.Printf("plain: %x, %x\n", k, v)
+		} else {
+			var acc accounts.Account
+			acc.DecodeForStorage(v)
+			fmt.Printf("plain: %x, %d, %d, inc=%d\n", k, &acc.Balance, acc.Nonce, acc.Incarnation)
+		}
+		return nil
+	})
 	if s.BlockNumber == 0 || tooBigJump {
 		if root, err = RegenerateIntermediateHashes(logPrefix, tx, cfg, expectedRootHash, ctx, logger); err != nil {
 			return trie.EmptyRoot, err
@@ -172,17 +183,6 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 	if err != nil {
 		return trie.EmptyRoot, err
 	}
-
-	db.ForEach(kv.PlainState, nil, func(k, v []byte) error {
-		if len(k) > 20 {
-			fmt.Printf("plain: %x, %x\n", k, v)
-		} else {
-			var acc accounts.Account
-			acc.DecodeForStorage(v)
-			fmt.Printf("plain: %x, %d, %d, inc=%d\n", k, &acc.Balance, acc.Nonce, acc.Incarnation)
-		}
-		return nil
-	})
 
 	fmt.Printf("root: %x\n", hash)
 	if cfg.checkRoot && hash != expectedRootHash {
