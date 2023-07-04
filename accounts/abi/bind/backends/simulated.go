@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
@@ -149,6 +150,19 @@ func (b *SimulatedBackend) Commit() {
 	}, nil); err != nil {
 		panic(err)
 	}
+	b.DB().View(context.Background(), func(tx kv.Tx) error {
+		return tx.ForEach(kv.PlainState, nil, func(k, v []byte) error {
+			if len(k) > 20 {
+				fmt.Printf("plain: %x, %x\n", k, v)
+			} else {
+				var acc accounts.Account
+				acc.DecodeForStorage(v)
+				fmt.Printf("plain: %x, %d, %d, inc=%d\n", k, &acc.Balance, acc.Nonce, acc.Incarnation)
+			}
+			return nil
+		})
+	})
+
 	//nolint:prealloc
 	var allLogs []*types.Log
 	for _, r := range b.pendingReceipts {
