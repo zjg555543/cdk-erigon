@@ -124,6 +124,17 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 		}
 		return nil
 	})
+	tx.ForEach(kv.HashedAccounts, nil, func(k, v []byte) error {
+		var acc accounts.Account
+		acc.DecodeForStorage(v)
+		fmt.Printf("hashed: %x, %d, %d, inc=%d\n", k, &acc.Balance, acc.Nonce, acc.Incarnation)
+		return nil
+	})
+	tx.ForEach(kv.HashedStorage, nil, func(k, v []byte) error {
+		fmt.Printf("hashed: %x, %x\n", k, v)
+		return nil
+	})
+
 	if s.BlockNumber == 0 || tooBigJump {
 		if root, err = RegenerateIntermediateHashes(logPrefix, tx, cfg, expectedRootHash, ctx, logger); err != nil {
 			return trie.EmptyRoot, err
