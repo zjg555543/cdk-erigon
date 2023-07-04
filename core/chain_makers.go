@@ -477,6 +477,7 @@ func CalcHashRootForTests(tx kv.RwTx, header *types.Header, histV4 bool) (hashRo
 			if err != nil {
 				return hashRoot, fmt.Errorf("interate over plain state: %w", err)
 			}
+			fmt.Printf("plain key in test: %x %x\n", k, v)
 			if len(v) > 0 {
 				v, err = accounts.ConvertV3toV2(v)
 				if err != nil {
