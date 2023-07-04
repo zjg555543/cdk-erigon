@@ -496,7 +496,9 @@ func (w *StateWriterBufferedV3) WriteAccountStorage(address common.Address, inca
 }
 
 func (w *StateWriterBufferedV3) CreateContract(address common.Address) error {
+	fmt.Printf("CreateContract: %x\n", address)
 	err := w.rs.domains.IterateStoragePrefix(w.tx, address[:], func(k, v []byte) {
+		fmt.Printf("CreateContract: del %x\n", k)
 		w.writeLists[string(kv.StorageDomain)].Push(hex.EncodeToString(k), nil)
 	})
 	if err != nil {
