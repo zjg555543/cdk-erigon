@@ -862,6 +862,7 @@ func checkCommitmentV3(header *types.Header, agg *state2.AggregatorV3, badBlockH
 	if err != nil {
 		return false, fmt.Errorf("StateV3.Apply: %w", err)
 	}
+	fmt.Printf("root: %d, %x\n", header.Number.Uint64(), rh)
 	if bytes.Equal(rh, header.Root.Bytes()) {
 		return true, nil
 	}
