@@ -173,6 +173,7 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 		return trie.EmptyRoot, err
 	}
 
+	fmt.Printf("root: %x\n", hash)
 	if cfg.checkRoot && hash != expectedRootHash {
 		return hash, nil
 	}
