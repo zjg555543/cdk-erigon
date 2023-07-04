@@ -1532,6 +1532,7 @@ func CalcRoot(logPrefix string, tx kv.Tx) (libcommon.Hash, error) {
 	if err != nil {
 		return EmptyRoot, err
 	}
+	fmt.Printf("CalcRoot: %x\n", h)
 
 	return h, nil
 }
