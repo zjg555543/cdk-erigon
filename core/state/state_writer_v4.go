@@ -50,11 +50,13 @@ func (w *WriterV4) WriteAccountStorage(address libcommon.Address, incarnation ui
 }
 
 func (w *WriterV4) CreateContract(address libcommon.Address) (err error) {
+	fmt.Printf("CreateContract: %x\n", address)
 	w.domains.SetTx(w.tx.(kv.RwTx))
 	err = w.domains.IterateStoragePrefix(w.tx, address[:], func(k, v []byte) {
 		if err != nil {
 			return
 		}
+		fmt.Printf("CreateContract: del %x\n", k)
 		err = w.domains.WriteAccountStorage(k, nil, nil, v)
 	})
 	if err != nil {
