@@ -312,6 +312,7 @@ func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint2
 	} else {
 		copy(hb.acc.CodeHash[:], EmptyCodeHash[:])
 	}
+	fmt.Printf("acc: %x, %x, %d, %d\n", hb.acc.Root, hb.acc.CodeHash, hb.acc.Balance.Uint64(), hb.acc.Nonce)
 
 	return hb.accountLeafHashWithKey(key, popped)
 }
