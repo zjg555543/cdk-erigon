@@ -300,15 +300,12 @@ func (hb *HashBuilder) accountLeafHash(length int, keyHex []byte, balance *uint2
 	popped := 0
 	if fieldSet&AccountFieldStorageOnly != 0 {
 		copy(hb.acc.Root[:], hb.hashStack[len(hb.hashStack)-popped*hashStackStride-length2.Hash:len(hb.hashStack)-popped*hashStackStride])
-		fmt.Printf("set root1: %x, %d, %d, %x\n", keyHex, balance, nonce, hb.acc.Root)
 		popped++
 	} else {
 		copy(hb.acc.Root[:], EmptyRoot[:])
-		fmt.Printf("set root2: %x, %d, %d, %x\n", keyHex, balance, nonce, hb.acc.Root)
 	}
 
 	if fieldSet&AccountFieldCodeOnly != 0 {
-		fmt.Printf("code only: %d, %d\n", hb.acc.Balance, hb.acc.Nonce)
 		copy(hb.acc.CodeHash[:], hb.hashStack[len(hb.hashStack)-popped*hashStackStride-length2.Hash:len(hb.hashStack)-popped*hashStackStride])
 		popped++
 	} else {
@@ -351,7 +348,6 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 	valLen := hb.acc.EncodingLengthForHashing()
 	hb.acc.EncodeForHashing(hb.valBuf[:])
 	val := rlphacks.RlpEncodedBytes(hb.valBuf[:valLen])
-	fmt.Printf("enc for hashing: %x, %x, %d, %d, %x, %x\n", hb.valBuf[:valLen], val, hb.acc.Balance.Uint64(), hb.acc.Nonce, hb.acc.CodeHash, hb.acc.Root)
 	err := hb.completeLeafHash(kp, kl, compactLen, key, compact0, ni, val)
 	if err != nil {
 		return err
