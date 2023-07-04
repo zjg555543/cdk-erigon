@@ -274,6 +274,7 @@ func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, balance *uint256.I
 	s := &shortNode{Key: common.CopyBytes(key), Val: a}
 	// this invocation will take care of the popping given number of items from both hash stack and node stack,
 	// pushing resulting hash to the hash stack, and nil to the node stack
+	fmt.Printf("acc: %x, %x\n", hb.acc.Root, hb.acc.CodeHash)
 	if err = hb.accountLeafHashWithKey(key, popped); err != nil {
 		return err
 	}
