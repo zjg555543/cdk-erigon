@@ -1,14 +1,10 @@
 package state
 
 import (
-	"bytes"
 	"fmt"
 
-	"github.com/ledgerwatch/erigon-lib/commitment"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/order"
-	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 )
 
@@ -70,26 +66,18 @@ func (r *ReaderV4) ReadAccountCodeSize(address libcommon.Address, incarnation ui
 }
 
 func (r *ReaderV4) ReadAccountIncarnation(address libcommon.Address) (uint64, error) {
-	a, _ := r.ReadAccountData(address)
-	if a == nil {
-		var hasStorage bool
-		it, err := r.tx.DomainRange(kv.StorageDomain, address[:], nil, math.MaxUint64, order.Asc, 1)
+	return 0, nil
+	/*
+		it, err := r.tx.(*temporal.Tx).AggCtx().DomainRangeLatest(r.tx, kv.StorageDomain, address[:], nil, 1)
 		if err != nil {
 			panic(err)
 		}
-		hasStorage = it.HasNext()
-		fmt.Printf("ReadAccountIncarnation: %x, %t\n", address, hasStorage)
+		hasStorage := it.HasNext()
 		if hasStorage {
 			return 1, nil
 		}
 		return 0, nil
-	}
-	if !bytes.Equal(a.CodeHash[:], commitment.EmptyCodeHash) {
-		fmt.Printf("ReadAccountIncarnation2: %x, %t\n", address, 1)
-		return 1, nil
-	}
-	fmt.Printf("ReadAccountIncarnation3: %x, %d, inc=%d, %d, %d\n", address, 0, a.Incarnation, &a.Balance, a.Nonce)
-	return 0, nil
+	*/
 }
 
 func (r *ReaderV4) ReadCommitment(prefix []byte) (enc []byte, err error) {

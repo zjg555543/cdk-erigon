@@ -125,6 +125,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 			panic(err)
 		}
 		rw.stateReader.SetTx(rw.chainTx)
+		rw.bufferedWriter.SetTx(rw.chainTx)
 		rw.chain = ChainReader{config: rw.chainConfig, tx: rw.chainTx, blockReader: rw.blockReader}
 	}
 	txTask.Error = nil

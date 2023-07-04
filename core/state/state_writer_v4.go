@@ -49,8 +49,18 @@ func (w *WriterV4) WriteAccountStorage(address libcommon.Address, incarnation ui
 	return w.domains.WriteAccountStorage(address.Bytes(), key.Bytes(), value.Bytes(), original.Bytes())
 }
 
-func (w *WriterV4) CreateContract(address libcommon.Address) error {
-	fmt.Printf("CreateContract skip: %x\n", address)
+func (w *WriterV4) CreateContract(address libcommon.Address) (err error) {
+	w.domains.SetTx(w.tx.(kv.RwTx))
+	err = w.domains.IterateStoragePrefix(w.tx, address[:], func(k, v []byte) {
+		if err != nil {
+			return
+		}
+		err = w.domains.WriteAccountStorage(k, nil, nil, v)
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 func (w *WriterV4) WriteChangeSets() error { return nil }
