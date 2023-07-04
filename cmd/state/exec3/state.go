@@ -98,6 +98,7 @@ func (rw *Worker) ResetTx(chainTx kv.Tx) {
 	if chainTx != nil {
 		rw.chainTx = chainTx
 		rw.stateReader.SetTx(rw.chainTx)
+		rw.bufferedWriter.SetTx(rw.chainTx)
 		rw.chain = ChainReader{config: rw.chainConfig, tx: rw.chainTx, blockReader: rw.blockReader}
 	}
 }
