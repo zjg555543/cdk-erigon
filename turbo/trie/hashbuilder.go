@@ -542,7 +542,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 	}
 	// Output hasState hashes or embedded RLPs
 	i = 0
-	//fmt.Printf("branchHash {\n")
+	fmt.Printf("branchHash {\n")
 	hb.b[0] = rlp.EmptyStringCode
 	for digit := uint(0); digit < 17; digit++ {
 		if ((1 << digit) & set) != 0 {
@@ -550,21 +550,21 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 				if _, err := writer.Write(hashes[hashStackStride*i : hashStackStride*i+hashStackStride]); err != nil {
 					return err
 				}
-				//fmt.Printf("%x: [%x]\n", digit, hashes[hashStackStride*i:hashStackStride*i+hashStackStride])
+				fmt.Printf("%x: [%x]\n", digit, hashes[hashStackStride*i:hashStackStride*i+hashStackStride])
 			} else {
 				// Embedded node
 				size := int(hashes[hashStackStride*i]) - rlp.EmptyListCode
 				if _, err := writer.Write(hashes[hashStackStride*i : hashStackStride*i+size+1]); err != nil {
 					return err
 				}
-				//fmt.Printf("%x: embedded [%x]\n", digit, hashes[hashStackStride*i:hashStackStride*i+size+1])
+				fmt.Printf("%x: embedded [%x]\n", digit, hashes[hashStackStride*i:hashStackStride*i+size+1])
 			}
 			i++
 		} else {
 			if _, err := writer.Write(hb.b[:]); err != nil {
 				return err
 			}
-			//fmt.Printf("%x: empty\n", digit)
+			fmt.Printf("%x: empty\n", digit)
 		}
 	}
 	hb.hashStack = hb.hashStack[:len(hb.hashStack)-hashStackStride*digits+hashStackStride]
@@ -573,7 +573,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 		return err
 	}
 
-	//fmt.Printf("} [%x]\n", hb.hashStack[len(hb.hashStack)-hashStackStride:])
+	fmt.Printf("} [%x]\n", hb.hashStack[len(hb.hashStack)-hashStackStride:])
 
 	if hashStackStride*len(hb.nodeStack) > len(hb.hashStack) {
 		hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-digits+1]
