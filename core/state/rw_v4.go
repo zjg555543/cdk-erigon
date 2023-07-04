@@ -48,9 +48,12 @@ func (w *StateWriterV4) WriteAccountStorage(address common.Address, incarnation 
 	return w.SharedDomains.WriteAccountStorage(address.Bytes(), key.Bytes(), value.Bytes(), original.Bytes())
 }
 
-func (w *StateWriterV4) CreateContract(address common.Address) error { return nil }
-func (w *StateWriterV4) WriteChangeSets() error                      { return nil }
-func (w *StateWriterV4) WriteHistory() error                         { return nil }
+func (w *StateWriterV4) CreateContract(address common.Address) error {
+	panic("implement me. see another v4 writer")
+	return nil
+}
+func (w *StateWriterV4) WriteChangeSets() error { return nil }
+func (w *StateWriterV4) WriteHistory() error    { return nil }
 
 type StateReaderV4 struct {
 	*state.SharedDomains
