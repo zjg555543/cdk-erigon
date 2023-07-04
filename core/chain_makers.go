@@ -484,7 +484,7 @@ func CalcHashRootForTests(tx kv.RwTx, header *types.Header, histV4 bool) (hashRo
 				}
 			}
 			newK, err := hashKeyAndAddIncarnation(k, h)
-			fmt.Printf("plain key in test: %x %x -> %x\n", k, v, newK)
+			fmt.Printf("plain key in test: %x, %x -> %x\n", k, v, newK)
 			if err != nil {
 				return hashRoot, fmt.Errorf("clear HashedAccounts bucket: %w", err)
 			}
