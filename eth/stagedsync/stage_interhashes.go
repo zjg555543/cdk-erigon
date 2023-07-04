@@ -610,6 +610,7 @@ func IncrementIntermediateHashes(logPrefix string, s *StageState, db kv.RwTx, to
 		return trie.EmptyRoot, err
 	}
 
+	fmt.Printf("root: %x\n", hash)
 	if cfg.checkRoot && hash != expectedRootHash {
 		return hash, nil
 	}
