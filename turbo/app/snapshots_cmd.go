@@ -433,7 +433,7 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	db.View(ctx, func(tx kv.Tx) error {
 		ac := agg.MakeContext()
 		defer ac.Close()
-		_, _, err := ac.GetLatest(kv.AccountsDomain, common.FromHex("e70fd65144383e1189bd710b1e23b61e26315ff8"), nil, tx)
+		_, _, err := ac.GetLatest(kv.AccountsDomain, common.FromHex("0ca851e4d324e5618abf6bc8c3998903d73cd639"), nil, tx)
 		return err
 	})
 	panic(1)
