@@ -157,7 +157,7 @@ func preloadFileAsync(name string) {
 
 func doBtSearch(cliCtx *cli.Context) error {
 	srcF := cliCtx.String("src")
-	idx, err := libstate.OpenBtreeIndex(srcF, strings.TrimRight(srcF, ".bt")+".kv", libstate.DefaultBtreeM)
+	idx, err := libstate.OpenBtreeIndex(srcF, strings.TrimRight(srcF, ".bt")+".kv", libstate.DefaultBtreeM, true)
 	if err != nil {
 		return err
 	}
