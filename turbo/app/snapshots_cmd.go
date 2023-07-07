@@ -163,6 +163,13 @@ func doBtSearch(cliCtx *cli.Context) error {
 	}
 	defer idx.Close()
 	seek := common.FromHex("0ca851e4d324e5618abf6bc8c3998903d73cd639")
+
+	minD, maxD, _, found, err := idx.FindNodeDbg(seek)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("FindNodeDbg: %x, -> %d:%d, %t\n", seek, minD, maxD, found)
+
 	cur, err := idx.Seek(seek)
 	if err != nil {
 		return err
