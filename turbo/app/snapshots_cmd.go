@@ -102,6 +102,10 @@ var snapshotCommand = cli.Command{
 					Name:     "src",
 					Required: true,
 				},
+				&cli.StringFlag{
+					Name:     "key",
+					Required: true,
+				},
 			}, debug.Flags, logging.Flags),
 		},
 		{
@@ -162,7 +166,7 @@ func doBtSearch(cliCtx *cli.Context) error {
 		return err
 	}
 	defer idx.Close()
-	seek := common.FromHex("0000000000000000000000000000000000000002")
+	seek := common.FromHex(cliCtx.String("key"))
 
 	minD, maxD, _, found, err := idx.FindNodeDbg(seek)
 	if err != nil {
