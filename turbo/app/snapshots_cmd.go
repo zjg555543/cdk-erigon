@@ -436,6 +436,7 @@ func doRetireCommand(cliCtx *cli.Context) error {
 		_, _, err := ac.GetLatest(kv.AccountsDomain, common.FromHex("e70fd65144383e1189bd710b1e23b61e26315ff8"), nil, tx)
 		return err
 	})
+	panic(1)
 
 	if to == 0 {
 		var forwardProgress uint64
