@@ -430,6 +430,12 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	}
 	agg.SetWorkers(estimate.CompressSnapshot.Workers())
 	agg.CleanDir()
+	db.View(ctx, func(tx kv.Tx) error {
+		ac := agg.MakeContext()
+		defer ac.Close()
+		_, _, err := ac.GetLatest(kv.AccountsDomain, common.FromHex("e70fd65144383e1189bd710b1e23b61e26315ff8"), nil, tx)
+		return err
+	})
 
 	if to == 0 {
 		var forwardProgress uint64
