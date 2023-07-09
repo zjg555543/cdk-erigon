@@ -17,6 +17,7 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/common/dir"
 	"github.com/ledgerwatch/erigon-lib/compress"
 	"github.com/ledgerwatch/erigon-lib/downloader/snaptype"
@@ -161,14 +162,48 @@ func preloadFileAsync(name string) {
 
 func doBtSearch(cliCtx *cli.Context) error {
 	srcF := cliCtx.String("src")
-	idx, err := libstate.OpenBtreeIndex(srcF, strings.TrimRight(srcF, ".bt")+".kv", libstate.DefaultBtreeM)
+	dataFilePath := strings.TrimRight(srcF, ".bt") + ".kv"
+
+	runtime.GC()
+	var m runtime.MemStats
+	dbg.ReadMemStats(&m)
+	log.Info("before", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	idx, err := libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM, true)
 	if err != nil {
 		return err
 	}
 	defer idx.Close()
+
+	runtime.GC()
+	dbg.ReadMemStats(&m)
+	log.Info("after", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+
 	seek := common.FromHex(cliCtx.String("key"))
 
 	cur, err := idx.Seek(seek)
+	if err != nil {
+		return err
+	}
+	if cur != nil {
+		fmt.Printf("seek: %x, -> %x, %x\n", seek, cur.Key(), cur.Value())
+	} else {
+		fmt.Printf("seek: %x, -> nil\n", seek)
+	}
+	idx.Close()
+
+	runtime.GC()
+	dbg.ReadMemStats(&m)
+	log.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/2, true)
+	if err != nil {
+		return err
+	}
+	runtime.GC()
+	dbg.ReadMemStats(&m)
+	log.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	defer idx.Close()
+
+	cur, err = idx.Seek(seek)
 	if err != nil {
 		return err
 	}
