@@ -241,6 +241,24 @@ func doBtSearch(cliCtx *cli.Context) error {
 	} else {
 		fmt.Printf("seek: %x, -> nil\n", seek)
 	}
+
+	idx.Close()
+
+	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/2, true)
+	if err != nil {
+		return err
+	}
+	defer idx.Close()
+
+	cur, err = idx.Seek(seek)
+	if err != nil {
+		return err
+	}
+	if cur != nil {
+		fmt.Printf("seek: %x, -> %x, %x\n", seek, cur.Key(), cur.Value())
+	} else {
+		fmt.Printf("seek: %x, -> nil\n", seek)
+	}
 	return nil
 }
 
