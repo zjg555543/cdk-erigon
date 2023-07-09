@@ -208,6 +208,30 @@ func doBtSearch(cliCtx *cli.Context) error {
 	logger.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 	defer idx.Close()
 
+	runtime.GC()
+	dbg.ReadMemStats(&m)
+	logger.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/4, false)
+	if err != nil {
+		return err
+	}
+	runtime.GC()
+	dbg.ReadMemStats(&m)
+	logger.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	defer idx.Close()
+
+	runtime.GC()
+	dbg.ReadMemStats(&m)
+	logger.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/8, false)
+	if err != nil {
+		return err
+	}
+	runtime.GC()
+	dbg.ReadMemStats(&m)
+	logger.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	defer idx.Close()
+
 	cur, err = idx.Seek(seek)
 	if err != nil {
 		return err
