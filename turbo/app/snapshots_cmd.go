@@ -161,13 +161,18 @@ func preloadFileAsync(name string) {
 }
 
 func doBtSearch(cliCtx *cli.Context) error {
+	logger, err := debug.Setup(cliCtx, true /* root logger */)
+	if err != nil {
+		return err
+	}
+
 	srcF := cliCtx.String("src")
 	dataFilePath := strings.TrimRight(srcF, ".bt") + ".kv"
 
 	runtime.GC()
 	var m runtime.MemStats
 	dbg.ReadMemStats(&m)
-	log.Info("before", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	logger.Info("before", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 	idx, err := libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM, false)
 	if err != nil {
 		return err
@@ -176,7 +181,7 @@ func doBtSearch(cliCtx *cli.Context) error {
 
 	runtime.GC()
 	dbg.ReadMemStats(&m)
-	log.Info("after", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	logger.Info("after", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 
 	seek := common.FromHex(cliCtx.String("key"))
 
@@ -193,14 +198,14 @@ func doBtSearch(cliCtx *cli.Context) error {
 
 	runtime.GC()
 	dbg.ReadMemStats(&m)
-	log.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	logger.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/2, false)
 	if err != nil {
 		return err
 	}
 	runtime.GC()
 	dbg.ReadMemStats(&m)
-	log.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	logger.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 	defer idx.Close()
 
 	cur, err = idx.Seek(seek)
