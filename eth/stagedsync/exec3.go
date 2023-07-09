@@ -725,6 +725,14 @@ Loop:
 			case <-logEvery.C:
 				stepsInDB := rawdbhelpers.IdxStepsCountV3(applyTx)
 				progress.Log(rs, in, rws, count, inputBlockNum.Load(), outputBlockNum.Get(), outputTxNum.Load(), ExecRepeats.Get(), stepsInDB)
+				canPrune := agg.CanPrune(applyTx)
+				log.Warn("[dbg] can prune before commit", "canPrune", canPrune, "canPruneFrom", agg.CanPruneFrom(applyTx), "minimaxTxNumInFiles", agg.MinimaxTxNumInFiles())
+				if canPrune {
+					if err = agg.Prune(ctx, 100); err != nil { // prune part of retired data, before commit
+						return err
+					}
+				}
+
 				if rs.SizeEstimate() < commitThreshold {
 					break
 				}
@@ -740,8 +748,10 @@ Loop:
 
 					// prune befor flush, to speedup flush
 					tt := time.Now()
-					if agg.CanPrune(applyTx) {
-						if err = agg.Prune(ctx, 10); err != nil { // prune part of retired data, before commit
+					canPrune := agg.CanPrune(applyTx)
+					log.Warn("[dbg] can prune before commit", "canPrune", canPrune, "canPruneFrom", agg.CanPruneFrom(applyTx), "minimaxTxNumInFiles", agg.MinimaxTxNumInFiles())
+					if canPrune {
+						if err = agg.Prune(ctx, 100); err != nil { // prune part of retired data, before commit
 							return err
 						}
 					}
