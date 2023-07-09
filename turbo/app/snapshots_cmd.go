@@ -286,8 +286,6 @@ func doDecompressSpeed(cliCtx *cli.Context) error {
 	}
 	f := args.First()
 
-	preloadFileAsync(f)
-
 	decompressor, err := compress.NewDecompressor(f)
 	if err != nil {
 		return err
@@ -405,13 +403,13 @@ func doUncompress(cliCtx *cli.Context) error {
 	}
 	f := args.First()
 
-	preloadFileAsync(f)
-
 	decompressor, err := compress.NewDecompressor(f)
 	if err != nil {
 		return err
 	}
 	defer decompressor.Close()
+	defer decompressor.EnableReadAhead().DisableReadAhead()
+
 	wr := bufio.NewWriterSize(os.Stdout, int(128*datasize.MB))
 	defer wr.Flush()
 	logEvery := time.NewTicker(30 * time.Second)
@@ -419,7 +417,6 @@ func doUncompress(cliCtx *cli.Context) error {
 
 	var i uint
 	var numBuf [binary.MaxVarintLen64]byte
-	defer decompressor.EnableReadAhead().DisableReadAhead()
 
 	g := decompressor.MakeGetter()
 	buf := make([]byte, 0, 1*datasize.MB)
