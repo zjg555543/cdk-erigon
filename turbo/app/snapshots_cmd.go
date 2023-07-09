@@ -153,13 +153,6 @@ var (
 	}
 )
 
-func preloadFileAsync(name string) {
-	go func() {
-		ff, _ := os.Open(name)
-		_, _ = io.CopyBuffer(io.Discard, bufio.NewReaderSize(ff, 64*1024*1024), make([]byte, 64*1024*1024))
-	}()
-}
-
 func doBtSearch(cliCtx *cli.Context) error {
 	logger, err := debug.Setup(cliCtx, true /* root logger */)
 	if err != nil {
@@ -172,7 +165,7 @@ func doBtSearch(cliCtx *cli.Context) error {
 	runtime.GC()
 	var m runtime.MemStats
 	dbg.ReadMemStats(&m)
-	logger.Info("before", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	logger.Info("before open", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 	idx, err := libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM, false)
 	if err != nil {
 		return err
@@ -181,7 +174,7 @@ func doBtSearch(cliCtx *cli.Context) error {
 
 	runtime.GC()
 	dbg.ReadMemStats(&m)
-	logger.Info("after", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
+	logger.Info("after open", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
 
 	seek := common.FromHex(cliCtx.String("key"))
 
@@ -194,71 +187,7 @@ func doBtSearch(cliCtx *cli.Context) error {
 	} else {
 		fmt.Printf("seek: %x, -> nil\n", seek)
 	}
-	idx.Close()
 
-	runtime.GC()
-	dbg.ReadMemStats(&m)
-	logger.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
-	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/2, false)
-	if err != nil {
-		return err
-	}
-	runtime.GC()
-	dbg.ReadMemStats(&m)
-	logger.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
-	defer idx.Close()
-
-	runtime.GC()
-	dbg.ReadMemStats(&m)
-	logger.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
-	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/4, false)
-	if err != nil {
-		return err
-	}
-	runtime.GC()
-	dbg.ReadMemStats(&m)
-	logger.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
-	defer idx.Close()
-
-	runtime.GC()
-	dbg.ReadMemStats(&m)
-	logger.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
-	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/8, false)
-	if err != nil {
-		return err
-	}
-	runtime.GC()
-	dbg.ReadMemStats(&m)
-	logger.Info("after2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
-	defer idx.Close()
-
-	cur, err = idx.Seek(seek)
-	if err != nil {
-		return err
-	}
-	if cur != nil {
-		fmt.Printf("seek: %x, -> %x, %x\n", seek, cur.Key(), cur.Value())
-	} else {
-		fmt.Printf("seek: %x, -> nil\n", seek)
-	}
-
-	idx.Close()
-
-	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/2, true)
-	if err != nil {
-		return err
-	}
-	defer idx.Close()
-
-	cur, err = idx.Seek(seek)
-	if err != nil {
-		return err
-	}
-	if cur != nil {
-		fmt.Printf("seek: %x, -> %x, %x\n", seek, cur.Key(), cur.Value())
-	} else {
-		fmt.Printf("seek: %x, -> nil\n", seek)
-	}
 	return nil
 }
 
