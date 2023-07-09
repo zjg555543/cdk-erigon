@@ -728,7 +728,7 @@ Loop:
 				canPrune := agg.CanPrune(applyTx)
 				log.Warn("[dbg] can prune before commit", "canPrune", canPrune, "canPruneFrom", agg.CanPruneFrom(applyTx), "minimaxTxNumInFiles", agg.MinimaxTxNumInFiles())
 				if canPrune {
-					if err = agg.Prune(ctx, 100); err != nil { // prune part of retired data, before commit
+					if err = agg.Prune(ctx, 10); err != nil { // prune part of retired data, before commit
 						return err
 					}
 				}
@@ -751,7 +751,7 @@ Loop:
 					canPrune := agg.CanPrune(applyTx)
 					log.Warn("[dbg] can prune before commit", "canPrune", canPrune, "canPruneFrom", agg.CanPruneFrom(applyTx), "minimaxTxNumInFiles", agg.MinimaxTxNumInFiles())
 					if canPrune {
-						if err = agg.Prune(ctx, 100); err != nil { // prune part of retired data, before commit
+						if err = agg.Prune(ctx, 10); err != nil { // prune part of retired data, before commit
 							return err
 						}
 					}
