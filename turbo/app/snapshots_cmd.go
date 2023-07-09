@@ -168,7 +168,7 @@ func doBtSearch(cliCtx *cli.Context) error {
 	var m runtime.MemStats
 	dbg.ReadMemStats(&m)
 	log.Info("before", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
-	idx, err := libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM, true)
+	idx, err := libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM, false)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func doBtSearch(cliCtx *cli.Context) error {
 	runtime.GC()
 	dbg.ReadMemStats(&m)
 	log.Info("before2", "alloc", common.ByteCount(m.Alloc), "sys", common.ByteCount(m.Sys))
-	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/2, true)
+	idx, err = libstate.OpenBtreeIndex(srcF, dataFilePath, libstate.DefaultBtreeM/2, false)
 	if err != nil {
 		return err
 	}
