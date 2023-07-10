@@ -184,6 +184,10 @@ func ExecV3(ctx context.Context,
 		//defer blockSnapshots.EnableMadvNormal().DisableReadAhead()
 		//}
 	}
+	if !useExternalTx {
+		log.Warn(fmt.Sprintf("[snapshots] DB has: %s", agg.StepsRangeInDBAsStr(applyTx)))
+
+	}
 
 	var block, stageProgress uint64
 	var maxTxNum uint64
