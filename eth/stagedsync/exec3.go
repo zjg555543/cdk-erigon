@@ -184,10 +184,6 @@ func ExecV3(ctx context.Context,
 		//defer blockSnapshots.EnableMadvNormal().DisableReadAhead()
 		//}
 	}
-	if !useExternalTx {
-		log.Warn(fmt.Sprintf("[snapshots] DB has: %s", agg.StepsRangeInDBAsStr(applyTx)))
-
-	}
 
 	var block, stageProgress uint64
 	var maxTxNum uint64
@@ -244,6 +240,14 @@ func ExecV3(ctx context.Context,
 		}
 	}
 	agg.SetTxNum(inputTxNum)
+
+	blocksFreezeCfg := cfg.blockReader.FreezingCfg()
+	if !useExternalTx {
+		log.Warn(fmt.Sprintf("[snapshots] DB has: %s", agg.StepsRangeInDBAsStr(applyTx)))
+		if blocksFreezeCfg.Produce {
+			agg.BuildFilesInBackground(outputTxNum.Load())
+		}
+	}
 
 	var outputBlockNum = syncMetrics[stages.Execution]
 	inputBlockNum := &atomic.Uint64{}
@@ -539,8 +543,6 @@ func ExecV3(ctx context.Context,
 		readAhead, clean = blocksReadAhead(ctx, &cfg, 4, true)
 		defer clean()
 	}
-
-	blocksFreezeCfg := cfg.blockReader.FreezingCfg()
 
 	var b *types.Block
 	var blockNum uint64
