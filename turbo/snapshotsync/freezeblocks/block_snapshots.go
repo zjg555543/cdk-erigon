@@ -1332,7 +1332,7 @@ func hasIdxFile(sn *snaptype.FileInfo, logger log.Logger) bool {
 			logger.Warn("Index file has timestamp before segment file, will be recreated", "segfile", sn.Path, "segtime", stat.ModTime(), "idxfile", fName, "idxtime", idx.ModTime())
 			result = false
 		}
-		_ = idx.Close()
+		idx.Close()
 	case snaptype.Bodies:
 		idx, err := recsplit.OpenIndex(path.Join(dir, fName))
 		if err != nil {
@@ -1343,7 +1343,7 @@ func hasIdxFile(sn *snaptype.FileInfo, logger log.Logger) bool {
 			logger.Warn("Index file has timestamp before segment file, will be recreated", "segfile", sn.Path, "segtime", stat.ModTime(), "idxfile", fName, "idxtime", idx.ModTime())
 			result = false
 		}
-		_ = idx.Close()
+		idx.Close()
 	case snaptype.Transactions:
 		idx, err := recsplit.OpenIndex(path.Join(dir, fName))
 		if err != nil {
@@ -1354,7 +1354,7 @@ func hasIdxFile(sn *snaptype.FileInfo, logger log.Logger) bool {
 			log.Warn("Index file has timestamp before segment file, will be recreated", "segfile", sn.Path, "segtime", stat.ModTime(), "idxfile", fName, "idxtime", idx.ModTime())
 			result = false
 		}
-		_ = idx.Close()
+		idx.Close()
 
 		fName = snaptype.IdxFileName(sn.From, sn.To, snaptype.Transactions2Block.String())
 		idx, err = recsplit.OpenIndex(path.Join(dir, fName))
@@ -1366,7 +1366,7 @@ func hasIdxFile(sn *snaptype.FileInfo, logger log.Logger) bool {
 			logger.Warn("Index file has timestamp before segment file, will be recreated", "segfile", sn.Path, "segtime", stat.ModTime(), "idxfile", fName, "idxtime", idx.ModTime())
 			result = false
 		}
-		_ = idx.Close()
+		idx.Close()
 	}
 	return result
 }
@@ -1387,7 +1387,7 @@ func DumpTxs(ctx context.Context, db kv.RoDB, blockFrom, blockTo uint64, chainCo
 	slot := types2.TxSlot{}
 	var sender [20]byte
 	parse := func(v, valueBuf []byte, senders []common2.Address, j int) ([]byte, error) {
-		if _, err := parseCtx.ParseTransaction(v, 0, &slot, sender[:], false /* hasEnvelope */, nil); err != nil {
+		if _, err := parseCtx.ParseTransaction(v, 0, &slot, sender[:], false /* hasEnvelope */, false /* wrappedWithBlobs */, nil); err != nil {
 			return valueBuf, err
 		}
 		if len(senders) > 0 {
@@ -1768,7 +1768,7 @@ RETRY:
 		if isSystemTx { // system-txs hash:pad32(txnID)
 			binary.BigEndian.PutUint64(slot.IDHash[:], firstTxID+i)
 		} else {
-			if _, err = parseCtx.ParseTransaction(word[firstTxByteAndlengthOfAddress:], 0, &slot, nil, true /* hasEnvelope */, nil /* validateHash */); err != nil {
+			if _, err = parseCtx.ParseTransaction(word[firstTxByteAndlengthOfAddress:], 0, &slot, nil, true /* hasEnvelope */, false /* wrappedWithBlobs */, nil /* validateHash */); err != nil {
 				return fmt.Errorf("ParseTransaction: %w, blockNum: %d, i: %d", err, blockNum, i)
 			}
 		}
