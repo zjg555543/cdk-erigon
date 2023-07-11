@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -56,6 +57,7 @@ func (api *APIImpl) GetTransactionByHash(ctx context.Context, txnHash common.Has
 			return nil, nil
 		}
 		blockHash := block.Hash()
+		fmt.Printf("Found block %d hash %x\n", blockNum, blockHash)
 		var txnIndex uint64
 		var txn types2.Transaction
 		for i, transaction := range block.Transactions() {
