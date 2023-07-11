@@ -384,7 +384,7 @@ func TestHiveTrieRoot(t *testing.T) {
 		common.FromHex("02081bc16d674ec80000")))
 
 	historyV3 := false
-	blockReader := freezeblocks.NewBlockReader(freezeblocks.NewRoSnapshots(ethconfig.BlocksFreezing{Enabled: false}, "", log.New()))
+	blockReader := freezeblocks.NewBlockReader(freezeblocks.NewRoSnapshots(ethconfig.BlocksFreezing{Enabled: false}, "", log.New()), false /* borTxHash */)
 	cfg := stagedsync.StageTrieCfg(db, false, true, false, t.TempDir(), blockReader, nil, historyV3, nil)
 	logger := log.New()
 	_, err := stagedsync.RegenerateIntermediateHashes("IH", tx, cfg, libcommon.Hash{} /* expectedRootHash */, ctx, logger)
