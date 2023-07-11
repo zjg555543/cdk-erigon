@@ -230,7 +230,7 @@ func syncBySmallSteps(db kv.RwDB, miningConfig params.MiningConfig, ctx context.
 	syncCfg.ExecWorkerCount = int(workers)
 	syncCfg.ReconWorkerCount = int(reconWorkers)
 
-	br, _ := blocksIO(db, logger1)
+	br, _ := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger1)
 	execCfg := stagedsync.StageExecuteBlocksCfg(db, pm, batchSize, changeSetHook, chainConfig, engine, vmConfig, changesAcc, false, false, historyV3, dirs,
 		br, nil, genesis, syncCfg, agg)
 
@@ -485,7 +485,8 @@ func loopIh(db kv.RwDB, ctx context.Context, unwind uint64, logger log.Logger) e
 	}
 	_ = sync.SetCurrentStage(stages.IntermediateHashes)
 	u = &stagedsync.UnwindState{ID: stages.IntermediateHashes, UnwindPoint: to}
-	br, _ := blocksIO(db, logger)
+	chainConfig := fromdb.ChainConfig(db)
+	br, _ := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 	if err = stagedsync.UnwindIntermediateHashesStage(u, stage(sync, tx, nil, stages.IntermediateHashes), tx, stagedsync.StageTrieCfg(db, true, true, false, dirs.Tmp,
 		br, nil, historyV3, agg), ctx, logger); err != nil {
 		return err
@@ -565,7 +566,7 @@ func loopExec(db kv.RwDB, ctx context.Context, unwind uint64, logger log.Logger)
 	syncCfg.ReconWorkerCount = int(reconWorkers)
 
 	initialCycle := false
-	br, _ := blocksIO(db, logger)
+	br, _ := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 	cfg := stagedsync.StageExecuteBlocksCfg(db, pm, batchSize, nil, chainConfig, engine, vmConfig, nil,
 		/*stateStream=*/ false,
 		/*badBlockHalt=*/ false, historyV3, dirs, br, nil, genesis, syncCfg, agg)

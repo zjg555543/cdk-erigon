@@ -207,12 +207,12 @@ func (r *RemoteBlockReader) BodyRlp(ctx context.Context, tx kv.Getter, hash comm
 
 // BlockReader can read blocks from db and snapshots
 type BlockReader struct {
-	sn             *RoSnapshots
-	TransactionsV3 bool
+	sn          *RoSnapshots
+	borTxHashes bool // Whether txnByHash should be looking for special bor-block transactions
 }
 
-func NewBlockReader(snapshots services.BlockSnapshots) *BlockReader {
-	return &BlockReader{sn: snapshots.(*RoSnapshots), TransactionsV3: true}
+func NewBlockReader(snapshots services.BlockSnapshots, borTxHashes bool) *BlockReader {
+	return &BlockReader{sn: snapshots.(*RoSnapshots), borTxHashes: borTxHashes}
 }
 
 func (r *BlockReader) CanPruneTo(currentBlockInDB uint64) uint64 {
@@ -690,14 +690,15 @@ func (r *BlockReader) txnByHash(txnHash common.Hash, segments []*TxnSegment, buf
 		}
 
 		txn.SetSender(sender) // see: https://tip.golang.org/ref/spec#Conversions_from_slice_to_array_pointer
+		// final txnHash check  - completely avoid false-positives
+		if txn.Hash() != txnHash {
+			txn = nil
+			continue
+		}
 
 		reader2 := recsplit.NewIndexReader(sn.IdxTxnHash2BlockNum)
 		blockNum = reader2.Lookup(txnHash[:])
 
-		// final txnHash check  - completely avoid false-positives
-		if txn.Hash() == txnHash {
-			return
-		}
 	}
 	return
 }

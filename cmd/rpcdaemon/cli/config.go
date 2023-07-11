@@ -385,7 +385,7 @@ func RemoteServices(ctx context.Context, cfg httpcfg.HttpCfg, logger log.Logger,
 			}()
 		}
 		onNewSnapshot()
-		blockReader = freezeblocks.NewBlockReader(allSnapshots)
+		blockReader = freezeblocks.NewBlockReader(allSnapshots, cc.Bor != nil /* borTxHashes */)
 
 		var histV3Enabled bool
 		_ = db.View(ctx, func(tx kv.Tx) error {

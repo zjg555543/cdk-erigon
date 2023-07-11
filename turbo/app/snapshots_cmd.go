@@ -413,7 +413,8 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	if err := snapshots.ReopenFolder(); err != nil {
 		return err
 	}
-	blockReader := freezeblocks.NewBlockReader(snapshots)
+	chainConfig := fromdb.ChainConfig(db)
+	blockReader := freezeblocks.NewBlockReader(snapshots, chainConfig.Bor != nil /* borTxHash */)
 	blockWriter := blockio.NewBlockWriter(fromdb.HistV3(db))
 
 	br := freezeblocks.NewBlockRetire(estimate.CompressSnapshot.Workers(), dirs, blockReader, blockWriter, db, nil, logger)

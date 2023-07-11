@@ -240,7 +240,7 @@ func Erigon4(genesis *types.Genesis, chainConfig *chain2.Config, logger log.Logg
 	if err := allSnapshots.ReopenFolder(); err != nil {
 		return fmt.Errorf("reopen snapshot segments: %w", err)
 	}
-	blockReader = freezeblocks.NewBlockReader(allSnapshots)
+	blockReader = freezeblocks.NewBlockReader(allSnapshots, false /* borTxHash */)
 	engine := initConsensusEngine(chainConfig, allSnapshots, logger)
 
 	getHeader := func(hash libcommon.Hash, number uint64) *types.Header {

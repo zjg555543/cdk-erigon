@@ -259,7 +259,7 @@ func MockWithEverything(tb testing.TB, gspec *types.Genesis, key *ecdsa.PrivateK
 		},
 		PeerId:         gointerfaces.ConvertHashToH512([64]byte{0x12, 0x34, 0x50}), // "12345"
 		BlockSnapshots: allSnapshots,
-		BlockReader:    freezeblocks.NewBlockReader(allSnapshots),
+		BlockReader:    freezeblocks.NewBlockReader(allSnapshots, gspec.Config.Bor != nil /* borTxHashes */),
 		HistoryV3:      cfg.HistoryV3,
 	}
 	if tb != nil {

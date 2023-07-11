@@ -695,9 +695,9 @@ func stageHeaders(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	sn, agg := allSnapshots(ctx, db, logger)
 	defer sn.Close()
 	defer agg.Close()
-	br, bw := blocksIO(db, logger)
 	engine, _, _, _, _ := newSync(ctx, db, nil /* miningConfig */, logger)
 	chainConfig, _, _ := fromdb.ChainConfig(db), kvcfg.HistoryV3.FromDB(db), fromdb.PruneMode(db)
+	br, bw := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 
 	return db.Update(ctx, func(tx kv.RwTx) error {
 		if !(unwind > 0 || reset) {
@@ -770,7 +770,7 @@ func stageBodies(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	defer agg.Close()
 	chainConfig, historyV3 := fromdb.ChainConfig(db), kvcfg.HistoryV3.FromDB(db)
 	_, _, sync, _, _ := newSync(ctx, db, nil /* miningConfig */, logger)
-	br, bw := blocksIO(db, logger)
+	br, bw := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
 		s := stage(sync, tx, nil, stages.Bodies)
@@ -811,7 +811,7 @@ func stageSenders(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 
 	must(sync.SetCurrentStage(stages.Senders))
 
-	br, _ := blocksIO(db, logger)
+	br, _ := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 	if reset {
 		return db.Update(ctx, func(tx kv.RwTx) error { return reset2.ResetSenders(ctx, db, tx) })
 	}
@@ -933,7 +933,7 @@ func stageExec(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	syncCfg.ReconWorkerCount = int(reconWorkers)
 
 	genesis := core.GenesisBlockByChainName(chain)
-	br, _ := blocksIO(db, logger)
+	br, _ := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 	cfg := stagedsync.StageExecuteBlocksCfg(db, pm, batchSize, nil, chainConfig, engine, vmConfig, nil,
 		/*stateStream=*/ false,
 		/*badBlockHalt=*/ false, historyV3, dirs, br, nil, genesis, syncCfg, agg)
@@ -1008,7 +1008,8 @@ func stageTrie(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 
 	logger.Info("StageExec", "progress", execStage.BlockNumber)
 	logger.Info("StageTrie", "progress", s.BlockNumber)
-	br, _ := blocksIO(db, logger)
+	chainConfig := fromdb.ChainConfig(db)
+	br, _ := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 	cfg := stagedsync.StageTrieCfg(db, true /* checkRoot */, true /* saveHashesToDb */, false /* badBlockHalt */, dirs.Tmp, br, nil /* hd */, historyV3, agg)
 	if unwind > 0 {
 		u := sync.NewUnwindState(stages.IntermediateHashes, s.BlockNumber-unwind, s.BlockNumber)
@@ -1309,7 +1310,7 @@ func stageTxLookup(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	}
 	logger.Info("Stage", "name", s.ID, "progress", s.BlockNumber)
 
-	br, _ := blocksIO(db, logger)
+	br, _ := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 	cfg := stagedsync.StageTxLookupCfg(db, pm, dirs.Tmp, chainConfig.Bor, br)
 	if unwind > 0 {
 		u := sync.NewUnwindState(stages.TxLookup, s.BlockNumber-unwind, s.BlockNumber)
@@ -1414,11 +1415,11 @@ var openBlockReaderOnce sync.Once
 var _blockReaderSingleton services.FullBlockReader
 var _blockWriterSingleton *blockio.BlockWriter
 
-func blocksIO(db kv.RoDB, logger log.Logger) (services.FullBlockReader, *blockio.BlockWriter) {
+func blocksIO(db kv.RoDB, borTxHash bool, logger log.Logger) (services.FullBlockReader, *blockio.BlockWriter) {
 	openBlockReaderOnce.Do(func() {
 		sn, _ := allSnapshots(context.Background(), db, logger)
 		histV3 := kvcfg.HistoryV3.FromDB(db)
-		_blockReaderSingleton = freezeblocks.NewBlockReader(sn)
+		_blockReaderSingleton = freezeblocks.NewBlockReader(sn, borTxHash)
 		_blockWriterSingleton = blockio.NewBlockWriter(histV3)
 	})
 	return _blockReaderSingleton, _blockWriterSingleton
@@ -1534,7 +1535,7 @@ func newSync(ctx context.Context, db kv.RwDB, miningConfig *params.MiningConfig,
 
 	engine := initConsensusEngine(chainConfig, cfg.Dirs.DataDir, db, logger)
 
-	blockReader, blockWriter := blocksIO(db, logger)
+	blockReader, blockWriter := blocksIO(db, chainConfig.Bor != nil /* borTxHash */, logger)
 	sentryControlServer, err := sentry.NewMultiClient(
 		db,
 		"",
