@@ -676,6 +676,7 @@ func (r *BlockReader) txnByHash(txnHash common.Hash, segments []*TxnSegment, buf
 		}
 		reader2 := recsplit.NewIndexReader(sn.IdxTxnHash2BlockNum)
 		blockNum = reader2.Lookup(txnHash[:])
+		fmt.Printf("segment %d, blockNum %d, borTxHashes\n", i, blockNum, r.borTxHashes)
 		if r.borTxHashes {
 			var header *types.Header
 			if header, _, err = r.headerFromSnapshot(blockNum, r.sn.Headers.segments[i], nil); err != nil {
