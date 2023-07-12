@@ -665,6 +665,7 @@ func (r *BlockReader) txnByID(txnID uint64, sn *TxnSegment, buf []byte) (txn typ
 }
 
 func (r *BlockReader) txnByHash(txnHash common.Hash, segments []*TxnSegment, buf []byte) (txn types.Transaction, blockNum, txnNum uint64, err error) {
+	fmt.Printf("txnByHash %x\n", txnHash)
 	for i := len(segments) - 1; i >= 0; i-- {
 		sn := segments[i]
 		if sn.IdxTxnHash == nil || sn.IdxTxnHash2BlockNum == nil {
