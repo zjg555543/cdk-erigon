@@ -959,7 +959,12 @@ func BuildMissedIndices(logPrefix string, ctx context.Context, dirs datadir.Dirs
 				p := &background.Progress{}
 				ps.Add(p)
 				defer ps.Delete(p)
-				return buildIdx(gCtx, sn, nil, chainConfig, tmpDir, p, log.LvlInfo, logger)
+				var blockHashes blockHashStore
+
+				if chainConfig.Bor != nil {
+					blockHashes = newSyncHashStore(chainConfig, sn.From, sn.To)
+				}
+				return buildIdx(gCtx, sn, blockHashes, chainConfig, tmpDir, p, log.LvlInfo, logger)
 			})
 		}
 	}
