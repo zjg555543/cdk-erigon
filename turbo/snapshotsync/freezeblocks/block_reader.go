@@ -664,20 +664,38 @@ func (r *BlockReader) txnByID(txnID uint64, sn *TxnSegment, buf []byte) (txn typ
 	return
 }
 
-func (r *BlockReader) txnByHash(txnHash common.Hash, segments []*TxnSegment, buf []byte) (txn types.Transaction, blockNum, txnID uint64, err error) {
+func (r *BlockReader) txnByHash(txnHash common.Hash, segments []*TxnSegment, buf []byte) (txn types.Transaction, blockNum, txnNum uint64, err error) {
 	for i := len(segments) - 1; i >= 0; i-- {
 		sn := segments[i]
 		if sn.IdxTxnHash == nil || sn.IdxTxnHash2BlockNum == nil {
+			txn = nil
+			txnNum = 0
+			blockNum = 0
 			continue
+		}
+		reader2 := recsplit.NewIndexReader(sn.IdxTxnHash2BlockNum)
+		blockNum = reader2.Lookup(txnHash[:])
+		if r.borTxHashes {
+			var header *types.Header
+			if header, _, err = r.headerFromSnapshot(blockNum, r.sn.Headers.segments[i], nil); err != nil {
+				return
+			}
+			borTxHash := types.ComputeBorTxHash(blockNum, header.Hash())
+			if txnHash == borTxHash {
+				return
+			}
 		}
 
 		reader := recsplit.NewIndexReader(sn.IdxTxnHash)
-		txnId := reader.Lookup(txnHash[:])
-		offset := sn.IdxTxnHash.OrdinalLookup(txnId)
+		txnNum = reader.Lookup(txnHash[:])
+		offset := sn.IdxTxnHash.OrdinalLookup(txnNum)
 		gg := sn.Seg.MakeGetter()
 		gg.Reset(offset)
 		// first byte txnHash check - reducing false-positives 256 times. Allows don't store and don't calculate full hash of entity - when checking many snapshots.
 		if !gg.MatchPrefix([]byte{txnHash[0]}) {
+			txn = nil
+			txnNum = 0
+			blockNum = 0
 			continue
 		}
 		buf, _ = gg.Next(buf[:0])
@@ -693,12 +711,10 @@ func (r *BlockReader) txnByHash(txnHash common.Hash, segments []*TxnSegment, buf
 		// final txnHash check  - completely avoid false-positives
 		if txn.Hash() != txnHash {
 			txn = nil
+			txnNum = 0
+			blockNum = 0
 			continue
 		}
-
-		reader2 := recsplit.NewIndexReader(sn.IdxTxnHash2BlockNum)
-		blockNum = reader2.Lookup(txnHash[:])
-
 	}
 	return
 }
@@ -764,7 +780,7 @@ func (r *BlockReader) TxnLookup(ctx context.Context, tx kv.Getter, txnHash commo
 		return 0, false, err
 	}
 	if txn == nil {
-		return 0, false, nil
+		return blockNum, false, nil
 	}
 	return blockNum, true, nil
 }

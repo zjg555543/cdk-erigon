@@ -57,7 +57,6 @@ func (api *APIImpl) GetTransactionByHash(ctx context.Context, txnHash common.Has
 			return nil, nil
 		}
 		blockHash := block.Hash()
-		fmt.Printf("Found block %d hash %x\n", blockNum, blockHash)
 		var txnIndex uint64
 		var txn types2.Transaction
 		for i, transaction := range block.Transactions() {
@@ -87,6 +86,29 @@ func (api *APIImpl) GetTransactionByHash(ctx context.Context, txnHash common.Has
 		}
 
 		return newRPCTransaction(txn, blockHash, blockNum, txnIndex, baseFee), nil
+	} else if blockNum > 0 && chainConfig.Bor != nil {
+		fmt.Printf("Find bor tx in snapshots blockNum %n\n", blockNum)
+		if chainConfig.Bor == nil {
+			return nil, nil
+		}
+		block, err := api.blockByNumberWithSenders(ctx, tx, blockNum)
+		if err != nil {
+			return nil, err
+		}
+		if block == nil {
+			return nil, nil
+		}
+		borTx, _, _, _ := rawdb.ReadBorTransactionForBlock(tx, block)
+		if borTx == nil {
+			return nil, nil
+		}
+		blockHash := block.Hash()
+		// Add GasPrice for the DynamicFeeTransaction
+		var baseFee *big.Int
+		if chainConfig.IsLondon(blockNum) && blockHash != (common.Hash{}) {
+			baseFee = block.BaseFee()
+		}
+		return newRPCBorTransaction(borTx, txnHash, blockHash, blockNum, uint64(len(block.Transactions())), baseFee, chainConfig.ChainID), nil
 	}
 
 	curHeader := rawdb.ReadCurrentHeader(tx)
