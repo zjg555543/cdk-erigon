@@ -1734,8 +1734,8 @@ func TransactionsIdx(ctx context.Context, chainConfig *chain.Config, blockFrom, 
 	slot := types2.TxSlot{}
 	bodyBuf, word := make([]byte, 0, 4096), make([]byte, 0, 4096)
 
-	defer d.EnableMadvNormal().DisableReadAhead()
-	defer bodiesSegment.EnableMadvNormal().DisableReadAhead()
+	defer d.EnableReadAhead().DisableReadAhead()
+	defer bodiesSegment.EnableReadAhead().DisableReadAhead()
 
 RETRY:
 	g, bodyGetter := d.MakeGetter(), bodiesSegment.MakeGetter()
@@ -1908,7 +1908,7 @@ func Idx(ctx context.Context, d *compress.Decompressor, firstDataID uint64, tmpD
 	}
 	rs.LogLvl(log.LvlDebug)
 
-	defer d.EnableMadvNormal().DisableReadAhead()
+	defer d.EnableReadAhead().DisableReadAhead()
 
 RETRY:
 	g := d.MakeGetter()

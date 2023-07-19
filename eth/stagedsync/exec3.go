@@ -256,7 +256,6 @@ func ExecV3(ctx context.Context,
 		//if err := agg.BuildMissedIndices(ctx, 100); err != nil {
 		//	return err
 		//}
-		//agg.BuildOptionalMissedIndicesInBackground(ctx, 100)
 		agg.BuildFilesInBackground(outputTxNum.Load())
 	}
 
