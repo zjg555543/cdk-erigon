@@ -411,6 +411,7 @@ func MockWithEverything(t *testing.T, gspec *types.Genesis, key *ecdsa.PrivateKe
 				mock.HistoryV3,
 				mock.agg,
 			),
+			stagedsync.StageRpcRootsCfg(mock.DB, mock.ChainConfig),
 			stagedsync.StageHeadersCfg(
 				mock.DB,
 				mock.sentriesClient.Hd,
