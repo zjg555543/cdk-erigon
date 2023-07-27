@@ -20,7 +20,6 @@ import (
 
 	ericommon "github.com/ledgerwatch/erigon/common"
 	ethTypes "github.com/ledgerwatch/erigon/core/types"
-	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 )
 
 // Synchronizer connects L1 and L2
@@ -60,8 +59,8 @@ func NewSynchronizer(
 		zkEVMClient:        zkEVMClient,
 		cfg:                cfg,
 		// [zkevm] - restrict progress
-		restrictAtL1Block: 17782337,
-		restrictAtL2Batch: 372893,
+		restrictAtL1Block: 0,
+		restrictAtL2Batch: 0,
 	}, nil
 }
 
@@ -74,18 +73,19 @@ func (s *ClientSynchronizer) Sync(tx kv.RwTx) error {
 	// Get the latest synced block. If there is no block on db, use genesis block
 	log.Info("Sync started")
 
-	highestInDb, err := stages.GetStageProgress(tx, stages.L1Blocks)
+	// Call the blockchain to get the header at the tip of the chain
+	header, err := s.etherMan.HeaderByNumber(s.ctx, nil)
 	if err != nil {
 		return err
 	}
-
-	if highestInDb == 0 {
-		// TODO: this isn't recorded in the DB despite running genesis_write funcs
-		// need genesis update
-		log.Warn("Genesis block not found in db")
-	}
+	lastKnownBlock := header.Number
 
 	lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx, tx)
+
+	if lastEthBlockSynced.BlockNumber >= lastKnownBlock.Uint64() {
+		log.Info("L1 state fully synchronized")
+		return nil
+	}
 
 	if s.restrictAtL1Block != 0 && lastEthBlockSynced.BlockNumber >= s.restrictAtL1Block {
 		log.Info("Restricted Sync finished")

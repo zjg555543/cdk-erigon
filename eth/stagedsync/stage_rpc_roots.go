@@ -10,10 +10,8 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	scalable "github.com/ledgerwatch/erigon/cmd/hack/zkevm"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
-	"github.com/ledgerwatch/log/v3"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -48,13 +46,6 @@ func RpcRootsForward(
 		defer tx.Rollback()
 	}
 
-	if !firstCycle {
-		// TODO: non-first cycle handling
-		// at the tip the algo below is inefficient (writing the whole json file)
-		// in this case we should just write the DB with retrieved hashes and continue
-		return nil
-	}
-
 	// call rpc to get latest block no
 	txNo, err := getHighestTxNo()
 	if err != nil {
@@ -70,11 +61,19 @@ func RpcRootsForward(
 		return nil
 	}
 
-	// checks for missing rpc hashes up to max. tx num and downloads them from the rpc
-	scalable.DownloadScalableHashes(ctx, "zkevm-roots.json", int64(txNo))
+	if !firstCycle {
+		res := scalable.DownloadScalableHashes(ctx, "zkevm-roots.json", int64(txNo), false, int64(prog))
+		err = putRootsInDb(tx, res)
+		if err != nil {
+			return err
+		}
+		return stages.SaveStageProgress(tx, stages.RpcRoots, uint64(txNo))
+	}
 
-	// loads zkevm-roots.json into the db
-	err = loadHermezRpcRoots(tx)
+	// checks for missing rpc hashes up to max. tx num and downloads them from the rpc
+	res := scalable.DownloadScalableHashes(ctx, "zkevm-roots.json", int64(txNo), true, 1)
+
+	err = putRootsInDb(tx, res)
 	if err != nil {
 		return err
 	}
@@ -87,32 +86,16 @@ func RpcRootsForward(
 	return tx.Commit()
 }
 
-func loadHermezRpcRoots(tx kv.RwTx) error {
-	log.Info("Loading hermez rpc roots")
-
-	rootsFile, err := os.Open("zkevm-roots.json")
-	if err != nil {
-		return err
-	}
-	defer rootsFile.Close()
-
-	results := make(map[int64]string, 0)
-	jsonParser := json.NewDecoder(rootsFile)
-	err = jsonParser.Decode(&results)
-	if err != nil {
-		return err
-	}
-
+func putRootsInDb(tx kv.RwTx, results map[int64]string) error {
 	for k, v := range results {
 		b := make([]byte, 8)
 		binary.BigEndian.PutUint64(b, uint64(k))
 		bv := hexutility.FromHex(trimHexString(v))
-		err = tx.Put("HermezRpcRoot", b, bv)
+		err := tx.Put("HermezRpcRoot", b, bv)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
