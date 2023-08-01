@@ -80,7 +80,7 @@ func NewEVMTxContext(msg Message) evmtypes.TxContext {
 	return evmtypes.TxContext{
 		Origin:     msg.From(),
 		GasPrice:   msg.GasPrice(),
-		BlobHashes: msg.BlobHashes(),
+		DataHashes: msg.DataHashes(),
 	}
 }
 

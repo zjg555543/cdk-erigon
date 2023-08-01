@@ -101,8 +101,6 @@ type Header struct {
 	BlobGasUsed   *uint64 `json:"blobGasUsed"`
 	ExcessBlobGas *uint64 `json:"excessBlobGas"`
 
-	ParentBeaconBlockRoot *libcommon.Hash `json:"parentBeaconBlockRoot"` // EIP-4788
-
 	// The verkle proof is ignored in legacy headers
 	Verkle        bool
 	VerkleProof   []byte
@@ -167,10 +165,6 @@ func (h *Header) EncodingSize() int {
 	if h.ExcessBlobGas != nil {
 		encodingSize++
 		encodingSize += rlp.IntLenExcludingHead(*h.ExcessBlobGas)
-	}
-
-	if h.ParentBeaconBlockRoot != nil {
-		encodingSize += 33
 	}
 
 	if h.Verkle {
@@ -322,16 +316,6 @@ func (h *Header) EncodeRLP(w io.Writer) error {
 	}
 	if h.ExcessBlobGas != nil {
 		if err := rlp.EncodeInt(*h.ExcessBlobGas, w, b[:]); err != nil {
-			return err
-		}
-	}
-
-	if h.ParentBeaconBlockRoot != nil {
-		b[0] = 128 + 32
-		if _, err := w.Write(b[:1]); err != nil {
-			return err
-		}
-		if _, err := w.Write(h.ParentBeaconBlockRoot.Bytes()); err != nil {
 			return err
 		}
 	}
@@ -507,23 +491,6 @@ func (h *Header) DecodeRLP(s *rlp.Stream) error {
 	}
 	h.ExcessBlobGas = &excessBlobGas
 
-	// ParentBeaconBlockRoot
-	if b, err = s.Bytes(); err != nil {
-		if errors.Is(err, rlp.EOL) {
-			h.ParentBeaconBlockRoot = nil
-			if err := s.ListEnd(); err != nil {
-				return fmt.Errorf("close header struct (no ParentBeaconBlockRoot): %w", err)
-			}
-			return nil
-		}
-		return fmt.Errorf("read ParentBeaconBlockRoot: %w", err)
-	}
-	if len(b) != 32 {
-		return fmt.Errorf("wrong size for ParentBeaconBlockRoot: %d", len(b))
-	}
-	h.ParentBeaconBlockRoot = new(libcommon.Hash)
-	h.ParentBeaconBlockRoot.SetBytes(b)
-
 	if h.Verkle {
 		if h.VerkleProof, err = s.Bytes(); err != nil {
 			return fmt.Errorf("read VerkleProof: %w", err)
@@ -579,9 +546,6 @@ func (h *Header) Size() common.StorageSize {
 	}
 	if h.ExcessBlobGas != nil {
 		s += common.StorageSize(8)
-	}
-	if h.ParentBeaconBlockRoot != nil {
-		s += common.StorageSize(32)
 	}
 	return s
 }
@@ -1202,8 +1166,6 @@ func NewBlock(header *Header, txs []Transaction, uncles []*Header, receipts []*R
 		}
 	}
 
-	b.header.ParentBeaconBlockRoot = header.ParentBeaconBlockRoot
-
 	return b
 }
 
@@ -1255,10 +1217,6 @@ func CopyHeader(h *Header) *Header {
 	if h.ExcessBlobGas != nil {
 		excessBlobGas := *h.ExcessBlobGas
 		cpy.ExcessBlobGas = &excessBlobGas
-	}
-	if h.ParentBeaconBlockRoot != nil {
-		cpy.ParentBeaconBlockRoot = new(libcommon.Hash)
-		cpy.ParentBeaconBlockRoot.SetBytes(h.ParentBeaconBlockRoot.Bytes())
 	}
 	return &cpy
 }
@@ -1484,9 +1442,8 @@ func (b *Block) BaseFee() *big.Int {
 	}
 	return new(big.Int).Set(b.header.BaseFee)
 }
-func (b *Block) WithdrawalsHash() *libcommon.Hash       { return b.header.WithdrawalsHash }
-func (b *Block) Withdrawals() Withdrawals               { return b.withdrawals }
-func (b *Block) ParentBeaconBlockRoot() *libcommon.Hash { return b.header.ParentBeaconBlockRoot }
+func (b *Block) WithdrawalsHash() *libcommon.Hash { return b.header.WithdrawalsHash }
+func (b *Block) Withdrawals() Withdrawals         { return b.withdrawals }
 
 // Header returns a deep-copy of the entire block header using CopyHeader()
 func (b *Block) Header() *Header       { return CopyHeader(b.header) }
