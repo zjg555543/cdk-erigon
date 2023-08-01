@@ -150,7 +150,6 @@ func requestDomains(chainDb, stateDb kv.RwDB, ctx context.Context, readDomain st
 		blockRootMismatchExpected = true
 	}
 	mode := libstate.ParseCommitmentMode(commitmentMode)
-	libstate.COMPARE_INDEXES = true
 
 	_, _, _, agg := newDomains(ctx, chainDb, stepSize, mode, trieVariant, logger)
 	defer agg.Close()
