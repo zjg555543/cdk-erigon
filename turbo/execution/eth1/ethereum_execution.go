@@ -4,14 +4,15 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/ledgerwatch/log/v3"
+	"golang.org/x/sync/semaphore"
+
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/execution"
 	types2 "github.com/ledgerwatch/erigon-lib/gointerfaces/types"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
-	"github.com/ledgerwatch/log/v3"
-	"golang.org/x/sync/semaphore"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/core"
@@ -102,7 +103,7 @@ func (e *EthereumExecutionModule) UpdateForkChoice(ctx context.Context, req *exe
 	if !e.semaphore.TryAcquire(1) {
 		return &execution.ForkChoiceReceipt{
 			LatestValidHash: gointerfaces.ConvertHashToH256(libcommon.Hash{}),
-			Status:          execution.ValidationStatus_Busy,
+			Status:          execution.ExecutionStatus_Busy,
 		}, nil
 	}
 	defer e.semaphore.Release(1)
@@ -123,7 +124,7 @@ func (e *EthereumExecutionModule) UpdateForkChoice(ctx context.Context, req *exe
 	// If we dont have it, too bad
 	if fcuHeader == nil {
 		return &execution.ForkChoiceReceipt{
-			Status:          execution.ValidationStatus_MissingSegment,
+			Status:          execution.ExecutionStatus_MissingSegment,
 			LatestValidHash: &types2.H256{},
 		}, nil
 	}
@@ -150,7 +151,7 @@ func (e *EthereumExecutionModule) UpdateForkChoice(ctx context.Context, req *exe
 		}
 		if currentHeader == nil {
 			return &execution.ForkChoiceReceipt{
-				Status:          execution.ValidationStatus_MissingSegment,
+				Status:          execution.ExecutionStatus_MissingSegment,
 				LatestValidHash: &types2.H256{},
 			}, nil
 		}
@@ -204,9 +205,9 @@ func (e *EthereumExecutionModule) UpdateForkChoice(ctx context.Context, req *exe
 	if headNumber != nil && e.logger != nil {
 		e.logger.Info("Current forkchoice", "hash", headHash, "number", *headNumber)
 	}
-	status := execution.ValidationStatus_Success
+	status := execution.ExecutionStatus_Success
 	if headHash != blockHash {
-		status = execution.ValidationStatus_BadBlock
+		status = execution.ExecutionStatus_BadBlock
 	}
 	return &execution.ForkChoiceReceipt{
 		LatestValidHash: gointerfaces.ConvertHashToH256(headHash),
@@ -218,7 +219,7 @@ func (e *EthereumExecutionModule) ValidateChain(ctx context.Context, req *execut
 	if !e.semaphore.TryAcquire(1) {
 		return &execution.ValidationReceipt{
 			LatestValidHash:  gointerfaces.ConvertHashToH256(libcommon.Hash{}),
-			ValidationStatus: execution.ValidationStatus_Busy,
+			ValidationStatus: execution.ExecutionStatus_Busy,
 		}, nil
 	}
 	defer e.semaphore.Release(1)
@@ -241,20 +242,20 @@ func (e *EthereumExecutionModule) ValidateChain(ctx context.Context, req *execut
 		return &execution.ValidationReceipt{
 			LatestValidHash:  gointerfaces.ConvertHashToH256(libcommon.Hash{}),
 			MissingHash:      req.Hash,
-			ValidationStatus: execution.ValidationStatus_MissingSegment,
+			ValidationStatus: execution.ExecutionStatus_MissingSegment,
 		}, nil
 	}
 	status, lvh, validationError, criticalError := e.forkValidator.ValidatePayload(tx, header, body.RawBody(), false)
 	if criticalError != nil {
 		return nil, criticalError
 	}
-	validationStatus := execution.ValidationStatus_Success
+	validationStatus := execution.ExecutionStatus_Success
 	if status == engine_types.AcceptedStatus {
-		validationStatus = execution.ValidationStatus_MissingSegment
+		validationStatus = execution.ExecutionStatus_MissingSegment
 	}
 	if status == engine_types.InvalidStatus || status == engine_types.InvalidBlockHashStatus || validationError != nil {
 		e.logger.Warn("ethereumExecutionModule.ValidateChain: chain %x is invalid. reason %s", blockHash, err)
-		validationStatus = execution.ValidationStatus_BadBlock
+		validationStatus = execution.ExecutionStatus_BadBlock
 	}
 	return &execution.ValidationReceipt{
 		ValidationStatus: validationStatus,

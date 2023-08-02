@@ -35,7 +35,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
 	state2 "github.com/ledgerwatch/erigon-lib/state"
-	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/cmd/state/exec3"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/consensus"
@@ -69,7 +68,7 @@ type Progress struct {
 	logger       log.Logger
 }
 
-func (p *Progress) Log(rs *state.StateV3, in *exec22.QueueWithRetry, rws *exec22.ResultsQueue, doneCount, inputBlockNum, outputBlockNum, outTxNum, repeatCount uint64, idxStepsAmountInDB float64) {
+func (p *Progress) Log(rs *state.StateV3, in *state.QueueWithRetry, rws *state.ResultsQueue, doneCount, inputBlockNum, outputBlockNum, outTxNum, repeatCount uint64, idxStepsAmountInDB float64) {
 	ExecStepsInDB.Set(uint64(idxStepsAmountInDB * 100))
 	var m runtime.MemStats
 	dbg.ReadMemStats(&m)
@@ -281,24 +280,20 @@ func ExecV3(ctx context.Context,
 	doms := cfg.agg.SharedDomains(applyTx.(*temporal.Tx).AggCtx())
 	defer cfg.agg.CloseSharedDomains()
 	rs := state.NewStateV3(doms, logger)
-	//fmt.Printf("input tx %d\n", inputTxNum)
-	//blockNum, inputTxNum, err = doms.SeekCommitment(0, math.MaxUint64)
-	//if err != nil {
-	//	return err
-	//}
-	//agg.SetTxNum(inputTxNum)
-	//log.Info("SeekCommitment", "bn", blockNum, "txn", inputTxNum)
-	defer func() {
-		defer agg.StartUnbufferedWrites().FinishWrites()
-		agg.ComputeCommitment(true, false)
-	}()
+	fmt.Printf("input tx %d\n", inputTxNum)
+	blockNum, inputTxNum, err = doms.SeekCommitment(0, inputTxNum)
+	if err != nil {
+		return err
+	}
+	agg.SetTxNum(inputTxNum)
+	log.Info("SeekCommitment", "bn", blockNum, "txn", inputTxNum)
 
 	////TODO: owner of `resultCh` is main goroutine, but owner of `retryQueue` is applyLoop.
 	// Now rwLoop closing both (because applyLoop we completely restart)
 	// Maybe need split channels? Maybe don't exit from ApplyLoop? Maybe current way is also ok?
 
 	// input queue
-	in := exec22.NewQueueWithRetry(100_000)
+	in := state.NewQueueWithRetry(100_000)
 	defer in.Close()
 
 	rwsConsumed := make(chan struct{}, 1)
@@ -458,7 +453,7 @@ func ExecV3(ctx context.Context,
 						}
 
 						// Drain results channel because read sets do not carry over
-						rws.DropResults(func(txTask *exec22.TxTask) {
+						rws.DropResults(func(txTask *state.TxTask) {
 							rs.ReTry(txTask, in)
 						})
 
@@ -661,7 +656,7 @@ Loop:
 		for txIndex := -1; txIndex <= len(txs); txIndex++ {
 
 			// Do not oversend, wait for the result heap to go under certain size
-			txTask := &exec22.TxTask{
+			txTask := &state.TxTask{
 				BlockNum:        blockNum,
 				Header:          header,
 				Coinbase:        b.Coinbase(),
@@ -964,7 +959,7 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 	return b, err
 }
 
-func processResultQueue(in *exec22.QueueWithRetry, rws *exec22.ResultsQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, backPressure chan struct{}, applyWorker *exec3.Worker, canRetry, forceStopAtBlockEnd bool) (outputTxNum uint64, conflicts, triggers int, processedBlockNum uint64, stopedAtBlockEnd bool, err error) {
+func processResultQueue(in *state.QueueWithRetry, rws *state.ResultsQueue, outputTxNumIn uint64, rs *state.StateV3, agg *state2.AggregatorV3, applyTx kv.Tx, backPressure chan struct{}, applyWorker *exec3.Worker, canRetry, forceStopAtBlockEnd bool) (outputTxNum uint64, conflicts, triggers int, processedBlockNum uint64, stopedAtBlockEnd bool, err error) {
 	rwsIt := rws.Iter()
 	defer rwsIt.Close()
 
@@ -1119,7 +1114,7 @@ func reconstituteStep(last bool,
 	}
 	g, reconstWorkersCtx := errgroup.WithContext(ctx)
 	defer g.Wait()
-	workCh := make(chan *exec22.TxTask, workerCount*4)
+	workCh := make(chan *state.TxTask, workerCount*4)
 	defer func() {
 		fmt.Printf("close1\n")
 		safeCloseTxTaskCh(workCh)
@@ -1275,7 +1270,7 @@ func reconstituteStep(last bool,
 			for txIndex := -1; txIndex <= len(txs); txIndex++ {
 				if bitmap.Contains(inputTxNum) {
 					binary.BigEndian.PutUint64(txKey[:], inputTxNum)
-					txTask := &exec22.TxTask{
+					txTask := &state.TxTask{
 						BlockNum:        bn,
 						Header:          header,
 						Coinbase:        b.Coinbase(),
@@ -1531,7 +1526,7 @@ func reconstituteStep(last bool,
 	return nil
 }
 
-func safeCloseTxTaskCh(ch chan *exec22.TxTask) {
+func safeCloseTxTaskCh(ch chan *state.TxTask) {
 	if ch == nil {
 		return
 	}
