@@ -857,7 +857,7 @@ func (s *IntraBlockState) PrintSmtRootHash() {
 	fmt.Println("SMT root: ", rootU256.String())
 }
 
-func (sdb *IntraBlockState) ScalableSetSmtRootHash(dbTx kv.RwTx, lastInBlock bool) error {
+func (sdb *IntraBlockState) ScalableSetSmtRootHash(dbTx kv.RwTx) error {
 	saddr := libcommon.HexToAddress("0x000000000000000000000000000000005ca1ab1e")
 	sl0 := libcommon.HexToHash("0x0")
 
@@ -910,10 +910,6 @@ func (sdb *IntraBlockState) ScalableSetSmtRootHash(dbTx kv.RwTx, lastInBlock boo
 		// set mapping of keccak256(txnum,1) -> smt root
 		rpcHashU256 := uint256.NewInt(0).SetBytes(rpcHash.Bytes())
 		sdb.SetState(saddr, &mkh, *rpcHashU256)
-
-		if lastInBlock {
-			sdb.PrintSmtRootHash() // this should be the BLOCK hash on the block boundary
-		}
 	}
 
 	return nil
