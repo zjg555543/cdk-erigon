@@ -62,8 +62,8 @@ func NewSynchronizer(
 		zkEVMClient:        zkEVMClient,
 		cfg:                cfg,
 		// [zkevm] - restrict progress
-		restrictAtL1Block: 17782337,
-		restrictAtL2Batch: 372893,
+		restrictAtL1Block: 16920436,
+		restrictAtL2Batch: 110,
 	}, nil
 }
 
