@@ -18,6 +18,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon-lib/common"
 
@@ -30,6 +32,8 @@ const (
 	//NonContractIncarnation incarnation for non contracts
 	NonContractIncarnation = 0
 )
+
+var DebugPrint bool
 
 type StateReader interface {
 	ReadAccountData(address common.Address) (*accounts.Account, error)
@@ -63,22 +67,37 @@ func NewNoopWriter() *NoopWriter {
 }
 
 func (nw *NoopWriter) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
+	if DebugPrint {
+		fmt.Printf("UpdateAccountData %x balance %d nonce %d\n", address, &account.Balance, account.Nonce)
+	}
 	return nil
 }
 
 func (nw *NoopWriter) DeleteAccount(address common.Address, original *accounts.Account) error {
+	if DebugPrint {
+		fmt.Printf("delete,%x\n", address)
+	}
 	return nil
 }
 
 func (nw *NoopWriter) UpdateAccountCode(address common.Address, incarnation uint64, codeHash common.Hash, code []byte) error {
+	if DebugPrint {
+		fmt.Printf("code,%x,%x\n", address, code)
+	}
 	return nil
 }
 
 func (nw *NoopWriter) WriteAccountStorage(address common.Address, incarnation uint64, key *common.Hash, original, value *uint256.Int) error {
+	if DebugPrint {
+		fmt.Printf("storage,%x,%x,%x\n", address, *key, value.Bytes())
+	}
 	return nil
 }
 
 func (nw *NoopWriter) CreateContract(address common.Address) error {
+	if DebugPrint {
+		fmt.Printf("create,%x\n", address)
+	}
 	return nil
 }
 
