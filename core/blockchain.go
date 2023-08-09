@@ -98,10 +98,18 @@ func ExecuteBlockEphemerally(
 		receipts    types.Receipts
 	)
 
+	state.DebugPrint = block.NumberU64() == 26733532
+
+	if state.DebugPrint {
+		fmt.Println("before InitializeBlockExecution")
+	}
 	if !vmConfig.ReadOnly {
 		if err := InitializeBlockExecution(engine, chainReader, block.Header(), block.Transactions(), block.Uncles(), chainConfig, ibs); err != nil {
 			return nil, err
 		}
+	}
+	if state.DebugPrint {
+		fmt.Println("after InitializeBlockExecution")
 	}
 
 	if chainConfig.DAOForkBlock != nil && chainConfig.DAOForkBlock.Cmp(block.Number()) == 0 {
@@ -110,6 +118,10 @@ func ExecuteBlockEphemerally(
 	noop := state.NewNoopWriter()
 	//fmt.Printf("====txs processing start: %d====\n", block.NumberU64())
 	for i, tx := range block.Transactions() {
+		if state.DebugPrint {
+			fmt.Printf("before tx %d\n", i)
+		}
+
 		ibs.SetTxContext(tx.Hash(), block.Hash(), i)
 		writeTrace := false
 		if vmConfig.Debug && vmConfig.Tracer == nil {
@@ -139,6 +151,9 @@ func ExecuteBlockEphemerally(
 				receipts = append(receipts, receipt)
 			}
 		}
+		if state.DebugPrint {
+			fmt.Printf("after tx %d\n", i)
+		}
 	}
 
 	receiptSha := types.DeriveSha(receipts)
@@ -161,12 +176,23 @@ func ExecuteBlockEphemerally(
 			return nil, fmt.Errorf("bloom computed by execution: %x, in header: %x", bloom, header.Bloom)
 		}
 	}
+
+	if state.DebugPrint {
+		fmt.Println("before FinalizeBlockExecution")
+	}
+
 	if !vmConfig.ReadOnly {
 		txs := block.Transactions()
 		if _, _, _, err := FinalizeBlockExecution(engine, stateReader, block.Header(), txs, block.Uncles(), stateWriter, chainConfig, ibs, receipts, block.Withdrawals(), chainReader, false, logger); err != nil {
 			return nil, err
 		}
 	}
+
+	if state.DebugPrint {
+		fmt.Println("after FinalizeBlockExecution")
+		panic("the block was executed")
+	}
+
 	blockLogs := ibs.Logs()
 	execRs := &EphemeralExecResult{
 		TxRoot:      types.DeriveSha(includedTxs),
