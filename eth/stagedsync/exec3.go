@@ -181,13 +181,20 @@ func ExecV3(ctx context.Context,
 		}
 	}
 	if !useExternalTx && !parallel {
+		if err := chainDb.Update(ctx, func(tx kv.RwTx) error {
+			if err := tx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
+				return err
+			}
+			if err := tx.(*temporal.Tx).AggCtx().PruneWithTimeout(ctx, 60*time.Minute, tx); err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
 		var err error
 		applyTx, err = chainDb.BeginRw(ctx)
 		if err != nil {
-			return err
-		}
-
-		if err := applyTx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
 			return err
 		}
 
