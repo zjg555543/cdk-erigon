@@ -308,7 +308,7 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 	chainDB := mdbx.NewMDBX(logger).Path(dirs.Chaindata).MustOpen()
 	defer chainDB.Close()
 
-	dir.MustExist(dirs.SnapHistory, dirs.SnapCold, dirs.SnapWarm)
+	dir.MustExist(dirs.SnapHistory, dirs.SnapWarm)
 
 	if rebuild {
 		panic("not implemented")
@@ -359,7 +359,7 @@ func doLocalityIdx(cliCtx *cli.Context) error {
 	chainDB := mdbx.NewMDBX(logger).Path(dirs.Chaindata).MustOpen()
 	defer chainDB.Close()
 
-	dir.MustExist(dirs.SnapHistory, dirs.SnapCold, dirs.SnapWarm)
+	dir.MustExist(dirs.SnapHistory, dirs.SnapWarm)
 
 	if rebuild {
 		panic("not implemented")
@@ -599,11 +599,10 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	logger.Info("Prune state history")
 	for i := 0; i < 1; i++ {
 		if err := db.UpdateNosync(ctx, func(tx kv.RwTx) error {
-			agg.SetTx(tx)
 			ac := agg.MakeContext()
 			defer ac.Close()
 			if ac.CanPrune(tx) {
-				if err = agg.Prune(ctx, 100); err != nil {
+				if err = ac.PruneWithTimeout(ctx, time.Hour, tx); err != nil {
 					return err
 				}
 			}
@@ -623,12 +622,14 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	}
 
 	var lastTxNum uint64
-	if err := db.View(ctx, func(tx kv.Tx) error {
+	if err := db.Update(ctx, func(tx kv.RwTx) error {
 		execProgress, _ := stages.GetStageProgress(tx, stages.Execution)
 		lastTxNum, err = rawdbv3.TxNums.Max(tx, execProgress)
 		if err != nil {
 			return err
 		}
+		defer agg.StartWrites().FinishWrites()
+		agg.SetTx(tx)
 		agg.SetTxNum(lastTxNum)
 		return nil
 	}); err != nil {
@@ -641,11 +642,10 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	}
 	for i := 0; i < 10; i++ {
 		if err := db.UpdateNosync(ctx, func(tx kv.RwTx) error {
-			agg.SetTx(tx)
 			ac := agg.MakeContext()
 			defer ac.Close()
 			if ac.CanPrune(tx) {
-				if err = agg.Prune(ctx, 10); err != nil {
+				if err = ac.PruneWithTimeout(ctx, time.Hour, tx); err != nil {
 					return err
 				}
 			}

@@ -173,7 +173,9 @@ func ExecV3(ctx context.Context,
 	useExternalTx := applyTx != nil
 	if initialCycle || !useExternalTx {
 		defer cfg.blockReader.Snapshots().(*freezeblocks.RoSnapshots).EnableReadAhead().DisableReadAhead()
-		agg.BuildOptionalMissedIndicesInBackground(ctx, estimate.IndexSnapshot.Workers())
+		if err := agg.BuildOptionalMissedIndices(ctx, estimate.IndexSnapshot.Workers()); err != nil {
+			return err
+		}
 		if err := agg.BuildMissedIndices(ctx, estimate.IndexSnapshot.Workers()); err != nil {
 			return err
 		}
@@ -219,12 +221,12 @@ func ExecV3(ctx context.Context,
 		//	block = _downloadedBlockNum - 1
 		//}
 	}
+
 	if applyTx != nil {
-		agg.SetTx(applyTx)
 		if dbg.DiscardHistory() {
-			defer agg.DiscardHistory().FinishWrites()
+			agg.DiscardHistory()
 		} else {
-			defer agg.StartWrites().FinishWrites()
+			agg.StartWrites()
 		}
 
 		var err error
@@ -377,9 +379,9 @@ func ExecV3(ctx context.Context,
 
 			agg.SetTx(tx)
 			if dbg.DiscardHistory() {
-				defer agg.DiscardHistory().FinishWrites()
+				agg.DiscardHistory()
 			} else {
-				defer agg.StartWrites().FinishWrites()
+				agg.StartWrites()
 			}
 
 			defer applyLoopWg.Wait()
@@ -572,7 +574,7 @@ func ExecV3(ctx context.Context,
 		// can't use OS-level ReadAhead - because Data >> RAM
 		// it also warmsup state a bit - by touching senders/coninbase accounts and code
 		var clean func()
-		readAhead, clean = blocksReadAhead(ctx, &cfg, 4, true)
+		readAhead, clean = blocksReadAhead(ctx, &cfg, 4, engine, true)
 		defer clean()
 	}
 
@@ -580,6 +582,7 @@ func ExecV3(ctx context.Context,
 	//var err error
 Loop:
 	for ; blockNum <= maxBlockNum; blockNum++ {
+		//time.Sleep(50 * time.Microsecond)
 		if !parallel {
 			select {
 			case readAhead <- blockNum:
@@ -771,7 +774,7 @@ Loop:
 					return err
 				}
 
-				var t1, t2, t3, t32, t4, t5, t6 time.Duration
+				var t1, t3, t32, t4, t5, t6 time.Duration
 				commtitStart := time.Now()
 				tt := time.Now()
 				if ok, err := checkCommitmentV3(b.HeaderNoCopy(), applyTx, agg, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u); err != nil {
@@ -816,7 +819,7 @@ Loop:
 							if err := tx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
 								return err
 							}
-							if err := tx.(*temporal.Tx).AggCtx().PruneWithTimeout(ctx, time.Second*1, tx); err != nil {
+							if err := tx.(*temporal.Tx).AggCtx().PruneWithTimeout(ctx, 60*time.Minute, tx); err != nil {
 								return err
 							}
 							return nil
@@ -843,21 +846,10 @@ Loop:
 					return err
 				}
 				logger.Info("Committed", "time", time.Since(commtitStart),
-					"commitment", t1, "prune", t2, "flush", t3, "tx.CollectMetrics", t32, "tx.commit", t4, "aggregate", t5, "prune2", t6)
+					"commitment", t1, "flush", t3, "tx.CollectMetrics", t32, "tx.commit", t4, "aggregate", t5, "prune", t6)
 			default:
 			}
 		}
-		//if blockNum%100000 == 0 {
-		//	if err := agg.Flush(ctx, applyTx); err != nil {
-		//		return err
-		//	}
-		//	doms.ClearRam(false)
-		//	if ok, err := checkCommitmentV3(b.HeaderNoCopy(), applyTx, agg, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u); err != nil {
-		//		return err
-		//	} else if !ok {
-		//		break Loop
-		//	}
-		//}
 
 		if parallel && blocksFreezeCfg.Produce { // sequential exec - does aggregate right after commit
 			agg.BuildFilesInBackground(outputTxNum.Load())

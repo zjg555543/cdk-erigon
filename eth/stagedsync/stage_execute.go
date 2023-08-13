@@ -107,6 +107,9 @@ func StageExecuteBlocksCfg(
 	syncCfg ethconfig.Sync,
 	agg *libstate.AggregatorV3,
 ) ExecuteBlockCfg {
+	if genesis == nil {
+		panic("assert: nil genesis")
+	}
 	return ExecuteBlockCfg{
 		db:            db,
 		prune:         pm,
@@ -314,24 +317,11 @@ func reconstituteBlock(agg *libstate.AggregatorV3, db kv.RoDB, tx kv.Tx) (n uint
 	return
 }
 
-func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context, cfg ExecuteBlockCfg, accumulator *shards.Accumulator, logger log.Logger) (err error) {
-	defer func() {
-		if tx != nil {
-			fmt.Printf("after unwind exec: %d->%d\n", u.CurrentBlockNumber, u.UnwindPoint)
-			//cfg.agg.MakeContext().(nil, func(k, v []byte) {
-			//	vv, err := accounts.ConvertV3toV2(v)
-			//	if err != nil {
-			//		panic(err)
-			//	}
-			//	fmt.Printf("acc: %x, %x\n", k, vv)
-			//}, tx)
-		}
-	}()
+func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context, accumulator *shards.Accumulator, logger log.Logger) (err error) {
+	agg := tx.(*temporal.Tx).Agg()
+	ac := tx.(*temporal.Tx).AggCtx()
 
-	agg := cfg.agg
-	agg.SetLogPrefix(s.LogPrefix())
-	rs := state.NewStateV3(agg.SharedDomains(tx.(*temporal.Tx).AggCtx()), logger)
-	//rs := state.NewStateV3(tx.(*temporal.Tx).Agg().SharedDomains())
+	rs := state.NewStateV3(agg.SharedDomains(ac), logger)
 
 	// unwind all txs of u.UnwindPoint block. 1 txn in begin/end of block - system txs
 	txNum, err := rawdbv3.TxNums.Min(tx, u.UnwindPoint+1)
@@ -341,7 +331,10 @@ func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context,
 	//if err := agg.Flush(ctx, tx); err != nil {
 	//	return fmt.Errorf("AggregatorV3.Flush: %w", err)
 	//}
-	if err := rs.Unwind(ctx, tx, txNum, cfg.agg, accumulator); err != nil {
+	if tx == nil {
+		panic(1)
+	}
+	if err := rs.Unwind(ctx, tx, txNum, ac, accumulator); err != nil {
 		return fmt.Errorf("StateV3.Unwind: %w", err)
 	}
 	if err := rawdb.TruncateReceipts(tx, u.UnwindPoint+1); err != nil {
@@ -454,7 +447,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		// can't use OS-level ReadAhead - because Data >> RAM
 		// it also warmsup state a bit - by touching senders/coninbase accounts and code
 		var clean func()
-		readAhead, clean = blocksReadAhead(ctx, &cfg, 4, false)
+		readAhead, clean = blocksReadAhead(ctx, &cfg, 4, cfg.engine, false)
 		defer clean()
 	}
 
@@ -564,7 +557,7 @@ Loop:
 	return stoppedErr
 }
 
-func blocksReadAhead(ctx context.Context, cfg *ExecuteBlockCfg, workers int, histV3 bool) (chan uint64, context.CancelFunc) {
+func blocksReadAhead(ctx context.Context, cfg *ExecuteBlockCfg, workers int, engine consensus.Engine, histV3 bool) (chan uint64, context.CancelFunc) {
 	const readAheadBlocks = 100
 	readAhead := make(chan uint64, readAheadBlocks)
 	g, gCtx := errgroup.WithContext(ctx)
@@ -599,7 +592,7 @@ func blocksReadAhead(ctx context.Context, cfg *ExecuteBlockCfg, workers int, his
 					}
 				}
 
-				if err := blocksReadAheadFunc(gCtx, tx, cfg, bn+readAheadBlocks, histV3); err != nil {
+				if err := blocksReadAheadFunc(gCtx, tx, cfg, bn+readAheadBlocks, engine, histV3); err != nil {
 					return err
 				}
 			}
@@ -610,7 +603,7 @@ func blocksReadAhead(ctx context.Context, cfg *ExecuteBlockCfg, workers int, his
 		_ = g.Wait()
 	}
 }
-func blocksReadAheadFunc(ctx context.Context, tx kv.Tx, cfg *ExecuteBlockCfg, blockNum uint64, histV3 bool) error {
+func blocksReadAheadFunc(ctx context.Context, tx kv.Tx, cfg *ExecuteBlockCfg, blockNum uint64, engine consensus.Engine, histV3 bool) error {
 	block, err := cfg.blockReader.BlockByNumber(ctx, tx, blockNum)
 	if err != nil {
 		return err
@@ -619,6 +612,7 @@ func blocksReadAheadFunc(ctx context.Context, tx kv.Tx, cfg *ExecuteBlockCfg, bl
 		return nil
 	}
 	if histV3 {
+		_, _ = engine.Author(block.HeaderNoCopy())
 		return nil
 	}
 	senders := block.Body().SendersFromTxs()     //TODO: BlockByNumber can return senders
@@ -731,7 +725,7 @@ func unwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, ctx context
 
 	//TODO: why we don't call accumulator.ChangeCode???
 	if cfg.historyV3 {
-		return unwindExec3(u, s, tx, ctx, cfg, accumulator, logger)
+		return unwindExec3(u, s, tx, ctx, accumulator, logger)
 	}
 
 	changes := etl.NewCollector(logPrefix, cfg.dirs.Tmp, etl.NewOldestEntryBuffer(etl.BufferOptimalSize), logger)
@@ -872,7 +866,6 @@ func PruneExecutionStage(s *PruneState, tx kv.RwTx, cfg ExecuteBlockCfg, ctx con
 	defer logEvery.Stop()
 
 	if cfg.historyV3 {
-		cfg.agg.SetTx(tx)
 		if initialCycle {
 			if err = tx.(*temporal.Tx).AggCtx().PruneWithTimeout(ctx, 1*time.Second, tx); err != nil { // prune part of retired data, before commit
 				return err

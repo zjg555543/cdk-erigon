@@ -493,8 +493,6 @@ func init() {
 	withBlock(cmdStageExec)
 	withUnwind(cmdStageExec)
 	withNoCommit(cmdStageExec)
-	withBtreeCold(cmdStageExec)
-	withBtreeWarm(cmdStageExec)
 	withBtreePlus(cmdStageExec)
 	withPruneTo(cmdStageExec)
 	withBatchSize(cmdStageExec)
@@ -528,8 +526,6 @@ func init() {
 
 	withConfig(cmdStagePatriciaTrie)
 	withBtreePlus(cmdStagePatriciaTrie)
-	withBtreeWarm(cmdStagePatriciaTrie)
-	withBtreeCold(cmdStagePatriciaTrie)
 	withDataDir(cmdStagePatriciaTrie)
 	withReset(cmdStagePatriciaTrie)
 	withBlock(cmdStagePatriciaTrie)
@@ -917,8 +913,6 @@ func stageExec(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 		return nil
 	}
 	libstate.UseBpsTree = useBtreePlus
-	libstate.UseBtreeForColdFiles = useBtreeIdxCold
-	libstate.UseBtreeForWarmFiles = useBtreeIdxWarm
 
 	err := stagedsync.SpawnExecuteBlocksStage(s, sync, tx, block, ctx, cfg, true /* initialCycle */, logger)
 	if err != nil {
@@ -997,8 +991,6 @@ func stagePatriciaTrie(db kv.RwDB, ctx context.Context, logger log.Logger) error
 	}
 
 	libstate.UseBpsTree = useBtreePlus
-	libstate.UseBtreeForColdFiles = useBtreeIdxCold
-	libstate.UseBtreeForWarmFiles = useBtreeIdxWarm
 
 	if warmup {
 		return reset2.Warmup(ctx, db, log.LvlInfo, stages.PatriciaTrie)
@@ -1400,7 +1392,7 @@ func allSnapshots(ctx context.Context, db kv.RoDB, logger log.Logger) (*freezebl
 			return nil
 		})
 		dirs := datadir.New(datadirCli)
-		dir.MustExist(dirs.SnapHistory, dirs.SnapCold, dirs.SnapWarm)
+		dir.MustExist(dirs.SnapHistory, dirs.SnapWarm)
 
 		//useSnapshots = true
 		snapCfg := ethconfig.NewSnapCfg(useSnapshots, true, true)
@@ -1513,6 +1505,8 @@ func newSync(ctx context.Context, db kv.RwDB, miningConfig *params.MiningConfig,
 	cfg.Snapshot = allSn.Cfg()
 
 	engine := initConsensusEngine(chainConfig, cfg.Dirs.DataDir, db, logger)
+
+	logger.Info("Initialised chain configuration", "config", chainConfig)
 
 	blockReader, blockWriter := blocksIO(db, logger)
 	sentryControlServer, err := sentry.NewMultiClient(
