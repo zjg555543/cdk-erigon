@@ -98,6 +98,8 @@ func ExecuteBlockEphemerally(
 		receipts    types.Receipts
 	)
 
+	state.DebugPrint = block.NumberU64() == 26733532
+
 	if !vmConfig.ReadOnly {
 		if err := InitializeBlockExecution(engine, chainReader, block.Header(), chainConfig, ibs); err != nil {
 			return nil, err
