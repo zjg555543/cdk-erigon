@@ -74,6 +74,9 @@ func (s *SMT) SetContractStorage(ethAddr string, storage map[string]string) (*bi
 	var auxRes *SMTResponse
 
 	for k, v := range storage {
+		// start timer
+		//start := time.Now()
+
 		keyStoragePosition, err := utils.KeyContractStorage(ethAddr, k)
 		if err != nil {
 			return nil, err
@@ -93,6 +96,9 @@ func (s *SMT) SetContractStorage(ethAddr string, storage map[string]string) (*bi
 		}
 
 		i++
+		//end := time.Now()
+		//elapsed := end.Sub(start)
+		//fmt.Println("Elapsed time: ", elapsed)
 	}
 
 	return auxRes.NewRoot, nil
