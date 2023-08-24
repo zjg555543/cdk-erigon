@@ -43,7 +43,8 @@ func TestSMT_SingleInsert(t *testing.T) {
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			s := NewSMT(nil)
-			newRoot, err := s.InsertBI(scenario.oldRoot, scenario.k, scenario.v)
+			// set scenario old root if fail
+			newRoot, err := s.InsertBI(scenario.k, scenario.v)
 			if err != nil {
 				t.Errorf("Insert failed: %v", err)
 			}
@@ -86,6 +87,13 @@ func TestSMT_MultipleInsert(t *testing.T) {
 			"0xb5a4b1b7a8c3a7c11becc339bbd7f639229cd14f14f76ee3a0e9170074399da4",
 			"insertFound",
 		},
+		{
+			nil,
+			big.NewInt(3),
+			big.NewInt(0),
+			"0xa399847134a9987c648deabc85a7310fbe854315cbeb6dc3a7efa1a4fa2a2c86",
+			"deleteFound",
+		},
 	}
 
 	var root *big.Int
@@ -93,7 +101,7 @@ func TestSMT_MultipleInsert(t *testing.T) {
 		if i > 0 {
 			testCase.root = root
 		}
-		r, err := s.InsertBI(testCase.root, testCase.key, testCase.value)
+		r, err := s.InsertBI(testCase.key, testCase.value)
 		if err != nil {
 			t.Errorf("Test case %d: Insert failed: %v", i, err)
 			continue
@@ -148,7 +156,7 @@ func TestSMT_UpdateElement1(t *testing.T) {
 	var err error
 
 	for i, testCase := range testCases {
-		r, err = s.InsertBI(r.NewRoot, testCase.key, testCase.value)
+		r, err = s.InsertBI(testCase.key, testCase.value)
 		if err != nil {
 			t.Errorf("Test case %d: Insert failed: %v", i, err)
 			continue
@@ -167,27 +175,49 @@ func TestSMT_UpdateElement1(t *testing.T) {
 func TestSMT_AddSharedElement2(t *testing.T) {
 	s := NewSMT(nil)
 
-	r1, err := s.InsertBI(big.NewInt(0), big.NewInt(8), big.NewInt(2))
+	r1, err := s.InsertBI(big.NewInt(8), big.NewInt(2))
 	if err != nil {
 		t.Errorf("Insert failed: %v", err)
 	}
 	printNode(r1)
-	r2, err := s.InsertBI(r1.NewRoot, big.NewInt(9), big.NewInt(3))
+	r2, err := s.InsertBI(big.NewInt(9), big.NewInt(3))
 	if err != nil {
 		t.Errorf("Insert failed: %v", err)
 	}
 	printNode(r2)
-	r3, err := s.InsertBI(r2.NewRoot, big.NewInt(8), big.NewInt(0))
+	r3, err := s.InsertBI(big.NewInt(8), big.NewInt(0))
 	if err != nil {
 		t.Errorf("Insert failed: %v", err)
 	}
 	printNode(r3)
-	r4, err := s.InsertBI(r3.NewRoot, big.NewInt(9), big.NewInt(0))
+	r4, err := s.InsertBI(big.NewInt(9), big.NewInt(0))
 	if err != nil {
 		t.Errorf("Insert failed: %v", err)
 	}
 	printNode(r4)
+}
 
+func TestSMT_AddRemove128Elements(t *testing.T) {
+	s := NewSMT(nil)
+	N := 128
+	var r *SMTResponse
+
+	for i := 0; i < N; i++ {
+		r, _ = s.InsertBI(big.NewInt(int64(i)), big.NewInt(int64(i+1000)))
+	}
+
+	for i := 0; i < N; i++ {
+		r, _ = s.InsertBI(big.NewInt(int64(i)), big.NewInt(0))
+		if r.Mode != "deleteFound" && i != N-1 {
+			t.Errorf("Mode is not deleteFound, got %v", r.Mode)
+		} else if r.Mode != "deleteLast" && i == N-1 {
+			t.Errorf("Mode is not deleteLast, got %v", r.Mode)
+		}
+	}
+
+	if r.NewRoot.Cmp(big.NewInt(0)) != 0 {
+		t.Errorf("Root hash is not zero, got %v", toHex(r.NewRoot))
+	}
 }
 
 func printNode(n *SMTResponse) {

@@ -15,14 +15,10 @@ import (
 	"github.com/ledgerwatch/erigon/zkevm/state/metrics"
 	"github.com/ledgerwatch/erigon/zkevm/state/runtime/executor/pb"
 
-	"bytes"
 	"encoding/json"
-	"github.com/holiman/uint256"
-	ericommon "github.com/ledgerwatch/erigon/common"
-	ethTypes "github.com/ledgerwatch/erigon/core/types"
-	"io"
-	"net/http"
 	"strings"
+
+	ethTypes "github.com/ledgerwatch/erigon/core/types"
 )
 
 const HermezBatch = "HermezBatch"
@@ -41,7 +37,7 @@ type stateInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx kv.RwTx) (*state.Batch, error)
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx kv.RwTx) error
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx kv.RwTx) ([]state.ForcedBatch, error)
-	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx kv.RwTx) error
+	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, trustedBatch *state.Batch, dbTx kv.RwTx) error
 	ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx kv.RwTx, caller metrics.CallerLabel) (common.Hash, error)
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx kv.RwTx) error
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx kv.RwTx) error
@@ -170,6 +166,10 @@ func (m *StateInterfaceAdapter) GetBatchByNumber(ctx context.Context, batchNumbe
 }
 
 func (m *StateInterfaceAdapter) ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx kv.RwTx) error {
+
+	// TODO: ideally here we should just augment the state we have with the correct state root etc.
+
+	// this should remove any batch after the number passed into this func
 	panic("ResetTrustedState: implement me")
 }
 
@@ -177,19 +177,17 @@ func (m *StateInterfaceAdapter) GetNextForcedBatches(ctx context.Context, nextFo
 	panic("GetNextForcedBatches: implement me")
 }
 
-func (m *StateInterfaceAdapter) AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx kv.RwTx) error {
+func (m *StateInterfaceAdapter) AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, trustedBatch *state.Batch, dbTx kv.RwTx) error {
 	fmt.Printf("AddVerifiedBatch, saving L2 progress batch: %d blockNum: %d\n", verifiedBatch.BatchNumber, verifiedBatch.BlockNumber)
 
-	// [zkevm] - restrict progress
-	if verifiedBatch.BatchNumber > 100 {
-		return nil
-	}
+	// at point of verification we should also add the trusted state from the sequencer
+	batch := trustedBatch
 
-	// Get the matching batch (body) for the verified batch (header)
-	batch, err := m.GetBatchByNumber(ctx, verifiedBatch.BatchNumber, dbTx)
-	if err != nil {
-		return err
-	}
+	//// Get the matching batch (body) for the verified batch (header)
+	//batch, err := m.GetBatchByNumber(ctx, verifiedBatch.BatchNumber, dbTx)
+	//if err != nil {
+	//	return err
+	//}
 
 	header, err := WriteHeaderToDb(dbTx, verifiedBatch, batch)
 	if err != nil {
@@ -320,6 +318,9 @@ func (m *StateInterfaceAdapter) CloseBatch(ctx context.Context, receipt state.Pr
 }
 
 func (m *StateInterfaceAdapter) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx kv.RwTx) (*state.ProcessBatchResponse, error) {
+
+	// this is in tip mode - batches coming in here will be from the sequencer
+
 	panic("ProcessSequencerBatch: implement me")
 }
 
@@ -466,68 +467,6 @@ func UintBytes(no uint64) []byte {
 	noBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(noBytes, no)
 	return noBytes
-}
-
-func getRpcRoot(ctx context.Context, txNum uint64) (common.Hash, error) {
-	txnb := UintBytes(txNum)
-	d1 := ericommon.LeftPadBytes(txnb, 32)
-	d2 := ericommon.LeftPadBytes(uint256.NewInt(1).Bytes(), 32)
-	mapKey := keccak256.Hash(d1, d2)
-	mkh := common.BytesToHash(mapKey)
-
-	url := "https://zkevm-rpc.com"
-
-	payload := map[string]interface{}{
-		"method": "eth_getStorageAt",
-		"params": []interface{}{
-			"0x000000000000000000000000000000005ca1ab1e",
-			mkh.Hex(),
-			txNum,
-		},
-		"id":      1,
-		"jsonrpc": "2.0",
-	}
-
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		fmt.Println(err)
-		return common.Hash{}, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(payloadBytes))
-	if err != nil {
-		fmt.Println(err)
-		return common.Hash{}, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return common.Hash{}, err
-	}
-
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		return common.Hash{}, err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		fmt.Println(err)
-		return common.Hash{}, err
-	}
-
-	rpcHash := trimHexString(result["result"].(string))
-
-	h := common.HexToHash(rpcHash)
-	fmt.Println(h)
-	return h, nil
 }
 
 func trimHexString(s string) string {

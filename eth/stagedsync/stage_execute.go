@@ -25,6 +25,8 @@ import (
 	"github.com/ledgerwatch/log/v3"
 
 	"encoding/json"
+	"math/big"
+
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon/common/changeset"
 	"github.com/ledgerwatch/erigon/common/dbutils"
@@ -50,7 +52,6 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/shards"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
 	zkstate "github.com/ledgerwatch/erigon/zkevm/state"
-	"math/big"
 )
 
 const (
@@ -478,10 +479,6 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 
 Loop:
 	for blockNum := stageProgress + 1; blockNum <= to; blockNum++ {
-		// [zkevm] - restrict progress
-		if blockNum > 100 {
-			break
-		}
 		if stoppedErr = common.Stopped(quit); stoppedErr != nil {
 			break
 		}

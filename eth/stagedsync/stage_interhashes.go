@@ -5,10 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math/big"
-	"math/bits"
-	"sync/atomic"
-
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/common/length"
@@ -20,6 +16,8 @@ import (
 	"github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/exp/slices"
+	"math/big"
+	"math/bits"
 
 	state2 "github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
@@ -29,6 +27,11 @@ import (
 	"github.com/ledgerwatch/erigon/core/state/temporal"
 
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/common/math"
@@ -37,10 +40,6 @@ import (
 	"github.com/ledgerwatch/erigon/turbo/stages/headerdownload"
 	"github.com/ledgerwatch/erigon/turbo/trie"
 	"github.com/status-im/keycard-go/hexutils"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type TrieCfg struct {
@@ -73,6 +72,7 @@ func StageTrieCfg(db kv.RwDB, checkRoot, saveNewHashesToDB, badBlockHalt bool, t
 
 func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg TrieCfg, ctx context.Context, quiet bool) (libcommon.Hash, error) {
 	quit := ctx.Done()
+	_ = quit
 	useExternalTx := tx != nil
 	if !useExternalTx {
 		var err error
@@ -125,16 +125,16 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 		tooBigJump = s.BlockNumber < n
 	}
 
-	//if s.BlockNumber == 0 || tooBigJump {
-	if root, err = RegenerateIntermediateHashes(logPrefix, tx, cfg, &expectedRootHash, ctx); err != nil {
-		return trie.EmptyRoot, err
+	if s.BlockNumber == 0 || tooBigJump {
+		if root, err = RegenerateIntermediateHashes(logPrefix, tx, cfg, &expectedRootHash, ctx, quit); err != nil {
+			return trie.EmptyRoot, err
+		}
+	} else {
+		if root, err = ZkIncrementIntermediateHashes(logPrefix, s, tx, to, cfg, &expectedRootHash, quit); err != nil {
+			return trie.EmptyRoot, err
+		}
 	}
 	_ = quit
-	//} else {
-	//	if root, err = incrementIntermediateHashes(logPrefix, s, tx, to, cfg, expectedRootHash, quit); err != nil {
-	//		return trie.EmptyRoot, err
-	//	}
-	//}
 
 	if cfg.checkRoot && root != expectedRootHash {
 		log.Error(fmt.Sprintf("[%s] Wrong trie root of block %d: %x, expected (from header): %x. Block hash: %x", logPrefix, to, root, expectedRootHash, headerHash))
@@ -169,12 +169,12 @@ type MyStruct struct {
 	Nonce   *big.Int
 }
 
-var collection = make(map[libcommon.Address]MyStruct)
+var collection = make(map[libcommon.Address]*MyStruct)
 
 func processAccount(s *smt.SMT, root *big.Int, a *accounts.Account, as map[string]string, inc uint64, psr *state2.PlainStateReader, addr libcommon.Address) (*big.Int, error) {
 
 	//fmt.Printf("addr: %x\n account: %+v\n storage: %+v\n", addr, a, as)
-	collection[addr] = MyStruct{
+	collection[addr] = &MyStruct{
 		Storage: as,
 		Balance: a.Balance.ToBig(),
 		Nonce:   new(big.Int).SetUint64(a.Nonce),
@@ -209,24 +209,23 @@ func processAccount(s *smt.SMT, root *big.Int, a *accounts.Account, as map[strin
 	return s.LastRoot(), nil
 }
 
-func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, expectedRootHash *libcommon.Hash, ctx context.Context) (libcommon.Hash, error) {
+func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, expectedRootHash *libcommon.Hash, ctx context.Context, quitCh <-chan struct{}) (libcommon.Hash, error) {
 	log.Info(fmt.Sprintf("[%s] Regeneration trie hashes started", logPrefix))
 	defer log.Info(fmt.Sprintf("[%s] Regeneration ended", logPrefix))
-	_ = db.ClearBucket(kv.TrieOfAccounts)
-	_ = db.ClearBucket(kv.TrieOfStorage)
-	clean := kv.ReadAhead(ctx, cfg.db, &atomic.Bool{}, kv.HashedAccounts, nil, math.MaxUint32)
-	defer clean()
-	clean2 := kv.ReadAhead(ctx, cfg.db, &atomic.Bool{}, kv.HashedStorage, nil, math.MaxUint32)
-	defer clean2()
+
+	_ = db.ClearBucket("HermezSmt")
+	_ = db.ClearBucket("HermezSmtLastRoot")
 
 	// [zkEVM] - read back the stored transactions and process with SMT
 
 	eridb := db2.NewEriDb(db)
 	smt := smt.NewSMT(eridb)
 
+	eridb.OpenBatch(quitCh)
+
 	// [zkevm] - starts a 30s ticker to lock the db and remove orphans
 	doneChan := make(chan bool)
-	smt.StartPeriodicCheck(doneChan)
+	//	smt.StartPeriodicCheck(doneChan)
 
 	var a *accounts.Account
 	var addr libcommon.Address
@@ -317,18 +316,23 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 	}
 
 	// [zkevm] - print state
-	//jsonData, err := json.MarshalIndent(collection, "", "    ")
-	//if err != nil {
-	//	fmt.Printf("error: %v\n", err)
-	//}
-	//_ = jsonData
-	//fmt.Println(string(jsonData))
+	jsonData, err := json.MarshalIndent(collection, "", "    ")
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+	_ = jsonData
+	fmt.Println(string(jsonData))
 
 	hash = libcommon.BigToHash(root)
 
 	close(progress)
 	close(doneChan)
 	close(ctDone)
+
+	err = eridb.CommitBatch()
+	if err != nil {
+		return trie.EmptyRoot, err
+	}
 
 	// TODO [zkevm] - max - remove printing of roots
 	fmt.Println("[zkevm] interhashes - expected root: ", expectedRootHash.Hex())
@@ -365,6 +369,7 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 		err = nil
 	}
 	log.Info(fmt.Sprintf("[%s] Trie root", logPrefix), "hash", hash.Hex())
+
 	return hash, nil
 }
 
@@ -772,11 +777,6 @@ func (p *HashPromoter) Unwind(logPrefix string, s *StageState, u *UnwindState, s
 }
 
 func incrementIntermediateHashes(logPrefix string, s *StageState, db kv.RwTx, to uint64, cfg TrieCfg, expectedRootHash libcommon.Hash, quit <-chan struct{}) (libcommon.Hash, error) {
-
-	// read the latest SMT root from the db, and set it on the SMT object
-
-	// how to get the state which has been changed since last run of intermediate hashes?
-
 	p := NewHashPromoter(db, cfg.tmpDir, quit, logPrefix)
 	rl := trie.NewRetainList(0)
 	if cfg.historyV3 {
@@ -1026,4 +1026,189 @@ func trimHexString(s string) string {
 	}
 
 	return "0x0"
+}
+
+func ZkIncrementIntermediateHashes(logPrefix string, s *StageState, db kv.RwTx, to uint64, cfg TrieCfg, expectedRootHash *libcommon.Hash, quit <-chan struct{}) (libcommon.Hash, error) {
+	log.Info(fmt.Sprintf("[%s] Regeneration trie hashes started", logPrefix))
+	defer log.Info(fmt.Sprintf("[%s] Regeneration ended", logPrefix))
+
+	fmt.Println("[zkevm] interhashes - previous root @: ", s.BlockNumber)
+	fmt.Println("[zkevm] interhashes - calculating root @: ", to)
+
+	psr := state2.NewPlainStateReader(db)
+
+	eridb := db2.NewEriDb(db)
+	dbSmt := smt.NewSMT(eridb)
+
+	eridb.OpenBatch(quit)
+
+	ac, err := db.CursorDupSort(kv.AccountChangeSet)
+	if err != nil {
+		return trie.EmptyRoot, err
+	}
+	defer ac.Close()
+
+	sc, err := db.CursorDupSort(kv.StorageChangeSet)
+	if err != nil {
+		return trie.EmptyRoot, err
+	}
+	defer sc.Close()
+
+	accChanges := make(map[libcommon.Address]*accounts.Account)
+	codeChanges := make(map[libcommon.Address]string)
+	storageChanges := make(map[libcommon.Address]map[string]string)
+
+	// NB: changeset tables are zero indexed
+	// changeset tables contain historical value at N-1, so we look up values from plainstate
+	for i := s.BlockNumber + 1; i <= to; i++ {
+		dupSortKey := dbutils.EncodeBlockNumber(i)
+
+		fmt.Println("[zkevm] interhashes - block: ", i)
+
+		// collect changes to accounts and code
+		for _, v, err := ac.SeekExact(dupSortKey); err == nil && v != nil; _, v, err = ac.NextDup() {
+			addr := libcommon.BytesToAddress(v[:length.Addr])
+
+			currAcc, err := psr.ReadAccountData(addr)
+			if err != nil {
+				return trie.EmptyRoot, err
+			}
+
+			// store the account
+			accChanges[addr] = currAcc
+
+			// TODO: figure out if we can optimise for performance by making this optional, only on 'creation' or similar
+			cc, err := psr.ReadAccountCode(addr, currAcc.Incarnation, currAcc.CodeHash)
+			if err != nil {
+				return trie.EmptyRoot, err
+			}
+
+			ach := hexutils.BytesToHex(cc)
+			if len(ach) > 0 {
+				hexcc := fmt.Sprintf("0x%s", ach)
+				codeChanges[addr] = hexcc
+				if err != nil {
+					return trie.EmptyRoot, err
+				}
+			}
+		}
+
+		err = db.ForPrefix(kv.StorageChangeSet, dupSortKey, func(sk, sv []byte) error {
+			changesetKey := sk[length.BlockNum:]
+			address, incarnation := dbutils.PlainParseStoragePrefix(changesetKey)
+
+			sstorageKey := sv[:length.Hash]
+			stk := libcommon.BytesToHash(sstorageKey)
+
+			value, err := psr.ReadAccountStorage(address, incarnation, &stk)
+			if err != nil {
+				return err
+			}
+
+			stkk := fmt.Sprintf("0x%032x", stk)
+			v := fmt.Sprintf("0x%032x", libcommon.BytesToHash(value))
+
+			m := make(map[string]string)
+			m[stkk] = v
+
+			if storageChanges[address] == nil {
+				storageChanges[address] = make(map[string]string)
+			}
+			storageChanges[address][stkk] = v
+			return nil
+		})
+
+		// update the tree
+		for addr, acc := range accChanges {
+			err := updateAccInTree(dbSmt, addr, acc)
+			if err != nil {
+				return trie.EmptyRoot, err
+			}
+		}
+		for addr, code := range codeChanges {
+			err := updateCodeInTree(dbSmt, addr.String(), code)
+			if err != nil {
+				return trie.EmptyRoot, err
+			}
+		}
+
+		for addr, storage := range storageChanges {
+			err := updateStorageInTree(dbSmt, addr, storage)
+			if err != nil {
+				return trie.EmptyRoot, err
+			}
+		}
+	}
+
+	err = verifyLastHash(dbSmt, expectedRootHash, &cfg, psr, logPrefix)
+	if err != nil {
+		fmt.Println("failed to verify hash")
+		return trie.EmptyRoot, err
+	}
+
+	// TODO: provide batch rollback!
+	err = eridb.CommitBatch()
+	if err != nil {
+		return trie.EmptyRoot, err
+	}
+
+	hash := libcommon.BigToHash(dbSmt.LastRoot())
+
+	return hash, nil
+}
+
+func updateAccInTree(smt *smt.SMT, addr libcommon.Address, acc *accounts.Account) error {
+	n := new(big.Int).SetUint64(acc.Nonce)
+	_, err := smt.SetAccountState(addr.String(), acc.Balance.ToBig(), n)
+	return err
+}
+
+func updateStorageInTree(smt *smt.SMT, addr libcommon.Address, as map[string]string) error {
+	_, err := smt.SetContractStorage(addr.String(), as)
+	return err
+}
+
+func updateCodeInTree(smt *smt.SMT, addr string, code string) error {
+	return smt.SetContractBytecode(addr, code)
+}
+
+func verifyLastHash(dbSmt *smt.SMT, expectedRootHash *libcommon.Hash, cfg *TrieCfg, psr *state2.PlainStateReader, logPrefix string) error {
+	hash := libcommon.BigToHash(dbSmt.LastRoot())
+
+	fmt.Println("[zkevm] interhashes - expected root: ", expectedRootHash.Hex())
+	fmt.Println("[zkevm] interhashes - actual root: ", hash.Hex())
+
+	if cfg.checkRoot && hash != *expectedRootHash {
+		// [zkevm] - check against the rpc get block by number
+		// get block number
+		ss := libcommon.HexToAddress("0x000000000000000000000000000000005ca1ab1e")
+		key := libcommon.HexToHash("0x0")
+
+		txno, err := psr.ReadAccountStorage(ss, 1, &key)
+		if err != nil {
+			return err
+		}
+		// convert txno to big int
+		bigTxNo := big.NewInt(0)
+		bigTxNo.SetBytes(txno)
+
+		fmt.Println("[zkevm] interhashes - txno: ", bigTxNo)
+
+		sr, err := stateRootByTxNo(bigTxNo)
+		if err != nil {
+			return err
+		}
+
+		*expectedRootHash = *sr
+
+		if hash != *sr {
+			log.Warn(fmt.Sprintf("[%s] Wrong trie root: %x, expected (from header): %x", logPrefix, hash, expectedRootHash))
+			return nil
+		}
+
+		log.Info("[zkevm] interhashes - trie root matches rpc get block by number")
+		err = nil
+	}
+	log.Info(fmt.Sprintf("[%s] Trie root", logPrefix), "hash", hash.Hex())
+	return nil
 }

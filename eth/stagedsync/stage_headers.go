@@ -33,7 +33,10 @@ import (
 )
 
 type ZkSynchronizer interface {
-	Sync(kv.RwDB, kv.RwTx, func(ctx context.Context, db kv.RwDB, tx kv.RwTx) (kv.RwTx, error)) (kv.RwTx, error)
+	Sync(kv.RwDB, kv.RwTx, bool, func(ctx context.Context, db kv.RwDB, tx kv.RwTx) (kv.RwTx, error)) (kv.RwTx, error)
+	SyncPreTip(tx kv.RwTx, chunkSize uint64, progress ZkProgress) (uint64, error)
+	SyncTip(tx kv.RwTx, progress ZkProgress) error
+	GetProgress(kv.RwTx) ZkProgress
 }
 
 // The number of blocks we should be able to re-org sub-second on commodity hardware.
@@ -113,6 +116,7 @@ func SpawnStageHeaders(
 	return HeadersZK(s, u, ctx, tx, cfg, initialCycle, test)
 
 	/*
+		defer dbi.Close()
 		if initialCycle && cfg.snapshots != nil && cfg.snapshots.Cfg().Enabled {
 			if err := cfg.hd.AddHeadersFromSnapshot(tx, cfg.snapshots.BlocksAvailable(), cfg.blockReader); err != nil {
 				return err

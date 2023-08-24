@@ -7,20 +7,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
+	"sync"
+	"time"
+
 	"github.com/TwiN/gocache/v2"
 	"github.com/ledgerwatch/erigon/smt/pkg/db"
 	"github.com/ledgerwatch/erigon/smt/pkg/utils"
 	"github.com/ledgerwatch/log/v3"
-	"sort"
-	"sync"
-	"time"
 )
 
 type DB interface {
 	Get(key utils.NodeKey) (utils.NodeValue12, error)
 	Insert(key utils.NodeKey, value utils.NodeValue12) error
-	IsEmpty() bool
 	Delete(string) error
+
+	SetLastRoot(lr *big.Int) error
+	GetLastRoot() (*big.Int, error)
+
+	OpenBatch(quitCh <-chan struct{})
+	CommitBatch() error
+	RollbackBatch()
 }
 
 type DebuggableDB interface {
@@ -34,7 +41,6 @@ type SMT struct {
 	Cache             *gocache.Cache
 	CacheHitFrequency map[string]int
 
-	lastRoot     *big.Int
 	clearUpMutex sync.Mutex
 }
 
@@ -47,26 +53,32 @@ func NewSMT(database DB) *SMT {
 	if database == nil {
 		database = db.NewMemDb()
 	}
-	cache := gocache.NewCache().WithMaxSize(10000).WithEvictionPolicy(gocache.LeastRecentlyUsed)
+
 	return &SMT{
 		Db:                database,
-		Cache:             cache,
+		Cache:             gocache.NewCache().WithMaxSize(10000).WithEvictionPolicy(gocache.LeastRecentlyUsed),
 		CacheHitFrequency: make(map[string]int),
-		lastRoot:          big.NewInt(0),
 	}
 }
 
 func (s *SMT) LastRoot() *big.Int {
 	s.clearUpMutex.Lock()
 	defer s.clearUpMutex.Unlock()
-	copy := new(big.Int).Set(s.lastRoot)
-	return copy
+	lr, err := s.Db.GetLastRoot()
+	if err != nil {
+		panic(err)
+	}
+	cop := new(big.Int).Set(lr)
+	return cop
 }
 
 func (s *SMT) SetLastRoot(lr *big.Int) {
 	s.clearUpMutex.Lock()
 	defer s.clearUpMutex.Unlock()
-	s.lastRoot = lr
+	err := s.Db.SetLastRoot(lr)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *SMT) StartPeriodicCheck(doneChan chan bool) {
@@ -95,10 +107,10 @@ func (s *SMT) StartPeriodicCheck(doneChan chan bool) {
 	}()
 }
 
-func (s *SMT) InsertBI(lastRoot *big.Int, key *big.Int, value *big.Int) (*SMTResponse, error) {
+func (s *SMT) InsertBI(key *big.Int, value *big.Int) (*SMTResponse, error) {
 	k := utils.ScalarToNodeKey(key)
 	v := utils.ScalarToNodeValue8(value)
-	return s.Insert(k, v)
+	return s.Insert(k, v, [4]uint64{})
 }
 
 func (s *SMT) InsertKA(key utils.NodeKey, value *big.Int) (*SMTResponse, error) {
@@ -108,25 +120,25 @@ func (s *SMT) InsertKA(key utils.NodeKey, value *big.Int) (*SMTResponse, error) 
 		return nil, err
 	}
 
-	return s.Insert(key, *v)
+	return s.Insert(key, *v, [4]uint64{})
 }
 
-func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) {
+func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8, newValH [4]uint64) (*SMTResponse, error) {
 
 	s.clearUpMutex.Lock()
 	defer s.clearUpMutex.Unlock()
 
-	oldRoot := utils.ScalarToRoot(s.lastRoot)
+	or, err := s.Db.GetLastRoot()
+	if err != nil {
+		return nil, err
+	}
+	oldRoot := utils.ScalarToRoot(or)
 	r := oldRoot
 	newRoot := oldRoot
 
 	smtResponse := &SMTResponse{
 		NewRoot: big.NewInt(0),
 		Mode:    "not run",
-	}
-
-	if k.IsZero() && v.IsZero() {
-		return smtResponse, nil
 	}
 
 	// split the key
@@ -182,7 +194,7 @@ func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) 
 
 	proofHashCounter = 0
 	if !oldRoot.IsZero() {
-		utils.RemoveOver(siblings, level+1)
+		//utils.RemoveOver(siblings, level+1)
 		proofHashCounter += len(siblings)
 		if foundVal.IsZero() {
 			proofHashCounter += 2
@@ -196,10 +208,15 @@ func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) 
 				smtResponse.Mode = "update"
 				oldValue = foundVal
 
-				newValH, err := s.HashSave(v.ToUintArray(), utils.BranchCapacity)
+				if newValH == [4]uint64{} {
+					newValH, err = s.HashSave(v.ToUintArray(), utils.BranchCapacity)
+				} else {
+					newValH, err = s.HashSaveWithoutRecalc(v.ToUintArray(), utils.BranchCapacity, newValH)
+				}
 				if err != nil {
 					return nil, err
 				}
+
 				newLeafHash, err := s.HashSave(utils.ConcatArrays4(foundRKey, newValH), utils.LeafCapacity)
 				if err != nil {
 					return nil, err
@@ -240,7 +257,13 @@ func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) 
 				isOld0 = false
 
 				newKey := utils.RemoveKeyBits(k, level2+1)
-				newValH, err := s.HashSave(v.ToUintArray(), utils.BranchCapacity)
+
+				if newValH == [4]uint64{} {
+					newValH, err = s.HashSave(v.ToUintArray(), utils.BranchCapacity)
+				} else {
+					newValH, err = s.HashSaveWithoutRecalc(v.ToUintArray(), utils.BranchCapacity, newValH)
+				}
+
 				if err != nil {
 					return nil, err
 				}
@@ -295,7 +318,11 @@ func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) 
 			smtResponse.Mode = "insertNotFound"
 			newKey := utils.RemoveKeyBits(k, level+1)
 
-			newValH, err := s.HashSave(v.ToUintArray(), utils.BranchCapacity)
+			if newValH == [4]uint64{} {
+				newValH, err = s.HashSave(v.ToUintArray(), utils.BranchCapacity)
+			} else {
+				newValH, err = s.HashSaveWithoutRecalc(v.ToUintArray(), utils.BranchCapacity, newValH)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -323,7 +350,7 @@ func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) 
 		oldValue = foundVal
 		if level >= 0 {
 			for j := 0; j < 4; j++ {
-				siblings[level][keys[level]*4+j] = nil
+				siblings[level][keys[level]*4+j] = big.NewInt(0)
 			}
 
 			uKey, err := siblings[level].IsUniqueSibling()
@@ -331,10 +358,10 @@ func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) 
 				return nil, err
 			}
 
-			if uKey {
+			if uKey >= 0 {
 				// DELETE FOUND
 				smtResponse.Mode = "deleteFound"
-				dk := utils.NodeKeyFromBigIntArray(siblings[level][4:8])
+				dk := utils.NodeKeyFromBigIntArray(siblings[level][uKey*4 : uKey*4+4])
 				sl, err := s.Db.Get(dk)
 				if err != nil {
 					return nil, err
@@ -352,11 +379,11 @@ func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) 
 					proofHashCounter += 2
 
 					val := utils.ArrayToScalar(valA[:])
-					insKey = utils.JoinKey(append(usedKey, 1), *rKey)
+					insKey = utils.JoinKey(append(usedKey, uKey), *rKey)
 					insValue = utils.ScalarToNodeValue8(val)
 					isOld0 = false
 
-					for uKey && level >= 0 {
+					for uKey >= 0 && level >= 0 {
 						level -= 1
 						if level >= 0 {
 							uKey, err = siblings[level].IsUniqueSibling()
@@ -429,9 +456,36 @@ func (s *SMT) Insert(k utils.NodeKey, v utils.NodeValue8) (*SMTResponse, error) 
 
 	smtResponse.NewRoot = newRoot.ToBigInt()
 
-	s.lastRoot = newRoot.ToBigInt()
+	err = s.Db.SetLastRoot(newRoot.ToBigInt())
+	if err != nil {
+		return nil, err
+	}
 
 	return smtResponse, nil
+}
+
+func (s *SMT) HashSaveWithoutRecalc(in [8]uint64, capacity, h [4]uint64) ([4]uint64, error) {
+	cacheKey := fmt.Sprintf("%v-%v", in, capacity)
+	if cachedValue, exists := s.Cache.Get(cacheKey); exists {
+		s.CacheHitFrequency[cacheKey]++
+		return cachedValue.([4]uint64), nil
+	}
+
+	var sl []uint64
+	sl = append(sl, in[:]...)
+	sl = append(sl, capacity[:]...)
+
+	v := utils.NodeValue12{}
+	for i, val := range sl {
+		b := new(big.Int)
+		v[i] = b.SetUint64(val)
+	}
+
+	err := s.Db.Insert(h, v)
+
+	s.Cache.Set(cacheKey, h)
+
+	return h, err
 }
 
 func (s *SMT) HashSave(in [8]uint64, capacity [4]uint64) ([4]uint64, error) {
@@ -543,9 +597,12 @@ func (s *SMT) CheckOrphanedNodes(ctx context.Context) int {
 
 	visited := make(VisitedNodesMap)
 
-	root := s.lastRoot
+	root, err := s.Db.GetLastRoot()
+	if err != nil {
+		return 0
+	}
 
-	err := s.traverseAndMark(ctx, root, visited)
+	err = s.traverseAndMark(ctx, root, visited)
 	if err != nil {
 		return 0
 	}
