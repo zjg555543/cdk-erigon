@@ -117,6 +117,7 @@ func StageLoopIteration(ctx context.Context, db kv.RwDB, tx kv.RwTx, sync *stage
 	if externalTx {
 		canRunCycleInOneTransaction = true
 	}
+	canRunCycleInOneTransaction = true
 
 	// Main steps:
 	// - process new blocks
