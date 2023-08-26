@@ -286,8 +286,6 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 				return err
 			}
 			ac.Close()
-		case stages.Execution:
-
 		}
 	}
 	return nil
