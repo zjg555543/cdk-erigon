@@ -165,29 +165,19 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 	blocksAvailable := blockReader.FrozenBlocks()
 	logEvery := time.NewTicker(logInterval)
 	defer logEvery.Stop()
-	historyV3, err := kvcfg.HistoryV3.Enabled(tx)
-	if err != nil {
-		return err
-	}
-
 	// updating the progress of further stages (but only forward) that are contained inside of snapshots
 	for _, stage := range []stages.SyncStage{stages.Headers, stages.Bodies, stages.BlockHashes, stages.Senders} {
 		progress, err := stages.GetStageProgress(tx, stage)
 		if err != nil {
 			return fmt.Errorf("get %s stage progress to advance: %w", stage, err)
 		}
-
-		switch stage {
-		case stages.Headers, stages.Bodies, stages.BlockHashes, stages.Senders:
-			if progress >= blocksAvailable {
-				continue
-			}
-
-			if err = stages.SaveStageProgress(tx, stage, blocksAvailable); err != nil {
-				return fmt.Errorf("advancing %s stage: %w", stage, err)
-			}
+		if progress >= blocksAvailable {
+			continue
 		}
 
+		if err = stages.SaveStageProgress(tx, stage, blocksAvailable); err != nil {
+			return fmt.Errorf("advancing %s stage: %w", stage, err)
+		}
 		switch stage {
 		case stages.Headers:
 			h2n := etl.NewCollector(logPrefix, dirs.Tmp, etl.NewSortableBuffer(etl.BufferOptimalSize), logger)
@@ -248,6 +238,10 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 				return err
 			}
 
+			historyV3, err := kvcfg.HistoryV3.Enabled(tx)
+			if err != nil {
+				return err
+			}
 			if historyV3 {
 				_ = tx.ClearBucket(kv.MaxTxNum)
 				type IterBody interface {
