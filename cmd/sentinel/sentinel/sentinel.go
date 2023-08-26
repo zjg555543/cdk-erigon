@@ -270,7 +270,7 @@ func New(
 			return nil, err
 		}
 
-		rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()), rcmgr.WithTraceReporter(str))
+		rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.InfiniteLimits), rcmgr.WithTraceReporter(str))
 		if err != nil {
 			return nil, err
 		}
