@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
@@ -154,6 +155,9 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 	if err := FillDBFromSnapshots(s.LogPrefix(), ctx, tx, cfg.dirs, cfg.blockReader, cfg.agg, logger); err != nil {
 		return err
 	}
+	if err := FillDBFromStateSnapshots(s.LogPrefix(), context.Background(), tx, logger); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -161,19 +165,29 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 	blocksAvailable := blockReader.FrozenBlocks()
 	logEvery := time.NewTicker(logInterval)
 	defer logEvery.Stop()
+	historyV3, err := kvcfg.HistoryV3.Enabled(tx)
+	if err != nil {
+		return err
+	}
+
 	// updating the progress of further stages (but only forward) that are contained inside of snapshots
 	for _, stage := range []stages.SyncStage{stages.Headers, stages.Bodies, stages.BlockHashes, stages.Senders} {
 		progress, err := stages.GetStageProgress(tx, stage)
 		if err != nil {
 			return fmt.Errorf("get %s stage progress to advance: %w", stage, err)
 		}
-		if progress >= blocksAvailable {
-			continue
+
+		switch stage {
+		case stages.Headers, stages.Bodies, stages.BlockHashes, stages.Senders:
+			if progress >= blocksAvailable {
+				continue
+			}
+
+			if err = stages.SaveStageProgress(tx, stage, blocksAvailable); err != nil {
+				return fmt.Errorf("advancing %s stage: %w", stage, err)
+			}
 		}
 
-		if err = stages.SaveStageProgress(tx, stage, blocksAvailable); err != nil {
-			return fmt.Errorf("advancing %s stage: %w", stage, err)
-		}
 		switch stage {
 		case stages.Headers:
 			h2n := etl.NewCollector(logPrefix, dirs.Tmp, etl.NewSortableBuffer(etl.BufferOptimalSize), logger)
@@ -234,10 +248,6 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 				return err
 			}
 
-			historyV3, err := kvcfg.HistoryV3.Enabled(tx)
-			if err != nil {
-				return err
-			}
 			if historyV3 {
 				_ = tx.ClearBucket(kv.MaxTxNum)
 				type IterBody interface {
@@ -276,7 +286,40 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 				return err
 			}
 			ac.Close()
+		case stages.Execution:
+
 		}
+	}
+	return nil
+}
+func FillDBFromStateSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, logger log.Logger) error {
+	progress, err := stages.GetStageProgress(tx, stages.Execution)
+	if err != nil {
+		return fmt.Errorf("get %s stage progress to advance: %w", stages.Execution, err)
+	}
+	historyV3, err := kvcfg.HistoryV3.Enabled(tx)
+	if err != nil {
+		return err
+	}
+	if !historyV3 {
+		return nil
+	}
+	ttx, _ := tx.(*temporal.Tx)
+	histStapshotsAvailable := ttx.Agg().EndTxNumMinimax()
+	ok, blockNum, err := rawdbv3.TxNums.FindBlockNum(tx, histStapshotsAvailable)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("not found block num for txNum: %d", histStapshotsAvailable)
+	}
+	blockNum--
+	if progress >= blockNum {
+		return nil
+	}
+	logger.Info("Set Execution progress", "to", blockNum)
+	if err = stages.SaveStageProgress(tx, stages.Execution, blockNum); err != nil {
+		return fmt.Errorf("advancing %s stage: %w", stages.Execution, err)
 	}
 	return nil
 }

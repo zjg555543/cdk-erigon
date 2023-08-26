@@ -89,13 +89,10 @@ func ResetBlocks(tx kv.RwTx, db kv.RoDB, agg *state.AggregatorV3,
 
 	if br.FreezingCfg().Enabled && br.FrozenBlocks() > 0 {
 		logger.Info("filling db from snapshots", "blocks", br.FrozenBlocks())
-		if err := stagedsync.FillDBFromSnapshots("fillind_db_from_snapshots", context.Background(), tx, dirs, br, agg, logger); err != nil {
+		if err := stagedsync.FillDBFromSnapshots("fillind_db_from_blocks_snapshots", context.Background(), tx, dirs, br, agg, logger); err != nil {
 			return err
 		}
 		_ = stages.SaveStageProgress(tx, stages.Snapshots, br.FrozenBlocks())
-		_ = stages.SaveStageProgress(tx, stages.Headers, br.FrozenBlocks())
-		_ = stages.SaveStageProgress(tx, stages.Bodies, br.FrozenBlocks())
-		_ = stages.SaveStageProgress(tx, stages.Senders, br.FrozenBlocks())
 	}
 
 	return nil
@@ -156,7 +153,11 @@ func ResetExec(ctx context.Context, db kv.RwDB, chain string, tmpDir string) (er
 		if err := backup.ClearTables(ctx, db, tx, stateHistoryBuckets...); err != nil {
 			return nil
 		}
-		if !historyV3 {
+		if historyV3 {
+			if err := stagedsync.FillDBFromStateSnapshots("fillind_db_from_state_snapshots", context.Background(), tx, log.New()); err != nil {
+				return err
+			}
+		} else {
 			genesis := core.GenesisBlockByChainName(chain)
 			if _, _, err := core.WriteGenesisState(genesis, tx, tmpDir); err != nil {
 				return err
