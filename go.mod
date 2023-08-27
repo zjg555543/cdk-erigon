@@ -3,8 +3,8 @@ module github.com/ledgerwatch/erigon
 go 1.19
 
 require (
-	github.com/erigontech/mdbx-go v0.27.13
-	github.com/ledgerwatch/erigon-lib v0.0.0-20230825233636-a38697bab808
+	github.com/erigontech/mdbx-go v0.33.0
+	github.com/ledgerwatch/erigon-lib v0.0.0-20230827124415-4cef3d558bf4
 	github.com/ledgerwatch/erigon-snapshot v1.2.1-0.20230818153427-cc16b83a89be
 	github.com/ledgerwatch/log/v3 v3.9.0
 	github.com/ledgerwatch/secp256k1 v1.0.0
@@ -107,6 +107,7 @@ require (
 
 require (
 	crawshaw.io/sqlite v0.3.3-0.20220618202545-d1964889ea3c // indirect
+	github.com/FastFilter/xorfilter v0.1.3 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/ajwerner/btree v0.0.0-20211221152037-f427b3e689c0 // indirect
 	github.com/alecthomas/atomic v0.1.0-alpha2 // indirect
@@ -158,6 +159,7 @@ require (
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20230602150820-91b7bce49751 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20220405231054-a1ae3e4bba26 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ipfs/go-cid v0.4.1 // indirect
