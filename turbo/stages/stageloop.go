@@ -21,6 +21,7 @@ import (
 	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/turbo/engineapi/engine_helpers"
 	"github.com/ledgerwatch/erigon/turbo/services"
+	"github.com/ledgerwatch/erigon/turbo/silkworm"
 
 	"github.com/ledgerwatch/erigon/cmd/sentry/sentry"
 	"github.com/ledgerwatch/erigon/consensus/bor"
@@ -427,6 +428,7 @@ func NewDefaultStages(ctx context.Context,
 	blockReader services.FullBlockReader,
 	blockRetire services.BlockRetire,
 	agg *state.AggregatorV3,
+	silkworm *silkworm.Silkworm,
 	forkValidator *engine_helpers.ForkValidator,
 	heimdallClient bor.IHeimdallClient,
 	logger log.Logger,
@@ -463,6 +465,7 @@ func NewDefaultStages(ctx context.Context,
 			cfg.Genesis,
 			cfg.Sync,
 			agg,
+			silkworm,
 		),
 		stagedsync.StageHashStateCfg(db, dirs, cfg.HistoryV3),
 		stagedsync.StageTrieCfg(db, true, true, false, dirs.Tmp, blockReader, controlServer.Hd, cfg.HistoryV3, agg),
@@ -483,6 +486,7 @@ func NewPipelineStages(ctx context.Context,
 	blockReader services.FullBlockReader,
 	blockRetire services.BlockRetire,
 	agg *state.AggregatorV3,
+	silkworm *silkworm.Silkworm,
 	forkValidator *engine_helpers.ForkValidator,
 	logger log.Logger,
 	checkStateRoot bool,
@@ -516,6 +520,7 @@ func NewPipelineStages(ctx context.Context,
 			cfg.Genesis,
 			cfg.Sync,
 			agg,
+			silkworm,
 		),
 		stagedsync.StageHashStateCfg(db, dirs, cfg.HistoryV3),
 		stagedsync.StageTrieCfg(db, checkStateRoot, true, false, dirs.Tmp, blockReader, controlServer.Hd, cfg.HistoryV3, agg),
@@ -529,7 +534,7 @@ func NewPipelineStages(ctx context.Context,
 
 func NewInMemoryExecution(ctx context.Context, db kv.RwDB, cfg *ethconfig.Config, controlServer *sentry.MultiClient,
 	dirs datadir.Dirs, notifications *shards.Notifications, blockReader services.FullBlockReader, blockWriter *blockio.BlockWriter, agg *state.AggregatorV3,
-	logger log.Logger) (*stagedsync.Sync, error) {
+	silkworm *silkworm.Silkworm, logger log.Logger) (*stagedsync.Sync, error) {
 	return stagedsync.New(
 		stagedsync.StateStages(ctx,
 			stagedsync.StageHeadersCfg(db, controlServer.Hd, controlServer.Bd, *controlServer.ChainConfig, controlServer.SendHeaderRequest, controlServer.PropagateNewBlockHashes, controlServer.Penalize, cfg.BatchSize, false, blockReader, blockWriter, dirs.Tmp, nil, nil),
@@ -554,6 +559,7 @@ func NewInMemoryExecution(ctx context.Context, db kv.RwDB, cfg *ethconfig.Config
 				cfg.Genesis,
 				cfg.Sync,
 				agg,
+				silkworm,
 			),
 			stagedsync.StageHashStateCfg(db, dirs, cfg.HistoryV3),
 			stagedsync.StageTrieCfg(db, true, true, true, dirs.Tmp, blockReader, controlServer.Hd, cfg.HistoryV3, agg)),

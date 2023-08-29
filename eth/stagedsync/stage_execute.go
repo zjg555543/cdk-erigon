@@ -45,6 +45,7 @@ import (
 	"github.com/ledgerwatch/erigon/ethdb/prune"
 	"github.com/ledgerwatch/erigon/turbo/services"
 	"github.com/ledgerwatch/erigon/turbo/shards"
+	"github.com/ledgerwatch/erigon/turbo/silkworm"
 )
 
 const (
@@ -84,6 +85,8 @@ type ExecuteBlockCfg struct {
 	syncCfg   ethconfig.Sync
 	genesis   *types.Genesis
 	agg       *libstate.AggregatorV3
+
+	silkworm  *silkworm.Silkworm
 }
 
 func StageExecuteBlocksCfg(
@@ -105,6 +108,7 @@ func StageExecuteBlocksCfg(
 	genesis *types.Genesis,
 	syncCfg ethconfig.Sync,
 	agg *libstate.AggregatorV3,
+	silkworm *silkworm.Silkworm,
 ) ExecuteBlockCfg {
 	if genesis == nil {
 		panic("assert: nil genesis")
@@ -127,6 +131,7 @@ func StageExecuteBlocksCfg(
 		historyV3:     historyV3,
 		syncCfg:       syncCfg,
 		agg:           agg,
+		silkworm:      silkworm,
 	}
 }
 
@@ -457,7 +462,14 @@ Loop:
 		writeChangeSets := nextStagesExpectData || blockNum > cfg.prune.History.PruneTo(to)
 		writeReceipts := nextStagesExpectData || blockNum > cfg.prune.Receipts.PruneTo(to)
 		writeCallTraces := nextStagesExpectData || blockNum > cfg.prune.CallTraces.PruneTo(to)
-		if err = executeBlock(block, tx, batch, cfg, *cfg.vmConfig, writeChangeSets, writeReceipts, writeCallTraces, initialCycle, stateStream, logger); err != nil {
+
+		if cfg.silkworm != nil {
+			blockNum, err = cfg.silkworm.ExecuteBlocks(tx, cfg.chainConfig.ChainID, blockNum, to, uint64(cfg.batchSize), writeReceipts)
+		} else {
+			err = executeBlock(block, tx, batch, cfg, *cfg.vmConfig, writeChangeSets, writeReceipts, writeCallTraces, initialCycle, stateStream, logger)
+		}
+
+		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Warn(fmt.Sprintf("[%s] Execution failed", logPrefix), "block", blockNum, "hash", block.Hash().String(), "err", err)
 				if cfg.hd != nil {

@@ -101,6 +101,8 @@ var Defaults = Config{
 		KeepBlocks: false,
 		Produce:    true,
 	},
+
+	SilkwormEnabled: false,
 }
 
 func init() {
@@ -245,6 +247,10 @@ type Config struct {
 	SentinelPort                uint64
 
 	OverrideCancunTime *big.Int `toml:",omitempty"`
+
+	// Embedded Silkworm support
+	SilkwormEnabled bool
+	SilkwormPath string
 }
 
 type Sync struct {
