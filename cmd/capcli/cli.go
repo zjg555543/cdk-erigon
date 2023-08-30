@@ -23,6 +23,8 @@ import (
 	"github.com/spf13/afero"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+
+	_ "modernc.org/sqlite"
 )
 
 var CLI struct {
@@ -103,7 +105,7 @@ func (b *Blocks) Run(ctx *Context) error {
 		return err
 	}
 
-	sqlDB, err := sql.Open("sqlite3", "caplin/db")
+	sqlDB, err := sql.Open("sqlite", "caplin/db")
 	if err != nil {
 		return err
 	}
@@ -144,7 +146,7 @@ func (b *Epochs) Run(cctx *Context) error {
 	if err != nil {
 		return err
 	}
-	sqlDB, err := sql.Open("sqlite3", "caplin/db")
+	sqlDB, err := sql.Open("sqlite", "caplin/db")
 	if err != nil {
 		return err
 	}
@@ -168,7 +170,7 @@ func (b *Epochs) Run(cctx *Context) error {
 	}
 
 	ctx, cn := context.WithCancel(ctx)
-	egg, ctx := errgroup.WithContext(ctx)
+	egg, _ := errgroup.WithContext(ctx)
 
 	totalEpochs := (b.ToEpoch - b.FromEpoch + 1)
 	pw := progress.NewWriter()

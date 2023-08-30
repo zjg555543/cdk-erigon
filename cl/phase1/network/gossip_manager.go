@@ -79,7 +79,7 @@ func (g *GossipManager) onRecv(ctx context.Context, data *sentinel.GossipData, l
 	case sentinel.GossipType_BeaconBlockGossipType:
 		object = cltypes.NewSignedBeaconBlock(g.beaconConfig)
 		if err := object.DecodeSSZ(common.CopyBytes(data.Data), int(version)); err != nil {
-			g.sentinel.BanPeer(ctx, data.Peer)
+			g.sentinel.Penalize(ctx, data.Peer)
 			l["at"] = "decoding block"
 			return err
 		}
@@ -128,7 +128,7 @@ func (g *GossipManager) onRecv(ctx context.Context, data *sentinel.GossipData, l
 	case sentinel.GossipType_VoluntaryExitGossipType:
 		object = &cltypes.SignedVoluntaryExit{}
 		if err := object.DecodeSSZ(data.Data, int(version)); err != nil {
-			g.sentinel.BanPeer(ctx, data.Peer)
+			g.sentinel.Penalize(ctx, data.Peer)
 			l["at"] = "decode exit"
 			return err
 		}
@@ -136,14 +136,14 @@ func (g *GossipManager) onRecv(ctx context.Context, data *sentinel.GossipData, l
 		object = &cltypes.ProposerSlashing{}
 		if err := object.DecodeSSZ(data.Data, int(version)); err != nil {
 			l["at"] = "decode proposer slash"
-			g.sentinel.BanPeer(ctx, data.Peer)
+			g.sentinel.Penalize(ctx, data.Peer)
 			return err
 		}
 	case sentinel.GossipType_AttesterSlashingGossipType:
 		object = &cltypes.AttesterSlashing{}
 		if err := object.DecodeSSZ(data.Data, int(version)); err != nil {
 			l["at"] = "decode attester slash"
-			g.sentinel.BanPeer(ctx, data.Peer)
+			g.sentinel.Penalize(ctx, data.Peer)
 			return err
 		}
 		if err := g.forkChoice.OnAttesterSlashing(object.(*cltypes.AttesterSlashing)); err != nil {
@@ -154,7 +154,7 @@ func (g *GossipManager) onRecv(ctx context.Context, data *sentinel.GossipData, l
 		object = &cltypes.SignedAggregateAndProof{}
 		if err := object.DecodeSSZ(data.Data, int(version)); err != nil {
 			l["at"] = "decoding proof"
-			g.sentinel.BanPeer(ctx, data.Peer)
+			g.sentinel.Penalize(ctx, data.Peer)
 			return err
 		}
 	}

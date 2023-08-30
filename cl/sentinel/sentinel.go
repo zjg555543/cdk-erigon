@@ -27,6 +27,8 @@ import (
 	"github.com/ledgerwatch/erigon/cl/sentinel/handlers"
 	"github.com/ledgerwatch/erigon/cl/sentinel/handshake"
 	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
+	"github.com/ledgerwatch/erigon/cl/sentinel/persistence"
+	"github.com/ledgerwatch/erigon/cl/sentinel/persistence/migrations"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/cl/cltypes"
@@ -40,6 +42,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
 	_ "modernc.org/sqlite"
@@ -286,8 +289,26 @@ func New(
 	if err != nil {
 		return nil, err
 	}
+	os.MkdirAll(path.Join(cfg.DataDir, "caplin", "sentinel", "peers"), 0o740)
+	sqlDb, err := sql.Open(
+		"sqlite",
+		path.Join(cfg.DataDir, "caplin", "sentinel", "peers", "sqlite.db")+"?_busy_timeout=5000",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("[Sentinel] open peerdb", err)
+	}
+	err = migrations.ApplyMigrations(ctx, sqlDb)
+	if err != nil {
+		return nil, err
+	}
 
 	opts = append(opts, libp2p.ConnectionGater(gater))
+	ps, err := pstoremem.NewPeerstore()
+	if err != nil {
+		return nil, err
+	}
+	trackingPeerStore := persistence.NewTrackingPeerstore(ps, sqlDb)
+	opts = append(opts, libp2p.Peerstore(trackingPeerStore))
 
 	host, err := libp2p.New(opts...)
 	if err != nil {
@@ -297,12 +318,6 @@ func New(
 	s.handshaker = handshake.New(ctx, cfg.GenesisConfig, cfg.BeaconConfig, host)
 
 	s.host = host
-
-	os.MkdirAll(path.Join(cfg.DataDir, "caplin", "sentinel", "peers"), 0o740)
-	sqlDb, err := sql.Open("sqlite", path.Join(cfg.DataDir, "caplin", "sentinel", "peers", "sqlite.db"))
-	if err != nil {
-		return nil, fmt.Errorf("[Sentinel] open peerdb", err)
-	}
 
 	s.peers, err = peers.NewManager(ctx, s.host, sqlDb)
 	if err != nil {
