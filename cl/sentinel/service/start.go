@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
-	sentinel2 "github.com/ledgerwatch/erigon/cl/sentinel"
+	"fmt"
 	"net"
+
+	sentinel2 "github.com/ledgerwatch/erigon/cl/sentinel"
 
 	"github.com/ledgerwatch/erigon-lib/direct"
 	sentinelrpc "github.com/ledgerwatch/erigon-lib/gointerfaces/sentinel"
@@ -59,7 +61,7 @@ func StartSentinelService(cfg *sentinel2.SentinelConfig, db kv.RoDB, srvCfg *Ser
 	ctx := context.Background()
 	sent, err := createSentinel(cfg, db, logger)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating: %w", err)
 	}
 	// rcmgrObs.MustRegisterWith(prometheus.DefaultRegisterer)
 	logger.Info("[Sentinel] Sentinel started", "enr", sent.String())

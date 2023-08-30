@@ -16,9 +16,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/ledgerwatch/erigon/cl/sentinel"
 	"github.com/ledgerwatch/erigon/cl/sentinel/service"
-	"os"
 
 	"github.com/ledgerwatch/erigon/cl/beacon"
 	"github.com/ledgerwatch/erigon/cl/freezer"
@@ -87,6 +88,7 @@ func runCaplinNode(cliCtx *cli.Context) error {
 		NetworkConfig: cfg.NetworkCfg,
 		BeaconConfig:  cfg.BeaconCfg,
 		NoDiscovery:   cfg.NoDiscovery,
+		DataDir:       cfg.DataDir,
 	}, nil, &service.ServerConfig{Network: cfg.ServerProtocol, Addr: cfg.ServerAddr}, nil, &cltypes.Status{
 		ForkDigest:     forkDigest,
 		FinalizedRoot:  state.FinalizedCheckpoint().BlockRoot(),

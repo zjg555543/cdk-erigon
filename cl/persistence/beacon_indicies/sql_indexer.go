@@ -8,7 +8,7 @@ import (
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/cl/cltypes"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type SQLObject interface {
@@ -195,8 +195,8 @@ func ReadHeaderAndSignatureByBlockRoot(ctx context.Context, db SQLObject, blockR
 	var canonical bool
 	var signature []byte
 	// Execute the query.
-	err := db.QueryRowContext(ctx, `SELECT 
-		slot, proposer_index, state_root, parent_block_root, canonical, body_root, signature 
+	err := db.QueryRowContext(ctx, `SELECT
+		slot, proposer_index, state_root, parent_block_root, canonical, body_root, signature
 		FROM beacon_indicies WHERE beacon_block_root = ?`, blockRoot).Scan(
 		&h.Slot,
 		&h.ProposerIndex,

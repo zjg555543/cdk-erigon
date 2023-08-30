@@ -2,10 +2,12 @@ package peers
 
 import (
 	"context"
+	"database/sql"
 	"sync"
 	"time"
 
 	"github.com/ledgerwatch/erigon/cl/phase1/core/state/lru"
+	"github.com/ledgerwatch/erigon/cl/sentinel/persistence/migrations"
 	"github.com/ledgerwatch/erigon/metrics/methelp"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -27,24 +29,30 @@ func newPeer() *Peer {
 
 type Manager struct {
 	host        host.Host
+	db          *sql.DB
 	peers       *lru.Cache[peer.ID, *Peer]
 	peerTimeout time.Duration
 
 	mu sync.Mutex
 }
 
-func NewManager(ctx context.Context, host host.Host) *Manager {
+func NewManager(ctx context.Context, host host.Host, db *sql.DB) (*Manager, error) {
 	c, err := lru.New[peer.ID, *Peer]("beacon_peer_manager", 500)
 	if err != nil {
-		panic(err)
+		return nil, err
+	}
+	err = migrations.ApplyMigrations(ctx, db)
+	if err != nil {
+		return nil, err
 	}
 	m := &Manager{
+		db:          db,
 		peerTimeout: 8 * time.Hour,
 		peers:       c,
 		host:        host,
 	}
 	go m.run(ctx)
-	return m
+	return m, nil
 }
 
 func (m *Manager) getPeer(id peer.ID) (peer *Peer) {
@@ -64,6 +72,7 @@ func (m *Manager) getPeer(id peer.ID) (peer *Peer) {
 	m.mu.Unlock()
 	return p
 }
+
 func (m *Manager) CtxPeer(ctx context.Context, id peer.ID, fn func(peer *Peer)) error {
 	p := m.getPeer(id)
 	select {

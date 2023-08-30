@@ -16,9 +16,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/ledgerwatch/erigon/cl/sentinel"
 	"github.com/ledgerwatch/erigon/cl/sentinel/service"
-	"os"
 
 	"github.com/ledgerwatch/log/v3"
 	"github.com/urfave/cli/v2"
@@ -53,6 +54,7 @@ func runSentinelNode(cliCtx *cli.Context) error {
 		BeaconConfig:   cfg.BeaconCfg,
 		NoDiscovery:    cfg.NoDiscovery,
 		LocalDiscovery: cfg.LocalDiscovery,
+		DataDir:        cfg.DataDir,
 	}, nil, &service.ServerConfig{Network: cfg.ServerProtocol, Addr: cfg.ServerAddr}, nil, nil, log.Root())
 	if err != nil {
 		log.Error("[Sentinel] Could not start sentinel", "err", err)

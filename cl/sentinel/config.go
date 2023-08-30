@@ -44,6 +44,7 @@ type SentinelConfig struct {
 	NoDiscovery    bool
 	TmpDir         string
 	LocalDiscovery bool
+	DataDir        string
 }
 
 func convertToCryptoPrivkey(privkey *ecdsa.PrivateKey) (crypto.PrivKey, error) {
