@@ -16,6 +16,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/ledgerwatch/erigon/cl/sentinel"
+	"github.com/ledgerwatch/erigon/cl/sentinel/service"
 	"os"
 
 	"github.com/ledgerwatch/erigon/cl/beacon"
@@ -32,8 +34,6 @@ import (
 	"github.com/ledgerwatch/erigon/cmd/caplin-phase1/caplin1"
 	lcCli "github.com/ledgerwatch/erigon/cmd/sentinel/cli"
 	"github.com/ledgerwatch/erigon/cmd/sentinel/cli/flags"
-	"github.com/ledgerwatch/erigon/cmd/sentinel/sentinel"
-	"github.com/ledgerwatch/erigon/cmd/sentinel/sentinel/service"
 	lightclientapp "github.com/ledgerwatch/erigon/turbo/app"
 	"github.com/ledgerwatch/erigon/turbo/debug"
 )
