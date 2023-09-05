@@ -16,8 +16,10 @@ package sentinel
 import (
 	"context"
 	"fmt"
-	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
 	"time"
+
+	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/ledgerwatch/erigon/cl/clparams"
 	"github.com/ledgerwatch/erigon/cl/fork"
@@ -87,8 +89,9 @@ func (s *Sentinel) listenForPeers() {
 	multiAddresses := convertToMultiAddr(enodes)
 	if err := s.connectWithAllPeers(multiAddresses); err != nil {
 		log.Warn("Could not connect to static peers", "reason", err)
-
 	}
+
+	sf := &singleflight.Group{}
 
 	iterator := s.listener.RandomNodes()
 	defer iterator.Close()
@@ -122,12 +125,12 @@ func (s *Sentinel) listenForPeers() {
 		if node.IP().IsPrivate() {
 			continue
 		}
-
-		go func(peerInfo *peer.AddrInfo) {
+		go sf.Do(string(peerInfo.ID), func() (interface{}, error) {
 			if err := s.ConnectWithPeer(s.ctx, *peerInfo, false); err != nil {
 				log.Trace("[Sentinel] Could not connect with peer", "err", err)
 			}
-		}(peerInfo)
+			return nil, err
+		})
 	}
 }
 

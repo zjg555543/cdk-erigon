@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	sentinel2 "github.com/ledgerwatch/erigon/cl/sentinel"
-	"github.com/ledgerwatch/erigon/cl/sentinel/communication"
-	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	sentinel2 "github.com/ledgerwatch/erigon/cl/sentinel"
+	"github.com/ledgerwatch/erigon/cl/sentinel/communication"
+	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
 
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	sentinelrpc "github.com/ledgerwatch/erigon-lib/gointerfaces/sentinel"
@@ -65,6 +66,24 @@ func (s *SentinelServer) BanPeer(_ context.Context, p *sentinelrpc.Peer) (*senti
 	s.sentinel.Peers().WithPeer(pid, func(peer *peers.Peer) {
 		peer.Ban()
 	})
+	return &sentinelrpc.EmptyMessage{}, nil
+}
+
+func (s *SentinelServer) PenalizePeer(_ context.Context, p *sentinelrpc.Peer) (*sentinelrpc.EmptyMessage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var pid peer.ID
+	if err := pid.UnmarshalText([]byte(p.Pid)); err != nil {
+		return nil, err
+	}
+	s.sentinel.Peers().WithPeer(pid, func(peer *peers.Peer) {
+		peer.Penalize()
+	})
+	return &sentinelrpc.EmptyMessage{}, nil
+}
+func (s *SentinelServer) RewardPeer(_ context.Context, p *sentinelrpc.Peer) (*sentinelrpc.EmptyMessage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return &sentinelrpc.EmptyMessage{}, nil
 }
 
@@ -171,6 +190,7 @@ func (s *SentinelServer) SendRequest(ctx context.Context, req *sentinelrpc.Reque
 			peer.Penalize()
 			return
 		}
+		peer.MarkReplied()
 		ans := &sentinelrpc.ResponseData{
 			Data:  data,
 			Error: isError != 0,

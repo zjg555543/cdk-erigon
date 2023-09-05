@@ -302,6 +302,12 @@ func New(
 		return nil, err
 	}
 
+	// reset bans
+	//_, err = sqlDb.ExecContext(ctx, `update peers set banned = 0 where banned != 0;`)
+	//if err != nil {
+	//	return nil, err
+	//}
+
 	opts = append(opts, libp2p.ConnectionGater(gater))
 	ps, err := pstoremem.NewPeerstore()
 	if err != nil {

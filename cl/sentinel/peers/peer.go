@@ -13,11 +13,8 @@ import (
 // Record Peer data.
 type Peer struct {
 	InRequest bool
-	// acts as the mutex. channel used to avoid use of TryLock
-	working chan struct{}
 	// peer id
-	pid  peer.ID
-	busy bool
+	pid peer.ID
 	// backref to the manager that owns this peer
 	m *Manager
 }
@@ -66,6 +63,16 @@ func (p *Peer) tx(ctx context.Context, fn func(context.Context, *sql.Tx) error) 
 		return err
 	}
 
+}
+func (p *Peer) Reward() {
+	log.Trace("[Sentinel Peers] peer rewarded", "peer-id", p.pid)
+	err := p.tx(context.TODO(), func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `update peers set rewards = rewards + 1 where id = ?`, p.ID().String())
+		return err
+	})
+	if err != nil {
+		log.Error("[sentinel] fail penalize", "err", err)
+	}
 }
 func (p *Peer) Penalize() {
 	log.Trace("[Sentinel Peers] peer penalized", "peer-id", p.pid)
@@ -201,4 +208,12 @@ func (p *Peer) Ban(reason ...string) {
 	}
 	p.Disconnect(reason...)
 	return
+}
+
+func (p *Peer) Unban() {
+	log.Trace("[Sentinel Peers] peer unbanned", "peer-id", p.pid)
+	p.tx(context.TODO(), func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `update peers set penalties = 0, banned = 0 where id = ?`, p.ID().String())
+		return err
+	})
 }

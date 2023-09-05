@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -32,6 +33,8 @@ var CLI struct {
 
 	Blocks Blocks `cmd:"" help:"download blocks from reqresp network"`
 	Epochs Epochs `cmd:"" help:"download epochs from reqresp network"`
+
+	Peers Peers `cmd:"" help:"list peers"`
 }
 
 type chainCfg struct {
@@ -146,11 +149,15 @@ func (b *Epochs) Run(cctx *Context) error {
 	if err != nil {
 		return err
 	}
-	sqlDB, err := sql.Open("sqlite", "caplin/db")
+	sqlDB, err := sql.Open("sqlite", path.Join(b.Datadir, "caplin", "beacon_indices"))
 	if err != nil {
 		return err
 	}
 	defer sqlDB.Close()
+
+	if err != nil {
+		return err
+	}
 	beaconDB := persistence.NewBeaconChainDatabaseFilesystem(aferoFS, nil, false, beaconConfig, sqlDB)
 
 	beacon := rpc.NewBeaconRpcP2P(ctx, s, beaconConfig, genesisConfig)
@@ -215,12 +222,13 @@ func (b *Epochs) Run(cctx *Context) error {
 				}
 			}
 			for _, v := range blocks {
-				tk.Increment(1)
 				_, _ = beaconDB, v
 				err := beaconDB.WriteBlock(ctx, v.Data, true)
 				if err != nil {
+					fmt.Println("error writing block", err)
 					return err
 				}
+				tk.Increment(1)
 			}
 			return nil
 		})
@@ -303,5 +311,27 @@ func (m *Migrate) Run(ctx *Context) error {
 			return err
 		}
 	}
+	return nil
+}
+
+type Peers struct {
+	chainCfg
+	withSentinel
+}
+
+func (b *Peers) Run(cctx *Context) error {
+	ctx := cctx.Context
+	s, err := b.withSentinel.connectSentinel()
+	if err != nil {
+		return err
+	}
+
+	peerCount, err := s.GetPeers(ctx, &sentinel.EmptyMessage{})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("peer count: %d\n", peerCount.Amount)
+
 	return nil
 }

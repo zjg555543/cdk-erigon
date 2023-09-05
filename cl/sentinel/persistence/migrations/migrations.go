@@ -11,6 +11,7 @@ var migrations = []string{
 		id TEXT NOT NULL,
 		use_count integer default 0 not null,
 		success_count integer default 0 not null,
+		rewards integer default 0 not null,
 		penalties integer default 0 not null,
 		banned integer default 0 not null,
 		last_touch INTEGER default 0 NOT NULL,
