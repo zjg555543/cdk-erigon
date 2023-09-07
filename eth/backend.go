@@ -1239,6 +1239,11 @@ func (s *Ethereum) Stop() error {
 		s.agg.Close()
 	}
 	s.chainDB.Close()
+
+	if s.config.SilkwormEnabled {
+		s.silkworm.Close()
+	}
+
 	return nil
 }
 
