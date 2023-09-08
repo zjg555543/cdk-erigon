@@ -247,6 +247,18 @@ func (back *RemoteBackend) TxnByIdxInBlock(ctx context.Context, tx kv.Getter, bl
 	return back.blockReader.TxnByIdxInBlock(ctx, tx, blockNum, i)
 }
 
+func (back *RemoteBackend) TxnByTxId(ctx context.Context, tx kv.Getter, txId uint64) (types.Transaction, error) {
+	return back.blockReader.TxnByTxId(ctx, tx, txId)
+}
+
+func (back *RemoteBackend) TxIdByIdxInBlock(ctx context.Context, tx kv.Getter, blockNum uint64, i int) (uint64, error) {
+	return back.blockReader.TxIdByIdxInBlock(ctx, tx, blockNum, i)
+}
+
+func (back *RemoteBackend) BaseTxIdForBlock(ctx context.Context, tx kv.Getter, blockNum uint64) (txid uint64, err error) {
+	return back.blockReader.BaseTxIdForBlock(ctx, tx, blockNum)
+}
+
 func (back *RemoteBackend) EngineNewPayload(ctx context.Context, payload *types2.ExecutionPayload) (res *remote.EnginePayloadStatus, err error) {
 	return back.remoteEthBackend.EngineNewPayload(ctx, payload)
 }

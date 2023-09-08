@@ -23,8 +23,8 @@ import (
 func nullStage(firstCycle bool, badBlockUnwind bool, s *stagedsync.StageState, u stagedsync.Unwinder, tx kv.RwTx, logger log.Logger) error {
 	return nil
 }
-func ExecutionStages(ctx context.Context, sm prune.Mode, snapshots stagedsync.SnapshotsCfg, headers stagedsync.HeadersCfg, cumulativeIndex stagedsync.CumulativeIndexCfg, blockHashCfg stagedsync.BlockHashesCfg, bodies stagedsync.BodiesCfg, senders stagedsync.SendersCfg, exec stagedsync.ExecuteBlockCfg, hashState stagedsync.HashStateCfg, trieCfg stagedsync.TrieCfg, history stagedsync.HistoryCfg, logIndex stagedsync.LogIndexCfg, callTraces stagedsync.CallTracesCfg, txLookup stagedsync.TxLookupCfg, finish stagedsync.FinishCfg, test bool) []*stagedsync.Stage {
-	defaultStages := stagedsync.DefaultStages(ctx, snapshots, headers, cumulativeIndex, blockHashCfg, bodies, senders, exec, hashState, trieCfg, history, logIndex, callTraces, txLookup, finish, test)
+func ExecutionStages(ctx context.Context, sm prune.Mode, snapshots stagedsync.SnapshotsCfg, headers stagedsync.HeadersCfg, cumulativeIndex stagedsync.CumulativeIndexCfg, blockHashCfg stagedsync.BlockHashesCfg, bodies stagedsync.BodiesCfg, senders stagedsync.SendersCfg, exec stagedsync.ExecuteBlockCfg, hashState stagedsync.HashStateCfg, trieCfg stagedsync.TrieCfg, history stagedsync.HistoryCfg, logIndex stagedsync.LogIndexCfg, callTraces stagedsync.CallTracesCfg, txLookup stagedsync.TxLookupCfg, finish stagedsync.FinishCfg, caCfg stagedsync.ContractAnalyzerCfg, ots2Enabled bool, test bool) []*stagedsync.Stage {
+	defaultStages := stagedsync.DefaultStages(ctx, snapshots, headers, cumulativeIndex, blockHashCfg, bodies, senders, exec, hashState, trieCfg, history, logIndex, callTraces, txLookup, finish, caCfg, ots2Enabled, test)
 	// Remove body/headers stages
 	defaultStages[1].Forward = nullStage
 	defaultStages[4].Forward = nullStage
@@ -86,6 +86,8 @@ func NewStagedSync(
 			stagedsync.StageCallTracesCfg(db, cfg.Prune, 0, dirs.Tmp),
 			stagedsync.StageTxLookupCfg(db, cfg.Prune, dirs.Tmp, controlServer.ChainConfig.Bor, blockReader),
 			stagedsync.StageFinishCfg(db, dirs.Tmp, forkValidator),
+			stagedsync.StageDbAwareCfg(db, dirs.Tmp, controlServer.ChainConfig, blockReader, controlServer.Engine),
+			cfg.Ots2,
 			runInTestMode),
 		stagedsync.DefaultUnwindOrder,
 		stagedsync.DefaultPruneOrder,
