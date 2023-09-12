@@ -17,11 +17,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
-	peers2 "github.com/ledgerwatch/erigon/cl/sentinel/peers"
 	"math/big"
 	"net"
 	"strings"
 	"time"
+
+	peers2 "github.com/ledgerwatch/erigon/cl/sentinel/peers"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ledgerwatch/erigon/p2p/enode"
@@ -108,7 +109,9 @@ func convertToMultiAddr(nodes []*enode.Node) []multiaddr.Multiaddr {
 var shuffleSource = randutil.NewMathRandomGenerator()
 
 // will iterate onto randoms nodes until our sentinel connects to one
-func connectToRandomPeer(s *Sentinel, topic string) (peerInfo peer.ID, err error) {
+// called MUST call the freefunc after in order to free the peer!
+func connectToRandomPeer(s *Sentinel, topic string) (peerInfo peer.ID, free func(), err error) {
+	ctx := s.ctx
 	var sub *GossipSubscription
 	for t, currSub := range s.subManager.subscriptions {
 		if strings.Contains(t, topic) {
@@ -117,7 +120,7 @@ func connectToRandomPeer(s *Sentinel, topic string) (peerInfo peer.ID, err error
 	}
 
 	if sub == nil {
-		return peer.ID(""), fmt.Errorf("no peers")
+		return peer.ID(""), func() {}, fmt.Errorf("no peers")
 	}
 	validPeerList := s.Host().Network().Peers()
 	// blocksSub := s.subManager.GetMatchingSubscription(string(BeaconBlockTopic))
@@ -127,7 +130,7 @@ func connectToRandomPeer(s *Sentinel, topic string) (peerInfo peer.ID, err error
 
 	//validPeerList := sub.topic.ListPeers()
 	if len(validPeerList) == 0 {
-		return peer.ID(""), fmt.Errorf("no peers")
+		return peer.ID(""), func() {}, fmt.Errorf("no peers")
 	}
 	for i := range validPeerList {
 		j := shuffleSource.Intn(i + 1)
@@ -150,20 +153,21 @@ func connectToRandomPeer(s *Sentinel, topic string) (peerInfo peer.ID, err error
 			}
 			index = n.Int64()
 		}
-		available := false
-		s.peers.TryPeer(validPeerList[index], func(peer *peers2.Peer, ok bool) {
-			if !ok {
-				return
-			}
-			available = peer.IsAvailable()
-		})
-		if !available {
+		// try to grab this peer if the CAS is successfull
+		swapped, err := s.peers.CasPeerState(ctx, validPeerList[index], 3, 4)
+		if err != nil {
 			continue
 		}
-		return validPeerList[index], nil
+		if !swapped {
+			continue
+		}
+		return validPeerList[index], func() {
+			// the free func swaps back
+			s.peers.CasPeerState(ctx, validPeerList[index], 4, 3)
+		}, nil
 	}
 
-	return peer.ID(""), fmt.Errorf("failed to connect to peer")
+	return peer.ID(""), func() {}, fmt.Errorf("could not find available peer")
 }
 
 func (s *Sentinel) oneSlotDuration() time.Duration {

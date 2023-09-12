@@ -27,7 +27,6 @@ import (
 	"github.com/ledgerwatch/erigon/cl/sentinel/handlers"
 	"github.com/ledgerwatch/erigon/cl/sentinel/handshake"
 	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
-	"github.com/ledgerwatch/erigon/cl/sentinel/persistence"
 	"github.com/ledgerwatch/erigon/cl/sentinel/persistence/migrations"
 
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -42,7 +41,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem"
 	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
 	rcmgrObs "github.com/libp2p/go-libp2p/p2p/host/resource-manager/obs"
 	_ "modernc.org/sqlite"
@@ -297,24 +295,25 @@ func New(
 	if err != nil {
 		return nil, fmt.Errorf("[Sentinel] open peerdb", err)
 	}
+	sqlDb.SetMaxOpenConns(1)
 	err = migrations.ApplyMigrations(ctx, sqlDb)
 	if err != nil {
 		return nil, err
 	}
 
 	// reset bans
-	//_, err = sqlDb.ExecContext(ctx, `update peers set banned = 0 where banned != 0;`)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	opts = append(opts, libp2p.ConnectionGater(gater))
-	ps, err := pstoremem.NewPeerstore()
+	_, err = sqlDb.ExecContext(ctx, `delete from peers`)
 	if err != nil {
 		return nil, err
 	}
-	trackingPeerStore := persistence.NewTrackingPeerstore(ps, sqlDb)
-	opts = append(opts, libp2p.Peerstore(trackingPeerStore))
+
+	opts = append(opts, libp2p.ConnectionGater(gater))
+	//ps, err := pstoremem.NewPeerstore()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//trackingPeerStore := persistence.NewTrackingPeerstore(ps, sqlDb)
+	//opts = append(opts, libp2p.Peerstore(trackingPeerStore))
 
 	host, err := libp2p.New(opts...)
 	if err != nil {
@@ -325,7 +324,7 @@ func New(
 
 	s.host = host
 
-	s.peers, err = peers.NewManager(ctx, s.host, sqlDb)
+	s.peers, err = peers.NewManager(ctx, s.logger, s.host, sqlDb)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +357,8 @@ func (s *Sentinel) Start() error {
 	}
 	// Configuring handshake
 	s.host.Network().Notify(&network.NotifyBundle{
-		ConnectedF: s.onConnection,
+		ConnectedF:    s.onConnection,
+		DisconnectedF: s.onDisconnection,
 	})
 	s.subManager = NewGossipManager(s.ctx)
 

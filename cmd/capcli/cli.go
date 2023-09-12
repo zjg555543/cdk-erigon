@@ -86,11 +86,11 @@ func (b *Blocks) Run(ctx *Context) error {
 	}
 
 	beacon := rpc.NewBeaconRpcP2P(ctx, s, beaconConfig, genesisConfig)
-	err = beacon.SetStatus(
-		genesisConfig.GenesisValidatorRoot,
-		beaconConfig.GenesisEpoch,
-		genesisConfig.GenesisValidatorRoot,
-		beaconConfig.GenesisSlot)
+	//err = beacon.SetStatus(
+	//	genesisConfig.GenesisValidatorRoot,
+	//	beaconConfig.GenesisEpoch,
+	//	genesisConfig.GenesisValidatorRoot,
+	//	beaconConfig.GenesisSlot)
 	if err != nil {
 		return err
 	}
@@ -98,8 +98,11 @@ func (b *Blocks) Run(ctx *Context) error {
 	if b.ToBlock < 0 {
 		b.ToBlock = int(utils.GetCurrentSlot(genesisConfig.GenesisTime, beaconConfig.SecondsPerSlot))
 	}
+	if b.ToBlock < b.FromBlock {
+		b.ToBlock, b.FromBlock = b.FromBlock, b.ToBlock
+	}
 
-	resp, _, err := beacon.SendBeaconBlocksByRangeReq(ctx, uint64(b.FromBlock), uint64(b.ToBlock))
+	resp, _, err := beacon.SendBeaconBlocksByRangeReq(ctx, uint64(b.FromBlock), 1+uint64(b.ToBlock)-uint64(b.FromBlock))
 	if err != nil {
 		return fmt.Errorf("error get beacon blocks: %w", err)
 	}
@@ -108,7 +111,7 @@ func (b *Blocks) Run(ctx *Context) error {
 		return err
 	}
 
-	sqlDB, err := sql.Open("sqlite", "caplin/db")
+	sqlDB, err := sql.Open("sqlite", path.Join(b.Datadir, "caplin", "beacon_indices"))
 	if err != nil {
 		return err
 	}
@@ -177,7 +180,7 @@ func (b *Epochs) Run(cctx *Context) error {
 	}
 
 	ctx, cn := context.WithCancel(ctx)
-	egg, _ := errgroup.WithContext(ctx)
+	defer cn()
 
 	totalEpochs := (b.ToEpoch - b.FromEpoch + 1)
 	pw := progress.NewWriter()
@@ -207,35 +210,44 @@ func (b *Epochs) Run(cctx *Context) error {
 	pw.AppendTracker(tk)
 	tk.UpdateTotal(total)
 
-	egg.SetLimit(b.Concurrency)
-	defer cn()
-	for i := b.FromEpoch; i <= b.ToEpoch; i = i + 1 {
-		ii := i
-		egg.Go(func() error {
-			var blocks []*peers.PeeredObject[*cltypes.SignedBeaconBlock]
-			for {
-				blocks, err = rpcSource.GetRange(ctx, uint64(ii)*beaconConfig.SlotsPerEpoch, beaconConfig.SlotsPerEpoch)
-				if err != nil {
-					log.Error("dl error", "err", err, "epoch", ii)
-				} else {
-					break
+	blocksCh := make(chan []*peers.PeeredObject[*cltypes.SignedBeaconBlock], 10)
+
+	go func() {
+		egg, _ := errgroup.WithContext(ctx)
+		egg.SetLimit(b.Concurrency)
+		for i := b.FromEpoch; i <= b.ToEpoch; i = i + 1 {
+			ii := i
+			egg.Go(func() error {
+				var blocks []*peers.PeeredObject[*cltypes.SignedBeaconBlock]
+				for {
+					blocks, err = rpcSource.GetRange(ctx, uint64(ii)*beaconConfig.SlotsPerEpoch, beaconConfig.SlotsPerEpoch)
+					if err != nil {
+						log.Error("dl error", "err", err, "epoch", ii)
+					} else {
+						break
+					}
 				}
+				blocksCh <- blocks
+				return nil
+			})
+		}
+		egg.Wait()
+		close(blocksCh)
+	}()
+
+	for {
+		blocks, ok := <-blocksCh
+		if !ok {
+			break
+		}
+		for _, v := range blocks {
+			tk.Increment(1)
+			err := beaconDB.WriteBlock(ctx, v.Data, true)
+			if err != nil {
+				fmt.Println("error writing block", err)
+				return err
 			}
-			for _, v := range blocks {
-				_, _ = beaconDB, v
-				err := beaconDB.WriteBlock(ctx, v.Data, true)
-				if err != nil {
-					fmt.Println("error writing block", err)
-					return err
-				}
-				tk.Increment(1)
-			}
-			return nil
-		})
-	}
-	err = egg.Wait()
-	if err != nil {
-		return err
+		}
 	}
 	tk.MarkAsDone()
 	return nil

@@ -3,9 +3,10 @@ package handshake
 import (
 	"bytes"
 	"context"
+	"sync"
+
 	communication2 "github.com/ledgerwatch/erigon/cl/sentinel/communication"
 	"github.com/ledgerwatch/erigon/cl/sentinel/communication/ssz_snappy"
-	"sync"
 
 	"github.com/ledgerwatch/erigon/cl/clparams"
 	"github.com/ledgerwatch/erigon/cl/cltypes"
@@ -62,31 +63,34 @@ func (h *HandShaker) IsSet() bool {
 	return h.set
 }
 
-func (h *HandShaker) ValidatePeer(id peer.ID) bool {
+func (h *HandShaker) ValidatePeer(id peer.ID) (ok bool, reason string) {
 	// Unprotected if it is not set
 	if !h.IsSet() {
-		return true
+		return true, "self status not set"
 	}
 	status := h.Status()
 	// Encode our status
 	var buffer buffer.Buffer
 	if err := ssz_snappy.EncodeAndWrite(&buffer, status); err != nil {
-		return false
+		return false, "self status failed to encode"
 	}
-
 	data := common.CopyBytes(buffer.Bytes())
 	response, errResponse, err := communication2.SendRequestRawToPeer(h.ctx, h.host, data, communication2.StatusProtocolV1, id)
 	if err != nil || errResponse > 0 {
-		return false
+		return false, "not respond to status request"
 	}
 	responseStatus := &cltypes.Status{}
 
 	if err := ssz_snappy.DecodeAndReadNoForkDigest(bytes.NewReader(response), responseStatus, clparams.Phase0Version); err != nil {
-		return false
+		return false, "invalid fork digest payload"
 	}
 	forkDigest, err := fork.ComputeForkDigest(h.beaconConfig, h.genesisConfig)
 	if err != nil {
-		return false
+		return false, "incomparable fork digest"
 	}
-	return responseStatus.ForkDigest == forkDigest
+	ok = responseStatus.ForkDigest == forkDigest
+	if !ok {
+		return false, "fork digest does not match self"
+	}
+	return ok, ""
 }

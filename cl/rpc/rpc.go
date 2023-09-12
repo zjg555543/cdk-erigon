@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/ledgerwatch/erigon/cl/sentinel/communication"
-	"github.com/ledgerwatch/erigon/cl/sentinel/communication/ssz_snappy"
 	"io"
 	"time"
+
+	"github.com/ledgerwatch/erigon/cl/sentinel/communication"
+	"github.com/ledgerwatch/erigon/cl/sentinel/communication/ssz_snappy"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/golang/snappy"
@@ -162,6 +163,17 @@ func (b *BeaconRpcP2P) Peers() (uint64, error) {
 		return 0, err
 	}
 	return amount.Amount, nil
+}
+
+// Peers retrieves peer count.
+func (b *BeaconRpcP2P) PenalizePeer(peer string) error {
+	_, err := b.sentinel.PenalizePeer(b.ctx, &sentinel.Peer{
+		Pid: peer,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *BeaconRpcP2P) SetStatus(finalizedRoot libcommon.Hash, finalizedEpoch uint64, headRoot libcommon.Hash, headSlot uint64) error {

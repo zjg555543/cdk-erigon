@@ -20,6 +20,16 @@ var migrations = []string{
 	);`,
 }
 
+var always = []string{
+	`
+	CREATE TEMP TABLE session (
+		id TEXT NOT NULL,
+		state integer default 0 not null,
+		primary key (id)
+	);
+	`,
+}
+
 func ApplyMigrations(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, "PRAGMA journal_mode=WAL")
 	if err != nil {
@@ -32,6 +42,12 @@ func ApplyMigrations(ctx context.Context, db *sql.DB) error {
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);"); err != nil {
 		return err
+	}
+	for _, v := range always {
+		_, err = tx.Exec(v)
+		if err != nil {
+			return err
+		}
 	}
 	// Get current schema version
 	var currentVersion int

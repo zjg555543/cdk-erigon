@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -24,36 +23,23 @@ type response struct {
 }
 
 func SendRequestRawToPeer(ctx context.Context, host host.Host, data []byte, topic string, peerId peer.ID) ([]byte, byte, error) {
-	nctx, cn := context.WithTimeout(ctx, 5*time.Second)
-	defer cn()
-	stream, err := writeRequestRaw(host, nctx, data, peerId, topic)
+	stream, err := writeRequestRaw(host, ctx, data, peerId, topic)
 	if err != nil {
 		return nil, 189, err
 	}
 	defer stream.Close()
-
-	retryVerifyTicker := time.NewTicker(10 * time.Millisecond)
-	defer retryVerifyTicker.Stop()
-
-	res := verifyResponse(stream, peerId)
-	for res.err != nil && res.err == network.ErrReset {
-		select {
-		case <-retryVerifyTicker.C:
-			res = verifyResponse(stream, peerId)
-		case <-nctx.Done():
-			stream.Reset()
-			return nil, 0, nctx.Err()
-		}
-	}
-
+	res := verifyResponse(ctx, stream, peerId)
 	return res.data, res.code, res.err
-
 }
 
 func writeRequestRaw(host host.Host, ctx context.Context, data []byte, peerId peer.ID, topic string) (network.Stream, error) {
 	stream, err := host.NewStream(ctx, peerId, protocol.ID(topic))
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin stream, err=%s", err)
+	}
+
+	if deadline, ok := ctx.Deadline(); ok {
+		stream.SetWriteDeadline(deadline)
 	}
 
 	if _, ok := NoRequestHandlers[topic]; !ok {
@@ -65,9 +51,12 @@ func writeRequestRaw(host host.Host, ctx context.Context, data []byte, peerId pe
 	return stream, stream.CloseWrite()
 }
 
-func verifyResponse(stream network.Stream, peerId peer.ID) (resp response) {
+func verifyResponse(ctx context.Context, stream network.Stream, peerId peer.ID) (resp response) {
 	code := make([]byte, 1)
-	_, resp.err = stream.Read(code)
+	if deadline, ok := ctx.Deadline(); ok {
+		stream.SetReadDeadline(deadline)
+	}
+	_, resp.err = io.ReadFull(stream, code)
 	if resp.err != nil {
 		return
 	}

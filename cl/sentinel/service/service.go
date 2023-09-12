@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,7 +12,6 @@ import (
 
 	sentinel2 "github.com/ledgerwatch/erigon/cl/sentinel"
 	"github.com/ledgerwatch/erigon/cl/sentinel/communication"
-	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
 
 	"github.com/ledgerwatch/erigon-lib/gointerfaces"
 	sentinelrpc "github.com/ledgerwatch/erigon-lib/gointerfaces/sentinel"
@@ -54,31 +54,32 @@ func extractBlobSideCarIndex(topic string) int {
 	return blobIndex
 }
 
-//BanPeer(context.Context, *Peer) (*EmptyMessage, error)
-
-func (s *SentinelServer) BanPeer(_ context.Context, p *sentinelrpc.Peer) (*sentinelrpc.EmptyMessage, error) {
+// BanPeer(context.Context, *Peer) (*EmptyMessage, error)
+func (s *SentinelServer) BanPeer(ctx context.Context, p *sentinelrpc.Peer) (*sentinelrpc.EmptyMessage, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var pid peer.ID
 	if err := pid.UnmarshalText([]byte(p.Pid)); err != nil {
 		return nil, err
 	}
-	s.sentinel.Peers().WithPeer(pid, func(peer *peers.Peer) {
-		peer.Ban()
-	})
+	err := s.sentinel.Peers().BanPeer(ctx, pid, "api ban")
+	if err != nil {
+		return nil, err
+	}
 	return &sentinelrpc.EmptyMessage{}, nil
 }
 
-func (s *SentinelServer) PenalizePeer(_ context.Context, p *sentinelrpc.Peer) (*sentinelrpc.EmptyMessage, error) {
+func (s *SentinelServer) PenalizePeer(ctx context.Context, p *sentinelrpc.Peer) (*sentinelrpc.EmptyMessage, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var pid peer.ID
 	if err := pid.UnmarshalText([]byte(p.Pid)); err != nil {
 		return nil, err
 	}
-	s.sentinel.Peers().WithPeer(pid, func(peer *peers.Peer) {
-		peer.Penalize()
-	})
+	err := s.sentinel.Peers().PenalizePeer(ctx, pid, 1)
+	if err != nil {
+		return nil, err
+	}
 	return &sentinelrpc.EmptyMessage{}, nil
 }
 func (s *SentinelServer) RewardPeer(_ context.Context, p *sentinelrpc.Peer) (*sentinelrpc.EmptyMessage, error) {
@@ -168,55 +169,62 @@ func (s *SentinelServer) withTimeoutCtx(pctx context.Context, dur time.Duration)
 func (s *SentinelServer) SendRequest(ctx context.Context, req *sentinelrpc.RequestData) (*sentinelrpc.ResponseData, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	retryReqInterval := time.NewTicker(100 * time.Millisecond)
+	ctx, cn := context.WithCancel(ctx)
+	retryReqInterval := time.NewTicker(250 * time.Millisecond)
 	defer retryReqInterval.Stop()
-	doneCh := make(chan *sentinelrpc.ResponseData)
+	doneCh := make(chan *sentinelrpc.ResponseData, 1)
 	// Try finding the data to our peers
-	uniquePeers := map[peer.ID]struct{}{}
-	requestPeer := func(peer *peers.Peer) {
-		peer.MarkUsed()
-		defer peer.MarkUnused()
-		data, isError, err := communication.SendRequestRawToPeer(ctx, s.sentinel.Host(), req.Data, req.Topic, peer.ID())
+	requestPeer := func(pid peer.ID) {
+		s.sentinel.Peers().MarkUsed(pid)
+		data, isError, err := communication.SendRequestRawToPeer(ctx, s.sentinel.Host(), req.Data, req.Topic, pid)
+		if errors.Is(err, context.Canceled) || errors.Is(err, os.ErrDeadlineExceeded) {
+			s.sentinel.Peers().RewardPeer(ctx, pid, -1)
+			return
+		}
 		if err != nil {
 			if strings.Contains(err.Error(), "protocols not supported") {
-				peer.Ban("peer does not support protocol")
+				s.sentinel.Peers().BanPeer(ctx, pid, "peer does not support protocol")
 			}
 			return
 		}
 		if isError > 3 {
-			peer.Disconnect(fmt.Sprintf("invalid response, starting byte %d", isError))
+			s.sentinel.Peers().DisconnectPeer(pid, fmt.Sprintf("invalid response, starting byte %d", isError))
 		}
 		if isError != 0 {
-			peer.Penalize()
+			s.sentinel.Peers().PenalizePeer(ctx, pid, 1)
 			return
 		}
-		peer.MarkReplied()
+		s.sentinel.Peers().RewardPeer(ctx, pid, 1)
 		ans := &sentinelrpc.ResponseData{
 			Data:  data,
 			Error: isError != 0,
 			Peer: &sentinelrpc.Peer{
-				Pid: peer.ID().String(),
+				Pid: pid.String(),
 			},
 		}
 		select {
 		case doneCh <- ans:
-			peer.MarkReplied()
+			s.sentinel.Peers().MarkReplied(pid)
 			retryReqInterval.Stop()
 			return
 		case <-ctx.Done():
 			return
 		}
 	}
+
+	// peer selection
 	go func() {
 		for {
-			pid, err := s.sentinel.RandomPeer(req.Topic)
+			// so select a random peer
+			pid, free, err := s.sentinel.RandomPeer(req.Topic)
 			if err != nil {
 				continue
 			}
-			if _, ok := uniquePeers[pid]; !ok {
-				go s.sentinel.Peers().WithPeer(pid, requestPeer)
-				uniquePeers[pid] = struct{}{}
-			}
+			go func() {
+				// the peer has the peer lock here
+				requestPeer(pid)
+				free()
+			}()
 			select {
 			case <-retryReqInterval.C:
 			case <-ctx.Done():
@@ -226,6 +234,7 @@ func (s *SentinelServer) SendRequest(ctx context.Context, req *sentinelrpc.Reque
 	}()
 	select {
 	case resp := <-doneCh:
+		cn()
 		return resp, nil
 	case <-ctx.Done():
 		return &sentinelrpc.ResponseData{

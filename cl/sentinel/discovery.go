@@ -15,10 +15,11 @@ package sentinel
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
 	"golang.org/x/sync/singleflight"
 
 	"github.com/ledgerwatch/erigon/cl/clparams"
@@ -33,24 +34,29 @@ import (
 	"github.com/prysmaticlabs/go-bitfield"
 )
 
+// ConnectWithPeer connects to the peer
 func (s *Sentinel) ConnectWithPeer(ctx context.Context, info peer.AddrInfo, skipHandshake bool) (err error) {
+	return s.connectWithPeer(ctx, info, skipHandshake)
+}
+
+// connectWithPeer is the entrypoint for all peer connection
+func (s *Sentinel) connectWithPeer(ctx context.Context, info peer.AddrInfo, skipHandshake bool) (err error) {
 	if info.ID == s.host.ID() {
 		return nil
 	}
-	s.peers.WithPeer(info.ID, func(peer *peers.Peer) {
-		if peer.IsBad() {
-			err = fmt.Errorf("refused to connect to bad peer")
-		}
-	})
+	if s.peers.IsPeerBad(info.ID) {
+		return fmt.Errorf("refused to connect to bad peer")
+	}
+	err = s.peers.EnsurePeer(ctx, info.ID)
 	if err != nil {
 		return err
 	}
+
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, clparams.MaxDialTimeout)
 	defer cancel()
+	// now attempt to connect
 	if err := s.host.Connect(ctxWithTimeout, info); err != nil {
-		s.peers.WithPeer(info.ID, func(peer *peers.Peer) {
-			peer.Disconnect(err.Error())
-		})
+		s.peers.PenalizePeer(ctx, info.ID, 1)
 		return err
 	}
 	return nil
@@ -64,7 +70,9 @@ func (s *Sentinel) connectWithAllPeers(multiAddrs []multiaddr.Multiaddr) error {
 	for _, peerInfo := range addrInfos {
 		go func(peerInfo peer.AddrInfo) {
 			if err := s.ConnectWithPeer(s.ctx, peerInfo, true); err != nil {
-				log.Trace("[Sentinel] Could not connect with peer", "err", err)
+				if !errors.Is(err, context.DeadlineExceeded) {
+					log.Error("[Sentinel] Could not connect with peer", "err", err)
+				}
 			}
 		}(peerInfo)
 	}
@@ -161,15 +169,74 @@ func (s *Sentinel) setupENR(
 	return node, nil
 }
 
-func (s *Sentinel) onConnection(net network.Network, conn network.Conn) {
-	go func() {
+func (s *Sentinel) onDisconnection(net network.Network, conn network.Conn) {
+	// apparently this needs to be async because of part of the libp2p design contract
+	// i can't find a source for this, it would be great if someone could
+	run := func() error {
+		ctx := context.TODO()
 		peerId := conn.RemotePeer()
-		invalid := !s.handshaker.ValidatePeer(peerId)
-		if invalid {
-			log.Trace("Handshake was unsuccessful")
-			s.peers.WithPeer(peerId, func(peer *peers.Peer) {
-				peer.Disconnect("invalid peer", "bad handshake")
-			})
+		if net.Connectedness(conn.RemotePeer()) == network.Connected {
+			return nil
+		}
+		var state int
+		s.peers.Tx(ctx, func(ctx context.Context, tx *sql.Tx) error {
+			tx.QueryRowContext(ctx, `select state from temp.session where id = ?`, peerId.String()).Scan(&state)
+			return nil
+		})
+		if state == 3 {
+			s.logger.Trace("disconnected peer", "id", peerId)
+		}
+		return s.peers.SetPeerState(context.TODO(), peerId, 0)
+	}
+	go func() {
+		err := run()
+		if err != nil {
+			s.logger.Error("onDisconnection", "err", err)
 		}
 	}()
+
+}
+
+func (s *Sentinel) onConnection(net network.Network, conn network.Conn) {
+	// apparently this needs to be async because of part of the libp2p design contract
+	// i can't find a source for this, it would be great if someone could
+	run := func() error {
+		peerId := conn.RemotePeer()
+		// grab the lock for start handshaking
+		swapped, err := s.peers.CasPeerState(context.TODO(), peerId, 0, 2)
+		if err != nil {
+			return err
+		}
+		// we are already handshaking/done handshaking, so skip
+		if !swapped {
+			return nil
+		}
+		valid, reason := s.handshaker.ValidatePeer(peerId)
+		if !valid {
+			// they failed handshake, so we need to ban them
+			err = s.peers.BanPeer(context.TODO(), peerId, "invalid peer", "bad handshake", reason)
+			if err != nil {
+				return err
+			}
+			// swap the state back from 2 to 0
+			_, err := s.peers.CasPeerState(context.TODO(), peerId, 2, 0)
+			if err != nil {
+				return err
+			}
+			return err
+		}
+		// set to state 3 to indicate that we are connected
+		_, err = s.peers.CasPeerState(context.TODO(), peerId, 2, 3)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	go func() {
+		err := run()
+		if err != nil {
+			s.logger.Error("onConnection", "err", err)
+		}
+	}()
+
 }

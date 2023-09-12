@@ -19,14 +19,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-func (s *Sentinel) RandomPeer(topic string) (peer.ID, error) {
-	var (
-		pid peer.ID
-		err error
-	)
-	pid, err = connectToRandomPeer(s, string(BeaconBlockTopic))
+// RandomPeer gets and claims a random peer for use
+// caller MUST call the free func to free the peer after calling!!
+func (s *Sentinel) RandomPeer(topic string) (pid peer.ID, free func(), err error) {
+	pid, free, err = connectToRandomPeer(s, string(BeaconBlockTopic))
 	if err != nil {
-		return peer.ID(""), fmt.Errorf("failed to connect to a random peer err=%s", err)
+		return peer.ID(""), free, fmt.Errorf("failed to connect to a random peer err=%s", err)
 	}
-	return pid, nil
+	return pid, free, nil
 }

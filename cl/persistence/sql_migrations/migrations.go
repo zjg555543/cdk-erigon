@@ -28,12 +28,16 @@ var migrations = []string{
 }
 
 func ApplyMigrations(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, "PRAGMA journal_mode=WAL")
+	if err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);"); err != nil {
 		return err
 	}
 	// Get current schema version
 	var currentVersion int
-	err := tx.QueryRow("SELECT version FROM schema_version").Scan(&currentVersion)
+	err = tx.QueryRow("SELECT version FROM schema_version").Scan(&currentVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		currentVersion = -1
 	} else if err != nil {
