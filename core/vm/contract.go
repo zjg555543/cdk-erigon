@@ -61,24 +61,14 @@ type Contract struct {
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
-func NewContract(caller ContractRef, object ContractRef, value *uint256.Int, gas uint64, skipAnalysis bool) *Contract {
-	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}
-
+func NewContract(caller ContractRef, object ContractRef, value *uint256.Int, gas uint64, skipAnalysis bool) (c *Contract) {
+	c = &Contract{CallerAddress: caller.Address(), caller: caller, self: object, Gas: gas, value: value, skipAnalysis: skipAnalysis}
 	if parent, ok := caller.(*Contract); ok {
 		// Reuse JUMPDEST analysis from parent context if available.
 		c.jumpdests = parent.jumpdests
 	} else {
 		c.jumpdests = make(map[libcommon.Hash][]uint64)
 	}
-
-	// Gas should be a pointer so it can safely be reduced through the run
-	// This pointer will be off the state transition
-	c.Gas = gas
-	// ensures a value is set
-	c.value = value
-
-	c.skipAnalysis = skipAnalysis
-
 	return c
 }
 
