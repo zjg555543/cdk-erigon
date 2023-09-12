@@ -122,7 +122,8 @@ func txnLookupTransform(logPrefix string, tx kv.RwTx, blockFrom, blockTo uint64,
 			return err
 		}
 		if body == nil {
-			return fmt.Errorf("transform: empty block body %d, hash %x", blocknum, v)
+			log.Warn(fmt.Sprintf("[%s] transform: empty block body %d, hash %x", logPrefix, blocknum, v))
+			return nil
 		}
 
 		blockNumBytes := bigNum.SetUint64(blocknum).Bytes()
