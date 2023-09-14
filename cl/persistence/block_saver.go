@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 
@@ -47,7 +48,7 @@ func (b beaconChainDatabaseFilesystem) GetRange(tx *sql.Tx, ctx context.Context,
 	blocks := []*peers.PeeredObject[*cltypes.SignedBeaconBlock]{}
 	for idx, blockRoot := range beaconBlockRooots {
 		slot := slots[idx]
-		_, path := RootToPaths(blockRoot, b.cfg)
+		_, path := RootToPaths(slot, blockRoot, b.cfg)
 
 		fp, err := b.fs.OpenFile(path, os.O_RDONLY, 0o755)
 		if err != nil {
@@ -67,8 +68,8 @@ func (b beaconChainDatabaseFilesystem) GetRange(tx *sql.Tx, ctx context.Context,
 }
 
 func (b beaconChainDatabaseFilesystem) PurgeRange(tx *sql.Tx, ctx context.Context, from uint64, count uint64) error {
-	if err := beacon_indicies.IterateBeaconIndicies(ctx, tx, from, from+count, func(_ uint64, beaconBlockRoot, _, _ libcommon.Hash, _ bool) bool {
-		_, path := RootToPaths(beaconBlockRoot, b.cfg)
+	if err := beacon_indicies.IterateBeaconIndicies(ctx, tx, from, from+count, func(slot uint64, beaconBlockRoot, _, _ libcommon.Hash, _ bool) bool {
+		_, path := RootToPaths(slot, beaconBlockRoot, b.cfg)
 		_ = b.fs.Remove(path)
 		return true
 	}); err != nil {
@@ -87,7 +88,7 @@ func (b beaconChainDatabaseFilesystem) WriteBlock(tx *sql.Tx, ctx context.Contex
 	if err != nil {
 		return err
 	}
-	folderPath, path := RootToPaths(blockRoot, b.cfg)
+	folderPath, path := RootToPaths(block.Block.Slot, blockRoot, b.cfg)
 	// ignore this error... reason: windows
 	_ = b.fs.MkdirAll(folderPath, 0o755)
 	fp, err := b.fs.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0o755)
@@ -124,9 +125,13 @@ func (b beaconChainDatabaseFilesystem) WriteBlock(tx *sql.Tx, ctx context.Contex
 // superEpoch = floor(slot / (epochSize ^ 2))
 // epoch =  floot(slot / epochSize)
 // file is to be stored at
-// "/signedBeaconBlock/{superEpoch}/{epoch}/{slot}.ssz_snappy"
-func RootToPaths(root libcommon.Hash, config *clparams.BeaconChainConfig) (folderPath string, filePath string) {
-	folderPath = path.Clean(fmt.Sprintf("%02x/%02x", root[0], root[1]))
+// "/signedBeaconBlock/{superEpoch}/{epoch}/{root}.ssz_snappy"
+func RootToPaths(slot uint64, root libcommon.Hash, config *clparams.BeaconChainConfig) (folderPath string, filePath string) {
+	slotsPerEpochFloat := float64(config.SlotsPerEpoch)
+	folderPath = path.Clean(fmt.Sprintf("%d/%d",
+		uint64(math.Floor(float64(slot)/(slotsPerEpochFloat*slotsPerEpochFloat))),
+		slot/config.SlotsPerEpoch,
+	))
 	filePath = path.Clean(fmt.Sprintf("%s/%x.sz", folderPath, root))
 	return
 }
