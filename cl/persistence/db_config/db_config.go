@@ -7,7 +7,7 @@ import (
 
 type DatabaseConfiguration struct{ PruneDepth uint64 }
 
-var DefaultDatabaseConfiguration = DatabaseConfiguration{PruneDepth: 1000}
+var DefaultDatabaseConfiguration = DatabaseConfiguration{PruneDepth: 0} // TODO(Giulio2002: set it to 1 mil)
 
 // should be 1_000_000
 
