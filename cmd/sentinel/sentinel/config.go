@@ -18,14 +18,13 @@ import (
 	"fmt"
 	"net"
 
-	mplex "github.com/libp2p/go-mplex"
-
 	"github.com/ledgerwatch/erigon/cl/clparams"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
+	multiplex "github.com/libp2p/go-mplex"
 	"github.com/multiformats/go-multiaddr"
 )
 
@@ -100,7 +99,7 @@ func buildOptions(cfg *SentinelConfig, s *Sentinel) ([]libp2p.Option, error) {
 		libp2p.ListenAddrs(listen),
 		libp2p.UserAgent("erigon/caplin"),
 		libp2p.Transport(tcp.NewTCPTransport),
-		libp2p.Muxer("/mplex/6.7.0", mplex.DefaultTransport),
+		libp2p.Muxer("/mplex/6.7.0", &multiplex.Multiplex{}),
 		libp2p.DefaultMuxers,
 	}
 
