@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ledgerwatch/erigon/cmd/devnet/devnet"
+	"github.com/ledgerwatch/erigon/devnet/devnet"
 	"github.com/ledgerwatch/log/v3"
 )
 

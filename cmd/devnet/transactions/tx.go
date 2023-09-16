@@ -9,11 +9,11 @@ import (
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/log/v3"
 
-	"github.com/ledgerwatch/erigon/cmd/devnet/accounts"
-	"github.com/ledgerwatch/erigon/cmd/devnet/blocks"
-	"github.com/ledgerwatch/erigon/cmd/devnet/devnet"
-	"github.com/ledgerwatch/erigon/cmd/devnet/devnetutils"
-	"github.com/ledgerwatch/erigon/cmd/devnet/scenarios"
+	"github.com/ledgerwatch/erigon/devnet/accounts"
+	"github.com/ledgerwatch/erigon/devnet/blocks"
+	"github.com/ledgerwatch/erigon/devnet/devnet"
+	"github.com/ledgerwatch/erigon/devnet/devnetutils"
+	"github.com/ledgerwatch/erigon/devnet/scenarios"
 	"github.com/ledgerwatch/erigon/rpc"
 
 	"github.com/holiman/uint256"

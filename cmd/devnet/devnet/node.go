@@ -7,9 +7,9 @@ import (
 	"sync"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/ledgerwatch/erigon/cmd/devnet/accounts"
-	"github.com/ledgerwatch/erigon/cmd/devnet/args"
-	"github.com/ledgerwatch/erigon/cmd/devnet/requests"
+	"github.com/ledgerwatch/erigon/devnet/accounts"
+	"github.com/ledgerwatch/erigon/devnet/args"
+	"github.com/ledgerwatch/erigon/devnet/requests"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/node/nodecfg"
 	"github.com/ledgerwatch/erigon/params"

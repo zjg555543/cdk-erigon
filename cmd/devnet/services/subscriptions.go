@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ledgerwatch/erigon/cmd/devnet/devnet"
-	"github.com/ledgerwatch/erigon/cmd/devnet/devnetutils"
-	"github.com/ledgerwatch/erigon/cmd/devnet/requests"
-	"github.com/ledgerwatch/erigon/cmd/devnet/scenarios"
+	"github.com/ledgerwatch/erigon/devnet/devnet"
+	"github.com/ledgerwatch/erigon/devnet/devnetutils"
+	"github.com/ledgerwatch/erigon/devnet/requests"
+	"github.com/ledgerwatch/erigon/devnet/scenarios"
 	"github.com/ledgerwatch/erigon/rpc"
 	"github.com/ledgerwatch/log/v3"
 )

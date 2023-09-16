@@ -8,11 +8,11 @@ import (
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/log/v3"
 
-	"github.com/ledgerwatch/erigon/cmd/devnet/devnet"
-	"github.com/ledgerwatch/erigon/cmd/devnet/devnetutils"
-	"github.com/ledgerwatch/erigon/cmd/devnet/requests"
-	"github.com/ledgerwatch/erigon/cmd/devnet/services"
 	"github.com/ledgerwatch/erigon/common/hexutil"
+	"github.com/ledgerwatch/erigon/devnet/devnet"
+	"github.com/ledgerwatch/erigon/devnet/devnetutils"
+	"github.com/ledgerwatch/erigon/devnet/requests"
+	"github.com/ledgerwatch/erigon/devnet/services"
 	"github.com/ledgerwatch/erigon/rpc"
 )
 
