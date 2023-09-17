@@ -887,12 +887,12 @@ Loop:
 
 // applyTx is required only for debugging
 func checkCommitmentV3(header *types.Header, applyTx kv.RwTx, agg *state2.AggregatorV3, badBlockHalt bool, hd headerDownloader, e *StageState, maxBlockNum uint64, logger log.Logger, u Unwinder) (bool, error) {
-	if dbg.DiscardCommitment() {
-		return true, nil
-	}
 	rh, err := agg.ComputeCommitment(true, false)
 	if err != nil {
 		return false, fmt.Errorf("StateV3.Apply: %w", err)
+	}
+	if dbg.DiscardCommitment() {
+		return true, nil
 	}
 	if bytes.Equal(rh, header.Root.Bytes()) {
 		return true, nil
