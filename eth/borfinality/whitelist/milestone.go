@@ -1,6 +1,8 @@
 package whitelist
 
 import (
+	"fmt"
+
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/eth/borfinality/flags"
@@ -50,6 +52,7 @@ type milestoneService interface {
 // IsValidChain checks the validity of chain by comparing it
 // against the local milestone entries
 func (m *milestone) IsValidChain(currentHeader uint64, chain []*types.Header) bool {
+	fmt.Println("***** IsValidChain - Milestone - Called *****")
 	//Checking for the milestone flag
 	if !flags.Milestone {
 		return true
@@ -90,6 +93,7 @@ func (m *milestone) IsValidChain(currentHeader uint64, chain []*types.Header) bo
 }
 
 func (m *milestone) Process(block uint64, hash common.Hash) {
+	fmt.Println("***** Process - Milestone - Called *****")
 	m.finality.Lock()
 	defer m.finality.Unlock()
 
@@ -168,6 +172,7 @@ func (m *milestone) UnlockSprint(endBlockNum uint64) {
 
 // This function will remove the stored milestoneID
 func (m *milestone) RemoveMilestoneID(milestoneId string) {
+	fmt.Println("***** RemoveMilestoneID - Milestone - Called *****")
 	m.finality.Lock()
 	defer m.finality.Unlock()
 
@@ -244,6 +249,7 @@ func (m *milestone) IsFutureMilestoneCompatible(chain []*types.Header) bool {
 }
 
 func (m *milestone) ProcessFutureMilestone(num uint64, hash common.Hash) {
+	fmt.Println("***** ProcessFutureMilestone - Milestone - Called *****")
 	if len(m.FutureMilestoneOrder) < m.MaxCapacity {
 		m.enqueueFutureMilestone(num, hash)
 	}

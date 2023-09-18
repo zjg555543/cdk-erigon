@@ -1,6 +1,7 @@
 package whitelist
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -29,6 +30,7 @@ type finalityService interface {
 // IsValidChain checks the validity of chain by comparing it
 // against the local checkpoint entry
 func (f *finality[T]) IsValidChain(currentHeader uint64, chain []*types.Header) bool {
+	fmt.Println("***** IsValidChain - Called *****")
 	// Return if we've received empty chain
 	if len(chain) == 0 {
 		return false

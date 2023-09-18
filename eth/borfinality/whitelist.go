@@ -38,6 +38,7 @@ func Whitelist(heimdall heimdall.IHeimdallClient, borDB kv.RwDB, chainDB kv.RwDB
 		closeCh:     closeCh,
 	}
 
+	fmt.Println("***** Bor Whitelisting processes started *****")
 	go startCheckpointWhitelistService(config)
 	go startMilestoneWhitelistService(config)
 	go startNoAckMilestoneService(config)

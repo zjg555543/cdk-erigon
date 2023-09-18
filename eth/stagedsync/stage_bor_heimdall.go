@@ -99,6 +99,7 @@ func BorHeimdallForward(
 	}
 
 	if generics.BorMilestoneRewind.Load() != nil && *generics.BorMilestoneRewind.Load() != 0 {
+		fmt.Println("***** Rewind Detected - Rewinding - BorHeimdallStage *****")
 		s.state.UnwindTo(*generics.BorMilestoneRewind.Load(), hash)
 		err := s.state.RunUnwind(nil, tx)
 		if err != nil {
@@ -181,6 +182,7 @@ func BorHeimdallForward(
 			// on the cannonical chain according to milestones
 			if service != nil {
 				if !service.IsValidChain(headNumber, []*types.Header{header}) {
+					fmt.Println("***** Invalid Chain - Penalizing Peer *****")
 					logger.Debug("[BorHeimdall] Verification failed for header", "hash", header.Hash(), "height", blockNum, "err", err)
 					cfg.penalize(ctx, []headerdownload.PenaltyItem{
 						{Penalty: headerdownload.BadBlockPenalty, PeerID: cfg.hd.SourcePeerId(header.Hash())}})

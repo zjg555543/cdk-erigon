@@ -1,6 +1,8 @@
 package whitelist
 
 import (
+	"fmt"
+
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/eth/borfinality/rawdb"
@@ -25,6 +27,7 @@ type checkpointService interface {
 // IsValidChain checks the validity of chain by comparing it
 // against the local checkpoint entry
 func (w *checkpoint) IsValidChain(currentHeader uint64, chain []*types.Header) bool {
+	fmt.Println("***** IsValidChain - Checkpoint - Called *****")
 	w.finality.RLock()
 	defer w.finality.RUnlock()
 
@@ -41,6 +44,7 @@ func (w *checkpoint) IsValidChain(currentHeader uint64, chain []*types.Header) b
 }
 
 func (w *checkpoint) Process(block uint64, hash common.Hash) {
+	fmt.Println("***** Process - Checkpoint - Called *****")
 	w.finality.Lock()
 	defer w.finality.Unlock()
 

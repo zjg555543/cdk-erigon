@@ -52,6 +52,8 @@ func (m *Milestone) block() (uint64, libcommon.Hash) {
 }
 
 func ReadFinality[T BlockFinality[T]](db kv.RwDB) (uint64, libcommon.Hash, error) {
+	fmt.Println("***** ReadFinality *****")
+
 	lastTV, key := getKey[T]()
 
 	var data []byte
@@ -83,6 +85,7 @@ func ReadFinality[T BlockFinality[T]](db kv.RwDB) (uint64, libcommon.Hash, error
 }
 
 func WriteLastFinality[T BlockFinality[T]](db kv.RwDB, block uint64, hash libcommon.Hash) error {
+	fmt.Println("***** WriteLastFinality *****")
 	lastTV, key := getKey[T]()
 
 	lastTV.set(block, hash)

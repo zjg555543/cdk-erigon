@@ -128,6 +128,8 @@ func borVerify(ctx context.Context, config *config, start uint64, end uint64, ha
 			log.Warn("Rewinding chain due to milestone endblock hash mismatch", "number", rewindTo)
 		}
 
+		fmt.Println("***** Rewind - ", rewindTo, " *****")
+
 		rewindBack(rewindTo)
 
 		return hash, errHashMismatch
