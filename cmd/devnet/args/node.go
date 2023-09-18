@@ -18,9 +18,11 @@ type Node struct {
 	BuildDir                  string `arg:"positional" default:"./build/bin/devnet" json:"builddir"`
 	DataDir                   string `arg:"--datadir" default:"./dev" json:"datadir"`
 	Chain                     string `arg:"--chain" default:"dev" json:"chain"`
+	NetworkId                 int    `arg:"--networkid" default:"dev" json:"networkid"`
 	Port                      int    `arg:"--port" json:"port,omitempty"`
 	AllowedPorts              string `arg:"--p2p.allowed-ports" json:"p2p.allowed-ports,omitempty"`
 	NAT                       string `arg:"--nat" default:"none" json:"nat"`
+	NoDiscover                string `arg:"--nodiscover" flag:"" default:"true" json:"nodiscover"`
 	ConsoleVerbosity          string `arg:"--log.console.verbosity" default:"0" json:"log.console.verbosity"`
 	DirVerbosity              string `arg:"--log.dir.verbosity" json:"log.dir.verbosity,omitempty"`
 	LogDirPath                string `arg:"--log.dir.path" json:"log.dir.path,omitempty"`
@@ -28,11 +30,16 @@ type Node struct {
 	P2PProtocol               string `arg:"--p2p.protocol" default:"68" json:"p2p.protocol"`
 	Snapshots                 bool   `arg:"--snapshots" flag:"" default:"false" json:"snapshots,omitempty"`
 	Downloader                string `arg:"--no-downloader" default:"true" json:"no-downloader"`
-	WS                        string `arg:"--ws" flag:"" default:"true" json:"ws"`
-	PrivateApiAddr            string `arg:"--private.api.addr" default:"localhost:9090" json:"private.api.addr"`
+	TorrentPort               string `arg:"--torrent.port" default:"42070" json:"torrent.port"`
+	WS                        bool   `arg:"--ws" flag:"" default:"true" json:"ws"`
+	Http                      bool   `arg:"--http" flag:"" default:"true" json:"http"`
+	HttpApi                   string `arg:"--http.api" json:"http.api"`
+	HttpAddr                  string `arg:"--http.addr" json:"http.addr"`
 	HttpPort                  int    `arg:"--http.port" default:"8545" json:"http.port"`
 	HttpVHosts                string `arg:"--http.vhosts" json:"http.vhosts"`
 	HttpCorsDomain            string `arg:"--http.corsdomain" json:"http.corsdomain"`
+	PrivateApiAddr            string `arg:"--private.api.addr" default:"localhost:9090" json:"private.api.addr"`
+	AuthRpcAddr               string `arg:"--authrpc.addr" default:"8551" json:"authrpc.addr"`
 	AuthRpcPort               int    `arg:"--authrpc.port" default:"8551" json:"authrpc.port"`
 	AuthRpcVHosts             string `arg:"--authrpc.vhosts" json:"authrpc.vhosts"`
 	WSPort                    int    `arg:"-" default:"8546" json:"-"` // flag not defined
@@ -44,7 +51,8 @@ type Node struct {
 	StaticPeers               string `arg:"--staticpeers" json:"staticpeers,omitempty"`
 	WithoutHeimdall           bool   `arg:"--bor.withoutheimdall" flag:"" default:"false" json:"bor.withoutheimdall,omitempty"`
 	HeimdallGRpc              string `arg:"--bor.heimdallgRPC" json:"bor.heimdallgRPC,omitempty"`
-	VMDebug                   bool   `arg:"--vmdebug" flag:"" default:"false" json:"dmdebug"`
+	VMDebug                   bool   `arg:"--vmdebug" flag:"" default:"false" json:"vmdebug,omitempty"`
+	FakePOW                   bool   `arg:"--fakepow" flag:"" default:"false" json:"fakepow,omitempty"`
 }
 
 func (node *Node) configure(base Node, nodeNumber int) error {
@@ -100,8 +108,8 @@ type BlockProducer struct {
 	DevPeriod       int    `arg:"--dev.period"`
 	BorPeriod       int    `arg:"--bor.period"`
 	BorMinBlockSize int    `arg:"--bor.minblocksize"`
-	HttpApi         string `arg:"--http.api" default:"admin,eth,erigon,web3,net,debug,trace,txpool,parity,ots"`
 	AccountSlots    int    `arg:"--txpool.accountslots" default:"16"`
+	MinerExtraData  string `arg:"--miner.extradata"`
 	account         *accounts.Account
 }
 
@@ -127,6 +135,10 @@ func (m BlockProducer) Configure(baseNode Node, nodeNumber int) (int, interface{
 		}
 	}
 
+	if len(m.HttpApi) == 0 {
+		m.HttpApi = "admin,eth,erigon,web3,net,debug,trace,txpool,parity,ots"
+	}
+
 	if m.account != nil {
 		m.Etherbase = m.account.Address.Hex()
 	}
@@ -148,9 +160,6 @@ func (n BlockProducer) IsBlockProducer() bool {
 
 type NonBlockProducer struct {
 	Node
-	HttpApi     string `arg:"--http.api" default:"admin,eth,debug,net,trace,web3,erigon,txpool" json:"http.api"`
-	TorrentPort string `arg:"--torrent.port" default:"42070" json:"torrent.port"`
-	NoDiscover  string `arg:"--nodiscover" flag:"" default:"true" json:"nodiscover"`
 }
 
 func (n NonBlockProducer) Configure(baseNode Node, nodeNumber int) (int, interface{}, error) {
@@ -158,6 +167,10 @@ func (n NonBlockProducer) Configure(baseNode Node, nodeNumber int) (int, interfa
 
 	if err != nil {
 		return -1, nil, err
+	}
+
+	if len(n.HttpApi) == 0 {
+		n.HttpApi = "admin,eth,erigon,web3,net,debug,trace,txpool"
 	}
 
 	return n.HttpPort, n, nil

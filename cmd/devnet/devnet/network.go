@@ -36,6 +36,7 @@ type Network struct {
 	Snapshots          bool
 	Nodes              []Node
 	Services           []Service
+	Genesis            *types.Genesis
 	Alloc              types.GenesisAlloc
 	BorStateSyncDelay  time.Duration
 	BorPeriod          time.Duration

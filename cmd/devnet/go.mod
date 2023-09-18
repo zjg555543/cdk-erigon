@@ -1,6 +1,6 @@
 module github.com/ledgerwatch/erigon/devnet
 
-go 1.20
+go 1.19
 
 require (
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
@@ -11,6 +11,8 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.25.7
 	github.com/valyala/fastjson v1.6.4
+    github.com/ethereum/hive v0.0.0-20230313141339-8e3200bfc09e
+	github.com/ethereum/hive/simulators/ethereum/rpc v0.0.0-20230916075717-1af772f5716a
 )
 
 require (
