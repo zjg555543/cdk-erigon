@@ -93,12 +93,12 @@ var snapshotCommand = cli.Command{
 			Flags:  joinFlags([]cli.Flag{&utils.DataDirFlag}),
 		},
 		{
-			Name:   "decompress_speed",
+			Name:   "decompress-speed",
 			Action: doDecompressSpeed,
 			Flags:  joinFlags([]cli.Flag{&utils.DataDirFlag}),
 		},
 		{
-			Name:   "bt_search",
+			Name:   "bt-search",
 			Action: doBtSearch,
 			Flags: joinFlags([]cli.Flag{
 				&cli.PathFlag{
@@ -112,7 +112,7 @@ var snapshotCommand = cli.Command{
 			}),
 		},
 		{
-			Name: "rm_all_state_snapshots",
+			Name: "rm-all-state-snapshots",
 			Action: func(cliCtx *cli.Context) error {
 				dirs := datadir.New(cliCtx.String(utils.DataDirFlag.Name))
 				return dir.DeleteFiles(dirs.SnapHistory, dirs.SnapDomain)
