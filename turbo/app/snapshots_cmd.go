@@ -115,7 +115,7 @@ var snapshotCommand = cli.Command{
 			Name: "rm_all_state_snapshots",
 			Action: func(cliCtx *cli.Context) error {
 				dirs := datadir.New(cliCtx.String(utils.DataDirFlag.Name))
-				return dir.DeleteFiles(dirs.SnapHistory, dirs.SnapWarm)
+				return dir.DeleteFiles(dirs.SnapHistory, dirs.SnapDomain)
 			},
 			Flags: joinFlags([]cli.Flag{&utils.DataDirFlag}),
 		},
@@ -311,7 +311,7 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 	chainDB := mdbx.NewMDBX(logger).Path(dirs.Chaindata).MustOpen()
 	defer chainDB.Close()
 
-	dir.MustExist(dirs.SnapHistory, dirs.SnapWarm)
+	dir.MustExist(dirs.SnapHistory, dirs.SnapDomain)
 
 	if rebuild {
 		panic("not implemented")

@@ -108,6 +108,13 @@ func NewHistory(cfg histCfg, aggregationStep uint64, filenameBase, indexKeysTabl
 	return &h, nil
 }
 
+func (h *History) vFilePath(fromStep, toStep uint64) string {
+	return filepath.Join(h.dirs.SnapHistory, fmt.Sprintf("%s.%d-%d.v", h.filenameBase, fromStep, toStep))
+}
+func (h *History) vAccessorFilePath(fromStep, toStep uint64) string {
+	return filepath.Join(h.dirs.SnapHistory, fmt.Sprintf("%s.%d-%d.vi", h.filenameBase, fromStep, toStep))
+}
+
 // OpenList - main method to open list of files.
 // It's ok if some files was open earlier.
 // If some file already open: noop.
@@ -169,7 +176,7 @@ Loop:
 
 		for _, ext := range h.integrityFileExtensions {
 			requiredFile := fmt.Sprintf("%s.%d-%d.%s", h.filenameBase, startStep, endStep, ext)
-			if !dir.FileExist(filepath.Join(h.dirs.SnapWarm, requiredFile)) {
+			if !dir.FileExist(filepath.Join(h.dirs.SnapDomain, requiredFile)) {
 				h.logger.Debug(fmt.Sprintf("[snapshots] skip %s because %s doesn't exists", name, requiredFile))
 				garbageFiles = append(garbageFiles, newFile)
 				continue Loop
@@ -295,7 +302,7 @@ func (h *History) missedIdxFiles() (l []*filesItem) {
 	h.files.Walk(func(items []*filesItem) bool { // don't run slow logic while iterating on btree
 		for _, item := range items {
 			fromStep, toStep := item.startTxNum/h.aggregationStep, item.endTxNum/h.aggregationStep
-			if !dir.FileExist(filepath.Join(h.dir, fmt.Sprintf("%s.%d-%d.vi", h.filenameBase, fromStep, toStep))) {
+			if !dir.FileExist(h.vAccessorFilePath(fromStep, toStep)) {
 				l = append(l, item)
 			}
 		}

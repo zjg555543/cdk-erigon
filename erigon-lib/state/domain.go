@@ -288,7 +288,7 @@ type domainCfg struct {
 }
 
 func NewDomain(cfg domainCfg, aggregationStep uint64, filenameBase, keysTable, valsTable, indexKeysTable, historyValsTable, indexTable string, logger log.Logger) (*Domain, error) {
-	if cfg.hist.iiCfg.dirs.SnapWarm == "" {
+	if cfg.hist.iiCfg.dirs.SnapDomain == "" {
 		panic("empty `dirs` varialbe")
 	}
 	d := &Domain{
@@ -310,16 +310,16 @@ func NewDomain(cfg domainCfg, aggregationStep uint64, filenameBase, keysTable, v
 	return d, nil
 }
 func (d *Domain) kvFilePath(fromStep, toStep uint64) string {
-	return filepath.Join(d.dirs.SnapWarm, fmt.Sprintf("%s.%d-%d.kv", d.filenameBase, fromStep, toStep))
+	return filepath.Join(d.dirs.SnapDomain, fmt.Sprintf("%s.%d-%d.kv", d.filenameBase, fromStep, toStep))
 }
 func (d *Domain) kvAccessorFilePath(fromStep, toStep uint64) string {
-	return filepath.Join(d.dirs.SnapWarm, fmt.Sprintf("%s.%d-%d.kvi", d.filenameBase, fromStep, toStep))
+	return filepath.Join(d.dirs.SnapDomain, fmt.Sprintf("%s.%d-%d.kvi", d.filenameBase, fromStep, toStep))
 }
 func (d *Domain) kvExistenceIdxFilePath(fromStep, toStep uint64) string {
-	return filepath.Join(d.dirs.SnapWarm, fmt.Sprintf("%s.%d-%d.kvei", d.filenameBase, fromStep, toStep))
+	return filepath.Join(d.dirs.SnapDomain, fmt.Sprintf("%s.%d-%d.kvei", d.filenameBase, fromStep, toStep))
 }
 func (d *Domain) kvBtFilePath(fromStep, toStep uint64) string {
-	return filepath.Join(d.dirs.SnapWarm, fmt.Sprintf("%s.%d-%d.bt", d.filenameBase, fromStep, toStep))
+	return filepath.Join(d.dirs.SnapDomain, fmt.Sprintf("%s.%d-%d.bt", d.filenameBase, fromStep, toStep))
 }
 
 // LastStepInDB - return the latest available step in db (at-least 1 value in such step)

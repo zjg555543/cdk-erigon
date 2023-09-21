@@ -143,11 +143,11 @@ func (ii *InvertedIndex) efFilePath(fromStep, toStep uint64) string {
 
 func (ii *InvertedIndex) enableLocalityIndex() error {
 	var err error
-	ii.warmLocalityIdx = NewLocalityIndex(true, ii.dirs.SnapWarm, ii.filenameBase, ii.aggregationStep, ii.dirs.Tmp, ii.salt, ii.logger)
+	ii.warmLocalityIdx = NewLocalityIndex(true, ii.dirs.SnapDomain, ii.filenameBase, ii.aggregationStep, ii.dirs.Tmp, ii.salt, ii.logger)
 	if err != nil {
 		return fmt.Errorf("NewLocalityIndex: %s, %w", ii.filenameBase, err)
 	}
-	ii.coldLocalityIdx = NewLocalityIndex(false, ii.dirs.SnapWarm, ii.filenameBase, ii.aggregationStep, ii.dirs.Tmp, ii.salt, ii.logger)
+	ii.coldLocalityIdx = NewLocalityIndex(false, ii.dirs.SnapDomain, ii.filenameBase, ii.aggregationStep, ii.dirs.Tmp, ii.salt, ii.logger)
 	if err != nil {
 		return fmt.Errorf("NewLocalityIndex: %s, %w", ii.filenameBase, err)
 	}
@@ -170,7 +170,7 @@ func filesFromDir(dir string) ([]string, error) {
 }
 
 func (ii *InvertedIndex) fileNamesOnDisk() ([]string, []string, error) {
-	warmFiles, err := filesFromDir(ii.dirs.SnapWarm)
+	warmFiles, err := filesFromDir(ii.dirs.SnapDomain)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -328,7 +328,7 @@ func (ii *InvertedIndex) missedIdxFiles() (l []*filesItem) {
 	ii.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
-			if !dir.FileExist(filepath.Join(ii.dir, fmt.Sprintf("%s.%d-%d.efi", ii.filenameBase, fromStep, toStep))) {
+			if !dir.FileExist(ii.efAccessorFilePath(fromStep, toStep)) {
 				l = append(l, item)
 			}
 		}
@@ -340,7 +340,7 @@ func (ii *InvertedIndex) missedIdxFilterFiles() (l []*filesItem) {
 	ii.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
-			if !dir.FileExist(filepath.Join(ii.dir, fmt.Sprintf("%s.%d-%d.efei", ii.filenameBase, fromStep, toStep))) {
+			if !dir.FileExist(ii.efExistenceIdxFilePath(fromStep, toStep)) {
 				l = append(l, item)
 			}
 		}
@@ -354,7 +354,12 @@ func (ii *InvertedIndex) buildEfi(ctx context.Context, item *filesItem, ps *back
 	idxPath := ii.efAccessorFilePath(fromStep, toStep)
 	return buildIndex(ctx, item.decompressor, CompressNone, idxPath, ii.dirs.Tmp, false, ii.salt, ps, ii.logger, ii.noFsync)
 }
-func (ii *InvertedIndex) buildIdxFilter(ctx context.Context, item *filesItem, ps *background.ProgressSet) (err error) {
+func (ii *InvertedIndex) buildOpenExistenceIdx(ctx context.Context, item *filesItem, ps *background.ProgressSet) (err error) {
+	fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
+	idxPath := ii.efExistenceIdxFilePath(fromStep, toStep)
+	return buildIdxFilter(ctx, item.decompressor, CompressNone, idxPath, ii.salt, ps, ii.logger, ii.noFsync)
+}
+func (ii *InvertedIndex) openExistenceIdx(ctx context.Context, item *filesItem, ps *background.ProgressSet) (err error) {
 	fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
 	idxPath := ii.efExistenceIdxFilePath(fromStep, toStep)
 	return buildIdxFilter(ctx, item.decompressor, CompressNone, idxPath, ii.salt, ps, ii.logger, ii.noFsync)
