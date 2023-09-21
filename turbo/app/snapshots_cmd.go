@@ -328,7 +328,7 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 	//if err := freezeblocks.BuildMissedIndices("Indexing", ctx, dirs, chainConfig, indexWorkers, logger); err != nil {
 	//	return err
 	//}
-	agg, err := libstate.NewAggregatorV3(ctx, dirs.SnapHistory, dirs.Tmp, ethconfig.HistoryV3AggregationStep, chainDB, logger)
+	agg, err := libstate.NewAggregatorV3(ctx, dirs, ethconfig.HistoryV3AggregationStep, chainDB, logger)
 	if err != nil {
 		return err
 	}
@@ -484,7 +484,7 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	blockWriter := blockio.NewBlockWriter(fromdb.HistV3(db))
 
 	br := freezeblocks.NewBlockRetire(estimate.CompressSnapshot.Workers(), dirs, blockReader, blockWriter, db, nil, logger)
-	agg, err := libstate.NewAggregatorV3(ctx, dirs.SnapHistory, dirs.Tmp, ethconfig.HistoryV3AggregationStep, db, logger)
+	agg, err := libstate.NewAggregatorV3(ctx, dirs, ethconfig.HistoryV3AggregationStep, db, logger)
 	if err != nil {
 		return err
 	}
