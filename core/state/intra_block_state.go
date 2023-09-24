@@ -793,14 +793,23 @@ func (sdb *IntraBlockState) Prepare(rules *chain.Rules, sender, coinbase libcomm
 }
 
 // AddAddressToAccessList adds the given address to the access list
-func (sdb *IntraBlockState) AddAddressToAccessList(addr libcommon.Address) {
+func (sdb *IntraBlockState) AddAddressToAccessList(addr libcommon.Address) (addrExisted bool) {
+	if sdb.accessList.ContainsAddress(addr) {
+		return true
+	}
 	if sdb.accessList.AddAddress(addr) {
 		sdb.journal.append(accessListAddAccountChange{&addr})
 	}
+	return false
 }
 
 // AddSlotToAccessList adds the given (address, slot)-tuple to the access list
-func (sdb *IntraBlockState) AddSlotToAccessList(addr libcommon.Address, slot libcommon.Hash) {
+func (sdb *IntraBlockState) AddSlotToAccessList(addr libcommon.Address, slot libcommon.Hash) (slotExisted bool) {
+	_, slotOk := sdb.accessList.Contains(addr, slot)
+	if slotOk {
+		return true
+	}
+
 	addrMod, slotMod := sdb.accessList.AddSlot(addr, slot)
 	if addrMod {
 		// In practice, this should not happen, since there is no way to enter the
@@ -815,6 +824,7 @@ func (sdb *IntraBlockState) AddSlotToAccessList(addr libcommon.Address, slot lib
 			slot:    &slot,
 		})
 	}
+	return false
 }
 
 // AddressInAccessList returns true if the given address is in the access list.
@@ -822,7 +832,6 @@ func (sdb *IntraBlockState) AddressInAccessList(addr libcommon.Address) bool {
 	return sdb.accessList.ContainsAddress(addr)
 }
 
-// SlotInAccessList returns true if the given (address, slot)-tuple is in the access list.
 func (sdb *IntraBlockState) SlotInAccessList(addr libcommon.Address, slot libcommon.Hash) (addressPresent bool, slotPresent bool) {
 	return sdb.accessList.Contains(addr, slot)
 }
