@@ -17,8 +17,9 @@
 package datadir
 
 import (
-	"github.com/ledgerwatch/erigon-lib/common/dir"
 	"path/filepath"
+
+	"github.com/ledgerwatch/erigon-lib/common/dir"
 )
 
 // Dirs is the file system folder the node should use for any data storage
@@ -32,7 +33,8 @@ type Dirs struct {
 	Tmp             string
 	Snap            string
 	SnapHistory     string
-	SnapWarm        string
+	SnapDomain      string
+	Downloader      string
 	TxPool          string
 	Nodes           string
 }
@@ -55,12 +57,13 @@ func New(datadir string) Dirs {
 		Tmp:             filepath.Join(datadir, "temp"),
 		Snap:            filepath.Join(datadir, "snapshots"),
 		SnapHistory:     filepath.Join(datadir, "snapshots", "history"),
-		SnapWarm:        filepath.Join(datadir, "snapshots", "warm"),
+		SnapDomain:      filepath.Join(datadir, "snapshots", "warm"),
+		Downloader:      filepath.Join(datadir, "downloader"),
 		TxPool:          filepath.Join(datadir, "txpool"),
 		Nodes:           filepath.Join(datadir, "nodes"),
 	}
 	dir.MustExist(dirs.Chaindata, dirs.Tmp,
-		dirs.SnapHistory, dirs.SnapWarm,
-		dirs.TxPool, dirs.Nodes)
+		dirs.SnapHistory, dirs.SnapDomain,
+		dirs.Downloader, dirs.TxPool, dirs.Nodes)
 	return dirs
 }
