@@ -170,7 +170,7 @@ func (n *node) run(ctx *cli.Context) error {
 	n.ethNode, err = enode.New(n.nodeCfg, n.ethCfg, logger)
 
 	if metricsMux != nil {
-		diagnostics.Setup(ctx, metricsMux, n.ethNode)
+		diagnostics.Setup(ctx, metricsMux, n.ethNode, logger)
 	}
 
 	n.Lock()

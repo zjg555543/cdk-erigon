@@ -5,10 +5,11 @@ import (
 	"strings"
 
 	"github.com/ledgerwatch/erigon/turbo/node"
+	"github.com/ledgerwatch/log/v3"
 	"github.com/urfave/cli/v2"
 )
 
-func Setup(ctx *cli.Context, metricsMux *http.ServeMux, node *node.ErigonNode) {
+func Setup(ctx *cli.Context, metricsMux *http.ServeMux, node *node.ErigonNode, logger log.Logger) {
 	debugMux := http.NewServeMux()
 
 	metricsMux.HandleFunc("/debug/", func(w http.ResponseWriter, r *http.Request) {
@@ -25,4 +26,5 @@ func Setup(ctx *cli.Context, metricsMux *http.ServeMux, node *node.ErigonNode) {
 	SetupBlockBodyDownload(debugMux)
 	SetupHeaderDownloadStats(debugMux)
 	SetupNodeInfoAccess(debugMux, node)
+	SetupRpcAccess(debugMux, node, logger)
 }
