@@ -24,12 +24,12 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	datadir2 "github.com/ledgerwatch/erigon-lib/common/datadir"
 
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/log/v3"
@@ -54,17 +54,14 @@ func testDbAndDomainOfStep(t *testing.T, aggStep uint64, logger log.Logger) (kv.
 
 func testDbAndDomainOfStepValsDup(t *testing.T, aggStep uint64, logger log.Logger, dupSortVals bool) (kv.RwDB, *Domain) {
 	t.Helper()
-	datadir := t.TempDir()
-	coldDir := filepath.Join(datadir, "snapshots", "history")
-	require.NoError(t, os.MkdirAll(filepath.Join(datadir, "snapshots", "warm"), 0740))
-	require.NoError(t, os.MkdirAll(coldDir, 0740))
+	dirs := datadir2.New(t.TempDir())
 	keysTable := "Keys"
 	valsTable := "Vals"
 	historyKeysTable := "HistoryKeys"
 	historyValsTable := "HistoryVals"
 	settingsTable := "Settings"
 	indexTable := "Index"
-	db := mdbx.NewMDBX(logger).InMem(datadir).WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
+	db := mdbx.NewMDBX(logger).InMem(dirs.Chaindata).WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		tcfg := kv.TableCfg{
 			keysTable:        kv.TableCfgItem{Flags: kv.DupSort},
 			valsTable:        kv.TableCfgItem{},
@@ -83,7 +80,7 @@ func testDbAndDomainOfStepValsDup(t *testing.T, aggStep uint64, logger log.Logge
 	cfg := domainCfg{
 		domainLargeValues: AccDomainLargeValues,
 		hist: histCfg{
-			iiCfg:             iiCfg{salt: &salt, dir: coldDir, tmpdir: coldDir},
+			iiCfg:             iiCfg{salt: &salt, dirs: dirs},
 			withLocalityIndex: false, withExistenceIndex: true, compression: CompressNone, historyLargeValues: AccDomainLargeValues,
 		}}
 	d, err := NewDomain(cfg, aggStep, "base", keysTable, valsTable, historyKeysTable, historyValsTable, indexTable, logger)
@@ -121,7 +118,9 @@ func testCollationBuild(t *testing.T, compressDomainVals, domainLargeValues bool
 	defer d.Close()
 
 	d.domainLargeValues = domainLargeValues
-	d.compression = CompressKeys | CompressVals
+	if compressDomainVals {
+		d.compression = CompressKeys | CompressVals
+	}
 
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
@@ -148,6 +147,8 @@ func testCollationBuild(t *testing.T, compressDomainVals, domainLargeValues bool
 	require.NoError(t, err)
 
 	p1, p2 = v1, v2
+	_ = p2
+
 	v1, v2 = []byte("value1.2"), []byte("value2.2") //nolint
 	expectedStep1 := uint64(0)
 

@@ -231,6 +231,7 @@ func NewCommittedDomain(d *Domain, mode CommitmentMode, trieVariant commitment.T
 		Domain:       d,
 		mode:         mode,
 		trace:        false,
+		shortenKeys:  true,
 		updates:      NewUpdateTree(mode),
 		discard:      dbg.DiscardCommitment(),
 		patriciaTrie: commitment.InitializeTrie(trieVariant),
@@ -362,10 +363,10 @@ func (d *DomainCommitted) findShortenKey(fullKey []byte, list ...*filesItem) (sh
 	for _, item := range list {
 		g := NewArchiveGetter(item.decompressor.MakeGetter(), d.compression)
 		//index := recsplit.NewIndexReader(item.index) // TODO is support recsplt is needed?
-		// TODO: bloom filter existence should be checked for domain which filesItem list is provided, not in commitmnet
-		//if d.withExistenceIndex && item.bloom != nil {
+		// TODO: existence filter existence should be checked for domain which filesItem list is provided, not in commitmnet
+		//if d.withExistenceIndex && item.existence != nil {
 		//	hi, _ := dc.hc.ic.hashKey(fullKey)
-		//	if !item.bloom.ContainsHash(hi) {
+		//	if !item.existence.ContainsHash(hi) {
 		//		continue
 		//		//return nil, false, nil
 		//	}
@@ -421,10 +422,13 @@ func (d *DomainCommitted) lookupByShortenedKey(shortKey []byte, list []*filesIte
 // to accounts and storage items, then looks them up in the new, merged files, and replaces them with
 // the updated references
 func (d *DomainCommitted) commitmentValTransform(files *SelectedStaticFiles, merged *MergedFiles, val commitment.BranchData) ([]byte, error) {
-	if /*!d.shortenKeys ||*/ len(val) == 0 {
+	if !d.shortenKeys || len(val) == 0 {
 		return val, nil
 	}
-	d.logger.Info("commitmentValTransform")
+	var transValBuf []byte
+	defer func(t time.Time) {
+		d.logger.Info("commitmentValTransform", "took", time.Since(t), "in_size", len(val), "out_size", len(transValBuf), "ratio", float64(len(transValBuf))/float64(len(val)))
+	}(time.Now())
 
 	accountPlainKeys, storagePlainKeys, err := val.ExtractPlainKeys()
 	if err != nil {
@@ -473,7 +477,7 @@ func (d *DomainCommitted) commitmentValTransform(files *SelectedStaticFiles, mer
 		transStoragePks = append(transStoragePks, storagePlainKey)
 	}
 
-	transValBuf, err := val.ReplacePlainKeys(transAccountPks, transStoragePks, nil)
+	transValBuf, err = val.ReplacePlainKeys(transAccountPks, transStoragePks, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -640,5 +644,5 @@ func shortenedKey(apk []byte) (step uint16, offset uint64) {
 func encodeShortenedKey(buf []byte, step uint16, offset uint64) []byte {
 	binary.BigEndian.PutUint16(buf[:2], step)
 	encodeU64(offset, buf[2:])
-	return buf[:]
+	return buf
 }

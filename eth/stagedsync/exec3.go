@@ -278,14 +278,14 @@ func ExecV3(ctx context.Context,
 
 	rs := state.NewStateV3(doms, logger)
 	fmt.Printf("input tx %d\n", inputTxNum)
-	_, _, err = doms.SeekCommitment(0, math.MaxUint64)
+	_, _, offsetFromBlockBeginning, err := doms.SeekCommitment(0, math.MaxUint64)
 	if err != nil {
 		return err
 	}
 	inputTxNum = doms.TxNum()
 	blockNum = doms.BlockNum()
 	outputTxNum.Store(inputTxNum)
-	fmt.Printf("restored commitment tx %d block %d\n", inputTxNum, blockNum)
+	fmt.Printf("restored commitment block %d tx %d offsetFromBlockBeginning %d\n", blockNum, inputTxNum, offsetFromBlockBeginning)
 	//log.Info("SeekCommitment", "bn", blockNum, "txn", inputTxNum)
 
 	////TODO: owner of `resultCh` is main goroutine, but owner of `retryQueue` is applyLoop.
@@ -299,7 +299,7 @@ func ExecV3(ctx context.Context,
 	rwsConsumed := make(chan struct{}, 1)
 	defer close(rwsConsumed)
 
-	execWorkers, applyWorker, rws, stopWorkers, waitWorkers := exec3.NewWorkersPool(lock.RLocker(), logger, ctx, parallel, chainDb, rs, in, blockReader, chainConfig, genesis, engine, workerCount+1)
+	execWorkers, applyWorker, rws, stopWorkers, waitWorkers := exec3.NewWorkersPool(lock.RLocker(), logger, ctx, parallel, chainDb, rs, in, blockReader, chainConfig, genesis, engine, workerCount+1, cfg.dirs)
 	defer stopWorkers()
 	applyWorker.DiscardReadList()
 
@@ -672,6 +672,9 @@ Loop:
 				GetHashFn:       getHashFn,
 				EvmBlockContext: blockContext,
 				Withdrawals:     b.Withdrawals(),
+
+				// use history reader instead of state reader to catch up to the tx where we left off
+				HistoryExecution: offsetFromBlockBeginning > 0 && txIndex < int(offsetFromBlockBeginning),
 			}
 			if txIndex >= 0 && txIndex < len(txs) {
 				txTask.Tx = txs[txIndex]
@@ -705,7 +708,7 @@ Loop:
 				if txTask.Error != nil {
 					break Loop
 				}
-				applyWorker.RunTxTask(txTask)
+				applyWorker.RunTxTaskNoLock(txTask)
 				if err := func() error {
 					if txTask.Error != nil {
 						return txTask.Error
@@ -751,6 +754,7 @@ Loop:
 			stageProgress = blockNum
 			inputTxNum++
 		}
+		offsetFromBlockBeginning = 0
 
 		// MA commitTx
 		if !parallel {

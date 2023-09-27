@@ -8,21 +8,21 @@ import (
 	"math/rand"
 	"os"
 	"path"
-	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/ledgerwatch/erigon-lib/common/datadir"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ledgerwatch/erigon-lib/etl"
-
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/compress"
+	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
@@ -242,7 +242,7 @@ func aggregatorV3_RestartOnDatadir(t *testing.T, rc runCfg) {
 	agg.Close()
 
 	// Start another aggregator on same datadir
-	anotherAgg, err := NewAggregatorV3(context.Background(), agg.dir, agg.dir, aggStep, db, logger)
+	anotherAgg, err := NewAggregatorV3(context.Background(), agg.dirs, aggStep, db, logger)
 	require.NoError(t, err)
 	defer anotherAgg.Close()
 
@@ -263,7 +263,7 @@ func aggregatorV3_RestartOnDatadir(t *testing.T, rc runCfg) {
 	dom2 := anotherAgg.SharedDomains(ac2)
 	dom2.SetTx(rwTx)
 
-	_, sstartTx, err := dom2.SeekCommitment(0, 1<<63-1)
+	_, sstartTx, _, err := dom2.SeekCommitment(0, 1<<63-1)
 
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, sstartTx, startTx)
@@ -291,7 +291,7 @@ func TestAggregatorV3_RestartOnFiles(t *testing.T) {
 	aggStep := uint64(100)
 
 	db, agg := testDbAndAggregatorv3(t, aggStep)
-	path := filepath.Dir(agg.dir)
+	dirs := agg.dirs
 
 	tx, err := db.BeginRw(context.Background())
 	require.NoError(t, err)
@@ -355,15 +355,15 @@ func TestAggregatorV3_RestartOnFiles(t *testing.T) {
 	db.Close()
 
 	// remove database files
-	require.NoError(t, os.RemoveAll(filepath.Join(path, "db4")))
+	require.NoError(t, os.RemoveAll(dirs.Chaindata))
 
 	// open new db and aggregator instances
-	newDb := mdbx.NewMDBX(logger).InMem(filepath.Join(path, "db4")).WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
+	newDb := mdbx.NewMDBX(logger).InMem(dirs.Chaindata).WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		return kv.ChaindataTablesCfg
 	}).MustOpen()
 	t.Cleanup(newDb.Close)
 
-	newAgg, err := NewAggregatorV3(context.Background(), agg.dir, agg.dir, aggStep, newDb, logger)
+	newAgg, err := NewAggregatorV3(context.Background(), agg.dirs, aggStep, newDb, logger)
 	require.NoError(t, err)
 	require.NoError(t, newAgg.OpenFolder())
 
@@ -380,7 +380,7 @@ func TestAggregatorV3_RestartOnFiles(t *testing.T) {
 	defer newDoms.Close()
 	newDoms.SetTx(newTx)
 
-	_, latestTx, err := newDoms.SeekCommitment(0, 1<<63-1)
+	_, latestTx, _, err := newDoms.SeekCommitment(0, 1<<63-1)
 	require.NoError(t, err)
 	t.Logf("seek to latest_tx=%d", latestTx)
 
@@ -647,23 +647,20 @@ func generateKV(tb testing.TB, tmp string, keySize, valueSize, keyCount int, log
 
 func testDbAndAggregatorv3(t *testing.T, aggStep uint64) (kv.RwDB, *AggregatorV3) {
 	t.Helper()
-	path := t.TempDir()
+	require := require.New(t)
+	dirs := datadir.New(t.TempDir())
 	logger := log.New()
-	dir := filepath.Join(path, "snapshots", "history")
-	require.NoError(t, os.MkdirAll(filepath.Join(path, "db4"), 0740))
-	require.NoError(t, os.MkdirAll(filepath.Join(path, "snapshots", "warm"), 0740))
-	require.NoError(t, os.MkdirAll(dir, 0740))
-	db := mdbx.NewMDBX(logger).InMem(path).WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
+	db := mdbx.NewMDBX(logger).InMem(dirs.Chaindata).WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		return kv.ChaindataTablesCfg
 	}).MustOpen()
 	t.Cleanup(db.Close)
 
-	agg, err := NewAggregatorV3(context.Background(), dir, filepath.Join(path, "e4", "tmp"), aggStep, db, logger)
-	require.NoError(t, err)
+	agg, err := NewAggregatorV3(context.Background(), dirs, aggStep, db, logger)
+	require.NoError(err)
 	t.Cleanup(agg.Close)
 	err = agg.OpenFolder()
+	require.NoError(err)
 	agg.DisableFsync()
-	require.NoError(t, err)
 	return db, agg
 }
 

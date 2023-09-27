@@ -28,11 +28,11 @@ import (
 	common2 "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/cmp"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
-	"github.com/ledgerwatch/erigon-lib/common/dir"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
+
 	"github.com/ledgerwatch/erigon/cmd/hack/tool/fromdb"
 	"github.com/ledgerwatch/erigon/cmd/sentry/sentry"
 	"github.com/ledgerwatch/erigon/consensus"
@@ -680,7 +680,7 @@ func stageSnapshots(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 		defer agg.CloseSharedDomains()
 		domains.SetTx(tx)
 
-		blockNum, txnUm, err := domains.SeekCommitment(0, math.MaxUint64)
+		blockNum, txnUm, _, err := domains.SeekCommitment(0, math.MaxUint64)
 		if err != nil {
 			return fmt.Errorf("seek commitment: %w", err)
 		}
@@ -948,7 +948,7 @@ func stageExec(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 				defer ct.Close()
 
 				doms.SetTx(tx)
-				blockNum, _, err = doms.SeekCommitment(0, math.MaxUint64)
+				blockNum, _, _, err = doms.SeekCommitment(0, math.MaxUint64)
 				return err
 			})
 			if err != nil {
@@ -1105,10 +1105,6 @@ func stagePatriciaTrie(db kv.RwDB, ctx context.Context, logger log.Logger) error
 	defer sn.Close()
 	defer agg.Close()
 	_, _, _, _, _ = newSync(ctx, db, nil /* miningConfig */, logger)
-	//must(sync.SetCurrentStage(stages.PatriciaTrie))
-	if !ethconfig.EnableHistoryV4InTest {
-		panic("this method for v3 only")
-	}
 
 	if warmup {
 		return reset2.Warmup(ctx, db, log.LvlInfo, stages.Execution)
@@ -1122,43 +1118,16 @@ func stagePatriciaTrie(db kv.RwDB, ctx context.Context, logger log.Logger) error
 	}
 	defer tx.Rollback()
 
-	//s := stage(sync, tx, nil, stages.PatriciaTrie)
-	//
-	//if pruneTo > 0 {
-	//	pm.History = prune.Distance(s.BlockNumber - pruneTo)
-	//	pm.Receipts = prune.Distance(s.BlockNumber - pruneTo)
-	//	pm.CallTraces = prune.Distance(s.BlockNumber - pruneTo)
-	//	pm.TxIndex = prune.Distance(s.BlockNumber - pruneTo)
-	//}
+	if enabled, _ := kvcfg.HistoryV3.Enabled(tx); !enabled {
+		panic("this method for v3 only")
+	}
 
-	//logger.Info("StageTrie", "progress", s.BlockNumber)
 	br, _ := blocksIO(db, logger)
 	cfg := stagedsync.StageTrieCfg(db, true /* checkRoot */, true /* saveHashesToDb */, false /* badBlockHalt */, dirs.Tmp, br, nil /* hd */, historyV3, agg)
-	//if unwind > 0 {
-	//	fmt.Printf("unwind to %d\n", s.BlockNumber-unwind)
-	//	//u := sync.NewUnwindState(stages.PatriciaTrie, s.BlockNumber-unwind, s.BlockNumber)
-	//	//if err := stagedsync.UnwindIntermediateHashesStage(u, s, tx, cfg, ctx, logger); err != nil {
-	//	//	return err
-	//	//}
-	//} else if pruneTo > 0 {
-	//	fmt.Printf("prune to %d\n", pruneTo)
-	//p, err := sync.PruneStageState(stages.PatriciaTrie, s.BlockNumber, tx, db)
-	//if err != nil {
-	//	return err
-	//}
-	//err = stagedsync.PruneIntermediateHashesStage(p, tx, cfg, ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//if err := stagedsync.PrunePatriciaTrie(s, ctx, tx, cfg, logger); err != nil {
-	//	return err
-	//}
-	//} else {
+
 	if _, err := stagedsync.SpawnPatriciaTrieStage(tx, cfg, ctx, logger); err != nil {
 		return err
 	}
-	//}
-	//integrity.Trie(db, tx, integritySlow, ctx)
 	return tx.Commit()
 }
 
@@ -1514,7 +1483,6 @@ func allSnapshots(ctx context.Context, db kv.RoDB, logger log.Logger) (*freezebl
 			return nil
 		})
 		dirs := datadir.New(datadirCli)
-		dir.MustExist(dirs.SnapHistory, dirs.SnapWarm)
 
 		//useSnapshots = true
 		snapCfg := ethconfig.NewSnapCfg(useSnapshots, true, true)
@@ -1522,7 +1490,7 @@ func allSnapshots(ctx context.Context, db kv.RoDB, logger log.Logger) (*freezebl
 		_allBorSnapshotsSingleton = freezeblocks.NewBorRoSnapshots(snapCfg, dirs.Snap, logger)
 
 		var err error
-		_aggSingleton, err = libstate.NewAggregatorV3(ctx, dirs.SnapHistory, dirs.Tmp, ethconfig.HistoryV3AggregationStep, db, logger)
+		_aggSingleton, err = libstate.NewAggregatorV3(ctx, dirs, ethconfig.HistoryV3AggregationStep, db, logger)
 		if err != nil {
 			panic(err)
 		}

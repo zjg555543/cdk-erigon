@@ -97,7 +97,7 @@ type filesItem struct {
 	index        *recsplit.Index
 	bindex       *BtIndex
 	bm           *bitmapdb.FixedSizeBitmaps
-	bloom        *bloomFilter
+	existence    *ExistenceFilter
 	startTxNum   uint64
 	endTxNum     uint64
 
@@ -111,13 +111,14 @@ type filesItem struct {
 	// other processes (which also reading files, may have same logic)
 	canDelete atomic.Bool
 }
-type bloomFilter struct {
+type ExistenceFilter struct {
 	*bloomfilter.Filter
 	FileName, FilePath string
 	f                  *os.File
+	noFsync            bool // fsync is enabled by default, but tests can manually disable
 }
 
-func NewBloom(keysCount uint64, filePath string) (*bloomFilter, error) {
+func NewExistenceFilter(keysCount uint64, filePath string) (*ExistenceFilter, error) {
 	m := bloomfilter.OptimalM(keysCount, 0.01)
 	//TODO: make filters compatible by usinig same seed/keys
 	_, fileName := filepath.Split(filePath)
@@ -125,28 +126,59 @@ func NewBloom(keysCount uint64, filePath string) (*bloomFilter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w, %s", err, fileName)
 	}
-	return &bloomFilter{FilePath: filePath, FileName: fileName, Filter: bloom}, nil
+	return &ExistenceFilter{FilePath: filePath, FileName: fileName, Filter: bloom}, nil
 }
-func (b *bloomFilter) Build() error {
+
+func (b *ExistenceFilter) Build() error {
 	log.Trace("[agg] write file", "file", b.FileName)
-	//TODO: fsync and tmp-file rename
-	if _, err := b.Filter.WriteFile(b.FilePath); err != nil {
+	tmpFilePath := b.FilePath + ".tmp"
+	cf, err := os.Create(tmpFilePath)
+	if err != nil {
+		return err
+	}
+	defer cf.Close()
+	if _, err := b.Filter.WriteTo(cf); err != nil {
+		return err
+	}
+	if err = b.fsync(cf); err != nil {
+		return err
+	}
+	if err = cf.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpFilePath, b.FilePath); err != nil {
 		return err
 	}
 	return nil
 }
 
-func OpenBloom(filePath string) (*bloomFilter, error) {
+func (b *ExistenceFilter) DisableFsync() { b.noFsync = true }
+
+// fsync - other processes/goroutines must see only "fully-complete" (valid) files. No partial-writes.
+// To achieve it: write to .tmp file then `rename` when file is ready.
+// Machine may power-off right after `rename` - it means `fsync` must be before `rename`
+func (b *ExistenceFilter) fsync(f *os.File) error {
+	if b.noFsync {
+		return nil
+	}
+	if err := f.Sync(); err != nil {
+		log.Warn("couldn't fsync", "err", err)
+		return err
+	}
+	return nil
+}
+
+func OpenExistenceFilter(filePath string) (*ExistenceFilter, error) {
 	_, fileName := filepath.Split(filePath)
-	f := &bloomFilter{FilePath: filePath, FileName: fileName}
+	f := &ExistenceFilter{FilePath: filePath, FileName: fileName}
 	var err error
 	f.Filter, _, err = bloomfilter.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("OpenBloom: %w, %s", err, fileName)
+		return nil, fmt.Errorf("OpenExistenceFilter: %w, %s", err, fileName)
 	}
 	return f, nil
 }
-func (b *bloomFilter) Close() {
+func (b *ExistenceFilter) Close() {
 	if b.f != nil {
 		b.f.Close()
 		b.f = nil
@@ -205,12 +237,12 @@ func (i *filesItem) closeFilesAndRemove() {
 		}
 		i.bm = nil
 	}
-	if i.bloom != nil {
-		i.bloom.Close()
-		if err := os.Remove(i.bloom.FilePath); err != nil {
-			log.Trace("remove after close", "err", err, "file", i.bloom.FileName)
+	if i.existence != nil {
+		i.existence.Close()
+		if err := os.Remove(i.existence.FilePath); err != nil {
+			log.Trace("remove after close", "err", err, "file", i.existence.FileName)
 		}
-		i.bloom = nil
+		i.existence = nil
 	}
 }
 
@@ -291,8 +323,11 @@ type domainCfg struct {
 }
 
 func NewDomain(cfg domainCfg, aggregationStep uint64, filenameBase, keysTable, valsTable, indexKeysTable, historyValsTable, indexTable string, logger log.Logger) (*Domain, error) {
+	if cfg.hist.iiCfg.dirs.SnapDomain == "" {
+		panic("empty `dirs` varialbe")
+	}
 	d := &Domain{
-		dir:         filepath.Join(filepath.Dir(cfg.hist.iiCfg.dir), "warm"),
+		dir:         cfg.hist.iiCfg.dirs.SnapDomain,
 		keysTable:   keysTable,
 		valsTable:   valsTable,
 		compression: cfg.compress,
@@ -309,6 +344,18 @@ func NewDomain(cfg domainCfg, aggregationStep uint64, filenameBase, keysTable, v
 	}
 
 	return d, nil
+}
+func (d *Domain) kvFilePath(fromStep, toStep uint64) string {
+	return filepath.Join(d.dirs.SnapDomain, fmt.Sprintf("%s.%d-%d.kv", d.filenameBase, fromStep, toStep))
+}
+func (d *Domain) kvAccessorFilePath(fromStep, toStep uint64) string {
+	return filepath.Join(d.dirs.SnapDomain, fmt.Sprintf("%s.%d-%d.kvi", d.filenameBase, fromStep, toStep))
+}
+func (d *Domain) kvExistenceIdxFilePath(fromStep, toStep uint64) string {
+	return filepath.Join(d.dirs.SnapDomain, fmt.Sprintf("%s.%d-%d.kvei", d.filenameBase, fromStep, toStep))
+}
+func (d *Domain) kvBtFilePath(fromStep, toStep uint64) string {
+	return filepath.Join(d.dirs.SnapDomain, fmt.Sprintf("%s.%d-%d.bt", d.filenameBase, fromStep, toStep))
 }
 
 // LastStepInDB - return the latest available step in db (at-least 1 value in such step)
@@ -330,16 +377,16 @@ func (d *Domain) FirstStepInDB(tx kv.Tx) (lstInDb uint64) {
 func (d *Domain) DiscardHistory() {
 	d.History.DiscardHistory()
 	// can't discard domain wal - it required, but can discard history
-	d.wal = d.newWriter(d.tmpdir, true, false)
+	d.wal = d.newWriter(d.dirs.Tmp, true, false)
 }
 
 func (d *Domain) StartUnbufferedWrites() {
-	d.wal = d.newWriter(d.tmpdir, false, false)
+	d.wal = d.newWriter(d.dirs.Tmp, false, false)
 	d.History.StartUnbufferedWrites()
 }
 
 func (d *Domain) StartWrites() {
-	d.wal = d.newWriter(d.tmpdir, true, false)
+	d.wal = d.newWriter(d.dirs.Tmp, true, false)
 	d.History.StartWrites()
 }
 
@@ -457,8 +504,6 @@ func (d *Domain) scanStateFiles(fileNames []string) (garbageFiles []*filesItem) 
 }
 
 func (d *Domain) openFiles() (err error) {
-	//var totalKeys uint64
-
 	invalidFileItems := make([]*filesItem, 0)
 	d.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
@@ -466,7 +511,7 @@ func (d *Domain) openFiles() (err error) {
 				continue
 			}
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
-			datPath := filepath.Join(d.dir, fmt.Sprintf("%s.%d-%d.kv", d.filenameBase, fromStep, toStep))
+			datPath := d.kvFilePath(fromStep, toStep)
 			if !dir.FileExist(datPath) {
 				invalidFileItems = append(invalidFileItems, item)
 				continue
@@ -478,18 +523,17 @@ func (d *Domain) openFiles() (err error) {
 			}
 
 			if item.index == nil && !UseBpsTree {
-				idxPath := filepath.Join(d.dir, fmt.Sprintf("%s.%d-%d.kvi", d.filenameBase, fromStep, toStep))
+				idxPath := d.kvAccessorFilePath(fromStep, toStep)
 				if dir.FileExist(idxPath) {
 					if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
 						err = errors.Wrap(err, "recsplit index")
 						d.logger.Debug("Domain.openFiles: %w, %s", err, idxPath)
 						return false
 					}
-					//totalKeys += item.index.KeyCount()
 				}
 			}
 			if item.bindex == nil {
-				bidxPath := filepath.Join(d.dir, fmt.Sprintf("%s.%d-%d.bt", d.filenameBase, fromStep, toStep))
+				bidxPath := d.kvBtFilePath(fromStep, toStep)
 				if dir.FileExist(bidxPath) {
 					if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
 						err = errors.Wrap(err, "btree index")
@@ -497,12 +541,11 @@ func (d *Domain) openFiles() (err error) {
 						return false
 					}
 				}
-				//totalKeys += item.bindex.KeyCount()
 			}
-			if item.bloom == nil {
-				idxPath := filepath.Join(d.dir, fmt.Sprintf("%s.%d-%d.kvei", d.filenameBase, fromStep, toStep))
+			if item.existence == nil {
+				idxPath := d.kvExistenceIdxFilePath(fromStep, toStep)
 				if dir.FileExist(idxPath) {
-					if item.bloom, err = OpenBloom(idxPath); err != nil {
+					if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
 						return false
 					}
 				}
@@ -857,9 +900,9 @@ type DomainContext struct {
 func (dc *DomainContext) getFromFile(i int, filekey []byte) ([]byte, bool, error) {
 	g := dc.statelessGetter(i)
 	if UseBtree || UseBpsTree {
-		if dc.d.withExistenceIndex && dc.files[i].src.bloom != nil {
+		if dc.d.withExistenceIndex && dc.files[i].src.existence != nil {
 			hi, _ := dc.hc.ic.hashKey(filekey)
-			if !dc.files[i].src.bloom.ContainsHash(hi) {
+			if !dc.files[i].src.existence.ContainsHash(hi) {
 				return nil, false, nil
 			}
 		}
@@ -1002,7 +1045,7 @@ func (d *Domain) collate(ctx context.Context, step, txFrom, txTo uint64, roTx kv
 		}
 	}()
 
-	coll.valuesPath = filepath.Join(d.dir, fmt.Sprintf("%s.%d-%d.kv", d.filenameBase, step, step+1))
+	coll.valuesPath = d.kvFilePath(step, step+1)
 	if coll.valuesComp, err = compress.NewCompressor(context.Background(), "collate values", coll.valuesPath, d.tmpdir, compress.MinPatternScore, d.compressWorkers, log.LvlTrace, d.logger); err != nil {
 		return Collation{}, fmt.Errorf("create %s values compressor: %w", d.filenameBase, err)
 	}
@@ -1096,7 +1139,7 @@ type StaticFiles struct {
 	valuesDecomp *compress.Decompressor
 	valuesIdx    *recsplit.Index
 	valuesBt     *BtIndex
-	bloom        *bloomFilter
+	bloom        *ExistenceFilter
 }
 
 // CleanupOnError - call it on collation fail. It closing all files
@@ -1170,8 +1213,7 @@ func (d *Domain) buildFiles(ctx context.Context, step uint64, collation Collatio
 		return StaticFiles{}, fmt.Errorf("open %s values decompressor: %w", d.filenameBase, err)
 	}
 
-	valuesIdxFileName := fmt.Sprintf("%s.%d-%d.kvi", d.filenameBase, step, step+1)
-	valuesIdxPath := filepath.Join(d.dir, valuesIdxFileName)
+	valuesIdxPath := d.kvAccessorFilePath(step, step+1)
 	if !UseBpsTree {
 		if valuesIdx, err = buildIndexThenOpen(ctx, valuesDecomp, d.compression, valuesIdxPath, d.tmpdir, false, d.salt, ps, d.logger, d.noFsync); err != nil {
 			return StaticFiles{}, fmt.Errorf("build %s values idx: %w", d.filenameBase, err)
@@ -1180,18 +1222,17 @@ func (d *Domain) buildFiles(ctx context.Context, step uint64, collation Collatio
 
 	var bt *BtIndex
 	{
-		btFileName := fmt.Sprintf("%s.%d-%d.bt", d.filenameBase, step, step+1)
-		btPath := filepath.Join(d.dir, btFileName)
+		btPath := d.kvBtFilePath(step, step+1)
 		bt, err = CreateBtreeIndexWithDecompressor(btPath, DefaultBtreeM, valuesDecomp, d.compression, *d.salt, ps, d.tmpdir, d.logger)
 		if err != nil {
 			return StaticFiles{}, fmt.Errorf("build %s .bt idx: %w", d.filenameBase, err)
 		}
 	}
-	var bloom *bloomFilter
+	var bloom *ExistenceFilter
 	{
-		fileName := fmt.Sprintf("%s.%d-%d.kvei", d.filenameBase, step, step+1)
-		if dir.FileExist(filepath.Join(d.dir, fileName)) {
-			bloom, err = OpenBloom(filepath.Join(d.dir, fileName))
+		bloomIdxPath := d.kvExistenceIdxFilePath(step, step+1)
+		if dir.FileExist(bloomIdxPath) {
+			bloom, err = OpenExistenceFilter(bloomIdxPath)
 			if err != nil {
 				return StaticFiles{}, fmt.Errorf("build %s .kvei: %w", d.filenameBase, err)
 			}
@@ -1211,9 +1252,16 @@ func (d *Domain) missedBtreeIdxFiles() (l []*filesItem) {
 	d.files.Walk(func(items []*filesItem) bool { // don't run slow logic while iterating on btree
 		for _, item := range items {
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
-			fname := fmt.Sprintf("%s.%d-%d.bt", d.filenameBase, fromStep, toStep)
-			if !dir.FileExist(filepath.Join(d.dir, fname)) {
+
+			btPath := d.kvBtFilePath(fromStep, toStep)
+			if !dir.FileExist(btPath) {
 				l = append(l, item)
+				continue
+			}
+			bloomPath := d.kvExistenceIdxFilePath(fromStep, toStep)
+			if !dir.FileExist(bloomPath) {
+				l = append(l, item)
+				continue
 			}
 		}
 		return true
@@ -1224,7 +1272,8 @@ func (d *Domain) missedKviIdxFiles() (l []*filesItem) {
 	d.files.Walk(func(items []*filesItem) bool { // don't run slow logic while iterating on btree
 		for _, item := range items {
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
-			if !dir.FileExist(filepath.Join(d.dir, fmt.Sprintf("%s.%d-%d.kvi", d.filenameBase, fromStep, toStep))) {
+			indexPath := d.kvAccessorFilePath(fromStep, toStep)
+			if !dir.FileExist(indexPath) {
 				l = append(l, item)
 			}
 		}
@@ -1233,11 +1282,12 @@ func (d *Domain) missedKviIdxFiles() (l []*filesItem) {
 	return l
 }
 
-//func (d *Domain) missedIdxFilesBloom() (l []*filesItem) {
+//func (d *Domain) missedExistenceFilter() (l []*filesItem) {
 //	d.files.Walk(func(items []*filesItem) bool { // don't run slow logic while iterating on btree
 //		for _, item := range items {
 //			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
-//			if !dir.FileExist(filepath.Join(d.dir, fmt.Sprintf("%s.%d-%d.kvei", d.filenameBase, fromStep, toStep))) {
+//      bloomPath := d.kvExistenceIdxFilePath(fromStep, toStep)
+//      if !dir.FileExist(bloomPath) {
 //				l = append(l, item)
 //			}
 //		}
@@ -1250,26 +1300,28 @@ func (d *Domain) missedKviIdxFiles() (l []*filesItem) {
 func (d *Domain) BuildMissedIndices(ctx context.Context, g *errgroup.Group, ps *background.ProgressSet) {
 	d.History.BuildMissedIndices(ctx, g, ps)
 	for _, item := range d.missedBtreeIdxFiles() {
-		fitem := item
+		if !UseBpsTree {
+			continue
+		}
+		item := item
 		g.Go(func() error {
-			idxPath := fitem.decompressor.FilePath()
+			idxPath := item.decompressor.FilePath()
 			idxPath = strings.TrimSuffix(idxPath, "kv") + "bt"
-			if err := BuildBtreeIndexWithDecompressor(idxPath, fitem.decompressor, CompressNone, ps, d.tmpdir, *d.salt, d.logger); err != nil {
-				return fmt.Errorf("failed to build btree index for %s:  %w", fitem.decompressor.FileName(), err)
+			if err := BuildBtreeIndexWithDecompressor(idxPath, item.decompressor, CompressNone, ps, d.tmpdir, *d.salt, d.logger); err != nil {
+				return fmt.Errorf("failed to build btree index for %s:  %w", item.decompressor.FileName(), err)
 			}
 			return nil
 		})
 	}
 	for _, item := range d.missedKviIdxFiles() {
-		fitem := item
+		if UseBpsTree {
+			continue
+		}
+		item := item
 		g.Go(func() error {
-			if UseBpsTree {
-				return nil
-			}
-
-			idxPath := fitem.decompressor.FilePath()
+			idxPath := item.decompressor.FilePath()
 			idxPath = strings.TrimSuffix(idxPath, "kv") + "kvi"
-			ix, err := buildIndexThenOpen(ctx, fitem.decompressor, d.compression, idxPath, d.tmpdir, false, d.salt, ps, d.logger, d.noFsync)
+			ix, err := buildIndexThenOpen(ctx, item.decompressor, d.compression, idxPath, d.tmpdir, false, d.salt, ps, d.logger, d.noFsync)
 			if err != nil {
 				return fmt.Errorf("build %s values recsplit index: %w", d.filenameBase, err)
 			}
@@ -1277,23 +1329,6 @@ func (d *Domain) BuildMissedIndices(ctx context.Context, g *errgroup.Group, ps *
 			return nil
 		})
 	}
-	//for _, item := range d.missedIdxFilesBloom() {
-	//	fitem := item
-	//	g.Go(func() error {
-	//		if UseBpsTree {
-	//			return nil
-	//		}
-	//
-	//		idxPath := fitem.decompressor.FilePath()
-	//		idxPath = strings.TrimSuffix(idxPath, "kv") + "ibl"
-	//		ix, err := buildIndexThenOpen(ctx, fitem.decompressor, d.compression, idxPath, d.tmpdir, false, ps, d.logger, d.noFsync)
-	//		if err != nil {
-	//			return fmt.Errorf("build %s values recsplit index: %w", d.filenameBase, err)
-	//		}
-	//		ix.Close()
-	//		return nil
-	//	})
-	//}
 }
 
 func buildIndexThenOpen(ctx context.Context, d *compress.Decompressor, compressed FileCompression, idxPath, tmpdir string, values bool, salt *uint32, ps *background.ProgressSet, logger log.Logger, noFsync bool) (*recsplit.Index, error) {
@@ -1302,14 +1337,14 @@ func buildIndexThenOpen(ctx context.Context, d *compress.Decompressor, compresse
 	}
 	return recsplit.OpenIndex(idxPath)
 }
-func buildIndexFilterThenOpen(ctx context.Context, d *compress.Decompressor, compressed FileCompression, idxPath, tmpdir string, salt *uint32, ps *background.ProgressSet, logger log.Logger, noFsync bool) (*bloomFilter, error) {
+func buildIndexFilterThenOpen(ctx context.Context, d *compress.Decompressor, compressed FileCompression, idxPath, tmpdir string, salt *uint32, ps *background.ProgressSet, logger log.Logger, noFsync bool) (*ExistenceFilter, error) {
 	if err := buildIdxFilter(ctx, d, compressed, idxPath, tmpdir, salt, ps, logger, noFsync); err != nil {
 		return nil, err
 	}
 	if !dir.FileExist(idxPath) {
 		return nil, nil
 	}
-	return OpenBloom(idxPath)
+	return OpenExistenceFilter(idxPath)
 }
 func buildIndex(ctx context.Context, d *compress.Decompressor, compressed FileCompression, idxPath, tmpdir string, values bool, salt *uint32, ps *background.ProgressSet, logger log.Logger, noFsync bool) error {
 	_, fileName := filepath.Split(idxPath)
@@ -1389,7 +1424,7 @@ func (d *Domain) integrateFiles(sf StaticFiles, txNumFrom, txNumTo uint64) {
 	fi.decompressor = sf.valuesDecomp
 	fi.index = sf.valuesIdx
 	fi.bindex = sf.valuesBt
-	fi.bloom = sf.bloom
+	fi.existence = sf.bloom
 	d.files.Set(fi)
 
 	d.reCalcRoFiles()
@@ -1623,8 +1658,11 @@ func (dc *DomainContext) getLatestFromFilesWithExistenceIndex(filekey []byte) (v
 	hi, _ := dc.hc.ic.hashKey(filekey)
 
 	for i := len(dc.files) - 1; i >= 0; i-- {
-		if dc.d.withExistenceIndex && dc.files[i].src.bloom != nil {
-			if !dc.files[i].src.bloom.ContainsHash(hi) {
+		if dc.d.withExistenceIndex {
+			//if dc.files[i].src.existence == nil {
+			//	panic(dc.files[i].src.decompressor.FileName())
+			//}
+			if dc.files[i].src.existence != nil && !dc.files[i].src.existence.ContainsHash(hi) {
 				continue
 			}
 		}
@@ -2427,21 +2465,6 @@ func (dc *DomainContext) Files() (res []string) {
 		}
 	}
 	return append(res, dc.hc.Files()...)
-}
-
-type Ranges struct {
-	accounts   DomainRanges
-	storage    DomainRanges
-	code       DomainRanges
-	commitment DomainRanges
-}
-
-func (r Ranges) String() string {
-	return fmt.Sprintf("accounts=%s, storage=%s, code=%s, commitment=%s", r.accounts.String(), r.storage.String(), r.code.String(), r.commitment.String())
-}
-
-func (r Ranges) any() bool {
-	return r.accounts.any() || r.storage.any() || r.code.any() || r.commitment.any()
 }
 
 type SelectedStaticFiles struct {
