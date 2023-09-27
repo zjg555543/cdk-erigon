@@ -238,33 +238,43 @@ func checkDbCompatibility(ctx context.Context, db kv.RoDB) error {
 	return nil
 }
 
-func EmbeddedServices(ctx context.Context,
+type EmbeddedServices struct {
+	Eth        rpchelper.ApiBackend
+	TxPool     txpool.TxpoolClient
+	Mining     txpool.MiningClient
+	StateCache kvcache.Cache
+	Filters    *rpchelper.Filters
+}
+
+func NewEmbeddedServices(ctx context.Context,
 	erigonDB kv.RoDB, stateCacheCfg kvcache.CoherentConfig,
 	blockReader services.FullBlockReader, ethBackendServer remote.ETHBACKENDServer, txPoolServer txpool.TxpoolServer,
 	miningServer txpool.MiningServer, stateDiffClient StateChangesClient,
 	logger log.Logger,
-) (eth rpchelper.ApiBackend, txPool txpool.TxpoolClient, mining txpool.MiningClient, stateCache kvcache.Cache, ff *rpchelper.Filters, err error) {
+) (*EmbeddedServices, error) {
+	var s EmbeddedServices
+
 	if stateCacheCfg.CacheSize > 0 {
 		// notification about new blocks (state stream) doesn't work now inside erigon - because
 		// erigon does send this stream to privateAPI (erigon with enabled rpc, still have enabled privateAPI).
 		// without this state stream kvcache can't work and only slow-down things
 		// ... adding back in place to see about the above statement
-		stateCache = kvcache.New(stateCacheCfg)
+		s.StateCache = kvcache.New(stateCacheCfg)
 	} else {
-		stateCache = kvcache.NewDummy()
+		s.StateCache = kvcache.NewDummy()
 	}
 
-	subscribeToStateChangesLoop(ctx, stateDiffClient, stateCache)
+	subscribeToStateChangesLoop(ctx, stateDiffClient, s.StateCache)
 
 	directClient := direct.NewEthBackendClientDirect(ethBackendServer)
 
-	eth = rpcservices.NewRemoteBackend(directClient, erigonDB, blockReader)
+	s.Eth = rpcservices.NewRemoteBackend(directClient, erigonDB, blockReader)
 
-	txPool = direct.NewTxPoolClient(txPoolServer)
-	mining = direct.NewMiningClient(miningServer)
-	ff = rpchelper.New(ctx, eth, txPool, mining, func() {}, logger)
+	s.TxPool = direct.NewTxPoolClient(txPoolServer)
+	s.Mining = direct.NewMiningClient(miningServer)
+	s.Filters = rpchelper.New(ctx, s.Eth, s.TxPool, s.Mining, func() {}, logger)
 
-	return
+	return &s, nil
 }
 
 // RemoteServices - use when RPCDaemon run as independent process. Still it can use --datadir flag to enable

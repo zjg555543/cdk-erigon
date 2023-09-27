@@ -252,6 +252,7 @@ type Bor struct {
 	spanner                Spanner
 	GenesisContractsClient GenesisContract
 	HeimdallClient         heimdall.IHeimdallClient
+	FinalityAPI            FinalityAPI
 
 	// scope event.SubscriptionScope
 	// The fields below are for testing only
@@ -428,7 +429,6 @@ func (c *Bor) Author(header *types.Header) (libcommon.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
 func (c *Bor) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
-
 	return c.verifyHeader(chain, header, nil)
 }
 
@@ -649,11 +649,28 @@ func (c *Bor) initFrozenSnapshot(chain consensus.ChainHeaderReader, number uint6
 	}()
 
 	// Special handling of the headers in the snapshot
-	zeroHeader := chain.GetHeaderByNumber(0)
+	var initialHeader *types.Header
 
-	if zeroHeader != nil {
+	// If an on-disk snapshot can be found, use that
+	lastPersisted := snapshotPersistInterval * (number / snapshotPersistInterval)
+
+	if lastPersisted > 0 {
+		lastPersitedHeader := chain.GetHeaderByNumber(lastPersisted)
+
+		if s, err := loadSnapshot(c.config, c.signatures, c.DB, lastPersitedHeader.Hash()); err == nil {
+			c.logger.Trace("Loaded snapshot from disk", "number", lastPersisted, "hash", lastPersitedHeader.Hash())
+			snap = s
+			initialHeader = lastPersitedHeader
+		} else {
+			initialHeader = chain.GetHeaderByNumber(0)
+		}
+	} else {
+		initialHeader = chain.GetHeaderByNumber(0)
+	}
+
+	if initialHeader != nil {
 		// get checkpoint data
-		hash := zeroHeader.Hash()
+		hash := initialHeader.Hash()
 
 		// get validators and current span
 		var validators []*valset.Validator
@@ -664,18 +681,21 @@ func (c *Bor) initFrozenSnapshot(chain consensus.ChainHeaderReader, number uint6
 			return nil, err
 		}
 
-		// new snap shot
-		snap = newSnapshot(c.config, c.signatures, 0, hash, validators, c.logger)
+		if snap == nil {
+			snap = newSnapshot(c.config, c.signatures, 0, hash, validators, c.logger)
 
-		if err = snap.store(c.DB); err != nil {
-			return nil, err
+			if err = snap.store(c.DB); err != nil {
+				return nil, err
+			}
+
+			c.logger.Info("Stored proposer snapshot to disk", "number", 0, "hash", hash)
 		}
-
-		c.logger.Info("Stored proposer snapshot to disk", "number", 0, "hash", hash)
 
 		initialHeaders := make([]*types.Header, 0, 128)
 
-		for i := uint64(1); i <= number; i++ {
+		var toPersist *Snapshot
+
+		for i := lastPersisted + 1; i <= number; i++ {
 			header := chain.GetHeaderByNumber(i)
 			initialHeaders = append(initialHeaders, header)
 			if len(initialHeaders) == cap(initialHeaders) {
@@ -687,6 +707,11 @@ func (c *Bor) initFrozenSnapshot(chain consensus.ChainHeaderReader, number uint6
 
 				initialHeaders = initialHeaders[:0]
 			}
+
+			if snap.Number != lastPersisted && snap.Number%snapshotPersistInterval == 0 {
+				toPersist = snap.copy()
+			}
+
 			select {
 			case <-logEvery.C:
 				log.Info("Computing validator proposer prorities (forward)", "blockNum", i)
@@ -696,6 +721,14 @@ func (c *Bor) initFrozenSnapshot(chain consensus.ChainHeaderReader, number uint6
 
 		if snap, err = snap.apply(initialHeaders, c.logger); err != nil {
 			return nil, err
+		}
+
+		if toPersist != nil {
+			if err = toPersist.store(c.DB); err != nil {
+				return nil, err
+			}
+
+			c.logger.Info("Stored proposer snapshot to disk", "number", toPersist.Number, "hash", toPersist.Hash)
 		}
 	}
 
@@ -1270,22 +1303,13 @@ type FinalityAPI interface {
 	GetRootHash(start uint64, end uint64) (string, error)
 }
 
-func (c *Bor) Start(apiList []rpc.API, chainDB kv.RwDB, blockReader services.FullBlockReader) {
+func (c *Bor) Start(chainDB kv.RwDB, blockReader services.FullBlockReader) {
 	if flags.Milestone {
 		borDB := c.DB
 
 		whitelist.RegisterService(borDB)
 
-		var borAPI borfinality.BorAPI
-
-		for _, api := range apiList {
-			if api.Namespace == "bor" {
-				borAPI = api.Service.(FinalityAPI)
-				break
-			}
-		}
-
-		borfinality.Whitelist(c.HeimdallClient, borDB, chainDB, blockReader, c.logger, borAPI, c.closeCh)
+		borfinality.Whitelist(c.HeimdallClient, borDB, chainDB, blockReader, c.logger, c.FinalityAPI, c.closeCh)
 	}
 }
 

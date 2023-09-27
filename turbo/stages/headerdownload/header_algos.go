@@ -544,7 +544,7 @@ func (hd *HeaderDownload) InsertHeader(hf FeedHeaderFunc, terminalTotalDifficult
 					hd.logger.Warn("[downloader] Added future link", "hash", link.hash, "height", link.blockHeight, "timestamp", link.header.Time)
 					return false, false, 0, lastTime, nil // prevent removal of the link from the hd.linkQueue
 				} else {
-					hd.logger.Debug("[downloader] Verification failed for header", "hash", link.hash, "height", link.blockHeight, "err", err)
+					hd.logger.Warn("[downloader] Verification failed for header", "hash", link.hash, "height", link.blockHeight, "err", err)
 					hd.moveLinkToQueue(link, NoQueue)
 					delete(hd.links, link.hash)
 					hd.removeUpwards(link)

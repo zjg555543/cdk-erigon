@@ -84,6 +84,7 @@ import (
 	clcore "github.com/ledgerwatch/erigon/cl/phase1/core"
 	"github.com/ledgerwatch/erigon/cmd/caplin-phase1/caplin1"
 	"github.com/ledgerwatch/erigon/cmd/rpcdaemon/cli"
+	"github.com/ledgerwatch/erigon/cmd/rpcdaemon/cli/httpcfg"
 	"github.com/ledgerwatch/erigon/cmd/sentinel/sentinel"
 	"github.com/ledgerwatch/erigon/cmd/sentinel/sentinel/service"
 	"github.com/ledgerwatch/erigon/cmd/sentry/sentry"
@@ -104,6 +105,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/core/vm"
 	"github.com/ledgerwatch/erigon/crypto"
+	"github.com/ledgerwatch/erigon/eth/borfinality"
 	"github.com/ledgerwatch/erigon/eth/borfinality/flags"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/ethconsensusconfig"
@@ -145,7 +147,6 @@ type Ethereum struct {
 
 	lock         sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 	chainConfig  *chain.Config
-	apiList      []rpc.API
 	genesisBlock *types.Block
 	genesisHash  libcommon.Hash
 
@@ -196,6 +197,8 @@ type Ethereum struct {
 	blockWriter    *blockio.BlockWriter
 	kvRPC          *remotedbserver.KvServer
 	logger         log.Logger
+
+	services *cli.EmbeddedServices
 }
 
 func splitAddrIntoHostAndPort(addr string) (host string, port int, err error) {
@@ -797,8 +800,6 @@ func New(stack *node.Node, config *ethconfig.Config, logger log.Logger) (*Ethere
 }
 
 func (s *Ethereum) Init(stack *node.Node, config *ethconfig.Config) error {
-	ethBackendRPC, miningRPC, stateDiffClient := s.ethBackendRPC, s.miningRPC, s.stateChangesClient
-	blockReader := s.blockReader
 	ctx := s.sentryCtx
 	chainKv := s.chainDB
 	var err error
@@ -837,33 +838,69 @@ func (s *Ethereum) Init(stack *node.Node, config *ethconfig.Config) error {
 	}
 	// start HTTP API
 	httpRpcCfg := stack.Config().Http
-	ethRpcClient, txPoolRpcClient, miningRpcClient, stateCache, ff, err := cli.EmbeddedServices(ctx, chainKv, httpRpcCfg.StateCache, blockReader, ethBackendRPC,
-		s.txPoolGrpcServer, miningRPC, stateDiffClient, s.logger)
+
+	if _, ok := s.engine.(*bor.Bor); ok {
+		var hasBorApi bool
+
+		for _, api := range httpRpcCfg.API {
+			if api == "bor" {
+				hasBorApi = true
+				break
+			}
+		}
+
+		if !hasBorApi {
+			httpRpcCfg.API = append(httpRpcCfg.API, "bor")
+		}
+	}
+
+	apiList, err := s.APIs(ctx, httpRpcCfg)
+
 	if err != nil {
 		return err
 	}
 
-	var borDb kv.RoDB
-	if casted, ok := s.engine.(*bor.Bor); ok {
-		borDb = casted.DB
-	}
-	s.apiList = jsonrpc.APIList(chainKv, borDb, ethRpcClient, txPoolRpcClient, miningRpcClient, ff, stateCache, blockReader, s.agg, httpRpcCfg, s.engine, s.logger)
 	go func() {
-		if err := cli.StartRpcServer(ctx, httpRpcCfg, s.apiList, s.logger); err != nil {
+		if err := cli.StartRpcServer(ctx, httpRpcCfg, apiList, s.logger); err != nil {
 			s.logger.Error(err.Error())
 			return
 		}
 	}()
 
-	go s.engineBackendRPC.Start(httpRpcCfg, s.chainDB, s.blockReader, ff, stateCache, s.agg, s.engine, ethRpcClient, txPoolRpcClient, miningRpcClient)
+	if bor, ok := s.engine.(*bor.Bor); ok {
+		for _, api := range apiList {
+			if api.Namespace == "bor" {
+				bor.FinalityAPI = api.Service.(borfinality.BorAPI)
+				break
+			}
+		}
+	}
+
+	go s.engineBackendRPC.Start(httpRpcCfg, s.chainDB, s.blockReader, s.services.Filters, s.services.StateCache, s.agg, s.engine, s.services.Eth, s.services.TxPool, s.services.Mining)
 
 	// Register the backend on the node
 	stack.RegisterLifecycle(s)
 	return nil
 }
 
-func (s *Ethereum) APIs() []rpc.API {
-	return s.apiList
+func (s *Ethereum) APIs(ctx context.Context, cfg httpcfg.HttpCfg) ([]rpc.API, error) {
+	var borDb kv.RoDB
+	if bor, ok := s.engine.(*bor.Bor); ok {
+		borDb = bor.DB
+	}
+
+	if s.services == nil {
+		var err error
+
+		s.services, err = cli.NewEmbeddedServices(
+			ctx, s.chainDB, cfg.StateCache, s.blockReader, s.ethBackendRPC, s.txPoolGrpcServer, s.miningRPC, s.stateChangesClient, s.logger)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return jsonrpc.APIList(s.chainDB, borDb, s.services.Eth, s.services.TxPool, s.services.Mining, s.services.Filters, s.services.StateCache, s.blockReader, s.agg, cfg, s.engine, s.logger), nil
 }
 
 func (s *Ethereum) Etherbase() (eb libcommon.Address, err error) {
@@ -1213,15 +1250,15 @@ func (s *Ethereum) Start() error {
 		return currentTD
 	}
 
+	if s.chainConfig.Bor != nil {
+		s.engine.(*bor.Bor).Start(s.chainDB, s.blockReader)
+	}
+
 	if params.IsChainPoS(s.chainConfig, currentTDProvider) {
 		s.waitForStageLoopStop = nil // TODO: Ethereum.Stop should wait for execution_server shutdown
 		go s.eth1ExecutionServer.Start(s.sentryCtx)
 	} else {
 		go stages2.StageLoop(s.sentryCtx, s.chainDB, s.stagedSync, s.sentriesClient.Hd, s.waitForStageLoopStop, s.config.Sync.LoopThrottle, s.logger, s.blockReader, hook, s.config.ForcePartialCommit)
-	}
-
-	if s.chainConfig.Bor != nil {
-		s.engine.(*bor.Bor).Start(s.apiList, s.chainDB, s.blockReader)
 	}
 
 	return nil
