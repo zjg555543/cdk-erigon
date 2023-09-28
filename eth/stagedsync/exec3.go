@@ -889,8 +889,9 @@ Loop:
 		}
 	}
 
-	if parallel && blocksFreezeCfg.Produce {
-		agg.BuildFilesInBackground(outputTxNum.Load())
+	_, err = rawdb.IncrementStateVersion(applyTx)
+	if err != nil {
+		return fmt.Errorf("writing plain state version: %w", err)
 	}
 	_, err = rawdb.IncrementStateVersion(applyTx)
 	if err != nil {
@@ -900,6 +901,9 @@ Loop:
 		if err = applyTx.Commit(); err != nil {
 			return err
 		}
+	}
+	if parallel && blocksFreezeCfg.Produce {
+		agg.BuildFilesInBackground(outputTxNum.Load())
 	}
 	return nil
 }
