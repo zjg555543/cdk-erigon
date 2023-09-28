@@ -93,9 +93,9 @@ type InvertedIndex struct {
 }
 
 type iiCfg struct {
-	salt        *uint32
-	dir, tmpdir string
-	dirs        datadir.Dirs
+	salt *uint32
+	dir  string
+	dirs datadir.Dirs
 }
 
 func NewInvertedIndex(
@@ -110,7 +110,6 @@ func NewInvertedIndex(
 ) (*InvertedIndex, error) {
 	if cfg.dir == "" {
 		cfg.dir = cfg.dirs.SnapHistory
-		cfg.tmpdir = cfg.dirs.Tmp
 	}
 	ii := InvertedIndex{
 		iiCfg:                   cfg,
@@ -148,30 +147,15 @@ func (ii *InvertedIndex) efFilePath(fromStep, toStep uint64) string {
 
 func (ii *InvertedIndex) enableLocalityIndex() error {
 	var err error
-	ii.warmLocalityIdx = NewLocalityIndex(true, ii.warmDir, ii.filenameBase, ii.aggregationStep, ii.tmpdir, ii.salt, ii.logger)
+	ii.warmLocalityIdx = NewLocalityIndex(true, ii.warmDir, ii.filenameBase, ii.aggregationStep, ii.dirs.Tmp, ii.salt, ii.logger)
 	if err != nil {
-		return fmt.Errorf("NewHistory: %s, %w", ii.filenameBase, err)
+		return fmt.Errorf("NewLocalityIndex: %s, %w", ii.filenameBase, err)
 	}
-	ii.coldLocalityIdx = NewLocalityIndex(false, ii.dir, ii.filenameBase, ii.aggregationStep, ii.tmpdir, ii.salt, ii.logger)
+	ii.coldLocalityIdx = NewLocalityIndex(false, ii.dir, ii.filenameBase, ii.aggregationStep, ii.dirs.Tmp, ii.salt, ii.logger)
 	if err != nil {
-		return fmt.Errorf("NewHistory: %s, %w", ii.filenameBase, err)
+		return fmt.Errorf("NewLocalityIndex: %s, %w", ii.filenameBase, err)
 	}
 	return nil
-}
-
-func filesFromDir(dir string) ([]string, error) {
-	allFiles, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("filesFromDir: %w, %s", err, dir)
-	}
-	filtered := make([]string, 0, len(allFiles))
-	for _, f := range allFiles {
-		if f.IsDir() || !f.Type().IsRegular() {
-			continue
-		}
-		filtered = append(filtered, f.Name())
-	}
-	return filtered, nil
 }
 
 func (ii *InvertedIndex) fileNamesOnDisk() ([]string, []string, error) {
@@ -203,12 +187,15 @@ func (ii *InvertedIndex) fileNamesOnDisk() ([]string, []string, error) {
 }
 
 func (ii *InvertedIndex) OpenList(fNames, warmFNames []string) error {
-	if err := ii.warmLocalityIdx.OpenList(warmFNames); err != nil {
-		return err
+	if ii.withLocalityIndex {
+		if err := ii.warmLocalityIdx.OpenList(warmFNames); err != nil {
+			return err
+		}
+		if err := ii.coldLocalityIdx.OpenList(fNames); err != nil {
+			return err
+		}
 	}
-	if err := ii.coldLocalityIdx.OpenList(fNames); err != nil {
-		return err
-	}
+
 	ii.closeWhatNotInList(fNames)
 	ii.garbageFiles = ii.scanStateFiles(fNames)
 	if err := ii.openFiles(); err != nil {
@@ -371,8 +358,7 @@ func (ii *InvertedIndex) missedExistenceFilterFiles() (l []*filesItem) {
 func (ii *InvertedIndex) buildEfi(ctx context.Context, item *filesItem, ps *background.ProgressSet) (err error) {
 	fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
 	idxPath := ii.efAccessorFilePath(fromStep, toStep)
-
-	return buildIndex(ctx, item.decompressor, CompressNone, idxPath, ii.tmpdir, false, ii.salt, ps, ii.logger, ii.noFsync)
+	return buildIndex(ctx, item.decompressor, CompressNone, idxPath, ii.dirs.Tmp, false, ii.salt, ps, ii.logger, ii.noFsync)
 }
 func (ii *InvertedIndex) buildExistenceFilter(ctx context.Context, item *filesItem, ps *background.ProgressSet) (err error) {
 	if !ii.withExistenceIndex {
@@ -380,7 +366,7 @@ func (ii *InvertedIndex) buildExistenceFilter(ctx context.Context, item *filesIt
 	}
 	fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
 	idxPath := ii.efExistenceIdxFilePath(fromStep, toStep)
-	return buildIdxFilter(ctx, item.decompressor, CompressNone, idxPath, ii.tmpdir, ii.salt, ps, ii.logger, ii.noFsync)
+	return buildIdxFilter(ctx, item.decompressor, CompressNone, idxPath, ii.dirs.Tmp, ii.salt, ps, ii.logger, ii.noFsync)
 }
 func buildIdxFilter(ctx context.Context, d *compress.Decompressor, compressed FileCompression, idxPath, tmpdir string, salt *uint32, ps *background.ProgressSet, logger log.Logger, noFsync bool) error {
 	g := NewArchiveGetter(d.MakeGetter(), compressed)
@@ -572,10 +558,10 @@ func (ii *InvertedIndex) DiscardHistory(tmpdir string) {
 	ii.wal = ii.newWriter(tmpdir, false, true)
 }
 func (ii *InvertedIndex) StartWrites() {
-	ii.wal = ii.newWriter(ii.tmpdir, true, false)
+	ii.wal = ii.newWriter(ii.dirs.Tmp, true, false)
 }
 func (ii *InvertedIndex) StartUnbufferedWrites() {
-	ii.wal = ii.newWriter(ii.tmpdir, false, false)
+	ii.wal = ii.newWriter(ii.dirs.Tmp, false, false)
 }
 func (ii *InvertedIndex) FinishWrites() {
 	ii.wal.close()
@@ -1552,7 +1538,7 @@ func (ii *InvertedIndex) buildFiles(ctx context.Context, step uint64, bitmaps ma
 	{
 		p := ps.AddNew(path.Base(datPath), 1)
 		defer ps.Delete(p)
-		comp, err = compress.NewCompressor(ctx, "ef", datPath, ii.tmpdir, compress.MinPatternScore, ii.compressWorkers, log.LvlTrace, ii.logger)
+		comp, err = compress.NewCompressor(ctx, "snapshots", datPath, ii.dirs.Tmp, compress.MinPatternScore, ii.compressWorkers, log.LvlTrace, ii.logger)
 		if err != nil {
 			return InvertedFiles{}, fmt.Errorf("create %s compressor: %w", ii.filenameBase, err)
 		}
@@ -1586,13 +1572,13 @@ func (ii *InvertedIndex) buildFiles(ctx context.Context, step uint64, bitmaps ma
 	}
 
 	idxPath := ii.efAccessorFilePath(step, step+1)
-	if index, err = buildIndexThenOpen(ctx, decomp, ii.compression, idxPath, ii.tmpdir, false, ii.salt, ps, ii.logger, ii.noFsync); err != nil {
+	if index, err = buildIndexThenOpen(ctx, decomp, ii.compression, idxPath, ii.dirs.Tmp, false, ii.salt, ps, ii.logger, ii.noFsync); err != nil {
 		return InvertedFiles{}, fmt.Errorf("build %s efi: %w", ii.filenameBase, err)
 	}
 
 	if ii.withExistenceIndex {
 		idxPath2 := ii.efExistenceIdxFilePath(step, step+1)
-		if existence, err = buildIndexFilterThenOpen(ctx, decomp, ii.compression, idxPath2, ii.tmpdir, ii.salt, ps, ii.logger, ii.noFsync); err != nil {
+		if existence, err = buildIndexFilterThenOpen(ctx, decomp, ii.compression, idxPath2, ii.dirs.Tmp, ii.salt, ps, ii.logger, ii.noFsync); err != nil {
 			return InvertedFiles{}, fmt.Errorf("build %s efei: %w", ii.filenameBase, err)
 		}
 	}

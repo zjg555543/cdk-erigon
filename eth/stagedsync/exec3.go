@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
 
@@ -277,16 +278,19 @@ func ExecV3(ctx context.Context,
 	doms.SetTx(applyTx)
 
 	rs := state.NewStateV3(doms, logger)
-	fmt.Printf("input tx %d\n", inputTxNum)
-	_, _, offsetFromBlockBeginning, err := doms.SeekCommitment(0, math.MaxUint64)
+	fmt.Printf("[dbg] input tx %d\n", inputTxNum)
+	offsetFromBlockBeginning, err := doms.SeekCommitment(0, math.MaxUint64)
 	if err != nil {
 		return err
 	}
+
+	log.Debug("execv3 starting",
+		"inputTxNum", inputTxNum, "restored_block", doms.BlockNum(),
+		"restored_txNum", doms.TxNum(), "offsetFromBlockBeginning", offsetFromBlockBeginning)
+
 	inputTxNum = doms.TxNum()
 	blockNum = doms.BlockNum()
 	outputTxNum.Store(inputTxNum)
-	fmt.Printf("restored commitment block %d tx %d offsetFromBlockBeginning %d\n", blockNum, inputTxNum, offsetFromBlockBeginning)
-	//log.Info("SeekCommitment", "bn", blockNum, "txn", inputTxNum)
 
 	////TODO: owner of `resultCh` is main goroutine, but owner of `retryQueue` is applyLoop.
 	// Now rwLoop closing both (because applyLoop we completely restart)
@@ -885,13 +889,17 @@ Loop:
 		}
 	}
 
-	if parallel && blocksFreezeCfg.Produce {
-		agg.BuildFilesInBackground(outputTxNum.Load())
+	_, err = rawdb.IncrementStateVersion(applyTx)
+	if err != nil {
+		return fmt.Errorf("writing plain state version: %w", err)
 	}
 	if !useExternalTx && applyTx != nil {
 		if err = applyTx.Commit(); err != nil {
 			return err
 		}
+	}
+	if parallel && blocksFreezeCfg.Produce {
+		agg.BuildFilesInBackground(outputTxNum.Load())
 	}
 	return nil
 }

@@ -159,7 +159,7 @@ var (
 )
 
 func doBtSearch(cliCtx *cli.Context) error {
-	logger, err := debug.Setup(cliCtx, true /* root logger */)
+	logger, _, err := debug.Setup(cliCtx, true /* root logger */)
 	if err != nil {
 		return err
 	}
@@ -279,8 +279,6 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 	//from := cliCtx.Uint64(SnapshotFromFlag.Name)
 	chainDB := mdbx.NewMDBX(logger).Path(dirs.Chaindata).MustOpen()
 	defer chainDB.Close()
-
-	dir.MustExist(dirs.SnapHistory, dirs.SnapDomain)
 
 	if rebuild {
 		panic("not implemented")
