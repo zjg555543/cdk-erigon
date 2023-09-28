@@ -36,8 +36,8 @@ func SetupRpcAccess(metricsMux *http.ServeMux, node *node.ErigonNode, logger log
 		return next
 	}
 
-	if err != nil {
-		metricsMux.HandleFunc("/rpc", func(w http.ResponseWriter, r *http.Request) {
+	if err == nil {
+		metricsMux.HandleFunc("/rpc/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			urlPath := r.URL.Path
 
@@ -63,6 +63,7 @@ func SetupRpcAccess(metricsMux *http.ServeMux, node *node.ErigonNode, logger log
 					http.Error(w, fmt.Sprintf(`Can't format jrpc request for "%s" with params "%s"`, pathParts[0], params), http.StatusBadRequest)
 				}
 
+				r.Header.Set("Content-Type", "application/json")
 				srv.ServeHTTP(w, r)
 			case 2:
 				method := pathParts[0] + "_" + pathParts[1]
