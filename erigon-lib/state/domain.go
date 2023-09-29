@@ -23,7 +23,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"math/bits"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -33,7 +32,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	bloomfilter "github.com/holiman/bloomfilter/v2"
-	"github.com/holiman/uint256"
 	"github.com/pkg/errors"
 	btree2 "github.com/tidwall/btree"
 	"golang.org/x/sync/errgroup"
@@ -42,7 +40,6 @@ import (
 
 	"github.com/ledgerwatch/erigon-lib/common/background"
 	"github.com/ledgerwatch/erigon-lib/common/cmp"
-	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/kv/iter"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
 
@@ -110,6 +107,7 @@ type filesItem struct {
 	// other processes (which also reading files, may have same logic)
 	canDelete atomic.Bool
 }
+
 type ExistenceFilter struct {
 	*bloomfilter.Filter
 	FileName, FilePath string
@@ -335,7 +333,7 @@ func NewDomain(cfg domainCfg, aggregationStep uint64, filenameBase, keysTable, v
 	d.roFiles.Store(&[]ctxItem{})
 
 	var err error
-	if d.History, err = NewHistory(cfg.hist, aggregationStep, filenameBase, indexKeysTable, indexTable, historyValsTable, []string{}, logger); err != nil {
+	if d.History, err = NewHistory(cfg.hist, aggregationStep, filenameBase, indexKeysTable, indexTable, historyValsTable, nil, logger); err != nil {
 		return nil, err
 	}
 
@@ -398,11 +396,11 @@ func (d *Domain) FinishWrites() {
 // It's ok if some files was open earlier.
 // If some file already open: noop.
 // If some file already open but not in provided list: close and remove from `files` field.
-func (d *Domain) OpenList(coldNames, warmNames []string) error {
-	if err := d.History.OpenList(coldNames, warmNames); err != nil {
+func (d *Domain) OpenList(idxFiles, histFiles, domainFiles []string) error {
+	if err := d.History.OpenList(idxFiles, histFiles); err != nil {
 		return err
 	}
-	return d.openList(warmNames)
+	return d.openList(domainFiles)
 }
 
 func (d *Domain) openList(names []string) error {
@@ -415,11 +413,11 @@ func (d *Domain) openList(names []string) error {
 }
 
 func (d *Domain) OpenFolder() error {
-	files, warmNames, err := d.fileNamesOnDisk()
+	idx, histFiles, domainFiles, err := d.fileNamesOnDisk()
 	if err != nil {
 		return err
 	}
-	return d.OpenList(files, warmNames)
+	return d.OpenList(idx, histFiles, domainFiles)
 }
 
 func (d *Domain) GetAndResetStats() DomainStats {
@@ -1248,14 +1246,13 @@ func (d *Domain) missedBtreeIdxFiles() (l []*filesItem) {
 	d.files.Walk(func(items []*filesItem) bool { // don't run slow logic while iterating on btree
 		for _, item := range items {
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
-
-			btPath := d.kvBtFilePath(fromStep, toStep)
-			if !dir.FileExist(btPath) {
+			fPath := d.kvBtFilePath(fromStep, toStep)
+			if !dir.FileExist(fPath) {
 				l = append(l, item)
 				continue
 			}
-			bloomPath := d.kvExistenceIdxFilePath(fromStep, toStep)
-			if !dir.FileExist(bloomPath) {
+			fPath = d.kvExistenceIdxFilePath(fromStep, toStep)
+			if !dir.FileExist(fPath) {
 				l = append(l, item)
 				continue
 			}
@@ -1338,7 +1335,7 @@ func buildIndexThenOpen(ctx context.Context, d *compress.Decompressor, compresse
 	return recsplit.OpenIndex(idxPath)
 }
 func buildIndexFilterThenOpen(ctx context.Context, d *compress.Decompressor, compressed FileCompression, idxPath, tmpdir string, salt *uint32, ps *background.ProgressSet, logger log.Logger, noFsync bool) (*ExistenceFilter, error) {
-	if err := buildIdxFilter(ctx, d, compressed, idxPath, tmpdir, salt, ps, logger, noFsync); err != nil {
+	if err := buildIdxFilter(ctx, d, compressed, idxPath, salt, ps, logger, noFsync); err != nil {
 		return nil, err
 	}
 	if !dir.FileExist(idxPath) {
@@ -2557,111 +2554,4 @@ func (mf MergedFiles) Close() {
 			}
 		}
 	}
-}
-
-func DecodeAccountBytes(enc []byte) (nonce uint64, balance *uint256.Int, hash []byte) {
-	if len(enc) == 0 {
-		return
-	}
-	pos := 0
-	nonceBytes := int(enc[pos])
-	balance = uint256.NewInt(0)
-	pos++
-	if nonceBytes > 0 {
-		nonce = bytesToUint64(enc[pos : pos+nonceBytes])
-		pos += nonceBytes
-	}
-	balanceBytes := int(enc[pos])
-	pos++
-	if balanceBytes > 0 {
-		balance.SetBytes(enc[pos : pos+balanceBytes])
-		pos += balanceBytes
-	}
-	codeHashBytes := int(enc[pos])
-	pos++
-	if codeHashBytes == length.Hash {
-		hash = make([]byte, codeHashBytes)
-		copy(hash, enc[pos:pos+codeHashBytes])
-		pos += codeHashBytes
-	}
-	if pos >= len(enc) {
-		panic(fmt.Errorf("deserialse2: %d >= %d ", pos, len(enc)))
-	}
-	return
-}
-
-func EncodeAccountBytes(nonce uint64, balance *uint256.Int, hash []byte, incarnation uint64) []byte {
-	l := int(1)
-	if nonce > 0 {
-		l += common.BitLenToByteLen(bits.Len64(nonce))
-	}
-	l++
-	if !balance.IsZero() {
-		l += balance.ByteLen()
-	}
-	l++
-	if len(hash) == length.Hash {
-		l += 32
-	}
-	l++
-	if incarnation > 0 {
-		l += common.BitLenToByteLen(bits.Len64(incarnation))
-	}
-	value := make([]byte, l)
-	pos := 0
-
-	if nonce == 0 {
-		value[pos] = 0
-		pos++
-	} else {
-		nonceBytes := common.BitLenToByteLen(bits.Len64(nonce))
-		value[pos] = byte(nonceBytes)
-		var nonce = nonce
-		for i := nonceBytes; i > 0; i-- {
-			value[pos+i] = byte(nonce)
-			nonce >>= 8
-		}
-		pos += nonceBytes + 1
-	}
-	if balance.IsZero() {
-		value[pos] = 0
-		pos++
-	} else {
-		balanceBytes := balance.ByteLen()
-		value[pos] = byte(balanceBytes)
-		pos++
-		balance.WriteToSlice(value[pos : pos+balanceBytes])
-		pos += balanceBytes
-	}
-	if len(hash) == 0 {
-		value[pos] = 0
-		pos++
-	} else {
-		value[pos] = 32
-		pos++
-		copy(value[pos:pos+32], hash)
-		pos += 32
-	}
-	if incarnation == 0 {
-		value[pos] = 0
-	} else {
-		incBytes := common.BitLenToByteLen(bits.Len64(incarnation))
-		value[pos] = byte(incBytes)
-		var inc = incarnation
-		for i := incBytes; i > 0; i-- {
-			value[pos+i] = byte(inc)
-			inc >>= 8
-		}
-	}
-	return value
-}
-
-func bytesToUint64(buf []byte) (x uint64) {
-	for i, b := range buf {
-		x = x<<8 + uint64(b)
-		if i == 7 {
-			return
-		}
-	}
-	return
 }

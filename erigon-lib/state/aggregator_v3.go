@@ -261,33 +261,33 @@ func (a *AggregatorV3) OpenFolder() error {
 
 	return nil
 }
-func (a *AggregatorV3) OpenList(fNames, warmNames []string) error {
+func (a *AggregatorV3) OpenList(idxFiles, histFiles, domainFiles []string) error {
 	a.filesMutationLock.Lock()
 	defer a.filesMutationLock.Unlock()
 
 	var err error
-	if err = a.accounts.OpenList(fNames, warmNames); err != nil {
+	if err = a.accounts.OpenList(idxFiles, histFiles, domainFiles); err != nil {
 		return err
 	}
-	if err = a.storage.OpenList(fNames, warmNames); err != nil {
+	if err = a.storage.OpenList(idxFiles, histFiles, domainFiles); err != nil {
 		return err
 	}
-	if err = a.code.OpenList(fNames, warmNames); err != nil {
+	if err = a.code.OpenList(idxFiles, histFiles, domainFiles); err != nil {
 		return err
 	}
-	if err = a.commitment.OpenList(fNames, warmNames); err != nil {
+	if err = a.commitment.OpenList(idxFiles, histFiles, domainFiles); err != nil {
 		return err
 	}
-	if err = a.logAddrs.OpenList(fNames, warmNames); err != nil {
+	if err = a.logAddrs.OpenList(idxFiles); err != nil {
 		return err
 	}
-	if err = a.logTopics.OpenList(fNames, warmNames); err != nil {
+	if err = a.logTopics.OpenList(idxFiles); err != nil {
 		return err
 	}
-	if err = a.tracesFrom.OpenList(fNames, warmNames); err != nil {
+	if err = a.tracesFrom.OpenList(idxFiles); err != nil {
 		return err
 	}
-	if err = a.tracesTo.OpenList(fNames, warmNames); err != nil {
+	if err = a.tracesTo.OpenList(idxFiles); err != nil {
 		return err
 	}
 	a.recalcMaxTxNum()
@@ -511,7 +511,7 @@ type AggV3StaticFiles struct {
 	tracesTo   InvertedFiles
 }
 
-// CleanupOnError - call it on collation fail. It closing all files
+// CleanupOnError - call it on collation fail. It's closing all files
 func (sf AggV3StaticFiles) CleanupOnError() {
 	sf.accounts.CleanupOnError()
 	sf.storage.CleanupOnError()
@@ -733,6 +733,7 @@ func (a *AggregatorV3) integrateFiles(sf AggV3StaticFiles, txNumFrom, txNumTo ui
 	defer a.filesMutationLock.Unlock()
 	defer a.needSaveFilesListInDB.Store(true)
 	defer a.recalcMaxTxNum()
+
 	a.accounts.integrateFiles(sf.accounts, txNumFrom, txNumTo)
 	a.storage.integrateFiles(sf.storage, txNumFrom, txNumTo)
 	a.code.integrateFiles(sf.code, txNumFrom, txNumTo)
@@ -781,14 +782,7 @@ func (a *AggregatorV3) Warmup(ctx context.Context, txFrom, limit uint64) error {
 
 // StartWrites - pattern: `defer agg.StartWrites().FinishWrites()`
 func (a *AggregatorV3) DiscardHistory() *AggregatorV3 {
-	a.accounts.DiscardHistory()
-	a.storage.DiscardHistory()
-	a.code.DiscardHistory()
-	a.commitment.DiscardHistory()
-	a.logAddrs.DiscardHistory(a.tmpdir)
-	a.logTopics.DiscardHistory(a.tmpdir)
-	a.tracesFrom.DiscardHistory(a.tmpdir)
-	a.tracesTo.DiscardHistory(a.tmpdir)
+	a.domains.DiscardHistory(a.tmpdir)
 	return a
 }
 
@@ -797,17 +791,6 @@ func (a *AggregatorV3) StartWrites() *AggregatorV3 {
 	if a.domains == nil {
 		a.SharedDomains(a.MakeContext())
 	}
-	//a.walLock.Lock()
-	//defer a.walLock.Unlock()
-	//a.accounts.StartWrites()
-	//a.storage.StartWrites()
-	//a.code.StartWrites()
-	//a.commitment.StartWrites()
-	//a.logAddrs.StartWrites()
-	//a.logTopics.StartWrites()
-	//a.tracesFrom.StartWrites()
-	//a.tracesTo.StartWrites()
-	//return a
 	a.domains.StartWrites()
 	return a
 }
@@ -816,31 +799,10 @@ func (a *AggregatorV3) StartUnbufferedWrites() *AggregatorV3 {
 	if a.domains == nil {
 		a.SharedDomains(a.MakeContext())
 	}
-	//a.walLock.Lock()
-	//defer a.walLock.Unlock()
-	//a.accounts.StartUnbufferedWrites()
-	//a.storage.StartUnbufferedWrites()
-	//a.code.StartUnbufferedWrites()
-	//a.commitment.StartUnbufferedWrites()
-	//a.logAddrs.StartUnbufferedWrites()
-	//a.logTopics.StartUnbufferedWrites()
-	//a.tracesFrom.StartUnbufferedWrites()
-	//a.tracesTo.StartUnbufferedWrites()
-	//return a
 	a.domains.StartUnbufferedWrites()
 	return a
 }
 func (a *AggregatorV3) FinishWrites() {
-	//a.walLock.Lock()
-	//defer a.walLock.Unlock()
-	//a.accounts.FinishWrites()
-	//a.storage.FinishWrites()
-	//a.code.FinishWrites()
-	//a.commitment.FinishWrites()
-	//a.logAddrs.FinishWrites()
-	//a.logTopics.FinishWrites()
-	//a.tracesFrom.FinishWrites()
-	//a.tracesTo.FinishWrites()
 	if a.domains != nil {
 		a.domains.FinishWrites()
 	}

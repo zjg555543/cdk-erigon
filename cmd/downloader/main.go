@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ledgerwatch/erigon-lib/common/dir"
@@ -174,7 +175,7 @@ func Downloader(ctx context.Context, logger log.Logger) error {
 	}
 	downloadernat.DoNat(natif, cfg.ClientConfig, logger)
 
-	d, err := downloader.New(ctx, cfg)
+	d, err := downloader.New(ctx, cfg, dirs)
 	if err != nil {
 		return err
 	}
@@ -258,6 +259,13 @@ func doPrintTorrentHashes(ctx context.Context, logger log.Logger) error {
 		return err
 	}
 	for _, t := range torrents {
+		// we don't release commitment history in this time. let's skip it here.
+		if strings.HasPrefix(t.DisplayName, "history/commitment") {
+			continue
+		}
+		if strings.HasPrefix(t.DisplayName, "idx/commitment") {
+			continue
+		}
 		res[t.DisplayName] = t.InfoHash.String()
 	}
 	serialized, err := toml.Marshal(res)
@@ -346,11 +354,6 @@ func StartGrpc(snServer *downloader.GrpcServer, addr string, creds *credentials.
 // Add pre-configured
 func addPreConfiguredHashes(ctx context.Context, d *downloader.Downloader) error {
 	for _, it := range snapcfg.KnownCfg(chain, nil, nil).Preverified {
-		if err := d.AddInfoHashAsMagnetLink(ctx, snaptype.Hex2InfoHash(it.Hash), it.Name); err != nil {
-			return err
-		}
-	}
-	for _, it := range snapcfg.KnownCfg(chain, nil, nil).PreverifiedHistory {
 		if err := d.AddInfoHashAsMagnetLink(ctx, snaptype.Hex2InfoHash(it.Hash), it.Name); err != nil {
 			return err
 		}

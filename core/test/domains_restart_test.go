@@ -62,6 +62,7 @@ func testDbAndAggregatorv3(t *testing.T, fpath string, aggStep uint64) (kv.RwDB,
 	err = db.Update(context.Background(), func(tx kv.RwTx) error {
 		return kvcfg.HistoryV3.ForceWrite(tx, true)
 	})
+	require.NoError(t, err)
 
 	chain := "unknown_testing"
 	tdb, err := temporal.New(db, agg, systemcontracts.SystemContractCodeLookup[chain])
@@ -164,7 +165,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("executed tx %d root %x datadir %q\n", txs, rh, datadir)
 
-	err = agg.Flush(ctx, tx)
+	err = domains.Flush(ctx, tx)
 	require.NoError(t, err)
 
 	//COMS := make(map[string][]byte)
@@ -203,7 +204,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 		}
 	}
 
-	db, agg, datadir = testDbAndAggregatorv3(t, datadir, aggStep)
+	db, agg, _ = testDbAndAggregatorv3(t, datadir, aggStep)
 
 	agg.StartWrites()
 	domCtx = agg.MakeContext()
@@ -243,6 +244,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	defer domains.Close()
 
 	tx, err = db.BeginRw(ctx)
+	require.NoError(t, err)
 	defer tx.Rollback()
 
 	domains.SetTx(tx)
@@ -367,7 +369,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("executed tx %d root %x datadir %q\n", txs, latestHash, datadir)
 
-	err = agg.Flush(ctx, tx)
+	err = domains.Flush(ctx, tx)
 	require.NoError(t, err)
 
 	err = tx.Commit()
@@ -388,7 +390,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("datadir has been removed")
 
-	db, agg, datadir = testDbAndAggregatorv3(t, datadir, aggStep)
+	db, agg, _ = testDbAndAggregatorv3(t, datadir, aggStep)
 
 	agg.StartWrites()
 	domCtx = agg.MakeContext()
@@ -414,6 +416,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 	defer domains.Close()
 
 	tx, err = db.BeginRw(ctx)
+	require.NoError(t, err)
 	defer tx.Rollback()
 
 	domains.SetTx(tx)
