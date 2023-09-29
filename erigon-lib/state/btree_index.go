@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/RoaringBitmap/roaring/roaring64"
 	"github.com/c2h5oh/datasize"
 	"github.com/edsrzf/mmap-go"
@@ -881,7 +882,13 @@ func OpenBtreeIndexWithDecompressor(indexPath string, M uint64, kv *compress.Dec
 			bm.Add(a)
 		}
 		bm.RunOptimize()
-		fmt.Printf("[dbg] %s, len=%dkb, roaring_sz=%dkb, amount=%dk\n", idx.FileName(), len(idx.data[pos:])/1024, bm.GetSerializedSizeInBytes()/1024, idx.ef.Count()/1000)
+		r := roaring.New()
+		r.GetFrozenSizeInBytes()
+		for _, a := range bm.ToArray() {
+			r.Add(uint32(a))
+		}
+
+		fmt.Printf("[dbg] %s, len=%dkb, roaring_sz=%dkb,fr=%dkb, amount=%dk\n", idx.FileName(), len(idx.data[pos:])/1024, bm.GetSerializedSizeInBytes()/1024, r.GetFrozenSizeInBytes()/1024, idx.ef.Count()/1000)
 	}
 
 	getter := NewArchiveGetter(idx.decompressor.MakeGetter(), idx.compressed)
