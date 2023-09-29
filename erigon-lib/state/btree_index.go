@@ -880,7 +880,7 @@ func OpenBtreeIndexWithDecompressor(indexPath string, M uint64, kv *compress.Dec
 			a, _ := it.Next()
 			bm.Add(a)
 		}
-		fmt.Printf("[dbg] %s, len=%dkb, roaring_sz=%dkb, amount=%d\n", idx.FileName(), len(idx.data[pos:])/1024, bm.GetSerializedSizeInBytes()/1024, idx.ef.Count())
+		fmt.Printf("[dbg] %s, len=%dkb, roaring_sz=%dkb, amount=%dk\n", idx.FileName(), len(idx.data[pos:])/1024, bm.GetSerializedSizeInBytes()/1024, idx.ef.Count()/1000)
 	}
 
 	getter := NewArchiveGetter(idx.decompressor.MakeGetter(), idx.compressed)
