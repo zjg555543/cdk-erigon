@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/roaring64"
 	"github.com/c2h5oh/datasize"
 	"github.com/edsrzf/mmap-go"
 	"github.com/ledgerwatch/log/v3"
@@ -872,7 +873,15 @@ func OpenBtreeIndexWithDecompressor(indexPath string, M uint64, kv *compress.Dec
 	defer idx.decompressor.EnableReadAhead().DisableReadAhead()
 
 	idx.ef, _ = eliasfano32.ReadEliasFano(idx.data[pos:])
-	fmt.Printf("[dbg] %s, len=%d, amount=%d\n", idx.FileName(), len(idx.data[pos:]), idx.ef.Count())
+	if idx.ef.Count() > 1000 {
+		bm := roaring64.New()
+		it := idx.ef.Iterator()
+		for it.HasNext() {
+			a, _ := it.Next()
+			bm.Add(a)
+		}
+		fmt.Printf("[dbg] %s, len=%dkb, roaring_sz=%dkb, amount=%d\n", idx.FileName(), len(idx.data[pos:])/1024, bm.GetSerializedSizeInBytes()/1024, idx.ef.Count())
+	}
 
 	getter := NewArchiveGetter(idx.decompressor.MakeGetter(), idx.compressed)
 
