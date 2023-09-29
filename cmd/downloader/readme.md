@@ -172,6 +172,9 @@ RAM requirement is higher: 32gb and better 64gb. We will work on this topic a bi
 Golang 1.20
 Almost all RPC methods are implemented - if something doesn't work - just drop it on our head.
 
+To start Erigon3: switching to git branch `e35` and add `--experimental.history.v3=true` cli flag (when start new
+erigon). Currently supported networks: Mumbai.
+
 E3 changes from E2:
 
 - ExecutionStage - now including many E2 stages: stage_hash_state, stage_trie, stage_log_index, stage_history_index,
@@ -186,7 +189,6 @@ E3 changes from E2:
   MADVISE_NORMAL - and it showing better performance on our benchmarks.
 - datadir/chaindata is small now - to prevent it's grow: we recommend set --batchSize <= 1G. Probably 512mb is
   enough.
--
 
 ### E3 datadir structure
 
@@ -224,3 +226,4 @@ datadir
 #   - if speed is not good enough: `idx`
 #   - if still not enough: `history` 
 ```
+
