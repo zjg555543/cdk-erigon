@@ -112,7 +112,8 @@ func WithCliContext(ctx context.Context, cliCtx *cli.Context) Context {
 }
 
 func CliContext(ctx context.Context) *cli.Context {
-	return ctx.Value(ckCliContext).(*cli.Context)
+	cliCtx, _ := ctx.Value(ckCliContext).(*cli.Context)
+	return cliCtx
 }
 
 func CurrentChainID(ctx context.Context) *big.Int {

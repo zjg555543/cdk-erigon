@@ -28,6 +28,7 @@ import (
 type Network struct {
 	DataDir            string
 	Chain              string
+	Id                 uint64
 	Logger             log.Logger
 	BasePort           int
 	BasePrivateApiAddr string
@@ -47,6 +48,10 @@ type Network struct {
 }
 
 func (nw *Network) ChainID() *big.Int {
+	if nw.Id > 0 {
+		return big.NewInt(int64(nw.Id))
+	}
+
 	if len(nw.Nodes) > 0 {
 		return nw.Nodes[0].ChainID()
 	}
@@ -54,13 +59,12 @@ func (nw *Network) ChainID() *big.Int {
 	return &big.Int{}
 }
 
+type configurable interface {
+	Configure(baseNode args.Node, nodeNumber int) (int, interface{}, error)
+}
+
 // Start starts the process for multiple erigon nodes running on the dev chain
 func (nw *Network) Start(ctx context.Context) error {
-
-	type configurable interface {
-		Configure(baseNode args.Node, nodeNumber int) (int, interface{}, error)
-	}
-
 	for _, service := range nw.Services {
 		if err := service.Start(ctx); err != nil {
 			nw.Stop()
@@ -77,10 +81,16 @@ func (nw *Network) Start(ctx context.Context) error {
 		Snapshots:      nw.Snapshots,
 	}
 
+	var metricsEnabled bool
+	var metricsNode int
+
 	cliCtx := CliContext(ctx)
 
-	metricsEnabled := cliCtx.Bool("metrics")
-	metricsNode := cliCtx.Int("metrics.node")
+	if cliCtx != nil {
+		metricsEnabled = cliCtx.Bool("metrics")
+		metricsNode = cliCtx.Int("metrics.node")
+	}
+
 	nw.namedNodes = map[string]Node{}
 
 	for i, node := range nw.Nodes {
@@ -148,6 +158,62 @@ func (nw *Network) Start(ctx context.Context) error {
 	return nil
 }
 
+func (nw *Network) Attach(ctx context.Context, node Node,  map[string][]byte) (int, error) {
+	configurable, ok := node.(configurable)
+
+	if !ok {
+		return 0, fmt.Errorf("can't attach node: %T is not configurable", node)
+	}
+
+	nodePort, args, err := configurable.Configure(args.Node{
+		DataDir:        nw.DataDir,
+		Chain:          nw.Chain,
+		Port:           nw.BasePort,
+		HttpPort:       nw.BaseRPCPort,
+		PrivateApiAddr: nw.BasePrivateApiAddr,
+		Snapshots:      nw.Snapshots,
+	}, len(nw.Nodes))
+
+	if err != nil {
+		return 0, err
+	}
+
+	node, err = nw.createNode(fmt.Sprintf("%s:%d", nw.BaseRPCHost, nodePort), args)
+
+	if err != nil {
+		return 0, err
+	}
+
+	nw.Nodes = append(nw.Nodes, node)
+	nw.namedNodes[node.Name()] = node
+
+	for _, service := range nw.Services {
+		service.NodeCreated(ctx, node)
+	}
+
+	err = nw.startNode(node)
+
+	if err != nil {
+		return 0, err
+	}
+
+	for _, service := range nw.Services {
+		service.NodeStarted(ctx, node)
+	}
+
+	// get the enode of the node
+	// - note this has the side effect of waiting for the node to start
+	enode, err := getEnode(node)
+
+	if err != nil {
+		return 0, err
+	}
+
+	nw.peers = append(nw.peers, enode)
+
+	return nodePort, nil
+}
+
 var blockProducerFunds = (&big.Int{}).Mul(big.NewInt(1000), big.NewInt(params.Ether))
 
 func (nw *Network) createNode(nodeAddr string, cfg interface{}) (Node, error) {
@@ -163,7 +229,7 @@ func (nw *Network) createNode(nodeAddr string, cfg interface{}) (Node, error) {
 		nil,
 	}
 
-	if n.IsBlockProducer() {
+	if n.IsBlockProducer() && n.Account() != nil {
 		if nw.Alloc == nil {
 			nw.Alloc = types.GenesisAlloc{
 				n.Account().Address: types.GenesisAccount{Balance: blockProducerFunds},

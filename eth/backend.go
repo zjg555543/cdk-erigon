@@ -849,6 +849,7 @@ func (s *Ethereum) Init(stack *node.Node, config *ethconfig.Config) error {
 	if casted, ok := s.engine.(*bor.Bor); ok {
 		borDb = casted.DB
 	}
+
 	s.apiList = jsonrpc.APIList(chainKv, borDb, ethRpcClient, txPoolRpcClient, miningRpcClient, ff, stateCache, blockReader, s.agg, httpRpcCfg, s.engine, s.logger)
 	go func() {
 		if err := cli.StartRpcServer(ctx, httpRpcCfg, s.apiList, s.logger); err != nil {
@@ -948,7 +949,7 @@ func (s *Ethereum) StartMining(ctx context.Context, db kv.RwDB, mining *stagedsy
 		if cfg.Enabled {
 			if cfg.SigKey == nil {
 				s.logger.Error("Etherbase account unavailable locally", "err", err)
-				return fmt.Errorf("signer missing: %w", err)
+				return fmt.Errorf("bor signer missing: %w", err)
 			}
 
 			borcfg.Authorize(eb, func(_ libcommon.Address, mimeType string, message []byte) ([]byte, error) {
@@ -980,7 +981,7 @@ func (s *Ethereum) StartMining(ctx context.Context, db kv.RwDB, mining *stagedsy
 	if clq != nil {
 		if cfg.SigKey == nil {
 			s.logger.Error("Etherbase account unavailable locally", "err", err)
-			return fmt.Errorf("signer missing: %w", err)
+			return fmt.Errorf("clique signer missing: %w", err)
 		}
 
 		clq.Authorize(eb, func(_ libcommon.Address, mimeType string, message []byte) ([]byte, error) {

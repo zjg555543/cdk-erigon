@@ -3,29 +3,39 @@ package hive
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
 
 	"github.com/ethereum/hive/libhive"
+	"github.com/ledgerwatch/erigon-lib/chain"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/devnet/args"
 	"github.com/ledgerwatch/erigon/devnet/devnet"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // go:embed genesis.json
-var defaultGenesys []byte
+var defaultGenesis []byte
 
 type backend struct {
 	sync.Mutex
-	clientCounter uint64
-	netCounter    uint64
-	hivePort      int
-	containers    map[string]*image // tracks created containers and their image names
+	clientCounter          uint64
+	hivePort               int
+	containers             map[string]*image // tracks created containers and their image names
+	networks               map[uint64]*devnet.Network
+	dataDir                string
+	logger                 log.Logger
+	nextBaseP2PPort        int
+	nextBasePrivateApiPort int
+	nextBaseRPCPort        int
+	maxNetworkSize         int
 }
 
 type image struct {
@@ -46,6 +56,19 @@ func (s apiServer) Addr() net.Addr {
 	return s.addr
 }
 
+func NewBackend(dataDir string, logger log.Logger, maxNetworkSize int) *backend {
+	return &backend{
+		containers:             map[string]*image{},
+		networks:               map[uint64]*devnet.Network{},
+		dataDir:                dataDir,
+		logger:                 logger,
+		nextBaseP2PPort:        30303,
+		nextBasePrivateApiPort: 15000,
+		nextBaseRPCPort:        8545,
+		maxNetworkSize:         maxNetworkSize,
+	}
+}
+
 func (b *backend) Build(context.Context, libhive.Builder) error { return nil }
 
 func (b *backend) ServeAPI(ctx context.Context, h http.Handler) (libhive.APIServer, error) {
@@ -59,9 +82,7 @@ func (b *backend) ServeAPI(ctx context.Context, h http.Handler) (libhive.APIServ
 }
 
 func (b *backend) CreateContainer(ctx context.Context, imageName string, opt libhive.ContainerOptions) (string, error) {
-	var id string
-
-	id = fmt.Sprintf("%0.8x", atomic.AddUint64(&b.clientCounter, 1))
+	id := fmt.Sprintf("%0.8x", atomic.AddUint64(&b.clientCounter, 1))
 
 	b.Lock()
 	if _, ok := b.containers[id]; ok {
@@ -69,16 +90,112 @@ func (b *backend) CreateContainer(ctx context.Context, imageName string, opt lib
 		return id, fmt.Errorf("duplicate container ID %q", id)
 	}
 
-	b.containers[id] = &image{
-		name: imageName,
-		opts: opt,
+	if b.containers == nil {
+		b.containers = map[string]*image{
+			id: &image{
+				name: imageName,
+				opts: opt,
+			},
+		}
+	} else {
+		b.containers[id] = &image{
+			name: imageName,
+			opts: opt,
+		}
 	}
 
 	b.Unlock()
 	return id, nil
 }
 
-func (b *backend) StartContainer(ctx context.Context, containerID string, opt libhive.ContainerOptions) (*libhive.ContainerInfo, error) {
+func (b *backend) StartContainer(ctx context.Context, containerId string, opts libhive.ContainerOptions) (*libhive.ContainerInfo, error) {
+	b.Lock()
+	_ /*container*/, ok := b.containers[containerId]
+	b.Unlock()
+
+	if !ok {
+		return nil, fmt.Errorf("unknown container ID %q", containerId)
+	}
+
+	var genesisTemplate types.Genesis
+
+	if genesisHeader, ok := opts.Files["/genesis.json"]; ok {
+		genesisFile, err := genesisHeader.Open()
+
+		if err != nil {
+			return nil, fmt.Errorf("can't start container: %s: failed to open attached genesis.json: %w", containerId, err)
+		}
+
+		err = json.NewDecoder(genesisFile).Decode(&genesisTemplate)
+		genesisFile.Close()
+
+		if err != nil {
+			return nil, fmt.Errorf("can't start container: %s: failed to open attached genesis.json: %w", containerId, err)
+		}
+	} else {
+		err := json.Unmarshal(defaultGenesis, &genesisTemplate)
+
+		if err != nil {
+			return nil, fmt.Errorf("can't start container: %s: failed to unmarshal default genesis.json: %w", containerId, err)
+		}
+	}
+
+	node, genesis, files, err := configureNode(opts.Env, genesisTemplate)
+
+	if err != nil {
+		return nil, fmt.Errorf("can't start container: %s: %w", containerId, err)
+	}
+
+	network, ok := b.networks[genesis.Config.ChainID.Uint64()]
+
+	if !ok {
+		network = &devnet.Network{
+			DataDir:            filepath.Join(b.dataDir, genesis.Config.ChainID.String()),
+			Id:                 genesis.Config.ChainID.Uint64(),
+			Chain:              genesis.Config.ChainName,
+			Logger:             b.logger,
+			BasePort:           b.nextBaseP2PPort,
+			BasePrivateApiAddr: fmt.Sprintf("localhost:%d", b.nextBasePrivateApiPort),
+			BaseRPCHost:        "localhost",
+			BaseRPCPort:        b.nextBaseRPCPort,
+			Genesis:            genesis,
+		}
+
+		b.nextBaseP2PPort += b.maxNetworkSize
+		b.nextBasePrivateApiPort += b.maxNetworkSize
+		b.nextBaseRPCPort += (b.maxNetworkSize * args.RPCPortsPerNode)
+
+		if b.networks == nil {
+			b.networks = map[uint64]*devnet.Network{}
+		}
+
+		b.networks[genesis.Config.ChainID.Uint64()] = network
+
+		errors := make(chan error, 1)
+
+		go func(nw *devnet.Network) {
+			errors <- nw.Start(ctx)
+		}(network)
+
+		err = <-errors
+
+		if err != nil {
+			return nil, fmt.Errorf("can't start container: can't start network: %s: %w", genesis.Config.ChainName, err)
+		}
+	}
+
+	/*
+		# Initialize the local testchain with the genesis state
+		echo "Initializing database with genesis state..."
+		$erigon $FLAGS init /genesis.json
+	*/
+
+	rpcPort, err := network.Attach(ctx, node, files)
+
+	if err != nil {
+		return nil, fmt.Errorf("can't start container: %s: can't attach node: %w", containerId, err)
+	}
+
 	/*
 		# Initialize the local testchain with the genesis state
 		echo "Initializing database with genesis state..."
@@ -107,9 +224,10 @@ func (b *backend) StartContainer(ctx context.Context, containerID string, opt li
 	*/
 
 	return &libhive.ContainerInfo{
-		ID:   containerID,
-		IP:   "127.0.0.1",
-		Wait: func() {},
+		ID:          containerId,
+		IP:          "127.0.0.1",
+		EthPortHTTP: rpcPort,
+		Wait:        func() {},
 	}, nil
 }
 
@@ -239,6 +357,10 @@ func configureGenesis(genesis types.Genesis, env map[string]string) (*types.Gene
 
 	if eval, ok := env["HIVE_CLIQUE_PERIOD"]; ok && eval != "" {
 		genesis.Config.Ethash = nil
+		if genesis.Config.Clique == nil {
+			genesis.Config.Clique = &chain.CliqueConfig{Period: 0, Epoch: 30000}
+		}
+
 		if genesis.Config.Clique.Period, err = strconv.ParseUint(eval, 10, 64); err != nil {
 			return nil, fmt.Errorf("can't parse clique period: %w", err)
 		}

@@ -55,6 +55,8 @@ type Node struct {
 	FakePOW                   bool   `arg:"--fakepow" flag:"" default:"false" json:"fakepow,omitempty"`
 }
 
+const RPCPortsPerNode = 5
+
 func (node *Node) configure(base Node, nodeNumber int) error {
 
 	if len(node.Name) == 0 {
@@ -84,7 +86,7 @@ func (node *Node) configure(base Node, nodeNumber int) error {
 		return err
 	}
 
-	apiPort := base.HttpPort + (nodeNumber * 5)
+	apiPort := base.HttpPort + (nodeNumber * RPCPortsPerNode)
 
 	node.HttpPort = apiPort
 	node.WSPort = apiPort + 1
