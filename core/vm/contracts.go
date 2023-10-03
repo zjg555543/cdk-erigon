@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/holiman/uint256"
@@ -196,7 +195,6 @@ func (c *ecrecover) RequiredGas(input []byte) uint64 {
 var a = map[string]int{}
 
 func (c *ecrecover) Run(input []byte) ([]byte, error) {
-	log.Warn("[dbg] erecover", "from", fmt.Sprintf("%x", input))
 	const ecRecoverInputLength = 128
 
 	input = common.RightPadBytes(input, ecRecoverInputLength)
@@ -204,6 +202,14 @@ func (c *ecrecover) Run(input []byte) ([]byte, error) {
 		a[string(input)] = 0
 	}
 	a[string(input)]++
+
+	if a[string(input)]%10 == 0 {
+		for _, b := range a {
+			if b > 100 {
+				log.Warn("[dbg] erecover", "freq", b)
+			}
+		}
+	}
 
 	// "input" is (hash, v, r, s), each 32 bytes
 	// but for ecrecover we want (r, s, v)
