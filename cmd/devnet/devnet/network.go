@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -60,7 +61,7 @@ func (nw *Network) ChainID() *big.Int {
 }
 
 type configurable interface {
-	Configure(baseNode args.Node, nodeNumber int) (int, interface{}, error)
+	Configure(baseNode args.Node, nodeNumber int, genesis *types.Genesis, files map[string][]byte) (int, interface{}, error)
 }
 
 // Start starts the process for multiple erigon nodes running on the dev chain
@@ -103,10 +104,10 @@ func (nw *Network) Start(ctx context.Context) error {
 				base.MetricsPort = cliCtx.Int("metrics.port")
 			}
 
-			nodePort, args, err := configurable.Configure(base, i)
+			nodePort, args, err := configurable.Configure(base, i, nw.Genesis, nil)
 
 			if err == nil {
-				node, err = nw.createNode(fmt.Sprintf("%s:%d", nw.BaseRPCHost, nodePort), args)
+				node, err = nw.createNode(fmt.Sprintf("%s:%d", nw.BaseRPCHost, nodePort), args, nil)
 			}
 
 			if err != nil {
@@ -158,7 +159,7 @@ func (nw *Network) Start(ctx context.Context) error {
 	return nil
 }
 
-func (nw *Network) Attach(ctx context.Context, node Node,  map[string][]byte) (int, error) {
+func (nw *Network) Attach(ctx context.Context, node Node, files map[string][]byte) (int, error) {
 	configurable, ok := node.(configurable)
 
 	if !ok {
@@ -172,13 +173,13 @@ func (nw *Network) Attach(ctx context.Context, node Node,  map[string][]byte) (i
 		HttpPort:       nw.BaseRPCPort,
 		PrivateApiAddr: nw.BasePrivateApiAddr,
 		Snapshots:      nw.Snapshots,
-	}, len(nw.Nodes))
+	}, len(nw.Nodes), nw.Genesis, files)
 
 	if err != nil {
 		return 0, err
 	}
 
-	node, err = nw.createNode(fmt.Sprintf("%s:%d", nw.BaseRPCHost, nodePort), args)
+	node, err = nw.createNode(fmt.Sprintf("%s:%d", nw.BaseRPCHost, nodePort), args, files)
 
 	if err != nil {
 		return 0, err
@@ -216,7 +217,7 @@ func (nw *Network) Attach(ctx context.Context, node Node,  map[string][]byte) (i
 
 var blockProducerFunds = (&big.Int{}).Mul(big.NewInt(1000), big.NewInt(params.Ether))
 
-func (nw *Network) createNode(nodeAddr string, cfg interface{}) (Node, error) {
+func (nw *Network) createNode(nodeAddr string, cfg interface{}, files map[string][]byte) (Node, error) {
 	n := &node{
 		sync.Mutex{},
 		requests.NewRequestGenerator(nodeAddr, nw.Logger),
@@ -229,16 +230,31 @@ func (nw *Network) createNode(nodeAddr string, cfg interface{}) (Node, error) {
 		nil,
 	}
 
-	if n.IsBlockProducer() && n.Account() != nil {
-		if nw.Alloc == nil {
-			nw.Alloc = types.GenesisAlloc{
-				n.Account().Address: types.GenesisAccount{Balance: blockProducerFunds},
+	if n.IsBlockProducer() {
+		if n.Account() != nil {
+			if nw.Alloc == nil {
+				nw.Alloc = types.GenesisAlloc{
+					n.Account().Address: types.GenesisAccount{Balance: blockProducerFunds},
+				}
+			} else {
+				nw.Alloc[n.Account().Address] = types.GenesisAccount{Balance: blockProducerFunds}
 			}
-		} else {
-			nw.Alloc[n.Account().Address] = types.GenesisAccount{Balance: blockProducerFunds}
+		}
+
+		if contents, ok := files["private_key.txt"]; ok {
+			dataDir := n.DataDir()
+
+			if err := os.MkdirAll(dataDir, 0755); err != nil {
+				return nil, err
+			}
+
+			keyPath := filepath.Join(dataDir, "private_key.txt")
+
+			if err := os.WriteFile(keyPath, contents, 0600); err != nil {
+				return nil, err
+			}
 		}
 	}
-
 	return n, nil
 }
 

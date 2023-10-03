@@ -63,6 +63,7 @@ var DefaultFlags = []cli.Flag{
 	&utils.AuthRpcVirtualHostsFlag,
 	&utils.HTTPApiFlag,
 	&utils.WSEnabledFlag,
+	&utils.WSPortFlag,
 	&utils.WsCompressionFlag,
 	&utils.HTTPTraceFlag,
 	&utils.StateCacheFlag,

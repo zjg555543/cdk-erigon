@@ -301,6 +301,7 @@ func configureNode(env map[string]string, genesisTemplate types.Genesis) (devnet
 	node.HttpAddr = "0.0.0.0"
 	node.HttpApi = "admin,debug,eth,net,txpool,web3"
 	node.WS = true
+	node.WSHasOwnPort = true
 
 	var files map[string][]byte
 

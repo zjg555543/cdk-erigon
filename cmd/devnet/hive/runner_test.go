@@ -1,6 +1,7 @@
 package hive
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -43,5 +44,19 @@ func TestRpc(t *testing.T) {
 
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	var fails []string
+
+	for _, suite := range testManager.Results() {
+		for _, testCase := range suite.TestCases {
+			if !testCase.SummaryResult.Pass {
+				fails = append(fails, fmt.Sprintf("%s %s Failed: %s", suite.Name, testCase.Name, testCase.SummaryResult.Details))
+			}
+		}
+	}
+
+	if len(fails) > 0 {
+		t.Fatal(fails)
 	}
 }

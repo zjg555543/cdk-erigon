@@ -450,8 +450,7 @@ var (
 	}
 	WSPortFlag = cli.IntFlag{
 		Name:  "ws.port",
-		Usage: "WS-RPC server listening port",
-		Value: nodecfg.DefaultWSPort,
+		Usage: "WS-RPC server listening port (defaults to HTTP-RPC server listening port)",
 	}
 	WSApiFlag = cli.StringFlag{
 		Name:  "ws.api",

@@ -387,6 +387,7 @@ func setEmbeddedRpcDaemon(ctx *cli.Context, cfg *nodecfg.Config, logger log.Logg
 		EvmCallTimeout: ctx.Duration(EvmCallTimeoutFlag.Name),
 
 		WebsocketEnabled:     ctx.IsSet(utils.WSEnabledFlag.Name),
+		WSPort:               ctx.Int(utils.WSPortFlag.Name),
 		RpcBatchConcurrency:  ctx.Uint(utils.RpcBatchConcurrencyFlag.Name),
 		RpcStreamingDisable:  ctx.Bool(utils.RpcStreamingDisableFlag.Name),
 		DBReadConcurrency:    ctx.Int(utils.DBReadConcurrencyFlag.Name),

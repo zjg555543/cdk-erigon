@@ -26,6 +26,7 @@ type Node interface {
 	Name() string
 	ChainID() *big.Int
 	Account() *accounts.Account
+	DataDir() string
 	IsBlockProducer() bool
 }
 
@@ -103,6 +104,14 @@ func (n *node) IsBlockProducer() bool {
 	return isBlockProducer
 }
 
+func (n *node) DataDir() string {
+	if withDataDir, ok := n.args.(interface{ DataDir() string }); ok {
+		return withDataDir.DataDir()
+	}
+
+	return ""
+}
+
 func (n *node) Account() *accounts.Account {
 	if miner, ok := n.args.(args.BlockProducer); ok {
 		return miner.Account()
@@ -158,6 +167,10 @@ func (n *node) run(ctx *cli.Context) error {
 	// MdbxGrowthStep impacts disk usage, MdbxDBSizeLimit impacts page file usage
 	n.nodeCfg.MdbxGrowthStep = 32 * datasize.MB
 	n.nodeCfg.MdbxDBSizeLimit = 512 * datasize.MB
+
+	if n.network.Genesis != nil {
+		n.ethCfg.Genesis = n.network.Genesis
+	}
 
 	for addr, account := range n.network.Alloc {
 		n.ethCfg.Genesis.Alloc[addr] = account

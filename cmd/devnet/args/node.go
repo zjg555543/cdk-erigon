@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/devnet/accounts"
 	"github.com/ledgerwatch/erigon/devnet/requests"
 	"github.com/ledgerwatch/erigon/params/networkname"
@@ -42,7 +43,7 @@ type Node struct {
 	AuthRpcAddr               string `arg:"--authrpc.addr" default:"8551" json:"authrpc.addr"`
 	AuthRpcPort               int    `arg:"--authrpc.port" default:"8551" json:"authrpc.port"`
 	AuthRpcVHosts             string `arg:"--authrpc.vhosts" json:"authrpc.vhosts"`
-	WSPort                    int    `arg:"-" default:"8546" json:"-"` // flag not defined
+	WSPort                    int    `arg:"--ws.port" json:"-ws.port"` // flag not defined
 	GRPCPort                  int    `arg:"-" default:"8547" json:"-"` // flag not defined
 	TCPPort                   int    `arg:"-" default:"8548" json:"-"` // flag not defined
 	Metrics                   bool   `arg:"--metrics" flag:"" default:"false" json:"metrics"`
@@ -53,22 +54,42 @@ type Node struct {
 	HeimdallGRpc              string `arg:"--bor.heimdallgRPC" json:"bor.heimdallgRPC,omitempty"`
 	VMDebug                   bool   `arg:"--vmdebug" flag:"" default:"false" json:"vmdebug,omitempty"`
 	FakePOW                   bool   `arg:"--fakepow" flag:"" default:"false" json:"fakepow,omitempty"`
+	WSHasOwnPort              bool   `arg:"-"`
 }
 
 const RPCPortsPerNode = 5
 
-func (node *Node) configure(base Node, nodeNumber int) error {
+func (node *Node) configure(base Node, nodeNumber int, genesis *types.Genesis) error {
 
-	if len(node.Name) == 0 {
-		node.Name = fmt.Sprintf("%s-%d", base.Chain, nodeNumber)
+	networkId := base.NetworkId
+
+	if networkId == 0 && genesis != nil {
+		networkId = int(genesis.Config.ChainID.Uint64())
 	}
+
+	chain := base.Chain
+
+	if len(chain) == 0 && genesis != nil {
+		chain = genesis.Config.ChainName
+	}
+
+	switch {
+	case len(chain) > 0:
+		node.Name = fmt.Sprintf("%s-%d", chain, nodeNumber)
+	case networkId > 0:
+		node.Name = fmt.Sprintf("%d.%d", networkId, nodeNumber)
+	default:
+		node.Name = fmt.Sprintf("%d", nodeNumber)
+	}
+
+	node.NetworkId = networkId
 
 	node.DataDir = filepath.Join(base.DataDir, node.Name)
 
 	node.LogDirPath = filepath.Join(base.DataDir, "logs")
 	node.LogDirPrefix = node.Name
 
-	node.Chain = base.Chain
+	node.Chain = chain
 
 	node.StaticPeers = base.StaticPeers
 
@@ -89,7 +110,13 @@ func (node *Node) configure(base Node, nodeNumber int) error {
 	apiPort := base.HttpPort + (nodeNumber * RPCPortsPerNode)
 
 	node.HttpPort = apiPort
-	node.WSPort = apiPort + 1
+
+	if node.WS {
+		if node.WSHasOwnPort {
+			node.WSPort = apiPort + 1
+		}
+	}
+
 	node.GRPCPort = apiPort + 2
 	node.TCPPort = apiPort + 3
 	node.AuthRpcPort = apiPort + 4
@@ -100,23 +127,24 @@ func (node *Node) configure(base Node, nodeNumber int) error {
 }
 
 func (node Node) ChainID() *big.Int {
-	return &big.Int{}
+	return big.NewInt(int64(node.NetworkId))
 }
 
 type BlockProducer struct {
 	Node
-	Mine            bool   `arg:"--mine" flag:"true"`
-	Etherbase       string `arg:"--miner.etherbase"`
-	DevPeriod       int    `arg:"--dev.period"`
-	BorPeriod       int    `arg:"--bor.period"`
-	BorMinBlockSize int    `arg:"--bor.minblocksize"`
-	AccountSlots    int    `arg:"--txpool.accountslots" default:"16"`
-	MinerExtraData  string `arg:"--miner.extradata"`
-	account         *accounts.Account
+	Mine                bool   `arg:"--mine" flag:"true"`
+	Etherbase           string `arg:"--miner.etherbase"`
+	DevPeriod           int    `arg:"--dev.period"`
+	BorPeriod           int    `arg:"--bor.period"`
+	BorMinBlockSize     int    `arg:"--bor.minblocksize"`
+	AccountSlots        int    `arg:"--txpool.accountslots" default:"16"`
+	MinerExtraData      string `arg:"--miner.extradata"`
+	MinerSigningKeyFile string `arg:"--miner.sigfile"`
+	account             *accounts.Account
 }
 
-func (m BlockProducer) Configure(baseNode Node, nodeNumber int) (int, interface{}, error) {
-	err := m.configure(baseNode, nodeNumber)
+func (m BlockProducer) Configure(baseNode Node, nodeNumber int, genesis *types.Genesis, files map[string][]byte) (int, interface{}, error) {
+	err := m.configure(baseNode, nodeNumber, genesis)
 
 	if err != nil {
 		return -1, nil, err
@@ -145,11 +173,19 @@ func (m BlockProducer) Configure(baseNode Node, nodeNumber int) (int, interface{
 		m.Etherbase = m.account.Address.Hex()
 	}
 
+	if _, ok := files["private_key.txt"]; ok {
+		m.MinerSigningKeyFile = filepath.Join(m.Node.DataDir, "private_key.txt")
+	}
+
 	return m.HttpPort, m, nil
 }
 
 func (n BlockProducer) Name() string {
 	return n.Node.Name
+}
+
+func (n BlockProducer) DataDir() string {
+	return n.Node.DataDir
 }
 
 func (n BlockProducer) Account() *accounts.Account {
@@ -164,8 +200,8 @@ type NonBlockProducer struct {
 	Node
 }
 
-func (n NonBlockProducer) Configure(baseNode Node, nodeNumber int) (int, interface{}, error) {
-	err := n.configure(baseNode, nodeNumber)
+func (n NonBlockProducer) Configure(baseNode Node, nodeNumber int, genesis *types.Genesis, files map[string][]byte) (int, interface{}, error) {
+	err := n.configure(baseNode, nodeNumber, genesis)
 
 	if err != nil {
 		return -1, nil, err
@@ -184,6 +220,10 @@ func (n NonBlockProducer) Name() string {
 
 func (n NonBlockProducer) IsBlockProducer() bool {
 	return false
+}
+
+func (n NonBlockProducer) DataDir() string {
+	return n.Node.DataDir
 }
 
 func (n NonBlockProducer) Account() *accounts.Account {

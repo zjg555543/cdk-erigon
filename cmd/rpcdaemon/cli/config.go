@@ -542,6 +542,20 @@ func startRegularRpcServer(ctx context.Context, cfg httpcfg.HttpCfg, rpcAPI []rp
 		wsHandler = srv.WebsocketHandler([]string{"*"}, nil, cfg.WebsocketCompression, logger)
 	}
 
+	var wslistener *http.Server
+	var wsAddr net.Addr
+
+	if wsHandler != nil && cfg.WSPort != 0 && cfg.WSPort != cfg.HttpPort {
+		wsEndpoint := fmt.Sprintf("%s:%d", cfg.HttpListenAddress, cfg.WSPort)
+
+		wslistener, wsAddr, err = node.StartHTTPEndpoint(wsEndpoint, cfg.HTTPTimeouts, wsHandler)
+		if err != nil {
+			return fmt.Errorf("could not start RPC api: %w", err)
+		}
+
+		wsHandler = nil
+	}
+
 	graphQLHandler := graphql.CreateHandler(defaultAPIList)
 
 	apiHandler, err := createHandler(cfg, defaultAPIList, httpHandler, wsHandler, graphQLHandler, nil)
@@ -575,6 +589,10 @@ func startRegularRpcServer(ctx context.Context, cfg httpcfg.HttpCfg, rpcAPI []rp
 		"ws.compression", cfg.WebsocketCompression, "grpc", cfg.GRPCServerEnabled,
 	}
 
+	if wslistener != nil {
+		info = append(info, "ws.url", wsAddr)
+	}
+
 	var (
 		healthServer *grpcHealth.Server
 		grpcServer   *grpc.Server
@@ -603,6 +621,13 @@ func startRegularRpcServer(ctx context.Context, cfg httpcfg.HttpCfg, rpcAPI []rp
 		defer cancel()
 		_ = listener.Shutdown(shutdownCtx)
 		logger.Info("HTTP endpoint closed", "url", httpAddr)
+
+		if wslistener != nil {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = wslistener.Shutdown(shutdownCtx)
+			logger.Info("WS endpoint closed", "url", httpAddr)
+		}
 
 		if cfg.GRPCServerEnabled {
 			if cfg.GRPCHealthCheckEnabled {

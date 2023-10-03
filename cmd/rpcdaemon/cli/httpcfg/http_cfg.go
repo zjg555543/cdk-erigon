@@ -32,6 +32,7 @@ type HttpCfg struct {
 	MaxTraces                uint64
 	WebsocketEnabled         bool
 	WebsocketCompression     bool
+	WSPort                   int
 	RpcAllowListFilePath     string
 	RpcBatchConcurrency      uint
 	RpcStreamingDisable      bool
