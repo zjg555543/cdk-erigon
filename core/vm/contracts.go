@@ -193,11 +193,19 @@ func (c *ecrecover) RequiredGas(input []byte) uint64 {
 	return params.EcrecoverGas
 }
 
+var a = map[string]int{}
+
 func (c *ecrecover) Run(input []byte) ([]byte, error) {
 	log.Warn("[dbg] erecover", "from", fmt.Sprintf("%x", input))
 	const ecRecoverInputLength = 128
 
 	input = common.RightPadBytes(input, ecRecoverInputLength)
+	if _, ok := a[string(input)]; ok {
+		a[string(input)]++
+	} else {
+		a[string(input)] = 1
+	}
+
 	// "input" is (hash, v, r, s), each 32 bytes
 	// but for ecrecover we want (r, s, v)
 
