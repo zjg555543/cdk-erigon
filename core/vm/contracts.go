@@ -20,9 +20,11 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
@@ -192,6 +194,7 @@ func (c *ecrecover) RequiredGas(input []byte) uint64 {
 }
 
 func (c *ecrecover) Run(input []byte) ([]byte, error) {
+	log.Warn("[dbg] erecover", "from", fmt.Sprintf("%x", input))
 	const ecRecoverInputLength = 128
 
 	input = common.RightPadBytes(input, ecRecoverInputLength)
