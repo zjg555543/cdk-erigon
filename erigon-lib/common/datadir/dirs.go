@@ -113,25 +113,8 @@ func ApplyMigrations(dirs Dirs) error {
 	}
 	defer lock.Unlock()
 
-	if err := downloaderV2Migration(dirs); err != nil {
-		return err
-	}
 	if err := erigonV3foldersV31Migration(dirs); err != nil {
 		return err
-	}
-	return nil
-}
-
-func downloaderV2Migration(dirs Dirs) error {
-	// move db from `datadir/snapshot/db` to `datadir/downloader`
-	if dir.Exist(filepath.Join(dirs.Snap, "db", "mdbx.dat")) { // migration from prev versions
-		from, to := filepath.Join(dirs.Snap, "db", "mdbx.dat"), filepath.Join(dirs.Downloader, "mdbx.dat")
-		if err := os.Rename(from, to); err != nil {
-			//fall back to copy-file if folders are on different disks
-			if err := copyFile(from, to); err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }
