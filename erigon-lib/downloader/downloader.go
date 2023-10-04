@@ -224,6 +224,7 @@ func (d *Downloader) mainLoop(silent bool) error {
 				}
 				fmt.Printf("[dbg] allow download1: %s\n", t.Name())
 				t.DownloadAll()
+				t.VerifyData()
 				d.wg.Add(1)
 				go func(t *torrent.Torrent) {
 					defer d.wg.Done()
