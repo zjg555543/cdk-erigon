@@ -214,11 +214,13 @@ func (d *Downloader) mainLoop(silent bool) error {
 					return
 				}
 				t.AllowDataDownload()
+				fmt.Printf("[dbg] allow download: %s\n", t.Name())
 				select {
 				case <-d.ctx.Done():
 					return
 				case <-t.GotInfo():
 				}
+				fmt.Printf("[dbg] allow download1: %s\n", t.Name())
 				t.DownloadAll()
 				d.wg.Add(1)
 				go func(t *torrent.Torrent) {
@@ -228,6 +230,7 @@ func (d *Downloader) mainLoop(silent bool) error {
 					case <-d.ctx.Done():
 						return
 					case <-t.Complete.On():
+						fmt.Printf("[dbg] complete download1: %s\n", t.Name())
 					}
 				}(t)
 			}
