@@ -19,7 +19,6 @@ package downloader
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -34,7 +33,6 @@ import (
 	common2 "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/cmp"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
-	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	dir2 "github.com/ledgerwatch/erigon-lib/common/dir"
 	"github.com/ledgerwatch/erigon-lib/downloader/downloadercfg"
 	"github.com/ledgerwatch/erigon-lib/downloader/snaptype"
@@ -168,13 +166,13 @@ func BuildTorrentIfNeed(ctx context.Context, fName, root string) (torrentFilePat
 }
 
 // BuildTorrentFilesIfNeed - create .torrent files from .seg files (big IO) - if .seg files were added manually
-func BuildTorrentFilesIfNeed(ctx context.Context, dirs datadir.Dirs) ([]string, error) {
+func BuildTorrentFilesIfNeed(ctx context.Context, dirs datadir.Dirs) error {
 	logEvery := time.NewTicker(20 * time.Second)
 	defer logEvery.Stop()
 
 	files, err := seedableFiles(dirs)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -192,21 +190,22 @@ func BuildTorrentFilesIfNeed(ctx context.Context, dirs datadir.Dirs) ([]string, 
 		})
 	}
 
-	var m runtime.MemStats
 Loop:
 	for int(i.Load()) < len(files) {
 		select {
 		case <-ctx.Done():
 			break Loop // g.Wait() will return right error
 		case <-logEvery.C:
-			dbg.ReadMemStats(&m)
-			log.Info("[snapshots] Creating .torrent files", "progress", fmt.Sprintf("%d/%d", i.Load(), len(files)), "alloc", common2.ByteCount(m.Alloc), "sys", common2.ByteCount(m.Sys))
+			if int(i.Load()) == len(files) {
+				break Loop
+			}
+			log.Info("[snapshots] Creating .torrent files", "progress", fmt.Sprintf("%d/%d", i.Load(), len(files)))
 		}
 	}
 	if err := g.Wait(); err != nil {
-		return nil, err
+		return err
 	}
-	return files, nil
+	return nil
 }
 
 func CreateTorrentFileIfNotExists(root string, info *metainfo.Info, mi *metainfo.MetaInfo) error {
@@ -258,20 +257,6 @@ func CreateTorrentFileFromInfo(root string, info *metainfo.Info, mi *metainfo.Me
 	return CreateTorrentFromMetaInfo(root, info, mi)
 }
 
-func AddTorrentFiles(dirs datadir.Dirs, torrentClient *torrent.Client) error {
-	files, err := AllTorrentSpecs(dirs)
-	if err != nil {
-		return err
-	}
-	for _, ts := range files {
-		_, err := addTorrentFile(ts, torrentClient)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func AllTorrentPaths(dirs datadir.Dirs) ([]string, error) {
 	files, err := dir2.ListFiles(dirs.Snap, ".torrent")
 	if err != nil {
@@ -316,12 +301,34 @@ func loadTorrent(torrentFilePath string) (*torrent.TorrentSpec, error) {
 	mi.AnnounceList = Trackers
 	return torrent.TorrentSpecFromMetaInfoErr(mi)
 }
+func saveTorrent(torrentFilePath string, res []byte) error {
+	if len(res) == 0 {
+		return fmt.Errorf("try to write 0 bytes to file: %s", torrentFilePath)
+	}
+	f, err := os.Create(torrentFilePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err = f.Write(res); err != nil {
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		return err
+	}
+	return nil
+}
 
 // addTorrentFile - adding .torrent file to torrentClient (and checking their hashes), if .torrent file
 // added first time - pieces verification process will start (disk IO heavy) - Progress
 // kept in `piece completion storage` (surviving reboot). Once it done - no disk IO needed again.
 // Don't need call torrent.VerifyData manually
-func addTorrentFile(ts *torrent.TorrentSpec, torrentClient *torrent.Client) (*torrent.Torrent, error) {
+func addTorrentFile(ctx context.Context, ts *torrent.TorrentSpec, torrentClient *torrent.Client) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	if _, ok := torrentClient.Torrent(ts.InfoHash); !ok { // can set ChunkSize only for new torrents
 		ts.ChunkSize = downloadercfg.DefaultNetworkChunkSize
 	} else {
@@ -329,35 +336,10 @@ func addTorrentFile(ts *torrent.TorrentSpec, torrentClient *torrent.Client) (*to
 	}
 
 	ts.DisallowDataDownload = true
-	t, _, err := torrentClient.AddTorrentSpec(ts)
+	_, _, err := torrentClient.AddTorrentSpec(ts)
 	if err != nil {
-		return nil, fmt.Errorf("addTorrentFile %s: %w", ts.DisplayName, err)
+		return fmt.Errorf("addTorrentFile %s: %w", ts.DisplayName, err)
 	}
-
-	t.DisallowDataDownload()
-	t.AllowDataUpload()
-	return t, nil
-}
-
-func portMustBeTCPAndUDPOpen(port int) error {
-	tcpAddr := &net.TCPAddr{
-		Port: port,
-		IP:   net.ParseIP("127.0.0.1"),
-	}
-	ln, err := net.ListenTCP("tcp", tcpAddr)
-	if err != nil {
-		return fmt.Errorf("please open port %d for TCP and UDP. %w", port, err)
-	}
-	_ = ln.Close()
-	udpAddr := &net.UDPAddr{
-		Port: port,
-		IP:   net.ParseIP("127.0.0.1"),
-	}
-	ser, err := net.ListenUDP("udp", udpAddr)
-	if err != nil {
-		return fmt.Errorf("please open port %d for UDP. %w", port, err)
-	}
-	_ = ser.Close()
 	return nil
 }
 

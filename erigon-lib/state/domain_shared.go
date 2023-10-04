@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	math2 "math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -95,11 +96,40 @@ func (sd *SharedDomains) SetInvertedIndices(tracesTo, tracesFrom, logAddrs, logT
 
 // aggregator context should call aggCtx.Unwind before this one.
 func (sd *SharedDomains) Unwind(ctx context.Context, rwTx kv.RwTx, txUnwindTo uint64) error {
+	step := txUnwindTo / sd.aggCtx.a.aggregationStep
+	logEvery := time.NewTicker(30 * time.Second)
+	defer logEvery.Stop()
+	sd.aggCtx.a.logger.Info("aggregator unwind", "step", step,
+		"txUnwindTo", txUnwindTo, "stepsRangeInDB", sd.aggCtx.a.StepsRangeInDBAsStr(rwTx))
+
+	if err := sd.aggCtx.accounts.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64, nil); err != nil {
+		return err
+	}
+	if err := sd.aggCtx.storage.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64, nil); err != nil {
+		return err
+	}
+	if err := sd.aggCtx.code.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64, nil); err != nil {
+		return err
+	}
+	if err := sd.aggCtx.commitment.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64, nil); err != nil {
+		return err
+	}
+	if err := sd.aggCtx.logAddrs.Prune(ctx, rwTx, txUnwindTo, math2.MaxUint64, math2.MaxUint64, logEvery); err != nil {
+		return err
+	}
+	if err := sd.aggCtx.logTopics.Prune(ctx, rwTx, txUnwindTo, math2.MaxUint64, math2.MaxUint64, logEvery); err != nil {
+		return err
+	}
+	if err := sd.aggCtx.tracesFrom.Prune(ctx, rwTx, txUnwindTo, math2.MaxUint64, math2.MaxUint64, logEvery); err != nil {
+		return err
+	}
+	if err := sd.aggCtx.tracesTo.Prune(ctx, rwTx, txUnwindTo, math2.MaxUint64, math2.MaxUint64, logEvery); err != nil {
+		return err
+	}
 	sd.ClearRam(true)
 
 	// TODO what if unwinded to the middle of block? It should cause one more unwind until block beginning or end is not found.
 	_, err := sd.SeekCommitment(0, txUnwindTo)
-	fmt.Printf("Unwinded domains to block %d, txn %d wanted to %d\n", sd.BlockNum(), sd.TxNum(), txUnwindTo)
 	return err
 }
 
@@ -123,12 +153,16 @@ func (sd *SharedDomains) SeekCommitment(fromTx, toTx uint64) (txsFromBlockBeginn
 		if err != nil {
 			return txsFromBlockBeginning, fmt.Errorf("failed to find last txNum in block %d : %w", blockNum, err)
 		}
-		fmt.Printf("[commitment] found block %d tx %d. DB found block %d, firstTxInBlock %d, lastTxInBlock %d\n", bn, txn, blockNum, firstTxInBlock, lastTxInBlock)
+		if sd.trace {
+			fmt.Printf("[commitment] found block %d tx %d. DB found block %d, firstTxInBlock %d, lastTxInBlock %d\n", bn, txn, blockNum, firstTxInBlock, lastTxInBlock)
+		}
 		if txn > firstTxInBlock {
 			txn++ // has to move txn cuz state committed at txNum-1 to be included in latest file
 			txsFromBlockBeginning = txn - firstTxInBlock
 		}
-		fmt.Printf("[commitment] block tx range -%d |%d| %d\n", txsFromBlockBeginning, txn, lastTxInBlock-txn)
+		if sd.trace {
+			fmt.Printf("[commitment] block tx range -%d |%d| %d\n", txsFromBlockBeginning, txn, lastTxInBlock-txn)
+		}
 		if txn == lastTxInBlock {
 			blockNum++
 		} else {
@@ -139,7 +173,9 @@ func (sd *SharedDomains) SeekCommitment(fromTx, toTx uint64) (txsFromBlockBeginn
 		if blockNum != 0 {
 			txn++
 		}
-		fmt.Printf("[commitment] found block %d tx %d. No DB info about block first/last txnum has been found\n", blockNum, txn)
+		if sd.trace {
+			fmt.Printf("[commitment] found block %d tx %d. No DB info about block first/last txnum has been found\n", blockNum, txn)
+		}
 	}
 
 	sd.SetBlockNum(blockNum)
@@ -163,42 +199,41 @@ func (sd *SharedDomains) ClearRam(resetCommitment bool) {
 	sd.estSize.Store(0)
 }
 
-func (sd *SharedDomains) put(table kv.Domain, key, val []byte) {
+func (sd *SharedDomains) put(table kv.Domain, key string, val []byte) {
 	sd.muMaps.Lock()
 	sd.puts(table, key, val)
 	sd.muMaps.Unlock()
 }
 
-func (sd *SharedDomains) puts(table kv.Domain, key []byte, val []byte) {
-	keyS := string(key)
+func (sd *SharedDomains) puts(table kv.Domain, key string, val []byte) {
 	switch table {
 	case kv.AccountsDomain:
-		if old, ok := sd.account[keyS]; ok {
+		if old, ok := sd.account[key]; ok {
 			sd.estSize.Add(uint64(len(val) - len(old)))
 		} else {
 			sd.estSize.Add(uint64(len(key) + len(val)))
 		}
-		sd.account[keyS] = val
+		sd.account[key] = val
 	case kv.CodeDomain:
-		if old, ok := sd.code[keyS]; ok {
+		if old, ok := sd.code[key]; ok {
 			sd.estSize.Add(uint64(len(val) - len(old)))
 		} else {
 			sd.estSize.Add(uint64(len(key) + len(val)))
 		}
-		sd.code[keyS] = val
+		sd.code[key] = val
 	case kv.StorageDomain:
-		if old, ok := sd.storage.Set(keyS, val); ok {
+		if old, ok := sd.storage.Set(key, val); ok {
 			sd.estSize.Add(uint64(len(val) - len(old)))
 		} else {
 			sd.estSize.Add(uint64(len(key) + len(val)))
 		}
 	case kv.CommitmentDomain:
-		if old, ok := sd.commitment[keyS]; ok {
+		if old, ok := sd.commitment[key]; ok {
 			sd.estSize.Add(uint64(len(val) - len(old)))
 		} else {
 			sd.estSize.Add(uint64(len(key) + len(val)))
 		}
-		sd.commitment[keyS] = val
+		sd.commitment[key] = val
 	default:
 		panic(fmt.Errorf("sharedDomains put to invalid table %s", table))
 	}
@@ -406,18 +441,20 @@ func (sd *SharedDomains) storageFn(plainKey []byte, cell *commitment.Cell) error
 }
 
 func (sd *SharedDomains) UpdateAccountData(addr []byte, account, prevAccount []byte) error {
-	sd.Commitment.TouchPlainKey(addr, account, sd.Commitment.TouchAccount)
-	sd.put(kv.AccountsDomain, addr, account)
+	addrS := string(addr)
+	sd.Commitment.TouchPlainKey(addrS, account, sd.Commitment.TouchAccount)
+	sd.put(kv.AccountsDomain, addrS, account)
 	return sd.Account.PutWithPrev(addr, nil, account, prevAccount)
 }
 
 func (sd *SharedDomains) UpdateAccountCode(addr, code []byte) error {
-	sd.Commitment.TouchPlainKey(addr, code, sd.Commitment.TouchCode)
+	addrS := string(addr)
+	sd.Commitment.TouchPlainKey(addrS, code, sd.Commitment.TouchCode)
 	prevCode, _ := sd.LatestCode(addr)
 	if bytes.Equal(prevCode, code) {
 		return nil
 	}
-	sd.put(kv.CodeDomain, addr, code)
+	sd.put(kv.CodeDomain, addrS, code)
 	if len(code) == 0 {
 		return sd.Code.DeleteWithPrev(addr, nil, prevCode)
 	}
@@ -425,14 +462,14 @@ func (sd *SharedDomains) UpdateAccountCode(addr, code []byte) error {
 }
 
 func (sd *SharedDomains) UpdateCommitmentData(prefix []byte, data, prev []byte) error {
-	sd.put(kv.CommitmentDomain, prefix, data)
+	sd.put(kv.CommitmentDomain, string(prefix), data)
 	return sd.Commitment.PutWithPrev(prefix, nil, data, prev)
 }
 
 func (sd *SharedDomains) DeleteAccount(addr, prev []byte) error {
-	sd.Commitment.TouchPlainKey(addr, nil, sd.Commitment.TouchAccount)
-
-	sd.put(kv.AccountsDomain, addr, nil)
+	addrS := string(addr)
+	sd.Commitment.TouchPlainKey(addrS, nil, sd.Commitment.TouchAccount)
+	sd.put(kv.AccountsDomain, addrS, nil)
 	if err := sd.Account.DeleteWithPrev(addr, nil, prev); err != nil {
 		return err
 	}
@@ -443,8 +480,8 @@ func (sd *SharedDomains) DeleteAccount(addr, prev []byte) error {
 		return err
 	}
 	if len(pc) > 0 {
-		sd.Commitment.TouchPlainKey(addr, nil, sd.Commitment.TouchCode)
-		sd.put(kv.CodeDomain, addr, nil)
+		sd.Commitment.TouchPlainKey(addrS, nil, sd.Commitment.TouchCode)
+		sd.put(kv.CodeDomain, addrS, nil)
 		if err := sd.Code.DeleteWithPrev(addr, nil, pc); err != nil {
 			return err
 		}
@@ -465,8 +502,9 @@ func (sd *SharedDomains) DeleteAccount(addr, prev []byte) error {
 	}
 
 	for _, tomb := range tombs {
-		sd.put(kv.StorageDomain, tomb.k, nil)
-		sd.Commitment.TouchPlainKey(tomb.k, nil, sd.Commitment.TouchStorage)
+		ks := string(tomb.k)
+		sd.put(kv.StorageDomain, ks, nil)
+		sd.Commitment.TouchPlainKey(ks, nil, sd.Commitment.TouchStorage)
 		err = sd.Storage.DeleteWithPrev(tomb.k, nil, tomb.v)
 		if err != nil {
 			return err
@@ -481,8 +519,9 @@ func (sd *SharedDomains) WriteAccountStorage(addr, loc []byte, value, preVal []b
 		composite = make([]byte, 0, len(addr)+len(loc))
 		composite = append(append(composite, addr...), loc...)
 	}
-	sd.Commitment.TouchPlainKey(composite, value, sd.Commitment.TouchStorage)
-	sd.put(kv.StorageDomain, composite, value)
+	compositeS := string(composite)
+	sd.Commitment.TouchPlainKey(compositeS, value, sd.Commitment.TouchStorage)
+	sd.put(kv.StorageDomain, compositeS, value)
 	if len(value) == 0 {
 		return sd.Storage.DeleteWithPrev(composite, nil, preVal)
 	}
@@ -817,15 +856,15 @@ func (sd *SharedDomains) BatchHistoryWriteEnd() {
 	sd.walLock.RUnlock()
 }
 
-func (sd *SharedDomains) DiscardHistory(tmpDir string) {
+func (sd *SharedDomains) DiscardHistory() {
 	sd.Account.DiscardHistory()
 	sd.Storage.DiscardHistory()
 	sd.Code.DiscardHistory()
 	sd.Commitment.DiscardHistory()
-	sd.LogAddrs.DiscardHistory(tmpDir)
-	sd.LogTopics.DiscardHistory(tmpDir)
-	sd.TracesFrom.DiscardHistory(tmpDir)
-	sd.TracesTo.DiscardHistory(tmpDir)
+	sd.LogAddrs.DiscardHistory()
+	sd.LogTopics.DiscardHistory()
+	sd.TracesFrom.DiscardHistory()
+	sd.TracesTo.DiscardHistory()
 }
 func (sd *SharedDomains) rotate() []flusher {
 	sd.walLock.Lock()

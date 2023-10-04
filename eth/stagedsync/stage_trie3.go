@@ -82,7 +82,7 @@ func collectAndComputeCommitment(ctx context.Context, tx kv.RwTx, tmpDir string,
 				"intermediate root", fmt.Sprintf("%x", rh))
 		}
 		processed.Add(1)
-		domains.Commitment.TouchPlainKey(k, nil, nil)
+		domains.Commitment.TouchPlainKey(string(k), nil, nil)
 
 		return nil
 	}
@@ -102,7 +102,7 @@ func collectAndComputeCommitment(ctx context.Context, tx kv.RwTx, tmpDir string,
 		"processed", processed.Load(),
 		"total", totalKeys.Load())
 
-	if err := agg.Flush(ctx, tx); err != nil {
+	if err := domains.Flush(ctx, tx); err != nil {
 		return nil, err
 	}
 
