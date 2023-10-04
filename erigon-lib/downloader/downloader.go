@@ -160,6 +160,7 @@ func (d *Downloader) mainLoop(silent bool) error {
 		//	default:
 		//	}
 		//	for _, t := range torrents {
+		//      t:=t
 		//		if _, already := torrentMap[t.InfoHash()]; already {
 		//			continue
 		//		}
@@ -207,6 +208,7 @@ func (d *Downloader) mainLoop(silent bool) error {
 			default:
 			}
 			for _, t := range torrents {
+				t := t
 				if t.Complete.Bool() {
 					continue
 				}
