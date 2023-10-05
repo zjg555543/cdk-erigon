@@ -186,9 +186,9 @@ func ExecV3(ctx context.Context,
 			applyTx.Rollback()
 		}()
 
-		if err := applyTx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
-			return err
-		}
+		//if err := applyTx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
+		//	return err
+		//}
 		if dbg.MdbxLockInRam() {
 			if err := applyTx.(*temporal.Tx).MdbxTx.LockDBInRam(); err != nil {
 				return err
@@ -785,9 +785,9 @@ Loop:
 					break
 				}
 
-				if err := applyTx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
-					return err
-				}
+				//if err := applyTx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
+				//	return err
+				//}
 
 				var t1, t3, t4, t5, t6 time.Duration
 				commtitStart := time.Now()
@@ -800,9 +800,9 @@ Loop:
 				t1 = time.Since(tt)
 
 				if err := func() error {
-					if err := applyTx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
-						return err
-					}
+					//if err := applyTx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
+					//	return err
+					//}
 					// prune before flush: it will make flush and prune faster
 					if err := applyTx.(*temporal.Tx).AggCtx().PruneWithTimeout(ctx, 60*time.Minute, applyTx); err != nil {
 						return err
