@@ -800,7 +800,10 @@ Loop:
 				t1 = time.Since(tt)
 
 				if err := func() error {
-					tt = time.Now()
+					// prune before flush: it will make flush and prune faster
+					if err := applyTx.(*temporal.Tx).AggCtx().PruneWithTimeout(ctx, 60*time.Minute, applyTx); err != nil {
+						return err
+					}
 					if err := doms.Flush(ctx, applyTx); err != nil {
 						return err
 					}
