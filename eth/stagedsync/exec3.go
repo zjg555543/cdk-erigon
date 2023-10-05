@@ -800,6 +800,9 @@ Loop:
 				t1 = time.Since(tt)
 
 				if err := func() error {
+					if err := applyTx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
+						return err
+					}
 					// prune before flush: it will make flush and prune faster
 					if err := applyTx.(*temporal.Tx).AggCtx().PruneWithTimeout(ctx, 60*time.Minute, applyTx); err != nil {
 						return err
@@ -833,9 +836,6 @@ Loop:
 						t5 = time.Since(tt)
 						tt = time.Now()
 						if err := chainDb.Update(ctx, func(tx kv.RwTx) error {
-							if err := tx.(*temporal.Tx).MdbxTx.WarmupDB(false); err != nil {
-								return err
-							}
 							if err := tx.(*temporal.Tx).AggCtx().PruneWithTimeout(ctx, 60*time.Minute, tx); err != nil {
 								return err
 							}
