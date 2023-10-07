@@ -523,9 +523,12 @@ type (
 	InvertedIdx string
 )
 
+type TemporalGetter interface {
+	DomainGet(name Domain, k, k2 []byte) (v []byte, err error)
+}
 type TemporalTx interface {
 	Tx
-	DomainGet(name Domain, k, k2 []byte) (v []byte, ok bool, err error)
+	TemporalGetter
 	DomainGetAsOf(name Domain, k, k2 []byte, ts uint64) (v []byte, ok bool, err error)
 	HistoryGet(name History, k []byte, ts uint64) (v []byte, ok bool, err error)
 
@@ -539,4 +542,7 @@ type TemporalTx interface {
 	IndexRange(name InvertedIdx, k []byte, fromTs, toTs int, asc order.By, limit int) (timestamps iter.U64, err error)
 	HistoryRange(name History, fromTs, toTs int, asc order.By, limit int) (it iter.KV, err error)
 	DomainRange(name Domain, fromKey, toKey []byte, ts uint64, asc order.By, limit int) (it iter.KV, err error)
+}
+type TemporalCommitment interface {
+	ComputeCommitment(ctx context.Context, saveStateAfter, trace bool) (rootHash []byte, err error)
 }

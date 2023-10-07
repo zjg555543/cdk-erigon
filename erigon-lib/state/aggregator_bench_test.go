@@ -61,7 +61,7 @@ func BenchmarkAggregator_Processing(b *testing.B) {
 	defer ac.Close()
 
 	domains := agg.SharedDomains(ac)
-	defer domains.Close()
+	defer agg.CloseSharedDomains()
 	defer domains.StartWrites().FinishWrites()
 
 	domains.SetTx(tx)
@@ -80,7 +80,7 @@ func BenchmarkAggregator_Processing(b *testing.B) {
 		require.NoError(b, err)
 
 		if i%100000 == 0 {
-			_, err := domains.Commit(ctx, true, false)
+			_, err := domains.ComputeCommitment(ctx, true, false)
 			require.NoError(b, err)
 		}
 	}

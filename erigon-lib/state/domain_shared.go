@@ -565,7 +565,7 @@ func (sd *SharedDomains) SetTxNum(ctx context.Context, txNum uint64) {
 	if txNum%sd.Account.aggregationStep == 0 { //
 		// We do not update txNum before commitment cuz otherwise committed state will be in the beginning of next file, not in the latest.
 		// That's why we need to make txnum++ on SeekCommitment to get exact txNum for the latest committed state.
-		_, err := sd.Commit(ctx, true, sd.trace)
+		_, err := sd.ComputeCommitment(ctx, true, sd.trace)
 		if err != nil {
 			panic(err)
 		}
@@ -590,7 +590,7 @@ func (sd *SharedDomains) SetBlockNum(blockNum uint64) {
 	sd.blockNum.Store(blockNum)
 }
 
-func (sd *SharedDomains) Commit(ctx context.Context, saveStateAfter, trace bool) (rootHash []byte, err error) {
+func (sd *SharedDomains) ComputeCommitment(ctx context.Context, saveStateAfter, trace bool) (rootHash []byte, err error) {
 	//t := time.Now()
 	//defer func() { log.Info("[dbg] [agg] commitment", "took", time.Since(t)) }()
 
@@ -893,4 +893,40 @@ func (sd *SharedDomains) Flush(ctx context.Context, tx kv.RwTx) error {
 		}
 	}
 	return nil
+}
+
+// TemporalDomain satisfaction
+func (sd *SharedDomains) DomainGet(name kv.Domain, k, k2 []byte) (v []byte, err error) {
+	switch name {
+	case kv.AccountsDomain:
+		return sd.LatestAccount(k)
+	case kv.StorageDomain:
+		if k2 != nil {
+			k = append(k, k2...)
+		}
+		return sd.LatestStorage(k)
+	case kv.CodeDomain:
+		return sd.LatestCode(k)
+	case kv.CommitmentDomain:
+		return sd.LatestCommitment(k)
+	default:
+		panic(name)
+	}
+	//DomainGet(name Domain, k, k2 []byte) (v []byte, ok bool, err error)
+	/*
+		DomainGet(name Domain, k, k2 []byte) (v []byte, ok bool, err error)
+		DomainGetAsOf(name Domain, k, k2 []byte, ts uint64) (v []byte, ok bool, err error)
+		HistoryGet(name History, k []byte, ts uint64) (v []byte, ok bool, err error)
+
+		// IndexRange - return iterator over range of inverted index for given key `k`
+		// Asc semantic:  [from, to) AND from > to
+		// Desc semantic: [from, to) AND from < to
+		// Limit -1 means Unlimited
+		// from -1, to -1 means unbounded (StartOfTable, EndOfTable)
+		// Example: IndexRange("IndexName", 10, 5, order.Desc, -1)
+		// Example: IndexRange("IndexName", -1, -1, order.Asc, 10)
+		IndexRange(name InvertedIdx, k []byte, fromTs, toTs int, asc order.By, limit int) (timestamps iter.U64, err error)
+		HistoryRange(name History, fromTs, toTs int, asc order.By, limit int) (it iter.KV, err error)
+		DomainRange(name Domain, fromKey, toKey []byte, ts uint64, asc order.By, limit int) (it iter.KV, err error)
+	*/
 }

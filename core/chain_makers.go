@@ -311,6 +311,7 @@ func (cp *ChainPack) NumberOfPoWBlocks() int {
 // values. Inserting them into BlockChain requires use of FakePow or
 // a similar non-validating proof of work implementation.
 func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.Engine, db kv.RwDB, n int, gen func(int, *BlockGen)) (*ChainPack, error) {
+	histV3 := ethconfig.EnableHistoryV4InTest
 	if config == nil {
 		config = params.TestChainConfig
 	}
@@ -327,22 +328,24 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 	var stateReader state.StateReader
 	var stateWriter state.StateWriter
 	var domains *state2.SharedDomains
-	if ethconfig.EnableHistoryV4InTest {
-		stateReader = state.NewReaderV4(tx.(*temporal.Tx))
+	if histV3 {
 		agg := tx.(*temporal.Tx).Agg()
 		ac := tx.(*temporal.Tx).AggCtx()
 
 		domains = agg.SharedDomains(ac)
-		defer domains.Close()
+		defer agg.CloseSharedDomains()
+		domains.SetTx(tx)
+		defer domains.StartWrites().FinishWrites()
 		_, err := domains.SeekCommitment(ctx, 0, math.MaxUint64)
 		if err != nil {
 			return nil, err
 		}
+		stateReader = state.NewReaderV4(domains)
 		stateWriter = state.NewWriterV4(tx.(*temporal.Tx), domains)
 	}
 	txNum := -1
 	setBlockNum := func(blockNum uint64) {
-		if ethconfig.EnableHistoryV4InTest {
+		if histV3 {
 			domains.SetBlockNum(blockNum)
 		} else {
 			stateReader = state.NewPlainStateReader(tx)
@@ -351,7 +354,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 	}
 	txNumIncrement := func() {
 		txNum++
-		if ethconfig.EnableHistoryV4InTest {
+		if histV3 {
 			domains.SetTxNum(ctx, uint64(txNum))
 		}
 	}
@@ -390,8 +393,13 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 				return nil, nil, fmt.Errorf("call to CommitBlock to stateWriter: %w", err)
 			}
 
+			if histV3 {
+				if err := domains.Flush(ctx, tx); err != nil {
+					return nil, nil, err
+				}
+			}
 			var err error
-			b.header.Root, err = CalcHashRootForTests(tx, b.header, ethconfig.EnableHistoryV4InTest)
+			b.header.Root, err = CalcHashRootForTests(tx, b.header, histV3)
 			if err != nil {
 				return nil, nil, fmt.Errorf("call to CalcTrieRoot: %w", err)
 			}

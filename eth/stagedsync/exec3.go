@@ -268,8 +268,7 @@ func ExecV3(ctx context.Context,
 
 	// MA setio
 	doms := cfg.agg.SharedDomains(applyTx.(*temporal.Tx).AggCtx())
-	defer doms.Close()
-	defer doms.StartWrites().FinishWrites()
+	defer cfg.agg.CloseSharedDomains()
 	doms.SetTx(applyTx)
 	if applyTx != nil {
 		if dbg.DiscardHistory() {
@@ -403,7 +402,7 @@ func ExecV3(ctx context.Context,
 					}
 				case <-pruneEvery.C:
 					if rs.SizeEstimate() < commitThreshold {
-						_, err := agg.ComputeCommitment(ctx, true, false)
+						_, err := doms.ComputeCommitment(ctx, true, false)
 						if err != nil {
 							return err
 						}
@@ -792,7 +791,7 @@ Loop:
 				var t1, t3, t4, t5, t6 time.Duration
 				commtitStart := time.Now()
 				tt := time.Now()
-				if ok, err := checkCommitmentV3(b.HeaderNoCopy(), applyTx, agg, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u); err != nil {
+				if ok, err := checkCommitmentV3(b.HeaderNoCopy(), applyTx, agg, doms, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u); err != nil {
 					return err
 				} else if !ok {
 					break Loop
@@ -876,7 +875,7 @@ Loop:
 	log.Info("Executed", "blocks", inputBlockNum.Load(), "txs", outputTxNum.Load(), "repeats", ExecRepeats.Get())
 
 	if !dbg.DiscardCommitment() && b != nil {
-		_, err := checkCommitmentV3(b.HeaderNoCopy(), applyTx, agg, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u)
+		_, err := checkCommitmentV3(b.HeaderNoCopy(), applyTx, agg, doms, cfg.badBlockHalt, cfg.hd, execStage, maxBlockNum, logger, u)
 		if err != nil {
 			return err
 		}
@@ -910,11 +909,11 @@ Loop:
 }
 
 // applyTx is required only for debugging
-func checkCommitmentV3(header *types.Header, applyTx kv.RwTx, agg *state2.AggregatorV3, badBlockHalt bool, hd headerDownloader, e *StageState, maxBlockNum uint64, logger log.Logger, u Unwinder) (bool, error) {
+func checkCommitmentV3(header *types.Header, applyTx kv.RwTx, agg *state2.AggregatorV3, doms *state2.SharedDomains, badBlockHalt bool, hd headerDownloader, e *StageState, maxBlockNum uint64, logger log.Logger, u Unwinder) (bool, error) {
 	if dbg.DiscardCommitment() {
 		return true, nil
 	}
-	rh, err := agg.ComputeCommitment(context.Background(), true, false)
+	rh, err := doms.ComputeCommitment(context.Background(), true, false)
 	if err != nil {
 		return false, fmt.Errorf("StateV3.Apply: %w", err)
 	}
