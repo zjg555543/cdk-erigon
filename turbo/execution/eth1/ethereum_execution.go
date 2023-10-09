@@ -14,6 +14,7 @@ import (
 
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/common/math"
+	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
@@ -55,12 +56,14 @@ type EthereumExecutionModule struct {
 	config             *chain.Config
 	historyV3          bool
 	forcePartialCommit bool
+	// consensus
+	engine consensus.Engine
 
 	execution.UnimplementedExecutionServer
 }
 
 func NewEthereumExecutionModule(blockReader services.FullBlockReader, db kv.RwDB, executionPipeline *stagedsync.Sync, forkValidator *engine_helpers.ForkValidator,
-	config *chain.Config, builderFunc builder.BlockBuilderFunc, hook *stages.Hook, accumulator *shards.Accumulator, stateChangeConsumer shards.StateChangeConsumer, logger log.Logger, historyV3 bool, forcePartialCommit bool) *EthereumExecutionModule {
+	config *chain.Config, builderFunc builder.BlockBuilderFunc, hook *stages.Hook, accumulator *shards.Accumulator, stateChangeConsumer shards.StateChangeConsumer, logger log.Logger, engine consensus.Engine, historyV3 bool, forcePartialCommit bool) *EthereumExecutionModule {
 	return &EthereumExecutionModule{
 		blockReader:         blockReader,
 		db:                  db,
@@ -74,6 +77,7 @@ func NewEthereumExecutionModule(blockReader services.FullBlockReader, db kv.RwDB
 		hook:                hook,
 		accumulator:         accumulator,
 		stateChangeConsumer: stateChangeConsumer,
+		engine:              engine,
 		historyV3:           historyV3,
 		forcePartialCommit:  forcePartialCommit,
 	}
@@ -176,8 +180,10 @@ func (e *EthereumExecutionModule) ValidateChain(ctx context.Context, req *execut
 		}, tx.Commit()
 	}
 
+	currentHeadHash := rawdb.ReadHeadHeaderHash(tx)
+
 	extendingHash := e.forkValidator.ExtendingForkHeadHash()
-	extendCanonical := extendingHash == libcommon.Hash{}
+	extendCanonical := extendingHash == libcommon.Hash{} && header.ParentHash == currentHeadHash
 
 	status, lvh, validationError, criticalError := e.forkValidator.ValidatePayload(tx, header, body.RawBody(), extendCanonical)
 	if criticalError != nil {

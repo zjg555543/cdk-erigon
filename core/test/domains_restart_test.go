@@ -98,9 +98,8 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	domCtx := agg.MakeContext()
 	defer domCtx.Close()
 
-	domains := agg.SharedDomains(domCtx)
-	defer agg.CloseSharedDomains()
-	domains.SetTx(tx)
+	domains := state.NewSharedDomains(domCtx, tx)
+	defer domains.Close()
 
 	rnd := rand.New(rand.NewSource(time.Now().Unix()))
 
@@ -119,7 +118,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 		accs  = make([]*accounts.Account, 0)
 		locs  = make([]libcommon.Hash, 0)
 
-		writer = state2.NewWriterV4(tx.(*temporal.Tx), domains)
+		writer = state2.NewWriterV4(domains)
 	)
 
 	for txNum := uint64(1); txNum <= txs; txNum++ {
@@ -207,8 +206,9 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	db, agg, _ = testDbAndAggregatorv3(t, datadir, aggStep)
 
 	domCtx = agg.MakeContext()
-	domains = agg.SharedDomains(domCtx)
-	defer agg.CloseSharedDomains()
+	defer domCtx.Close()
+	domains = state.NewSharedDomains(domCtx, tx)
+	defer domains.Close()
 
 	tx, err = db.BeginRw(ctx)
 	require.NoError(t, err)
@@ -227,7 +227,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	//	cct.Close()
 	//}
 
-	_, err = domains.SeekCommitment(ctx, 0, math.MaxUint64)
+	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
 	require.NoError(t, err)
 	tx.Rollback()
 
@@ -238,19 +238,16 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	require.NoError(t, err)
 	// ======== reset domains end ========
 
-	domCtx = agg.MakeContext()
-	domains = agg.SharedDomains(domCtx)
-	defer agg.CloseSharedDomains()
-	defer domains.Close()
-
 	tx, err = db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
+	domCtx = agg.MakeContext()
+	defer domCtx.Close()
+	domains = state.NewSharedDomains(domCtx, tx)
+	defer domains.Close()
+	writer = state2.NewWriterV4(domains)
 
-	domains.SetTx(tx)
-	writer = state2.NewWriterV4(tx.(*temporal.Tx), domains)
-
-	_, err = domains.SeekCommitment(ctx, 0, math.MaxUint64)
+	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
 	require.NoError(t, err)
 
 	txToStart := domains.TxNum()
@@ -307,10 +304,8 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 	domCtx := agg.MakeContext()
 	defer domCtx.Close()
 
-	domains := agg.SharedDomains(domCtx)
+	domains := state.NewSharedDomains(domCtx, tx)
 	defer domains.Close()
-
-	domains.SetTx(tx)
 
 	rnd := rand.New(rand.NewSource(time.Now().Unix()))
 
@@ -329,7 +324,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 		accs  = make([]*accounts.Account, 0)
 		locs  = make([]libcommon.Hash, 0)
 
-		writer = state2.NewWriterV4(tx.(*temporal.Tx), domains)
+		writer = state2.NewWriterV4(domains)
 	)
 
 	testStartedFromTxNum := uint64(1)
@@ -391,12 +386,16 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 	db, agg, _ = testDbAndAggregatorv3(t, datadir, aggStep)
 
 	domCtx = agg.MakeContext()
-	domains = agg.SharedDomains(domCtx)
+	defer domCtx.Close()
 
 	tx, err = db.BeginRw(ctx)
 	require.NoError(t, err)
+	defer tx.Rollback()
 
-	_, err = domains.SeekCommitment(ctx, 0, math.MaxUint64)
+	domains = state.NewSharedDomains(domCtx, tx)
+	defer domains.Close()
+
+	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
 	tx.Rollback()
 	require.NoError(t, err)
 
@@ -408,8 +407,8 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 	// ======== reset domains end ========
 
 	domCtx = agg.MakeContext()
-	domains = agg.SharedDomains(domCtx)
 	defer domCtx.Close()
+	domains = state.NewSharedDomains(domCtx, tx)
 	defer domains.Close()
 
 	tx, err = db.BeginRw(ctx)
@@ -417,9 +416,9 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 	defer tx.Rollback()
 
 	domains.SetTx(tx)
-	writer = state2.NewWriterV4(tx.(*temporal.Tx), domains)
+	writer = state2.NewWriterV4(domains)
 
-	_, err = domains.SeekCommitment(ctx, 0, math.MaxUint64)
+	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
 	require.NoError(t, err)
 
 	txToStart := domains.TxNum()
@@ -482,10 +481,8 @@ func TestCommit(t *testing.T) {
 
 	domCtx := agg.MakeContext()
 	defer domCtx.Close()
-	domains := agg.SharedDomains(domCtx)
+	domains := state.NewSharedDomains(domCtx, tx)
 	defer domains.Close()
-	domains.SetTx(tx)
-	defer domains.StartWrites().FinishWrites()
 
 	//buf := types2.EncodeAccountBytesV3(0, uint256.NewInt(7), nil, 0)
 

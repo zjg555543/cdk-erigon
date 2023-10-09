@@ -126,11 +126,12 @@ func testCollationBuild(t *testing.T, compressDomainVals, domainLargeValues bool
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
+	dc := d.MakeContext()
+	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
-	d.SetTxNum(2)
+	dc.SetTxNum(2)
 
 	var (
 		k1     = []byte("key1")
@@ -140,11 +141,11 @@ func testCollationBuild(t *testing.T, compressDomainVals, domainLargeValues bool
 		p1, p2 []byte
 	)
 
-	err = d.PutWithPrev(k1, nil, v1, p1)
+	err = dc.PutWithPrev(k1, nil, v1, p1)
 	require.NoError(t, err)
 
-	d.SetTxNum(3)
-	err = d.PutWithPrev(k2, nil, v2, p2)
+	dc.SetTxNum(3)
+	err = dc.PutWithPrev(k2, nil, v2, p2)
 	require.NoError(t, err)
 
 	p1, p2 = v1, v2
@@ -153,27 +154,27 @@ func testCollationBuild(t *testing.T, compressDomainVals, domainLargeValues bool
 	v1, v2 = []byte("value1.2"), []byte("value2.2") //nolint
 	expectedStep1 := uint64(0)
 
-	d.SetTxNum(6)
-	err = d.PutWithPrev(k1, nil, v1, p1)
+	dc.SetTxNum(6)
+	err = dc.PutWithPrev(k1, nil, v1, p1)
 	require.NoError(t, err)
 
 	p1, v1 = v1, []byte("value1.3")
-	d.SetTxNum(d.aggregationStep + 2)
-	err = d.PutWithPrev(k1, nil, v1, p1)
+	dc.SetTxNum(d.aggregationStep + 2)
+	err = dc.PutWithPrev(k1, nil, v1, p1)
 	require.NoError(t, err)
 
 	p1, v1 = v1, []byte("value1.4")
-	d.SetTxNum(d.aggregationStep + 3)
-	err = d.PutWithPrev(k1, nil, v1, p1)
+	dc.SetTxNum(d.aggregationStep + 3)
+	err = dc.PutWithPrev(k1, nil, v1, p1)
 	require.NoError(t, err)
 
 	p1, v1 = v1, []byte("value1.5")
 	expectedStep2 := uint64(2)
-	d.SetTxNum(expectedStep2*d.aggregationStep + 2)
-	err = d.PutWithPrev(k1, nil, v1, p1)
+	dc.SetTxNum(expectedStep2*d.aggregationStep + 2)
+	err = dc.PutWithPrev(k1, nil, v1, p1)
 	require.NoError(t, err)
 
-	err = d.Rotate().Flush(ctx, tx)
+	err = dc.Rotate().Flush(ctx, tx)
 	require.NoError(t, err)
 	{
 		c, err := d.collate(ctx, 0, 0, 7, tx)
@@ -274,26 +275,25 @@ func TestDomain_IterationBasic(t *testing.T) {
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
 	dc := d.MakeContext()
 	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
-	d.SetTxNum(2)
-	err = d.Put([]byte("addr1"), []byte("loc1"), []byte("value1"), tx)
+	dc.SetTxNum(2)
+	err = dc.Put([]byte("addr1"), []byte("loc1"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr1"), []byte("loc2"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr1"), []byte("loc2"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr1"), []byte("loc3"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr1"), []byte("loc3"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr2"), []byte("loc1"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr2"), []byte("loc1"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr2"), []byte("loc2"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr2"), []byte("loc2"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr3"), []byte("loc1"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr3"), []byte("loc1"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr3"), []byte("loc2"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr3"), []byte("loc2"), []byte("value1"), tx)
 	require.NoError(t, err)
 	dc.Close()
 
@@ -336,9 +336,10 @@ func TestDomain_AfterPrune(t *testing.T) {
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
+	dc := d.MakeContext()
+	defer d.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	var (
 		k1 = []byte("key1")
@@ -349,35 +350,35 @@ func TestDomain_AfterPrune(t *testing.T) {
 		n1, n2 = []byte("value1.1"), []byte("value2.1")
 	)
 
-	d.SetTxNum(2)
-	err = d.PutWithPrev(k1, nil, n1, p1)
+	dc.SetTxNum(2)
+	err = dc.PutWithPrev(k1, nil, n1, p1)
 	require.NoError(t, err)
 
-	d.SetTxNum(3)
-	err = d.PutWithPrev(k2, nil, n2, p2)
+	dc.SetTxNum(3)
+	err = dc.PutWithPrev(k2, nil, n2, p2)
 	require.NoError(t, err)
 
 	p1, p2 = n1, n2
 	n1, n2 = []byte("value1.2"), []byte("value2.2")
 
-	d.SetTxNum(6)
-	err = d.PutWithPrev(k1, nil, n1, p1)
+	dc.SetTxNum(6)
+	err = dc.PutWithPrev(k1, nil, n1, p1)
 	require.NoError(t, err)
 
 	p1, n1 = n1, []byte("value1.3")
 
-	d.SetTxNum(17)
-	err = d.PutWithPrev(k1, nil, n1, p1)
+	dc.SetTxNum(17)
+	err = dc.PutWithPrev(k1, nil, n1, p1)
 	require.NoError(t, err)
 
 	p1 = n1
 
-	d.SetTxNum(18)
-	err = d.PutWithPrev(k2, nil, n2, p2)
+	dc.SetTxNum(18)
+	err = dc.PutWithPrev(k2, nil, n2, p2)
 	require.NoError(t, err)
 	p2 = n2
 
-	err = d.Rotate().Flush(ctx, tx)
+	err = dc.Rotate().Flush(ctx, tx)
 	require.NoError(t, err)
 
 	c, err := d.collate(ctx, 0, 0, 16, tx)
@@ -388,7 +389,7 @@ func TestDomain_AfterPrune(t *testing.T) {
 
 	d.integrateFiles(sf, 0, 16)
 	var v []byte
-	dc := d.MakeContext()
+	dc = d.MakeContext()
 	defer dc.Close()
 	v, found, err := dc.GetLatest(k1, nil, tx)
 	require.Truef(t, found, "key1 not found")
@@ -425,19 +426,18 @@ func filledDomain(t *testing.T, logger log.Logger) (kv.RwDB, *Domain, uint64) {
 	tx, err := db.BeginRw(ctx)
 	require.NoError(err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
 
 	txs := uint64(1000)
 
 	dc := d.MakeContext()
 	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 	var prev [32][]byte
 	// keys are encodings of numbers 1..31
 	// each key changes value on every txNum which is multiple of the key
 	for txNum := uint64(1); txNum <= txs; txNum++ {
-		d.SetTxNum(txNum)
+		dc.SetTxNum(txNum)
 		for keyNum := uint64(1); keyNum <= uint64(31); keyNum++ {
 			if txNum%keyNum == 0 {
 				valNum := txNum / keyNum
@@ -445,18 +445,18 @@ func filledDomain(t *testing.T, logger log.Logger) (kv.RwDB, *Domain, uint64) {
 				var v [8]byte
 				binary.BigEndian.PutUint64(k[:], keyNum)
 				binary.BigEndian.PutUint64(v[:], valNum)
-				err = d.PutWithPrev(k[:], nil, v[:], prev[keyNum])
+				err = dc.PutWithPrev(k[:], nil, v[:], prev[keyNum])
 				prev[keyNum] = v[:]
 
 				require.NoError(err)
 			}
 		}
 		if txNum%10 == 0 {
-			err = d.Rotate().Flush(ctx, tx)
+			err = dc.Rotate().Flush(ctx, tx)
 			require.NoError(err)
 		}
 	}
-	err = d.Rotate().Flush(ctx, tx)
+	err = dc.Rotate().Flush(ctx, tx)
 	require.NoError(err)
 	err = tx.Commit()
 	require.NoError(err)
@@ -528,43 +528,42 @@ func TestIterationMultistep(t *testing.T) {
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
 	dc := d.MakeContext()
 	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
-	d.SetTxNum(2)
-	err = d.Put([]byte("addr1"), []byte("loc1"), []byte("value1"), tx)
+	dc.SetTxNum(2)
+	err = dc.Put([]byte("addr1"), []byte("loc1"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr1"), []byte("loc2"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr1"), []byte("loc2"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr1"), []byte("loc3"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr1"), []byte("loc3"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr2"), []byte("loc1"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr2"), []byte("loc1"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr2"), []byte("loc2"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr2"), []byte("loc2"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr3"), []byte("loc1"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr3"), []byte("loc1"), []byte("value1"), tx)
 	require.NoError(t, err)
-	err = d.Put([]byte("addr3"), []byte("loc2"), []byte("value1"), tx)
-	require.NoError(t, err)
-
-	d.SetTxNum(2 + 16)
-	err = d.Put([]byte("addr2"), []byte("loc1"), []byte("value1"), tx)
-	require.NoError(t, err)
-	err = d.Put([]byte("addr2"), []byte("loc2"), []byte("value1"), tx)
-	require.NoError(t, err)
-	err = d.Put([]byte("addr2"), []byte("loc3"), []byte("value1"), tx)
-	require.NoError(t, err)
-	err = d.Put([]byte("addr2"), []byte("loc4"), []byte("value1"), tx)
+	err = dc.Put([]byte("addr3"), []byte("loc2"), []byte("value1"), tx)
 	require.NoError(t, err)
 
-	d.SetTxNum(2 + 16 + 16)
-	err = d.Delete([]byte("addr2"), []byte("loc1"), tx)
+	dc.SetTxNum(2 + 16)
+	err = dc.Put([]byte("addr2"), []byte("loc1"), []byte("value1"), tx)
+	require.NoError(t, err)
+	err = dc.Put([]byte("addr2"), []byte("loc2"), []byte("value1"), tx)
+	require.NoError(t, err)
+	err = dc.Put([]byte("addr2"), []byte("loc3"), []byte("value1"), tx)
+	require.NoError(t, err)
+	err = dc.Put([]byte("addr2"), []byte("loc4"), []byte("value1"), tx)
 	require.NoError(t, err)
 
-	err = d.Rotate().Flush(ctx, tx)
+	dc.SetTxNum(2 + 16 + 16)
+	err = dc.Delete([]byte("addr2"), []byte("loc1"), tx)
+	require.NoError(t, err)
+
+	err = dc.Rotate().Flush(ctx, tx)
 	require.NoError(t, err)
 	dc.Close()
 
@@ -626,7 +625,6 @@ func collateAndMerge(t *testing.T, db kv.RwDB, tx kv.RwTx, d *Domain, txs uint64
 		require.NoError(t, err)
 		defer tx.Rollback()
 	}
-	d.SetTx(tx)
 	// Leave the last 2 aggregation steps un-collated
 	for step := uint64(0); step < txs/d.aggregationStep-1; step++ {
 		c, err := d.collate(ctx, step, step*d.aggregationStep, (step+1)*d.aggregationStep, tx)
@@ -677,7 +675,7 @@ func collateAndMergeOnce(t *testing.T, d *Domain, tx kv.RwTx, step uint64) {
 	ctx := context.Background()
 	txFrom, txTo := (step)*d.aggregationStep, (step+1)*d.aggregationStep
 
-	c, err := d.collate(ctx, step, txFrom, txTo, d.tx)
+	c, err := d.collate(ctx, step, txFrom, txTo, tx)
 	require.NoError(t, err)
 
 	sf, err := d.buildFiles(ctx, step, c, background.NewProgressSet())
@@ -724,11 +722,13 @@ func TestDomain_ScanFiles(t *testing.T) {
 	db, d, txs := filledDomain(t, logger)
 	collateAndMerge(t, db, nil, d, txs)
 	// Recreate domain and re-scan the files
-	txNum := d.txNum
+	dc := d.MakeContext()
+	defer dc.Close()
+	txNum := dc.hc.ic.txNum
 	d.closeWhatNotInList([]string{})
 	require.NoError(t, d.OpenFolder())
 
-	d.SetTxNum(txNum)
+	dc.SetTxNum(txNum)
 	// Check the history
 	checkHistory(t, db, d, txs)
 }
@@ -740,23 +740,22 @@ func TestDomain_Delete(t *testing.T) {
 	tx, err := db.BeginRw(ctx)
 	require.NoError(err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
 	dc := d.MakeContext()
 	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	// Put on even txNum, delete on odd txNum
 	for txNum := uint64(0); txNum < uint64(1000); txNum++ {
-		d.SetTxNum(txNum)
+		dc.SetTxNum(txNum)
 		if txNum%2 == 0 {
-			err = d.Put([]byte("key1"), nil, []byte("value1"), tx)
+			err = dc.Put([]byte("key1"), nil, []byte("value1"), tx)
 		} else {
-			err = d.Delete([]byte("key1"), nil, tx)
+			err = dc.Delete([]byte("key1"), nil, tx)
 		}
 		require.NoError(err)
 	}
-	err = d.Rotate().Flush(ctx, tx)
+	err = dc.Rotate().Flush(ctx, tx)
 	require.NoError(err)
 	collateAndMerge(t, db, tx, d, 1000)
 	dc.Close()
@@ -790,11 +789,10 @@ func filledDomainFixedSize(t *testing.T, keysCount, txCount, aggStep uint64, log
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
 	dc := d.MakeContext()
 	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	// keys are encodings of numbers 1..31
 	// each key changes value on every txNum which is multiple of the key
@@ -808,7 +806,7 @@ func filledDomainFixedSize(t *testing.T, keysCount, txCount, aggStep uint64, log
 	// key 2: in frozen file 2 and in warm files
 	// other keys: only in warm files
 	for txNum := uint64(1); txNum <= txCount; txNum++ {
-		d.SetTxNum(txNum)
+		dc.SetTxNum(txNum)
 		step := txNum / d.aggregationStep
 		frozenFileNum := step / 32
 		for keyNum := uint64(0); keyNum < keysCount; keyNum++ {
@@ -833,7 +831,7 @@ func filledDomainFixedSize(t *testing.T, keysCount, txCount, aggStep uint64, log
 			binary.BigEndian.PutUint64(k[:], keyNum)
 			binary.BigEndian.PutUint64(v[:], txNum)
 			//v[0] = 3 // value marker
-			err = d.Put(k[:], nil, v[:], tx)
+			err = dc.Put(k[:], nil, v[:], tx)
 			require.NoError(t, err)
 			if _, ok := dat[keyNum]; !ok {
 				dat[keyNum] = make([]bool, txCount+1)
@@ -841,7 +839,7 @@ func filledDomainFixedSize(t *testing.T, keysCount, txCount, aggStep uint64, log
 			dat[keyNum][txNum] = true
 		}
 		if txNum%d.aggregationStep == 0 {
-			err = d.Rotate().Flush(ctx, tx)
+			err = dc.Rotate().Flush(ctx, tx)
 			require.NoError(t, err)
 		}
 	}
@@ -933,18 +931,17 @@ func TestDomain_PruneOnWrite(t *testing.T) {
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
 	dc := d.MakeContext()
 	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	// keys are encodings of numbers 1..31
 	// each key changes value on every txNum which is multiple of the key
 	data := make(map[string][]uint64)
 
 	for txNum := uint64(1); txNum <= txCount; txNum++ {
-		d.SetTxNum(txNum)
+		dc.SetTxNum(txNum)
 		for keyNum := uint64(1); keyNum <= keysCount; keyNum++ {
 			if keyNum == txNum%d.aggregationStep {
 				continue
@@ -953,7 +950,7 @@ func TestDomain_PruneOnWrite(t *testing.T) {
 			var v [8]byte
 			binary.BigEndian.PutUint64(k[:], keyNum)
 			binary.BigEndian.PutUint64(v[:], txNum)
-			err = d.Put(k[:], nil, v[:], tx)
+			err = dc.Put(k[:], nil, v[:], tx)
 			require.NoError(t, err)
 
 			list, ok := data[fmt.Sprintf("%d", keyNum)]
@@ -968,13 +965,13 @@ func TestDomain_PruneOnWrite(t *testing.T) {
 				continue
 			}
 			step--
-			err = d.Rotate().Flush(ctx, tx)
+			err = dc.Rotate().Flush(ctx, tx)
 			require.NoError(t, err)
 
 			collateAndMergeOnce(t, d, tx, step)
 		}
 	}
-	err = d.Rotate().Flush(ctx, tx)
+	err = dc.Rotate().Flush(ctx, tx)
 	require.NoError(t, err)
 	dc.Close()
 
@@ -1060,16 +1057,14 @@ func TestDomain_CollationBuildInMem(t *testing.T) {
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
+	dc := d.MakeContext()
+	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	var preval1, preval2, preval3 []byte
 	maxTx := uint64(10000)
 	d.aggregationStep = maxTx
-
-	dctx := d.MakeContext()
-	defer dctx.Close()
 
 	l := []byte("asd9s9af0afa9sfh9afha")
 
@@ -1078,20 +1073,20 @@ func TestDomain_CollationBuildInMem(t *testing.T) {
 		v2 := []byte(fmt.Sprintf("value2.%d", i))
 		s := []byte(fmt.Sprintf("longstorage2.%d", i))
 
-		d.SetTxNum(uint64(i))
-		err = d.PutWithPrev([]byte("key1"), nil, v1, preval1)
+		dc.SetTxNum(uint64(i))
+		err = dc.PutWithPrev([]byte("key1"), nil, v1, preval1)
 		require.NoError(t, err)
 
-		err = d.PutWithPrev([]byte("key2"), nil, v2, preval2)
+		err = dc.PutWithPrev([]byte("key2"), nil, v2, preval2)
 		require.NoError(t, err)
 
-		err = d.PutWithPrev([]byte("key3"), l, s, preval3)
+		err = dc.PutWithPrev([]byte("key3"), l, s, preval3)
 		require.NoError(t, err)
 
 		preval1, preval2, preval3 = v1, v2, s
 	}
 
-	err = d.Rotate().Flush(ctx, tx)
+	err = dc.Rotate().Flush(ctx, tx)
 	require.NoError(t, err)
 
 	c, err := d.collate(ctx, 0, 0, maxTx, tx)
@@ -1149,10 +1144,11 @@ func TestDomainContext_IteratePrefixAgain(t *testing.T) {
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	d.SetTx(tx)
 	d.historyLargeValues = true
-	d.StartWrites()
-	defer d.FinishWrites()
+	dc := d.MakeContext()
+	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	key := make([]byte, 20)
@@ -1181,17 +1177,18 @@ func TestDomainContext_IteratePrefixAgain(t *testing.T) {
 		}
 
 		values[hex.EncodeToString(common.Append(key, loc))] = common.Copy(value)
-		err := d.PutWithPrev(key, loc, value, nil)
+		err := dc.PutWithPrev(key, loc, value, nil)
 		require.NoError(t, err)
 	}
-	err = d.Rotate().Flush(context.Background(), tx)
+	err = dc.Rotate().Flush(context.Background(), tx)
 	require.NoError(t, err)
+	dc.Close()
 
-	dctx := d.MakeContext()
-	defer dctx.Close()
+	dc = d.MakeContext()
+	defer dc.Close()
 
 	counter := 0
-	err = dctx.IteratePrefix(tx, other, func(kx, vx []byte) error {
+	err = dc.IteratePrefix(tx, other, func(kx, vx []byte) error {
 		if !bytes.HasPrefix(kx, other) {
 			return nil
 		}
@@ -1203,7 +1200,7 @@ func TestDomainContext_IteratePrefixAgain(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-	err = dctx.IteratePrefix(tx, first, func(kx, vx []byte) error {
+	err = dc.IteratePrefix(tx, first, func(kx, vx []byte) error {
 		if !bytes.HasPrefix(kx, first) {
 			return nil
 		}
@@ -1227,11 +1224,11 @@ func TestDomainContext_IteratePrefix(t *testing.T) {
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	d.SetTx(tx)
-
 	d.historyLargeValues = true
-	d.StartWrites()
-	defer d.FinishWrites()
+	dc := d.MakeContext()
+	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	key := make([]byte, 20)
@@ -1248,10 +1245,10 @@ func TestDomainContext_IteratePrefix(t *testing.T) {
 
 		values[hex.EncodeToString(key)] = common.Copy(value)
 
-		err := d.PutWithPrev(key, nil, value, nil)
+		err := dc.PutWithPrev(key, nil, value, nil)
 		require.NoError(t, err)
 	}
-	err = d.Rotate().Flush(context.Background(), tx)
+	err = dc.Rotate().Flush(context.Background(), tx)
 	require.NoError(t, err)
 
 	{
@@ -1296,8 +1293,6 @@ func TestDomainContext_getFromFiles(t *testing.T) {
 	require.NoError(t, err)
 	defer tx.Rollback()
 
-	d.SetTx(tx)
-	d.StartWrites()
 	d.aggregationStep = 20
 
 	keys, vals := generateInputData(t, 8, 16, 100)
@@ -1306,16 +1301,19 @@ func TestDomainContext_getFromFiles(t *testing.T) {
 	var i int
 	values := make(map[string][][]byte)
 
-	mc := d.MakeContext()
+	dc := d.MakeContext()
+	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	var prev []byte
 	for i = 0; i < len(vals); i++ {
-		d.SetTxNum(uint64(i))
+		dc.SetTxNum(uint64(i))
 
 		for j := 0; j < len(keys); j++ {
 			buf := types.EncodeAccountBytesV3(uint64(i), uint256.NewInt(uint64(i*100_000)), nil, 0)
 
-			err = d.PutWithPrev(keys[j], nil, buf, prev)
+			err = dc.PutWithPrev(keys[j], nil, buf, prev)
 			require.NoError(t, err)
 			prev = buf
 
@@ -1324,9 +1322,9 @@ func TestDomainContext_getFromFiles(t *testing.T) {
 			}
 		}
 	}
-	err = d.Rotate().Flush(context.Background(), tx)
+	err = dc.Rotate().Flush(context.Background(), tx)
 	require.NoError(t, err)
-	defer mc.Close()
+	defer dc.Close()
 
 	ctx := context.Background()
 	ps := background.NewProgressSet()
@@ -1338,7 +1336,7 @@ func TestDomainContext_getFromFiles(t *testing.T) {
 
 		fmt.Printf("Step %d [%d,%d)\n", step, txFrom, txTo)
 
-		collation, err := d.collate(ctx, step, txFrom, txTo, d.tx)
+		collation, err := d.collate(ctx, step, txFrom, txTo, tx)
 		require.NoError(t, err)
 
 		sf, err := d.buildFiles(ctx, step, collation, ps)
@@ -1365,8 +1363,8 @@ func TestDomainContext_getFromFiles(t *testing.T) {
 		dc.Close()
 	}
 
-	mc = d.MakeContext()
-	defer mc.Close()
+	dc = d.MakeContext()
+	defer dc.Close()
 
 	for key, bufs := range values {
 		var i int
@@ -1374,7 +1372,7 @@ func TestDomainContext_getFromFiles(t *testing.T) {
 		beforeTx := d.aggregationStep
 		for i = 0; i < len(bufs); i++ {
 			ks, _ := hex.DecodeString(key)
-			val, err := mc.GetAsOf(ks, beforeTx, tx)
+			val, err := dc.GetAsOf(ks, beforeTx, tx)
 			require.NoError(t, err)
 			require.EqualValuesf(t, bufs[i], val, "key %s, tx %d", key, beforeTx)
 			beforeTx += d.aggregationStep
@@ -1390,35 +1388,35 @@ func TestDomain_Unwind(t *testing.T) {
 	tx, err := db.BeginRw(ctx)
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
 
 	var preval1, preval2 []byte
 	maxTx := uint64(16)
 	d.aggregationStep = maxTx
 
-	dctx := d.MakeContext()
-	defer dctx.Close()
+	dc := d.MakeContext()
+	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	for i := 0; i < int(maxTx); i++ {
 		v1 := []byte(fmt.Sprintf("value1.%d", i))
 		v2 := []byte(fmt.Sprintf("value2.%d", i))
 
-		d.SetTxNum(uint64(i))
-		err = d.PutWithPrev([]byte("key1"), nil, v1, preval1)
+		dc.SetTxNum(uint64(i))
+		err = dc.PutWithPrev([]byte("key1"), nil, v1, preval1)
 		require.NoError(t, err)
 
-		err = d.PutWithPrev([]byte("key2"), nil, v2, preval2)
+		err = dc.PutWithPrev([]byte("key2"), nil, v2, preval2)
 		require.NoError(t, err)
 
 		preval1, preval2 = v1, v2
 	}
 
-	err = d.Rotate().Flush(ctx, tx)
+	err = dc.Rotate().Flush(ctx, tx)
 	require.NoError(t, err)
+	dc.Close()
 
-	dc := d.MakeContext()
+	dc = d.MakeContext()
 	err = dc.Unwind(ctx, tx, 0, 5, maxTx, math.MaxUint64, nil)
 	require.NoError(t, err)
 	dc.Close()
@@ -1513,9 +1511,10 @@ func TestDomain_GetAfterAggregation(t *testing.T) {
 
 	UseBpsTree = true
 
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
+	dc := d.MakeContext()
+	defer d.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	keySize1 := uint64(length.Addr)
 	keySize2 := uint64(length.Addr + length.Hash)
@@ -1528,14 +1527,14 @@ func TestDomain_GetAfterAggregation(t *testing.T) {
 	for key, updates := range data {
 		p := []byte{}
 		for i := 0; i < len(updates); i++ {
-			d.SetTxNum(updates[i].txNum)
-			d.PutWithPrev([]byte(key), nil, updates[i].value, p)
+			dc.SetTxNum(updates[i].txNum)
+			dc.PutWithPrev([]byte(key), nil, updates[i].value, p)
 			p = common.Copy(updates[i].value)
 		}
 	}
-	d.SetTxNum(totalTx)
+	dc.SetTxNum(totalTx)
 
-	err = d.Rotate().Flush(context.Background(), tx)
+	err = dc.Rotate().Flush(context.Background(), tx)
 	require.NoError(t, err)
 
 	// aggregate
@@ -1545,9 +1544,9 @@ func TestDomain_GetAfterAggregation(t *testing.T) {
 	tx, err = db.BeginRw(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
+	dc.Close()
 
-	dc := d.MakeContext()
+	dc = d.MakeContext()
 	defer dc.Close()
 
 	kc := 0
@@ -1585,9 +1584,10 @@ func TestDomain_PruneAfterAggregation(t *testing.T) {
 
 	UseBpsTree = true
 
-	d.SetTx(tx)
-	d.StartWrites()
-	defer d.FinishWrites()
+	dc := d.MakeContext()
+	defer dc.Close()
+	dc.StartWrites()
+	defer dc.FinishWrites()
 
 	keySize1 := uint64(length.Addr)
 	keySize2 := uint64(length.Addr + length.Hash)
@@ -1600,14 +1600,14 @@ func TestDomain_PruneAfterAggregation(t *testing.T) {
 	for key, updates := range data {
 		p := []byte{}
 		for i := 0; i < len(updates); i++ {
-			d.SetTxNum(updates[i].txNum)
-			d.PutWithPrev([]byte(key), nil, updates[i].value, p)
+			dc.SetTxNum(updates[i].txNum)
+			dc.PutWithPrev([]byte(key), nil, updates[i].value, p)
 			p = common.Copy(updates[i].value)
 		}
 	}
-	d.SetTxNum(totalTx)
+	dc.SetTxNum(totalTx)
 
-	err = d.Rotate().Flush(context.Background(), tx)
+	err = dc.Rotate().Flush(context.Background(), tx)
 	require.NoError(t, err)
 
 	// aggregate
@@ -1618,9 +1618,9 @@ func TestDomain_PruneAfterAggregation(t *testing.T) {
 	tx, err = db.BeginRw(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback()
-	d.SetTx(tx)
+	dc.Close()
 
-	dc := d.MakeContext()
+	dc = d.MakeContext()
 	defer dc.Close()
 
 	prefixes := 0

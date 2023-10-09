@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	state2 "github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/spf13/cobra"
 
@@ -113,18 +114,15 @@ func requestDomains(chainDb, stateDb kv.RwDB, ctx context.Context, readDomain st
 	ac := agg.MakeContext()
 	defer ac.Close()
 
-	domains := agg.SharedDomains(ac)
-	defer agg.CloseSharedDomains()
-
 	stateTx, err := stateDb.BeginRw(ctx)
 	must(err)
 	defer stateTx.Rollback()
-
-	domains.SetTx(stateTx)
+	domains := state2.NewSharedDomains(ac, stateTx)
+	defer agg.Close()
 
 	r := state.NewReaderV4(stateTx.(*temporal.Tx))
 
-	_, err = domains.SeekCommitment(ctx, 0, math.MaxUint64)
+	_, err = domains.SeekCommitment(ctx, stateTx, 0, math.MaxUint64)
 	if err != nil && startTxNum != 0 {
 		return fmt.Errorf("failed to seek commitment to tx %d: %w", startTxNum, err)
 	}

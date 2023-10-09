@@ -329,19 +329,15 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 	var stateWriter state.StateWriter
 	var domains *state2.SharedDomains
 	if histV3 {
-		agg := tx.(*temporal.Tx).Agg()
 		ac := tx.(*temporal.Tx).AggCtx()
-
-		domains = agg.SharedDomains(ac)
-		defer agg.CloseSharedDomains()
-		domains.SetTx(tx)
-		defer domains.StartWrites().FinishWrites()
-		_, err := domains.SeekCommitment(ctx, 0, math.MaxUint64)
+		domains = state2.NewSharedDomains(ac, tx)
+		defer domains.Close()
+		_, err := domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
 		if err != nil {
 			return nil, err
 		}
 		stateReader = state.NewReaderV4(domains)
-		stateWriter = state.NewWriterV4(tx.(*temporal.Tx), domains)
+		stateWriter = state.NewWriterV4(domains)
 	}
 	txNum := -1
 	setBlockNum := func(blockNum uint64) {

@@ -256,7 +256,7 @@ func ExecV3(ctx context.Context,
 
 	blocksFreezeCfg := cfg.blockReader.FreezingCfg()
 	if (initialCycle || !useExternalTx) && blocksFreezeCfg.Produce {
-		log.Warn(fmt.Sprintf("[snapshots] db has steps amount: %s", agg.StepsRangeInDBAsStr(applyTx)))
+		log.Info(fmt.Sprintf("[snapshots] db has steps amount: %s", agg.StepsRangeInDBAsStr(applyTx)))
 		agg.BuildFilesInBackground(outputTxNum.Load())
 	}
 
@@ -267,9 +267,8 @@ func ExecV3(ctx context.Context,
 	var err error
 
 	// MA setio
-	doms := cfg.agg.SharedDomains(applyTx.(*temporal.Tx).AggCtx())
-	defer cfg.agg.CloseSharedDomains()
-	doms.SetTx(applyTx)
+	doms := state2.NewSharedDomains(applyTx.(*temporal.Tx).AggCtx(), applyTx)
+	defer doms.Close()
 	if applyTx != nil {
 		if dbg.DiscardHistory() {
 			doms.DiscardHistory()
@@ -277,7 +276,7 @@ func ExecV3(ctx context.Context,
 	}
 
 	rs := state.NewStateV3(doms, logger)
-	offsetFromBlockBeginning, err := doms.SeekCommitment(ctx, 0, math.MaxUint64)
+	offsetFromBlockBeginning, err := doms.SeekCommitment(ctx, applyTx, 0, math.MaxUint64)
 	if err != nil {
 		return err
 	}
@@ -846,11 +845,11 @@ Loop:
 							return err
 						}
 					}
-					doms.StartWrites()
 					applyWorker.ResetTx(applyTx)
 					nc := applyTx.(*temporal.Tx).AggCtx()
 					doms.SetTx(applyTx)
 					doms.SetContext(nc)
+					doms.StartWrites()
 
 					return nil
 				}(); err != nil {
