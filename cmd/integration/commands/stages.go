@@ -1462,7 +1462,11 @@ func printAllStages(db kv.RoDB, ctx context.Context, logger log.Logger) error {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("rl: %s\n", rl)
+	for _, rll := range rl {
+		if rll.Used > 1000 {
+			fmt.Printf("rl: %s\n", rll)
+		}
+	}
 
 	sn, borSn, agg := allSnapshots(ctx, db, logger)
 	defer sn.Close()
