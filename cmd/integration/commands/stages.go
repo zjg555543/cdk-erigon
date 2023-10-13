@@ -1452,6 +1452,25 @@ func stageTxLookup(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	return tx.Commit()
 }
 
+var rlimit2str = map[int32]string{
+	process.RLIMIT_CPU:        "cpu",
+	process.RLIMIT_FSIZE:      "fsize",
+	process.RLIMIT_DATA:       "data",
+	process.RLIMIT_STACK:      "stack",
+	process.RLIMIT_CORE:       "core",
+	process.RLIMIT_RSS:        "rss",
+	process.RLIMIT_NPROC:      "nproc",
+	process.RLIMIT_NOFILE:     "nofile",
+	process.RLIMIT_MEMLOCK:    "memlock",
+	process.RLIMIT_AS:         "as",
+	process.RLIMIT_LOCKS:      "locks",
+	process.RLIMIT_SIGPENDING: "sigpending",
+	process.RLIMIT_MSGQUEUE:   "msgqueue",
+	process.RLIMIT_NICE:       "nice",
+	process.RLIMIT_RTPRIO:     "prtrio",
+	process.RLIMIT_RTTIME:     "rttime",
+}
+
 func printAllStages(db kv.RoDB, ctx context.Context, logger log.Logger) error {
 	checkPid := os.Getpid()
 	pr, err := process.NewProcess(int32(checkPid))
@@ -1463,9 +1482,14 @@ func printAllStages(db kv.RoDB, ctx context.Context, logger log.Logger) error {
 		panic(err)
 	}
 	for _, rll := range rl {
-		if rll.Used > 1000 {
-			fmt.Printf("rl: %s\n", rll)
+		if rll.Used < 1000 {
+			continue
 		}
+		//switch rll.Resource {
+		//case process.RLIMIT_RSS, process.RLIMIT_RSS:
+		fmt.Printf("%s: hard=%s, soft=%s, used=%s\n", rlimit2str[rll.Resource], datasize.ByteSize(rll.Hard), datasize.ByteSize(rll.Soft), datasize.ByteSize(rll.Used))
+		//default:
+		//}
 	}
 
 	sn, borSn, agg := allSnapshots(ctx, db, logger)
