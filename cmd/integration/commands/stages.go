@@ -1458,7 +1458,7 @@ func printAllStages(db kv.RoDB, ctx context.Context, logger log.Logger) error {
 	if err != nil {
 		panic(err)
 	}
-	rl, err := pr.Rlimit()
+	rl, err := pr.RlimitUsage(true)
 	if err != nil {
 		panic(err)
 	}
