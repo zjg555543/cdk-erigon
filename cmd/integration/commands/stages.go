@@ -1487,7 +1487,7 @@ func printAllStages(db kv.RoDB, ctx context.Context, logger log.Logger) error {
 		}
 		//switch rll.Resource {
 		//case process.RLIMIT_RSS, process.RLIMIT_RSS:
-		fmt.Printf("%s: hard=%s, soft=%s, used=%s, %d%%\n", rlimit2str[rll.Resource], datasize.ByteSize(rll.Hard).String(), datasize.ByteSize(rll.Soft).String(), datasize.ByteSize(rll.Used).String(), rll.Used/rll.Hard)
+		fmt.Printf("%s: hard=%s, soft=%s, used=%s, %d%%\n", rlimit2str[rll.Resource], datasize.ByteSize(rll.Hard).String(), datasize.ByteSize(rll.Soft).String(), datasize.ByteSize(rll.Used).String(), rll.Used/rll.Soft)
 		//default:
 		//}
 	}
