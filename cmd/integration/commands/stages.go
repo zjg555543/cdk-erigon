@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/c2h5oh/datasize"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/ledgerwatch/secp256k1"
+	"github.com/shirou/gopsutil/v3/process"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
 
@@ -1451,10 +1453,22 @@ func stageTxLookup(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 }
 
 func printAllStages(db kv.RoDB, ctx context.Context, logger log.Logger) error {
+	checkPid := os.Getpid()
+	pr, err := process.NewProcess(int32(checkPid))
+	if err != nil {
+		panic(err)
+	}
+	rl, err := pr.Rlimit()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("rl: %s\n", rl)
+
 	sn, borSn, agg := allSnapshots(ctx, db, logger)
 	defer sn.Close()
 	defer borSn.Close()
 	defer agg.Close()
+
 	return db.View(ctx, func(tx kv.Tx) error { return printStages(tx, sn, agg) })
 }
 
