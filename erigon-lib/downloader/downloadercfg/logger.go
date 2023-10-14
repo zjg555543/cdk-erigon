@@ -64,6 +64,7 @@ func (b adapterHandler) Handle(r lg.Record) {
 		str := r.String()
 		skip := strings.Contains(str, "completion change") ||
 			strings.Contains(str, "set torrent=") ||
+			strings.Contains(str, "all initial dials failed") ||
 			strings.Contains(str, "local and remote peer ids are the same") ||
 			strings.Contains(str, "connection at") || strings.Contains(str, "don't want conns right now") ||
 			strings.Contains(str, "is mutually complete") ||
