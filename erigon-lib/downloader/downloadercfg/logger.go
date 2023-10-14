@@ -61,15 +61,18 @@ func (b adapterHandler) Handle(r lg.Record) {
 
 	switch lvl {
 	case lg.Debug:
-		log.Debug("[downloader] " + r.String())
-	case lg.Info:
 		str := r.String()
-		if /*strings.Contains(str, "EOF") ||
-		strings.Contains(str, "banning ip <nil>") ||
-		strings.Contains(str, "spurious timer") ||*/
-		strings.Contains(str, "completion change") { // suppress useless errors
+		if strings.Contains(str, "completion change") {
 			break
 		}
+		log.Debug(str)
+	case lg.Info:
+		str := r.String()
+		//if strings.Contains(str, "EOF") ||
+		//	strings.Contains(str, "banning ip <nil>") ||
+		//	strings.Contains(str, "spurious timer") { // suppress useless errors
+		//	break
+		//}
 
 		log.Info(str)
 	case lg.Warning:
