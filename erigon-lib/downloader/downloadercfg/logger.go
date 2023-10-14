@@ -61,7 +61,7 @@ func (b adapterHandler) Handle(r lg.Record) {
 
 	switch lvl {
 	case lg.Debug:
-		log.Info("[downloader] " + r.String())
+		log.Debug("[downloader] " + r.String())
 	case lg.Info:
 		str := r.String()
 		if /*strings.Contains(str, "EOF") ||
