@@ -62,21 +62,27 @@ func (b adapterHandler) Handle(r lg.Record) {
 	switch lvl {
 	case lg.Debug:
 		str := r.String()
-		if strings.Contains(str, "completion change") {
+		skip := strings.Contains(str, "completion change") ||
+			strings.Contains(str, "connection reset by peer") ||
+			strings.Contains(str, "broken pipe")
+		if skip {
 			break
 		}
 		log.Debug(str)
 	case lg.Info:
 		str := r.String()
-		if strings.Contains(str, "EOF") {
-			//strings.Contains(str, "banning ip <nil>") ||
-			//strings.Contains(str, "spurious timer") { // suppress useless errors
+		skip := strings.Contains(str, "EOF")
+		//strings.Contains(str, "banning ip <nil>") ||
+		//strings.Contains(str, "spurious timer") { // suppress useless errors
+		if skip {
 			break
 		}
 
 		log.Info(str)
 	case lg.Warning:
 		str := r.String()
+		skip := false
+
 		//if strings.Contains(str, "could not find offer for id") { // suppress useless errors
 		//	break
 		//}
@@ -102,16 +108,24 @@ func (b adapterHandler) Handle(r lg.Record) {
 		//	break
 		//}
 
+		if skip {
+			break
+		}
 		log.Warn(str)
 	case lg.Error:
 		str := r.String()
+		skip := false
 		//if strings.Contains(str, "EOF") { // suppress useless errors
 		//	break
 		//}
 
+		if skip {
+			break
+		}
 		log.Error(str)
 	case lg.Critical:
 		str := r.String()
+		skip := false
 		//if strings.Contains(str, "EOF") { // suppress useless errors
 		//	break
 		//}
@@ -122,6 +136,9 @@ func (b adapterHandler) Handle(r lg.Record) {
 		//	break
 		//}
 
+		if skip {
+			break
+		}
 		log.Error(str)
 	default:
 		log.Info("[downloader] "+r.String(), "torrent_log_type", "unknown", "or", lvl.LogString())
