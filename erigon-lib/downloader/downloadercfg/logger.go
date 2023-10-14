@@ -64,7 +64,7 @@ func (b adapterHandler) Handle(r lg.Record) {
 		str := r.String()
 		skip := strings.Contains(str, "completion change") ||
 			strings.Contains(str, "set torrent=") ||
-			strings.Contains(str, "accepted \"tcp\" connection at") ||
+			strings.Contains(str, "connection at") ||
 			strings.Contains(str, "is mutually complete") ||
 			strings.Contains(str, "sending PEX message") ||
 			strings.Contains(str, "announce to") || strings.Contains(str, "announcing to") ||
