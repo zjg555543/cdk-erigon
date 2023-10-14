@@ -62,13 +62,13 @@ func (b adapterHandler) Handle(r lg.Record) {
 	switch lvl {
 	case lg.Debug:
 		str := r.String()
-		skip := strings.Contains(str, "completion change") ||
+		skip := strings.Contains(str, "completion change") || strings.Contains(str, "hashed piece") ||
 			strings.Contains(str, "set torrent=") ||
 			strings.Contains(str, "all initial dials failed") ||
 			strings.Contains(str, "local and remote peer ids are the same") ||
 			strings.Contains(str, "connection at") || strings.Contains(str, "don't want conns right now") ||
 			strings.Contains(str, "is mutually complete") ||
-			strings.Contains(str, "sending PEX message") ||
+			strings.Contains(str, "sending PEX message") || strings.Contains(str, "received pex message") ||
 			strings.Contains(str, "announce to") || strings.Contains(str, "announcing to") ||
 			strings.Contains(str, "EOF") || strings.Contains(str, "closed") || strings.Contains(str, "connection reset by peer") || strings.Contains(str, "use of closed network connection") || strings.Contains(str, "broken pipe") ||
 			strings.Contains(str, "inited with remoteAddr")
