@@ -20,8 +20,8 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.12.1
 	github.com/VictoriaMetrics/metrics v1.23.1
 	github.com/alecthomas/kong v0.8.0
-	github.com/anacrolix/sync v0.4.1-0.20230926072150-b8cd7cfb92d0
-	github.com/anacrolix/torrent v1.52.6-0.20231010053406-366c6a0baafd
+	github.com/anacrolix/sync v0.5.1
+	github.com/anacrolix/torrent v1.52.6-0.20231014041252-4a31521b7424
 	github.com/benesch/cgosymbolizer v0.0.0-20190515212042-bec6fe6e597b
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
@@ -82,7 +82,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	github.com/thomaso-mirodin/intmath v0.0.0-20160323211736-5dc6d854e46e
-	github.com/tidwall/btree v1.6.0
+	github.com/tidwall/btree v1.7.0
 	github.com/ugorji/go/codec v1.1.13
 	github.com/ugorji/go/codec/codecgen v1.1.13
 	github.com/urfave/cli/v2 v2.25.7
@@ -120,17 +120,17 @@ require (
 	github.com/anacrolix/log v0.14.3-0.20230823030427-4b296d71a6b4 // indirect
 	github.com/anacrolix/missinggo v1.3.0 // indirect
 	github.com/anacrolix/missinggo/perf v1.0.0 // indirect
-	github.com/anacrolix/missinggo/v2 v2.7.2 // indirect
+	github.com/anacrolix/missinggo/v2 v2.7.3 // indirect
 	github.com/anacrolix/mmsg v1.0.0 // indirect
 	github.com/anacrolix/multiless v0.3.1-0.20221221005021-2d12701f83f7 // indirect
 	github.com/anacrolix/stm v0.5.0 // indirect
-	github.com/anacrolix/upnp v0.1.3-0.20220123035249-922794e51c96 // indirect
+	github.com/anacrolix/upnp v0.1.3 // indirect
 	github.com/anacrolix/utp v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/benbjohnson/immutable v0.4.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.9.0 // indirect
+	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/bradfitz/iter v0.0.0-20191230175014-e8f45d346db8 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -214,7 +214,7 @@ require (
 	github.com/pion/datachannel v1.5.5 // indirect
 	github.com/pion/dtls/v2 v2.2.7 // indirect
 	github.com/pion/ice/v2 v2.3.11 // indirect
-	github.com/pion/interceptor v0.1.21 // indirect
+	github.com/pion/interceptor v0.1.22 // indirect
 	github.com/pion/logging v0.2.2 // indirect
 	github.com/pion/mdns v0.0.9 // indirect
 	github.com/pion/rtcp v1.2.10 // indirect
