@@ -18,6 +18,7 @@ package downloadercfg
 
 import (
 	"fmt"
+	"strings"
 
 	lg "github.com/anacrolix/log"
 	"github.com/ledgerwatch/log/v3"
@@ -63,11 +64,12 @@ func (b adapterHandler) Handle(r lg.Record) {
 		log.Info("[downloader] " + r.String())
 	case lg.Info:
 		str := r.String()
-		//if strings.Contains(str, "EOF") ||
-		//	strings.Contains(str, "spurious timer") ||
-		//	strings.Contains(str, "banning ip <nil>") { // suppress useless errors
-		//	break
-		//}
+		if /*strings.Contains(str, "EOF") ||
+		strings.Contains(str, "banning ip <nil>") ||
+		strings.Contains(str, "spurious timer") ||*/
+		strings.Contains(str, "completion change") { // suppress useless errors
+			break
+		}
 
 		log.Info(str)
 	case lg.Warning:
