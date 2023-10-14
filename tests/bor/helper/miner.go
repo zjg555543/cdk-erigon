@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"math/big"
@@ -66,7 +65,7 @@ func NewNodeConfig() *nodecfg.Config {
 }
 
 // InitNode initializes a node with the given genesis file and config
-func InitMiner(ctx context.Context, genesis *types.Genesis, privKey *ecdsa.PrivateKey, withoutHeimdall bool, minerID int) (*node.Node, *eth.Ethereum, error) {
+func InitMiner(genesis *types.Genesis, privKey *ecdsa.PrivateKey, withoutHeimdall bool, minerID int) (*node.Node, *eth.Ethereum, error) {
 	// Define the basic configurations for the Ethereum node
 	ddir, _ := os.MkdirTemp("", "")
 
@@ -93,7 +92,7 @@ func InitMiner(ctx context.Context, genesis *types.Genesis, privKey *ecdsa.Priva
 		MdbxDBSizeLimit: 64 * datasize.MB,
 	}
 
-	stack, err := node.New(ctx, nodeCfg, logger)
+	stack, err := node.New(nodeCfg, logger)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -144,7 +143,6 @@ func InitMiner(ctx context.Context, genesis *types.Genesis, privKey *ecdsa.Priva
 		Snapshot:         ethconfig.BlocksFreezing{NoDownloader: true},
 		P2PEnabled:       true,
 		StateStream:      true,
-		HistoryV3:        ethconfig.EnableHistoryV4InTest,
 	}
 	ethCfg.TxPool.DBDir = nodeCfg.Dirs.TxPool
 	ethCfg.DeprecatedTxPool.CommitEvery = 15 * time.Second

@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/ledgerwatch/erigon-lib/kv/iter"
@@ -291,9 +290,6 @@ type RwDB interface {
 	BeginRw(ctx context.Context) (RwTx, error)
 	BeginRwNosync(ctx context.Context) (RwTx, error)
 }
-type HasRwKV interface {
-	RwKV() RwDB
-}
 
 type StatelessReadTx interface {
 	Getter
@@ -306,6 +302,8 @@ type StatelessReadTx interface {
 	// Sequence changes become visible outside the current write transaction after it is committed, and discarded on abort.
 	// Starts from 0.
 	ReadSequence(table string) (uint64, error)
+
+	BucketSize(table string) (uint64, error)
 }
 
 type StatelessWriteTx interface {
@@ -339,16 +337,6 @@ type StatelessWriteTx interface {
 type StatelessRwTx interface {
 	StatelessReadTx
 	StatelessWriteTx
-}
-
-// PendingMutations in-memory storage of changes
-// Later they can either be flushed to the database or abandon
-type PendingMutations interface {
-	StatelessRwTx
-	// Flush all in-memory data into `tx`
-	Flush(ctx context.Context, tx RwTx) error
-	Close()
-	BatchSize() int
 }
 
 // Tx
@@ -405,10 +393,6 @@ type Tx interface {
 	ForEach(table string, fromPrefix []byte, walker func(k, v []byte) error) error
 	ForPrefix(table string, prefix []byte, walker func(k, v []byte) error) error
 	ForAmount(table string, prefix []byte, amount uint32, walker func(k, v []byte) error) error
-
-	// Pointer to the underlying C transaction handle (e.g. *C.MDBX_txn)
-	CHandle() unsafe.Pointer
-	BucketSize(table string) (uint64, error)
 }
 
 // RwTx
@@ -535,12 +519,9 @@ type (
 	InvertedIdx string
 )
 
-type TemporalGetter interface {
-	DomainGet(name Domain, k, k2 []byte) (v []byte, err error)
-}
 type TemporalTx interface {
 	Tx
-	TemporalGetter
+	DomainGet(name Domain, k, k2 []byte) (v []byte, ok bool, err error)
 	DomainGetAsOf(name Domain, k, k2 []byte, ts uint64) (v []byte, ok bool, err error)
 	HistoryGet(name History, k []byte, ts uint64) (v []byte, ok bool, err error)
 
@@ -554,22 +535,4 @@ type TemporalTx interface {
 	IndexRange(name InvertedIdx, k []byte, fromTs, toTs int, asc order.By, limit int) (timestamps iter.U64, err error)
 	HistoryRange(name History, fromTs, toTs int, asc order.By, limit int) (it iter.KV, err error)
 	DomainRange(name Domain, fromKey, toKey []byte, ts uint64, asc order.By, limit int) (it iter.KV, err error)
-}
-type TemporalCommitment interface {
-	ComputeCommitment(ctx context.Context, saveStateAfter, trace bool) (rootHash []byte, err error)
-}
-type TemporalPutDel interface {
-	// DomainPut
-	// Optimizations:
-	//   - user can prvide `prevVal != nil` - then it will not read prev value from storage
-	//   - user can append k2 into k1, then underlying methods will not preform append
-	//   - if `val == nil` it will call DomainDel
-	DomainPut(domain Domain, k1, k2 []byte, val, prevVal []byte) error
-
-	// DomainDel
-	// Optimizations:
-	//   - user can prvide `prevVal != nil` - then it will not read prev value from storage
-	//   - user can append k2 into k1, then underlying methods will not preform append
-	//   - if `val == nil` it will call DomainDel
-	DomainDel(domain Domain, k1, k2 []byte, prevVal []byte) error
 }

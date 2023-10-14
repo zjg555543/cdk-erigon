@@ -41,7 +41,7 @@ func OpenPair(from, to string, label kv.Label, targetPageSize datasize.ByteSize,
 		Label(label).
 		PageSize(targetPageSize.Bytes()).
 		MapSize(datasize.ByteSize(info.Geo.Upper)).
-		GrowthStep(4 * datasize.GB).
+		GrowthStep(8 * datasize.GB).
 		Flags(func(flags uint) uint { return flags | mdbx.WriteMap }).
 		WithTableCfg(func(_ kv.TableCfg) kv.TableCfg { return kv.TablesCfgByLabel(label) }).
 		MustOpen()

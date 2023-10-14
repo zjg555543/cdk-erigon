@@ -61,9 +61,8 @@ type HttpCfg struct {
 	LogDirVerbosity string
 	LogDirPath      string
 
-	BatchLimit          int  // Maximum number of requests in a batch
-	ReturnDataLimit     int  // Maximum number of bytes returned from calls (like eth_call)
-	AllowUnprotectedTxs bool // Whether to allow non EIP-155 protected transactions  txs over RPC
+	BatchLimit      int // Maximum number of requests in a batch
+	ReturnDataLimit int // Maximum number of bytes returned from calls (like eth_call)
 
 	// Ots API
 	OtsMaxPageSize uint64

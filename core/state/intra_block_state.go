@@ -675,7 +675,6 @@ func (sdb *IntraBlockState) FinalizeTx(chainRules *chain.Rules, stateWriter Stat
 			continue
 		}
 
-		//fmt.Printf("FinalizeTx: %x, balance=%d %T\n", addr, so.data.Balance.Uint64(), stateWriter)
 		if err := updateAccount(chainRules.IsSpuriousDragon, chainRules.IsAura, stateWriter, addr, so, true); err != nil {
 			return err
 		}
@@ -743,7 +742,7 @@ func (sdb *IntraBlockState) SetTxContext(thash, bhash libcommon.Hash, ti int) {
 
 // no not lock
 func (sdb *IntraBlockState) clearJournalAndRefund() {
-	sdb.journal.Reset()
+	sdb.journal = newJournal()
 	sdb.validRevisions = sdb.validRevisions[:0]
 	sdb.refund = 0
 }

@@ -28,20 +28,18 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/erigontech/mdbx-go/mdbx"
 	stack2 "github.com/go-stack/stack"
-	"github.com/ledgerwatch/log/v3"
-	"github.com/pbnjay/memory"
-	"golang.org/x/exp/maps"
-	"golang.org/x/sync/semaphore"
-
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/iter"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
+	"github.com/ledgerwatch/log/v3"
+	"github.com/pbnjay/memory"
+	"golang.org/x/exp/maps"
+	"golang.org/x/sync/semaphore"
 )
 
 const NonExistingDBI kv.DBI = 999_999_999
@@ -145,7 +143,7 @@ func (opts MdbxOpts) InMem(tmpDir string) MdbxOpts {
 	}
 	opts.path = path
 	opts.inMem = true
-	opts.flags = mdbx.UtterlyNoSync | mdbx.NoMetaSync | mdbx.NoMemInit
+	opts.flags = mdbx.UtterlyNoSync | mdbx.NoMetaSync | mdbx.LifoReclaim | mdbx.NoMemInit
 	opts.growthStep = 2 * datasize.MB
 	opts.mapSize = 512 * datasize.MB
 	opts.shrinkThreshold = 0 // disable
@@ -585,7 +583,6 @@ func (db *MdbxKV) AllTables() kv.TableCfg {
 	return db.buckets
 }
 
-func (tx *MdbxTx) IsRo() bool     { return tx.readOnly }
 func (tx *MdbxTx) ViewID() uint64 { return tx.tx.ID() }
 
 func (tx *MdbxTx) CollectMetrics() {
@@ -635,16 +632,9 @@ func (tx *MdbxTx) CollectMetrics() {
 }
 
 // ListBuckets - all buckets stored as keys of un-named bucket
-func (tx *MdbxTx) ListBuckets() ([]string, error) { return tx.tx.ListDBI() }
-
-func (tx *MdbxTx) WarmupDB(force bool) error {
-	if force {
-		return tx.tx.EnvWarmup(mdbx.WarmupForce|mdbx.WarmupOomSafe, time.Hour)
-	}
-	return tx.tx.EnvWarmup(mdbx.WarmupDefault, time.Hour)
+func (tx *MdbxTx) ListBuckets() ([]string, error) {
+	return tx.tx.ListDBI()
 }
-func (tx *MdbxTx) LockDBInRam() error     { return tx.tx.EnvWarmup(mdbx.WarmupLock, time.Hour) }
-func (tx *MdbxTx) UnlockDBFromRam() error { return tx.tx.EnvWarmup(mdbx.WarmupRelease, time.Hour) }
 
 func (db *MdbxKV) View(ctx context.Context, f func(tx kv.Tx) error) (err error) {
 	// can't use db.env.View method - because it calls commit for read transactions - it conflicts with write transactions.
@@ -1369,12 +1359,12 @@ func (c *MdbxCursor) Put(key []byte, value []byte) error {
 	b := c.bucketCfg
 	if b.AutoDupSortKeysConversion {
 		if err := c.putDupSort(key, value); err != nil {
-			return fmt.Errorf("label: %s, table: %s, err: %w", c.tx.db.opts.label, c.bucketName, err)
+			return err
 		}
 		return nil
 	}
 	if err := c.put(key, value); err != nil {
-		return fmt.Errorf("label: %s, table: %s, err: %w", c.tx.db.opts.label, c.bucketName, err)
+		return fmt.Errorf("table: %s, err: %w", c.bucketName, err)
 	}
 	return nil
 }
@@ -1383,7 +1373,7 @@ func (c *MdbxCursor) putDupSort(key []byte, value []byte) error {
 	b := c.bucketCfg
 	from, to := b.DupFromLen, b.DupToLen
 	if len(key) != from && len(key) >= to {
-		return fmt.Errorf("label: %s, table: %s, can have keys of len==%d and len<%d. key: %x,%d", c.tx.db.opts.label, c.bucketName, from, to, key, len(key))
+		return fmt.Errorf("put dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x,%d", c.bucketName, from, to, key, len(key))
 	}
 
 	if len(key) != from {
@@ -1392,7 +1382,7 @@ func (c *MdbxCursor) putDupSort(key []byte, value []byte) error {
 			if mdbx.IsKeyExists(err) {
 				return c.putCurrent(key, value)
 			}
-			return fmt.Errorf("label: %s, putNoOverwrite, bucket: %s, key: %x, val: %x, err: %w", c.tx.db.opts.label, c.bucketName, key, value, err)
+			return fmt.Errorf("putNoOverwrite, bucket: %s, key: %x, val: %x, err: %w", c.bucketName, key, value, err)
 		}
 		return nil
 	}
@@ -1455,7 +1445,7 @@ func (c *MdbxCursor) Append(k []byte, v []byte) error {
 		b := c.bucketCfg
 		from, to := b.DupFromLen, b.DupToLen
 		if len(k) != from && len(k) >= to {
-			return fmt.Errorf("label: %s, append dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x,%d", c.tx.db.opts.label, c.bucketName, from, to, k, len(k))
+			return fmt.Errorf("append dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x,%d", c.bucketName, from, to, k, len(k))
 		}
 
 		if len(k) == from {
@@ -1466,13 +1456,13 @@ func (c *MdbxCursor) Append(k []byte, v []byte) error {
 
 	if c.bucketCfg.Flags&mdbx.DupSort != 0 {
 		if err := c.c.Put(k, v, mdbx.AppendDup); err != nil {
-			return fmt.Errorf("label: %s, bucket: %s, %w", c.tx.db.opts.label, c.bucketName, err)
+			return fmt.Errorf("bucket: %s, %w", c.bucketName, err)
 		}
 		return nil
 	}
 
 	if err := c.c.Put(k, v, mdbx.Append); err != nil {
-		return fmt.Errorf("label: %s, bucket: %s, %w", c.tx.db.opts.label, c.bucketName, err)
+		return fmt.Errorf("bucket: %s, %w", c.bucketName, err)
 	}
 	return nil
 }
@@ -1597,21 +1587,21 @@ func (c *MdbxDupSortCursor) LastDup() ([]byte, error) {
 
 func (c *MdbxDupSortCursor) Append(k []byte, v []byte) error {
 	if err := c.c.Put(k, v, mdbx.Append|mdbx.AppendDup); err != nil {
-		return fmt.Errorf("label: %s, in Append: bucket=%s, %w", c.tx.db.opts.label, c.bucketName, err)
+		return fmt.Errorf("in Append: bucket=%s, %w", c.bucketName, err)
 	}
 	return nil
 }
 
 func (c *MdbxDupSortCursor) AppendDup(k []byte, v []byte) error {
 	if err := c.c.Put(k, v, mdbx.AppendDup); err != nil {
-		return fmt.Errorf("label: %s, in AppendDup: bucket=%s, %w", c.tx.db.opts.label, c.bucketName, err)
+		return fmt.Errorf("in AppendDup: bucket=%s, %w", c.bucketName, err)
 	}
 	return nil
 }
 
 func (c *MdbxDupSortCursor) PutNoDupData(k, v []byte) error {
 	if err := c.c.Put(k, v, mdbx.NoDupData); err != nil {
-		return fmt.Errorf("label: %s, in PutNoDupData: %w", c.tx.db.opts.label, err)
+		return fmt.Errorf("in PutNoDupData: %w", err)
 	}
 
 	return nil
@@ -1620,7 +1610,7 @@ func (c *MdbxDupSortCursor) PutNoDupData(k, v []byte) error {
 // DeleteCurrentDuplicates - delete all of the data items for the current key.
 func (c *MdbxDupSortCursor) DeleteCurrentDuplicates() error {
 	if err := c.delAllDupData(); err != nil {
-		return fmt.Errorf("label: %s,in DeleteCurrentDuplicates: %w", c.tx.db.opts.label, err)
+		return fmt.Errorf("in DeleteCurrentDuplicates: %w", err)
 	}
 	return nil
 }
@@ -1916,8 +1906,4 @@ func (tx *MdbxTx) ForAmount(bucket string, fromPrefix []byte, amount uint32, wal
 		amount--
 	}
 	return nil
-}
-
-func (tx *MdbxTx) CHandle() unsafe.Pointer {
-	return tx.tx.CHandle()
 }

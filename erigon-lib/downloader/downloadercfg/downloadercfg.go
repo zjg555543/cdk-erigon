@@ -42,21 +42,19 @@ const DefaultPieceSize = 2 * 1024 * 1024
 
 // DefaultNetworkChunkSize - how much data request per 1 network call to peer.
 // default: 16Kb
-const DefaultNetworkChunkSize = 256 * 1024
+const DefaultNetworkChunkSize = 512 * 1024
 
 type Cfg struct {
 	ClientConfig  *torrent.ClientConfig
+	SnapDir       string
 	DownloadSlots int
-
-	WebSeedUrls                     []*url.URL
-	WebSeedFiles                    []string
-	DownloadTorrentFilesFromWebseed bool
-
-	Dirs datadir.Dirs
+	WebSeedUrls   []*url.URL
+	WebSeedFiles  []string
 }
 
 func Default() *torrent.ClientConfig {
 	torrentConfig := torrent.NewDefaultClientConfig()
+	torrentConfig.PieceHashersPerTorrent = runtime.NumCPU()
 
 	// enable dht
 	torrentConfig.NoDHT = true
@@ -80,10 +78,9 @@ func Default() *torrent.ClientConfig {
 	return torrentConfig
 }
 
-func New(dirs datadir.Dirs, version string, verbosity lg.Level, downloadRate, uploadRate datasize.ByteSize, port, connsPerFile, downloadSlots int, staticPeers []string, webseeds string) (*Cfg, error) {
+func New(dataDir datadir.Dirs, version string, verbosity lg.Level, downloadRate, uploadRate datasize.ByteSize, port, connsPerFile, downloadSlots int, staticPeers []string, webseeds string) (*Cfg, error) {
 	torrentConfig := Default()
-	torrentConfig.PieceHashersPerTorrent = runtime.NumCPU()
-	torrentConfig.DataDir = dirs.Snap // `DataDir` of torrent-client-lib is different from Erigon's `DataDir`. Just same naming.
+	torrentConfig.DataDir = dataDir.Snap // `DataDir` of torrent-client-lib is different from Erigon's `DataDir`. Just same naming.
 
 	torrentConfig.ExtendedHandshakeClientVersion = version
 
@@ -94,9 +91,14 @@ func New(dirs datadir.Dirs, version string, verbosity lg.Level, downloadRate, up
 	// check if ipv6 is enabled
 	torrentConfig.DisableIPv6 = !getIpv6Enabled()
 
-	torrentConfig.UploadRateLimiter = rate.NewLimiter(rate.Limit(uploadRate.Bytes()), DefaultNetworkChunkSize) // default: unlimited
+	// rates are divided by 2 - I don't know why it works, maybe bug inside torrent lib accounting
+	torrentConfig.UploadRateLimiter = rate.NewLimiter(rate.Limit(uploadRate.Bytes()), 2*DefaultNetworkChunkSize) // default: unlimited
 	if downloadRate.Bytes() < 500_000_000 {
-		torrentConfig.DownloadRateLimiter = rate.NewLimiter(rate.Limit(downloadRate.Bytes()), DefaultNetworkChunkSize) // default: unlimited
+		b := 2 * DefaultNetworkChunkSize
+		if downloadRate.Bytes() > DefaultNetworkChunkSize {
+			b = int(2 * downloadRate.Bytes())
+		}
+		torrentConfig.DownloadRateLimiter = rate.NewLimiter(rate.Limit(downloadRate.Bytes()), b) // default: unlimited
 	}
 
 	// debug
@@ -153,12 +155,12 @@ func New(dirs datadir.Dirs, version string, verbosity lg.Level, downloadRate, up
 		}
 		webseedUrls = append(webseedUrls, uri)
 	}
-	localCfgFile := filepath.Join(dirs.DataDir, "webseed.toml") // datadir/webseed.toml allowed
+	localCfgFile := filepath.Join(dataDir.DataDir, "webseeds.toml") // datadir/webseeds.toml allowed
 	if dir.FileExist(localCfgFile) {
 		webseedFiles = append(webseedFiles, localCfgFile)
 	}
 
-	return &Cfg{Dirs: dirs,
+	return &Cfg{SnapDir: torrentConfig.DataDir,
 		ClientConfig: torrentConfig, DownloadSlots: downloadSlots,
 		WebSeedUrls: webseedUrls, WebSeedFiles: webseedFiles,
 	}, nil

@@ -478,7 +478,7 @@ var (
 	}
 	AllowUnprotectedTxs = cli.BoolFlag{
 		Name:  "rpc.allow-unprotected-txs",
-		Usage: "Allow for unprotected (non-EIP155 signed) transactions to be submitted via RPC",
+		Usage: "Allow for unprotected (non EIP155 signed) transactions to be submitted via RPC",
 	}
 	StateCacheFlag = cli.StringFlag{
 		Name:  "state.cache",
@@ -624,7 +624,6 @@ var (
 	}
 	HistoryV3Flag = cli.BoolFlag{
 		Name:  "experimental.history.v3",
-		Value: true,
 		Usage: "(also known as Erigon3) Not recommended yet: Can't change this flag after node creation. New DB and Snapshots format of history allows: parallel blocks execution, get state as of given transaction without executing whole block.",
 	}
 
@@ -768,7 +767,7 @@ var (
 	WithHeimdallMilestones = cli.BoolFlag{
 		Name:  "bor.milestone",
 		Usage: "Enabling bor milestone processing",
-		Value: true,
+		Value: false,
 	}
 
 	// HeimdallgRPCAddressFlag flag for heimdall gRPC address
@@ -828,12 +827,6 @@ var (
 	DiagnosticsSessionsFlag = cli.StringSliceFlag{
 		Name:  "diagnostics.ids",
 		Usage: "Comma separated list of support session ids to connect to",
-	}
-
-	SilkwormPathFlag = cli.StringFlag{
-		Name:  "silkworm.path",
-		Usage: "Path to the silkworm_api library (enables embedded Silkworm execution)",
-		Value: "",
 	}
 )
 
@@ -1196,10 +1189,11 @@ func SetNodeConfigCobra(cmd *cobra.Command, cfg *nodecfg.Config) {
 
 func setDataDir(ctx *cli.Context, cfg *nodecfg.Config) {
 	if ctx.IsSet(DataDirFlag.Name) {
-		cfg.Dirs = datadir.New(ctx.String(DataDirFlag.Name))
+		cfg.Dirs.DataDir = ctx.String(DataDirFlag.Name)
 	} else {
-		cfg.Dirs = datadir.New(paths.DataDirForNetwork(paths.DefaultDataDir(), ctx.String(ChainFlag.Name)))
+		cfg.Dirs.DataDir = paths.DataDirForNetwork(cfg.Dirs.DataDir, ctx.String(ChainFlag.Name))
 	}
+	cfg.Dirs = datadir.New(cfg.Dirs.DataDir)
 	cfg.MdbxPageSize = flags.DBPageSizeFlagUnmarshal(ctx, DbPageSizeFlag.Name, DbPageSizeFlag.Usage)
 	if err := cfg.MdbxDBSizeLimit.UnmarshalText([]byte(ctx.String(DbSizeLimitFlag.Name))); err != nil {
 		panic(err)
@@ -1220,10 +1214,13 @@ func setDataDirCobra(f *pflag.FlagSet, cfg *nodecfg.Config) {
 		panic(err)
 	}
 	if dirname != "" {
-		cfg.Dirs = datadir.New(dirname)
+		cfg.Dirs.DataDir = dirname
 	} else {
-		cfg.Dirs = datadir.New(paths.DataDirForNetwork(paths.DefaultDataDir(), chain))
+		cfg.Dirs.DataDir = paths.DataDirForNetwork(cfg.Dirs.DataDir, chain)
 	}
+
+	cfg.Dirs.DataDir = paths.DataDirForNetwork(cfg.Dirs.DataDir, chain)
+	cfg.Dirs = datadir.New(cfg.Dirs.DataDir)
 }
 
 func setGPO(ctx *cli.Context, cfg *gaspricecfg.Config) {
@@ -1453,13 +1450,6 @@ func setWhitelist(ctx *cli.Context, cfg *ethconfig.Config) {
 	}
 }
 
-func setSilkworm(ctx *cli.Context, cfg *ethconfig.Config) {
-	cfg.SilkwormEnabled = ctx.IsSet(SilkwormPathFlag.Name)
-	if cfg.SilkwormEnabled {
-		cfg.SilkwormPath = ctx.String(SilkwormPathFlag.Name)
-	}
-}
-
 // CheckExclusive verifies that only a single instance of the provided flags was
 // set by the user. Each flag might optionally be followed by a string type to
 // specialize it further.
@@ -1562,7 +1552,6 @@ func SetEthConfig(ctx *cli.Context, nodeConfig *nodecfg.Config, cfg *ethconfig.C
 	setMiner(ctx, &cfg.Miner)
 	setWhitelist(ctx, cfg)
 	setBorConfig(ctx, cfg)
-	setSilkworm(ctx, cfg)
 
 	cfg.Ethstats = ctx.String(EthStatsURLFlag.Name)
 	cfg.P2PEnabled = len(nodeConfig.P2P.SentryAddr) == 0
@@ -1637,7 +1626,7 @@ func SetEthConfig(ctx *cli.Context, nodeConfig *nodecfg.Config, cfg *ethconfig.C
 		cfg.TxPool.OverrideCancunTime = cfg.OverrideCancunTime
 	}
 
-	if ctx.IsSet(InternalConsensusFlag.Name) && clparams.EmbeddedSupported(cfg.NetworkID) {
+	if ctx.IsSet(InternalConsensusFlag.Name) && clparams.EmbeddedEnabledByDefault(cfg.NetworkID) {
 		cfg.InternalCL = ctx.Bool(InternalConsensusFlag.Name)
 	}
 

@@ -4,7 +4,6 @@ on:
     branches:
       - devel
       - alpha
-      - e35
       - 'release/**'
   schedule:
     - cron: '20 16 * * *' # daily at 16:20 UTC
@@ -27,11 +26,11 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt update && sudo apt install build-essential
 
-#      - name: test-integration
-#        run: make test-integration
+      - name: test-integration
+        run: make test-integration
 
-  #        name: history-v3-test-integration
-  #        run: make test3-integration
+      - name: history-v3-test-integration
+        run: make test3-integration
 
   tests-windows:
     strategy:

@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
-
 	"github.com/ledgerwatch/erigon-lib/chain"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
@@ -43,7 +42,7 @@ import (
 	"github.com/ledgerwatch/erigon/params/networkname"
 )
 
-// AggregationStep number of transactions in smalest static file
+// AggregationStep number of transactions in smallest static file
 const HistoryV3AggregationStep = 3_125_000 // 100M / 32
 //const HistoryV3AggregationStep = 3_125_000 / 100 // use this to reduce step size for dev/debug
 
@@ -102,8 +101,6 @@ var Defaults = Config{
 		KeepBlocks: false,
 		Produce:    true,
 	},
-
-	SilkwormEnabled: false,
 }
 
 func init() {
@@ -252,10 +249,6 @@ type Config struct {
 	OverrideCancunTime *big.Int `toml:",omitempty"`
 
 	ForcePartialCommit bool
-
-	// Embedded Silkworm support
-	SilkwormEnabled bool
-	SilkwormPath    string
 }
 
 type Sync struct {

@@ -52,12 +52,11 @@ func FuzzRecSplit(f *testing.F) {
 		}
 		tmpDir := t.TempDir()
 		indexFile := filepath.Join(tmpDir, "index")
-		salt := uint32(1)
 		rs, err := NewRecSplit(RecSplitArgs{
 			KeyCount:   count,
 			Enums:      true,
 			BucketSize: 10,
-			Salt:       &salt,
+			Salt:       0,
 			TmpDir:     tmpDir,
 			IndexFile:  indexFile,
 			LeafSize:   8,

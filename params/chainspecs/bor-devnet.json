@@ -22,7 +22,7 @@
       "0": 4
     },
     "sprint": {
-      "0": 16
+      "0":16
     },
     "backupMultiplier": {
       "0": 5
@@ -41,7 +41,8 @@
       }
     },
     "jaipurBlock": 0,
-    "delhiBlock": 0,
+    "delhiBlock":0,
+    "calcuttaBlock": 30,
     "indoreBlock": 0
   }
 }

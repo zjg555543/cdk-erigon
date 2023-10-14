@@ -4,17 +4,15 @@ import (
 	"context"
 	"math/big"
 	"sync"
-	"sync/atomic"
 
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
-
-	"github.com/ledgerwatch/erigon-lib/common/datadir"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 
+	"github.com/ledgerwatch/erigon/cmd/state/exec22"
 	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/rawdb"
@@ -28,39 +26,33 @@ import (
 
 type Worker struct {
 	lock        sync.Locker
-	logger      log.Logger
 	chainDb     kv.RoDB
 	chainTx     kv.Tx
 	background  bool // if true - worker does manage RoTx (begin/rollback) in .ResetTx()
 	blockReader services.FullBlockReader
-	in          *state.QueueWithRetry
+	in          *exec22.QueueWithRetry
 	rs          *state.StateV3
 	stateWriter *state.StateWriterBufferedV3
-	stateReader state.ResettableStateReader
-	historyMode atomic.Bool // if true - stateReader is HistoryReaderV3, otherwise it's state reader
+	stateReader *state.StateReaderV3
 	chainConfig *chain.Config
 	getHeader   func(hash libcommon.Hash, number uint64) *types.Header
 
 	ctx      context.Context
 	engine   consensus.Engine
 	genesis  *types.Genesis
-	resultCh *state.ResultsQueue
-	chain    consensus.ChainReader
+	resultCh *exec22.ResultsQueue
+	chain    ChainReader
 
 	callTracer  *CallTracer
 	taskGasPool *core.GasPool
 
-	evm   *vm.EVM
-	ibs   *state.IntraBlockState
-	vmCfg vm.Config
-
-	dirs datadir.Dirs
+	evm *vm.EVM
+	ibs *state.IntraBlockState
 }
 
-func NewWorker(lock sync.Locker, logger log.Logger, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, in *state.QueueWithRetry, blockReader services.FullBlockReader, chainConfig *chain.Config, genesis *types.Genesis, results *state.ResultsQueue, engine consensus.Engine, dirs datadir.Dirs) *Worker {
+func NewWorker(lock sync.Locker, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, in *exec22.QueueWithRetry, blockReader services.FullBlockReader, chainConfig *chain.Config, genesis *types.Genesis, results *exec22.ResultsQueue, engine consensus.Engine) *Worker {
 	w := &Worker{
 		lock:        lock,
-		logger:      logger,
 		chainDb:     chainDb,
 		in:          in,
 		rs:          rs,
@@ -70,20 +62,15 @@ func NewWorker(lock sync.Locker, logger log.Logger, ctx context.Context, backgro
 		stateReader: state.NewStateReaderV3(rs),
 		chainConfig: chainConfig,
 
-		ctx:         ctx,
-		genesis:     genesis,
-		resultCh:    results,
-		engine:      engine,
-		historyMode: atomic.Bool{},
+		ctx:      ctx,
+		genesis:  genesis,
+		resultCh: results,
+		engine:   engine,
 
 		evm:         vm.NewEVM(evmtypes.BlockContext{}, evmtypes.TxContext{}, nil, chainConfig, vm.Config{}),
 		callTracer:  NewCallTracer(),
 		taskGasPool: new(core.GasPool),
-
-		dirs: dirs,
 	}
-
-	w.vmCfg = vm.Config{Debug: true, Tracer: w.callTracer}
 	w.getHeader = func(hash libcommon.Hash, number uint64) *types.Header {
 		h, err := blockReader.Header(ctx, w.chainTx, hash, number)
 		if err != nil {
@@ -107,8 +94,7 @@ func (rw *Worker) ResetTx(chainTx kv.Tx) {
 	if chainTx != nil {
 		rw.chainTx = chainTx
 		rw.stateReader.SetTx(rw.chainTx)
-		rw.stateWriter.SetTx(rw.chainTx)
-		rw.chain = ChainReader{config: rw.chainConfig, tx: rw.chainTx, blockReader: rw.blockReader, logger: rw.logger}
+		rw.chain = ChainReader{config: rw.chainConfig, tx: rw.chainTx, blockReader: rw.blockReader}
 	}
 }
 
@@ -122,57 +108,26 @@ func (rw *Worker) Run() error {
 	return nil
 }
 
-func (rw *Worker) RunTxTask(txTask *state.TxTask) {
+func (rw *Worker) RunTxTask(txTask *exec22.TxTask) {
 	rw.lock.Lock()
 	defer rw.lock.Unlock()
 	rw.RunTxTaskNoLock(txTask)
 }
 
-// Needed to set hisotry reader when need to offset few txs from block beginning and does not break processing,
-// like compute gas used for block and then to set state reader to continue processing on latest data.
-func (rw *Worker) SetReader(reader state.ResettableStateReader) {
-	rw.stateReader = reader
-	rw.stateReader.SetTx(rw.Tx())
-	rw.ibs.Reset()
-	rw.ibs = state.New(rw.stateReader)
-
-	switch reader.(type) {
-	case *state.HistoryReaderV3:
-		rw.historyMode.Store(true)
-	case *state.StateReaderV3:
-		rw.historyMode.Store(false)
-	default:
-		rw.historyMode.Store(false)
-		//fmt.Printf("[worker] unknown reader %T: historyMode is set to disabled\n", reader)
-	}
-}
-
-func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
-	if txTask.HistoryExecution && !rw.historyMode.Load() {
-		// in case if we cancelled execution and commitment happened in the middle of the block, we have to process block
-		// from the beginning until committed txNum and only then disable history mode.
-		// Needed to correctly evaluate spent gas and other things.
-		rw.SetReader(state.NewHistoryReaderV3())
-	} else if !txTask.HistoryExecution && rw.historyMode.Load() {
-		rw.SetReader(state.NewStateReaderV3(rw.rs))
-	}
-
+func (rw *Worker) RunTxTaskNoLock(txTask *exec22.TxTask) {
 	if rw.background && rw.chainTx == nil {
 		var err error
 		if rw.chainTx, err = rw.chainDb.BeginRo(rw.ctx); err != nil {
 			panic(err)
 		}
 		rw.stateReader.SetTx(rw.chainTx)
-		rw.stateWriter.SetTx(rw.chainTx)
 		rw.chain = ChainReader{config: rw.chainConfig, tx: rw.chainTx, blockReader: rw.blockReader}
 	}
 	txTask.Error = nil
-
 	rw.stateReader.SetTxNum(txTask.TxNum)
-	rw.stateWriter.SetTxNum(rw.ctx, txTask.TxNum)
+	rw.stateWriter.SetTxNum(txTask.TxNum)
 	rw.stateReader.ResetReadSet()
 	rw.stateWriter.ResetWriteSet()
-
 	rw.ibs.Reset()
 	ibs := rw.ibs
 	//ibs.SetTrace(true)
@@ -181,12 +136,14 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 	var err error
 	header := txTask.Header
 
+	var logger = log.New("worker-tx")
+
 	switch {
 	case txTask.TxIndex == -1:
 		if txTask.BlockNum == 0 {
 			// Genesis block
 			// fmt.Printf("txNum=%d, blockNum=%d, Genesis\n", txTask.TxNum, txTask.BlockNum)
-			_, ibs, err = core.GenesisToBlock(rw.genesis, rw.dirs.Tmp)
+			_, ibs, err = core.GenesisToBlock(rw.genesis, "")
 			if err != nil {
 				panic(err)
 			}
@@ -199,7 +156,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 		syscall := func(contract libcommon.Address, data []byte, ibs *state.IntraBlockState, header *types.Header, constCall bool) ([]byte, error) {
 			return core.SysCallContract(contract, data, rw.chainConfig, ibs, header, rw.engine, constCall /* constCall */)
 		}
-		rw.engine.Initialize(rw.chainConfig, rw.chain, header, ibs, syscall, rw.logger)
+		rw.engine.Initialize(rw.chainConfig, rw.chain, header, ibs, syscall, logger)
 		txTask.Error = ibs.FinalizeTx(rules, noop)
 	case txTask.Final:
 		if txTask.BlockNum == 0 {
@@ -212,14 +169,12 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 			return core.SysCallContract(contract, data, rw.chainConfig, ibs, header, rw.engine, false /* constCall */)
 		}
 
-		_, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall, rw.logger)
-		if err != nil {
+		if _, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall, logger); err != nil {
+			//fmt.Printf("error=%v\n", err)
 			txTask.Error = err
 		} else {
-			//incorrect unwind to block 2
-			if err := ibs.CommitBlock(rules, rw.stateWriter); err != nil {
-				txTask.Error = err
-			}
+			//rw.callTracer.AddCoinbase(txTask.Coinbase, txTask.Uncles)
+			//txTask.TraceTos = rw.callTracer.Tos()
 			txTask.TraceTos = map[libcommon.Address]struct{}{}
 			txTask.TraceTos[txTask.Coinbase] = struct{}{}
 			for _, uncle := range txTask.Uncles {
@@ -227,20 +182,28 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 			}
 		}
 	default:
+		//fmt.Printf("txNum=%d, blockNum=%d, txIndex=%d\n", txTask.TxNum, txTask.BlockNum, txTask.TxIndex)
 		txHash := txTask.Tx.Hash()
 		rw.taskGasPool.Reset(txTask.Tx.GetGas())
 		rw.callTracer.Reset()
-		rw.vmCfg.SkipAnalysis = txTask.SkipAnalysis
+
+		vmConfig := vm.Config{Debug: true, Tracer: rw.callTracer, SkipAnalysis: txTask.SkipAnalysis}
 		ibs.SetTxContext(txHash, txTask.BlockHash, txTask.TxIndex)
 		msg := txTask.TxAsMessage
-		rw.evm.ResetBetweenBlocks(txTask.EvmBlockContext, core.NewEVMTxContext(msg), ibs, rw.vmCfg, rules)
+
+		blockContext := txTask.EvmBlockContext
+		if !rw.background {
+			getHashFn := core.GetHashFn(header, rw.getHeader)
+			blockContext = core.NewEVMBlockContext(header, getHashFn, rw.engine, nil /* author */)
+		}
+		rw.evm.ResetBetweenBlocks(blockContext, core.NewEVMTxContext(msg), ibs, vmConfig, rules)
 
 		// MA applytx
-		applyRes, err := core.ApplyMessage(rw.evm, msg, rw.taskGasPool, true /* refunds */, false /* gasBailout */)
+		vmenv := rw.evm
+		applyRes, err := core.ApplyMessage(vmenv, msg, rw.taskGasPool, true /* refunds */, false /* gasBailout */)
 		if err != nil {
 			txTask.Error = err
 		} else {
-			//ibs.SoftFinalise()
 			txTask.UsedGas = applyRes.UsedGas
 			// Update the state with pending changes
 			txTask.Error = ibs.FinalizeTx(rules, noop)
@@ -268,7 +231,6 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 type ChainReader struct {
 	config      *chain.Config
 	tx          kv.Tx
-	logger      log.Logger
 	blockReader services.FullBlockReader
 }
 
@@ -322,26 +284,21 @@ func (cr ChainReader) HasBlock(hash libcommon.Hash, number uint64) bool {
 	panic("")
 }
 func (cr ChainReader) BorEventsByBlock(hash libcommon.Hash, number uint64) []rlp.RawValue {
-	events, err := cr.blockReader.EventsByBlock(context.Background(), cr.tx, hash, number)
-	if err != nil {
-		cr.logger.Error("BorEventsByBlock failed", "err", err)
-		return nil
-	}
-	return events
+	panic("")
 }
 
-func NewWorkersPool(lock sync.Locker, logger log.Logger, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, in *state.QueueWithRetry, blockReader services.FullBlockReader, chainConfig *chain.Config, genesis *types.Genesis, engine consensus.Engine, workerCount int, dirs datadir.Dirs) (reconWorkers []*Worker, applyWorker *Worker, rws *state.ResultsQueue, clear func(), wait func()) {
+func NewWorkersPool(lock sync.Locker, ctx context.Context, background bool, chainDb kv.RoDB, rs *state.StateV3, in *exec22.QueueWithRetry, blockReader services.FullBlockReader, chainConfig *chain.Config, genesis *types.Genesis, engine consensus.Engine, workerCount int) (reconWorkers []*Worker, applyWorker *Worker, rws *exec22.ResultsQueue, clear func(), wait func()) {
 	reconWorkers = make([]*Worker, workerCount)
 
 	resultChSize := workerCount * 8
-	rws = state.NewResultsQueue(resultChSize, workerCount) // workerCount * 4
+	rws = exec22.NewResultsQueue(resultChSize, workerCount) // workerCount * 4
 	{
 		// we all errors in background workers (except ctx.Cancel), because applyLoop will detect this error anyway.
 		// and in applyLoop all errors are critical
 		ctx, cancel := context.WithCancel(ctx)
 		g, ctx := errgroup.WithContext(ctx)
 		for i := 0; i < workerCount; i++ {
-			reconWorkers[i] = NewWorker(lock, logger, ctx, background, chainDb, rs, in, blockReader, chainConfig, genesis, rws, engine, dirs)
+			reconWorkers[i] = NewWorker(lock, ctx, background, chainDb, rs, in, blockReader, chainConfig, genesis, rws, engine)
 		}
 		if background {
 			for i := 0; i < workerCount; i++ {
@@ -367,7 +324,7 @@ func NewWorkersPool(lock sync.Locker, logger log.Logger, ctx context.Context, ba
 			//applyWorker.ResetTx(nil)
 		}
 	}
-	applyWorker = NewWorker(lock, logger, ctx, false, chainDb, rs, in, blockReader, chainConfig, genesis, rws, engine, dirs)
+	applyWorker = NewWorker(lock, ctx, false, chainDb, rs, in, blockReader, chainConfig, genesis, rws, engine)
 
 	return reconWorkers, applyWorker, rws, clear, wait
 }

@@ -25,7 +25,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -65,8 +64,7 @@ type Index struct {
 	primaryAggrBound   uint16 // The lower bound for primary key aggregation (computed from leafSize)
 	enums              bool
 
-	readers         *sync.Pool
-	readAheadRefcnt atomic.Int32 // ref-counter: allow enable/disable read-ahead from goroutines. only when refcnt=0 - disable read-ahead once
+	readers *sync.Pool
 }
 
 func MustOpen(indexFile string) *Index {
@@ -169,10 +167,6 @@ func OpenIndex(indexFilePath string) (*Index, error) {
 		},
 	}
 	return idx, nil
-}
-
-func (idx *Index) DataHandle() unsafe.Pointer {
-	return unsafe.Pointer(&idx.data[0])
 }
 
 func (idx *Index) Size() int64        { return idx.size }
@@ -350,25 +344,17 @@ func (idx *Index) DisableReadAhead() {
 	if idx == nil || idx.mmapHandle1 == nil {
 		return
 	}
-	leftReaders := idx.readAheadRefcnt.Add(-1)
-	if leftReaders == 0 {
-		_ = mmap.MadviseNormal(idx.mmapHandle1)
-	} else if leftReaders < 0 {
-		log.Warn("read-ahead negative counter", "file", idx.FileName())
-	}
+	_ = mmap.MadviseRandom(idx.mmapHandle1)
 }
 func (idx *Index) EnableReadAhead() *Index {
-	idx.readAheadRefcnt.Add(1)
 	_ = mmap.MadviseSequential(idx.mmapHandle1)
 	return idx
 }
 func (idx *Index) EnableMadvNormal() *Index {
-	idx.readAheadRefcnt.Add(1)
 	_ = mmap.MadviseNormal(idx.mmapHandle1)
 	return idx
 }
 func (idx *Index) EnableWillNeed() *Index {
-	idx.readAheadRefcnt.Add(1)
 	_ = mmap.MadviseWillNeed(idx.mmapHandle1)
 	return idx
 }

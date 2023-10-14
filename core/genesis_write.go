@@ -17,7 +17,6 @@
 package core
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"embed"
@@ -26,9 +25,6 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
-
-	state2 "github.com/ledgerwatch/erigon-lib/state"
-	"github.com/ledgerwatch/erigon/core/state/temporal"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/holiman/uint256"
@@ -41,6 +37,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
+
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/hexutil"
 	"github.com/ledgerwatch/erigon/consensus/ethash"
@@ -49,13 +46,11 @@ import (
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/crypto"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/params/networkname"
 	"github.com/ledgerwatch/erigon/turbo/trie"
 )
-
-//go:embed allocs
-var allocs embed.FS
 
 // CommitGenesisBlock writes or updates the genesis block in db.
 // The block that will be used is:
@@ -186,7 +181,6 @@ func WriteGenesisBlock(tx kv.RwTx, genesis *types.Genesis, overrideCancunTime *b
 }
 
 func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Block, *state.IntraBlockState, error) {
-	ctx := context.Background()
 	block, statedb, err := GenesisToBlock(g, tmpDir)
 	if err != nil {
 		return nil, nil, err
@@ -197,12 +191,11 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	}
 
 	var stateWriter state.StateWriter
-	var domains *state2.SharedDomains
-
-	if histV3 {
-		domains = state2.NewSharedDomains(tx)
-		defer domains.Close()
-		stateWriter = state.NewWriterV4(domains)
+	if ethconfig.EnableHistoryV4InTest {
+		panic("implement me")
+		//tx.(*temporal.Tx).Agg().SetTxNum(0)
+		//stateWriter = state.NewWriterV4(tx.(kv.TemporalTx))
+		//defer tx.(*temporal.Tx).Agg().StartUnbufferedWrites().FinishWrites()
 	} else {
 		for addr, account := range g.Alloc {
 			if len(account.Code) > 0 || len(account.Storage) > 0 {
@@ -224,22 +217,7 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	if err := statedb.CommitBlock(&chain.Rules{}, stateWriter); err != nil {
 		return nil, statedb, fmt.Errorf("cannot write state: %w", err)
 	}
-
-	if histV3 {
-		if err := domains.Flush(ctx, tx); err != nil {
-			return nil, nil, err
-		}
-		hasSnap := tx.(*temporal.Tx).Agg().EndTxNumMinimax() != 0
-		if !hasSnap {
-			rh, err := domains.ComputeCommitment(ctx, true, false)
-			if err != nil {
-				return nil, nil, err
-			}
-			if !bytes.Equal(rh, block.Root().Bytes()) {
-				fmt.Printf("invalid genesis root hash: %x, expected %x\n", rh, block.Root().Bytes())
-			}
-		}
-	} else {
+	if !histV3 {
 		if csw, ok := stateWriter.(state.WriterWithChangeSets); ok {
 			if err := csw.WriteChangeSets(); err != nil {
 				return nil, statedb, fmt.Errorf("cannot write change sets: %w", err)
@@ -640,6 +618,9 @@ func sortedAllocKeys(m types.GenesisAlloc) []string {
 	slices.Sort(keys)
 	return keys
 }
+
+//go:embed allocs
+var allocs embed.FS
 
 func readPrealloc(filename string) types.GenesisAlloc {
 	f, err := allocs.Open(filename)

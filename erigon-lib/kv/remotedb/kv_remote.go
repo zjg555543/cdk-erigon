@@ -22,7 +22,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"runtime"
-	"unsafe"
 
 	"github.com/ledgerwatch/erigon-lib/kv/iter"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
@@ -35,13 +34,14 @@ import (
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/grpcutil"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/remote"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
 
 // generate the messages and services
 type remoteOpts struct {
 	remoteKV    remote.KVClient
 	log         log.Logger
-	bucketsCfg  kv.TableCfg
+	bucketsCfg  mdbx.TableCfgFunc
 	DialAddress string
 	version     gointerfaces.Version
 }
@@ -85,8 +85,8 @@ func (opts remoteOpts) ReadOnly() remoteOpts {
 	return opts
 }
 
-func (opts remoteOpts) WithBucketsConfig(c kv.TableCfg) remoteOpts {
-	opts.bucketsCfg = c
+func (opts remoteOpts) WithBucketsConfig(f mdbx.TableCfgFunc) remoteOpts {
+	opts.bucketsCfg = f
 	return opts
 }
 
@@ -103,7 +103,7 @@ func (opts remoteOpts) Open() (*DB, error) {
 		buckets:      kv.TableCfg{},
 		roTxsLimiter: semaphore.NewWeighted(targetSemCount), // 1 less than max to allow unlocking
 	}
-	customBuckets := opts.bucketsCfg
+	customBuckets := opts.bucketsCfg(kv.ChaindataTablesCfg)
 	for name, cfg := range customBuckets { // copy map to avoid changing global variable
 		db.buckets[name] = cfg
 	}
@@ -123,7 +123,7 @@ func (opts remoteOpts) MustOpen() kv.RwDB {
 // version parameters represent the version the KV client is expecting,
 // compatibility check will be performed when the KV connection opens
 func NewRemote(v gointerfaces.Version, logger log.Logger, remoteKV remote.KVClient) remoteOpts {
-	return remoteOpts{bucketsCfg: kv.ChaindataTablesCfg, version: v, log: logger, remoteKV: remoteKV}
+	return remoteOpts{bucketsCfg: mdbx.WithChaindataTables, version: v, log: logger, remoteKV: remoteKV}
 }
 
 func (db *DB) PageSize() uint64       { panic("not implemented") }
@@ -652,12 +652,12 @@ func (tx *tx) DomainGetAsOf(name kv.Domain, k, k2 []byte, ts uint64) (v []byte, 
 	return reply.V, reply.Ok, nil
 }
 
-func (tx *tx) DomainGet(name kv.Domain, k, k2 []byte) (v []byte, err error) {
+func (tx *tx) DomainGet(name kv.Domain, k, k2 []byte) (v []byte, ok bool, err error) {
 	reply, err := tx.db.remoteKV.DomainGet(tx.ctx, &remote.DomainGetReq{TxId: tx.id, Table: string(name), K: k, K2: k2, Latest: true})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return reply.V, nil
+	return reply.V, reply.Ok, nil
 }
 
 func (tx *tx) DomainRange(name kv.Domain, fromKey, toKey []byte, ts uint64, asc order.By, limit int) (it iter.KV, err error) {
@@ -726,8 +726,4 @@ func (tx *tx) RangeDescend(table string, fromPrefix, toPrefix []byte, limit int)
 }
 func (tx *tx) RangeDupSort(table string, key []byte, fromPrefix, toPrefix []byte, asc order.By, limit int) (iter.KV, error) {
 	panic("not implemented yet")
-}
-
-func (tx *tx) CHandle() unsafe.Pointer {
-	panic("CHandle not implemented")
 }

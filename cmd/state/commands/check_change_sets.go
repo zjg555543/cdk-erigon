@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"sort"
 	"syscall"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	kv2 "github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
+	"github.com/ledgerwatch/erigon/turbo/snapshotsync/freezeblocks"
 
 	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/core/state"
@@ -33,7 +35,6 @@ import (
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/debug"
 	"github.com/ledgerwatch/erigon/turbo/services"
-	"github.com/ledgerwatch/erigon/turbo/snapshotsync/freezeblocks"
 )
 
 var (
@@ -80,14 +81,12 @@ func CheckChangeSets(genesis *types.Genesis, blockNum uint64, chaindata string, 
 	if err != nil {
 		return err
 	}
-	dirs := datadir.New(datadirCli)
-	allSnapshots := freezeblocks.NewRoSnapshots(ethconfig.NewSnapCfg(true, false, true), dirs.Snap, logger)
+	allSnapshots := freezeblocks.NewRoSnapshots(ethconfig.NewSnapCfg(true, false, true), path.Join(datadirCli, "snapshots"), logger)
 	defer allSnapshots.Close()
 	if err := allSnapshots.ReopenFolder(); err != nil {
 		return fmt.Errorf("reopen snapshot segments: %w", err)
 	}
-	allBorSnapshots := freezeblocks.NewBorRoSnapshots(ethconfig.Defaults.Snapshot, dirs.Snap, logger)
-	blockReader := freezeblocks.NewBlockReader(allSnapshots, allBorSnapshots)
+	blockReader := freezeblocks.NewBlockReader(allSnapshots, nil /* BorSnapshots */)
 
 	chainDb := db
 	defer chainDb.Close()

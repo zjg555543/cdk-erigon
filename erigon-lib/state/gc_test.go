@@ -33,12 +33,7 @@ func TestGCReadAfterRemoveFile(t *testing.T) {
 			// - open new view
 			// - make sure there is no canDelete file
 			hc := h.MakeContext()
-			if h.withLocalityIndex {
-				//require.Nil(hc.ic.coldLocality.file) // optimization: don't create LocalityIndex for 1 file
-				require.NotNil(hc.ic.coldLocality.file)
-				require.NotNil(hc.ic.warmLocality.file)
-			}
-
+			_ = hc
 			lastOnFs, _ := h.files.Max()
 			require.False(lastOnFs.frozen) // prepared dataset must have some non-frozen files. or it's bad dataset.
 			h.integrateMergedFiles(nil, []*filesItem{lastOnFs}, nil, nil)
@@ -56,16 +51,12 @@ func TestGCReadAfterRemoveFile(t *testing.T) {
 			}
 
 			require.NotNil(lastOnFs.decompressor)
-			//replace of locality index must not affect current HistoryContext, but expect to be closed after last reader
-			if h.withLocalityIndex {
-				h.warmLocalityIdx.integrateFiles(&LocalityIndexFiles{})
-				require.NotNil(h.warmLocalityIdx.file)
-			}
+			loc := hc.ic.loc // replace of locality index must not affect current HistoryContext, but expect to be closed after last reader
+			h.localityIndex.integrateFiles(LocalityIndexFiles{}, 0, 0)
+			require.NotNil(loc.file)
 			hc.Close()
 			require.Nil(lastOnFs.decompressor)
-			if h.withLocalityIndex {
-				require.NotNil(h.warmLocalityIdx.file)
-			}
+			require.NotNil(loc.file)
 
 			nonDeletedOnFs, _ := h.files.Max()
 			require.False(nonDeletedOnFs.frozen)
@@ -97,11 +88,11 @@ func TestGCReadAfterRemoveFile(t *testing.T) {
 		})
 	}
 	t.Run("large_values", func(t *testing.T) {
-		db, h, txs := filledHistory(t, true, logger)
+		_, db, h, txs := filledHistory(t, true, logger)
 		test(t, h, db, txs)
 	})
 	t.Run("small_values", func(t *testing.T) {
-		db, h, txs := filledHistory(t, false, logger)
+		_, db, h, txs := filledHistory(t, false, logger)
 		test(t, h, db, txs)
 	})
 }
@@ -179,6 +170,6 @@ func TestDomainGCReadAfterRemoveFile(t *testing.T) {
 		})
 	}
 	logger := log.New()
-	db, d, txs := filledDomain(t, logger)
+	_, db, d, txs := filledDomain(t, logger)
 	test(t, d, db, txs)
 }

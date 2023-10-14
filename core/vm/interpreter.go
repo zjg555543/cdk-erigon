@@ -99,7 +99,7 @@ type EVMInterpreter struct {
 //
 //nolint:structcheck
 type VM struct {
-	evm *EVM
+	evm VMInterpreter
 	cfg Config
 
 	hasher    keccakState    // Keccak256 hasher instance shared across opcodes
@@ -121,7 +121,7 @@ func copyJumpTable(jt *JumpTable) *JumpTable {
 }
 
 // NewEVMInterpreter returns a new instance of the Interpreter.
-func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
+func NewEVMInterpreter(evm VMInterpreter, cfg Config) *EVMInterpreter {
 	var jt *JumpTable
 	switch {
 	case evm.ChainRules().IsPrague:

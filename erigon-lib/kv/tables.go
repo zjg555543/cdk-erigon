@@ -356,6 +356,7 @@ const (
 	StateCommitment = "StateCommitment"
 
 	// BOR
+
 	BorReceipts  = "BorReceipt"
 	BorFinality  = "BorFinality"
 	BorTxLookup  = "BlockBorTransactionLookup" // transaction_hash -> block_num_u64
@@ -675,8 +676,7 @@ var ChaindataTablesCfg = TableCfg{
 	},
 	CallTraceSet: {Flags: DupSort},
 
-	TblAccountKeys: {Flags: DupSort},
-	//TblAccountVals:           {Flags: DupSort},
+	TblAccountKeys:           {Flags: DupSort},
 	TblAccountHistoryKeys:    {Flags: DupSort},
 	TblAccountHistoryVals:    {Flags: DupSort},
 	TblAccountIdx:            {Flags: DupSort},
@@ -689,31 +689,21 @@ var ChaindataTablesCfg = TableCfg{
 	TblCodeIdx:               {Flags: DupSort},
 	TblCommitmentKeys:        {Flags: DupSort},
 	TblCommitmentHistoryKeys: {Flags: DupSort},
-	//TblCommitmentHistoryVals: {Flags: DupSort},
-	TblCommitmentIdx:  {Flags: DupSort},
-	TblLogAddressKeys: {Flags: DupSort},
-	TblLogAddressIdx:  {Flags: DupSort},
-	TblLogTopicsKeys:  {Flags: DupSort},
-	TblLogTopicsIdx:   {Flags: DupSort},
-	TblTracesFromKeys: {Flags: DupSort},
-	TblTracesFromIdx:  {Flags: DupSort},
-	TblTracesToKeys:   {Flags: DupSort},
-	TblTracesToIdx:    {Flags: DupSort},
-	RAccountKeys:      {Flags: DupSort},
-	RAccountIdx:       {Flags: DupSort},
-	RStorageKeys:      {Flags: DupSort},
-	RStorageIdx:       {Flags: DupSort},
-	RCodeKeys:         {Flags: DupSort},
-	RCodeIdx:          {Flags: DupSort},
-}
-
-var BorTablesCfg = TableCfg{
-	BorReceipts:  {Flags: DupSort},
-	BorFinality:  {Flags: DupSort},
-	BorTxLookup:  {Flags: DupSort},
-	BorEvents:    {Flags: DupSort},
-	BorEventNums: {Flags: DupSort},
-	BorSpans:     {Flags: DupSort},
+	TblCommitmentIdx:         {Flags: DupSort},
+	TblLogAddressKeys:        {Flags: DupSort},
+	TblLogAddressIdx:         {Flags: DupSort},
+	TblLogTopicsKeys:         {Flags: DupSort},
+	TblLogTopicsIdx:          {Flags: DupSort},
+	TblTracesFromKeys:        {Flags: DupSort},
+	TblTracesFromIdx:         {Flags: DupSort},
+	TblTracesToKeys:          {Flags: DupSort},
+	TblTracesToIdx:           {Flags: DupSort},
+	RAccountKeys:             {Flags: DupSort},
+	RAccountIdx:              {Flags: DupSort},
+	RStorageKeys:             {Flags: DupSort},
+	RStorageIdx:              {Flags: DupSort},
+	RCodeKeys:                {Flags: DupSort},
+	RCodeIdx:                 {Flags: DupSort},
 }
 
 var TxpoolTablesCfg = TableCfg{}
@@ -801,17 +791,15 @@ func reinit() {
 // Temporal
 
 const (
-	AccountsDomain   Domain = "AccountsDomain"
-	StorageDomain    Domain = "StorageDomain"
-	CodeDomain       Domain = "CodeDomain"
-	CommitmentDomain Domain = "CommitmentDomain"
+	AccountsDomain Domain = "AccountsDomain"
+	StorageDomain  Domain = "StorageDomain"
+	CodeDomain     Domain = "CodeDomain"
 )
 
 const (
-	AccountsHistory   History = "AccountsHistory"
-	StorageHistory    History = "StorageHistory"
-	CodeHistory       History = "CodeHistory"
-	CommitmentHistory History = "CommitmentHistory"
+	AccountsHistory History = "AccountsHistory"
+	StorageHistory  History = "StorageHistory"
+	CodeHistory     History = "CodeHistory"
 )
 
 const (

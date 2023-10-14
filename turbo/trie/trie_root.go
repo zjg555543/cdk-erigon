@@ -8,12 +8,11 @@ import (
 	"math/bits"
 	"time"
 
-	"github.com/ledgerwatch/log/v3"
-
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	length2 "github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/dbutils"
@@ -132,9 +131,9 @@ type RootHashAggregator struct {
 	cutoff        bool
 }
 
-func NewRootHashAggregator(trace bool) *RootHashAggregator {
+func NewRootHashAggregator() *RootHashAggregator {
 	return &RootHashAggregator{
-		hb: NewHashBuilder(trace),
+		hb: NewHashBuilder(false),
 	}
 }
 
@@ -146,12 +145,11 @@ func NewFlatDBTrieLoader(logPrefix string, rd RetainDeciderWithMarker, hc HashCo
 	return &FlatDBTrieLoader{
 		logPrefix: logPrefix,
 		receiver: &RootHashAggregator{
-			hb:    NewHashBuilder(trace),
+			hb:    NewHashBuilder(false),
 			hc:    hc,
 			shc:   shc,
 			trace: trace,
 		},
-		trace:       trace,
 		ihSeek:      make([]byte, 0, 128),
 		accSeek:     make([]byte, 0, 128),
 		storageSeek: make([]byte, 0, 128),
@@ -247,10 +245,6 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, quit <-chan struct{}) (libcomm
 			if err = l.accountValue.DecodeForStorage(v); err != nil {
 				return EmptyRoot, fmt.Errorf("fail DecodeForStorage: %w", err)
 			}
-			if l.trace {
-				fmt.Printf("account %x => b %d n %d ch %x\n", k, &l.accountValue.Balance, l.accountValue.Nonce, l.accountValue.CodeHash)
-			}
-
 			if err = l.receiver.Receive(AccountStreamItem, kHex, nil, &l.accountValue, nil, nil, false, 0); err != nil {
 				return EmptyRoot, err
 			}
@@ -282,10 +276,6 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, quit <-chan struct{}) (libcomm
 					if keyIsBefore(ihKS, l.kHexS) { // read until next AccTrie
 						break
 					}
-					if l.trace {
-						fmt.Printf("storage: %x => %x\n", l.kHexS, vS[32:])
-					}
-
 					if err = l.receiver.Receive(StorageStreamItem, accWithInc, l.kHexS, nil, vS[32:], nil, false, 0); err != nil {
 						return EmptyRoot, err
 					}
@@ -323,9 +313,6 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(tx kv.Tx, quit <-chan struct{}) (libcomm
 
 	if err := l.receiver.Receive(CutoffStreamItem, nil, nil, nil, nil, nil, false, 0); err != nil {
 		return EmptyRoot, err
-	}
-	if l.trace {
-		fmt.Printf("StateRoot %x\n----------\n", l.receiver.Root())
 	}
 	return l.receiver.Root(), nil
 }
@@ -371,9 +358,6 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		if len(r.currAccK) == 0 {
 			r.currAccK = append(r.currAccK[:0], accountKey...)
 		}
-		if r.trace {
-			fmt.Printf("storage: %x => %x\n", storageKey, storageValue)
-		}
 		r.advanceKeysStorage(storageKey, true /* terminator */)
 		if r.currStorage.Len() > 0 {
 			if err := r.genStructStorage(); err != nil {
@@ -396,9 +380,6 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 			if err := r.genStructStorage(); err != nil {
 				return err
 			}
-		}
-		if r.trace {
-			fmt.Printf("storageHashedBranch: %x => %x\n", storageKey, storageValue)
 		}
 		r.saveValueStorage(true, hasTree, storageValue, hash)
 	case AccountStreamItem:
@@ -426,9 +407,6 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 			if err := r.genStructAccount(); err != nil {
 				return err
 			}
-		}
-		if r.trace {
-			fmt.Printf("account %x => b %d n %d ch %x\n", accountKey, &accountValue.Balance, accountValue.Nonce, accountValue.CodeHash)
 		}
 		if err := r.saveValueAccount(false, hasTree, accountValue, hash); err != nil {
 			return err
@@ -459,14 +437,10 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 				return err
 			}
 		}
-		if r.trace && accountValue != nil {
-			fmt.Printf("accountHashedBranch %x =>b %d n %d\n", accountKey, accountValue.Balance.Uint64(), accountValue.Nonce)
-		}
 		if err := r.saveValueAccount(true, hasTree, accountValue, hash); err != nil {
 			return err
 		}
 	case CutoffStreamItem:
-		// make storage subtree pretend it's an extension node
 		if r.trace {
 			fmt.Printf("storage cuttoff %d\n", cutoff)
 		}

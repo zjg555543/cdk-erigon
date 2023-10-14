@@ -25,11 +25,11 @@ func Setup(address string, logger log.Logger) *http.ServeMux {
 
 	go func() {
 		if err := promServer.ListenAndServe(); err != nil {
-			logger.Error("Failure in running Prometheus server", "err", err)
+			log.Error("Failure in running Prometheus server", "err", err)
 		}
 	}()
 
-	logger.Info("Enabling metrics export to prometheus", "path", fmt.Sprintf("http://%s/debug/metrics/prometheus", address))
+	log.Info("Enabling metrics export to prometheus", "path", fmt.Sprintf("http://%s/debug/metrics/prometheus", address))
 
 	return prometheusMux
 }

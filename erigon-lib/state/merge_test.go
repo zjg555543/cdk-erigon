@@ -4,7 +4,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/ledgerwatch/log/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	btree2 "github.com/tidwall/btree"
@@ -12,16 +11,9 @@ import (
 	"github.com/ledgerwatch/erigon-lib/recsplit/eliasfano32"
 )
 
-func emptyTestInvertedIndex(aggStep uint64) *InvertedIndex {
-	salt := uint32(1)
-	logger := log.New()
-	return &InvertedIndex{iiCfg: iiCfg{salt: &salt},
-		logger:       logger,
-		filenameBase: "test", aggregationStep: aggStep, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
-}
 func TestFindMergeRangeCornerCases(t *testing.T) {
 	t.Run("> 2 unmerged files", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-2.ef",
 			"test.2-3.ef",
@@ -32,7 +24,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		ic := ii.MakeContext()
 		defer ic.Close()
 
-		needMerge, from, to := ic.findMergeRange(4, 32)
+		needMerge, from, to := ii.findMergeRange(4, 32)
 		assert.True(t, needMerge)
 		assert.Equal(t, 0, int(from))
 		assert.Equal(t, 4, int(to))
@@ -40,7 +32,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		idxF, _ := ic.staticFilesInRange(from, to)
 		assert.Equal(t, 3, len(idxF))
 
-		ii = emptyTestInvertedIndex(1)
+		ii = &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-1.ef",
 			"test.1-2.ef",
@@ -51,7 +43,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		ic = ii.MakeContext()
 		defer ic.Close()
 
-		needMerge, from, to = ic.findMergeRange(4, 32)
+		needMerge, from, to = ii.findMergeRange(4, 32)
 		assert.True(t, needMerge)
 		assert.Equal(t, 0, int(from))
 		assert.Equal(t, 2, int(to))
@@ -64,17 +56,16 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 			"test.3-4.v",
 		})
 		h.reCalcRoFiles()
-		ic.Close()
+		ic = ii.MakeContext()
+		defer ic.Close()
 
-		hc := h.MakeContext()
-		defer hc.Close()
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.True(t, r.history)
 		assert.Equal(t, 2, int(r.historyEndTxNum))
 		assert.Equal(t, 2, int(r.indexEndTxNum))
 	})
 	t.Run("not equal amount of files", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-1.ef",
 			"test.1-2.ef",
@@ -93,7 +84,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		hc := h.MakeContext()
 		defer hc.Close()
 
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.True(t, r.index)
 		assert.True(t, r.history)
 		assert.Equal(t, 0, int(r.historyStartTxNum))
@@ -101,7 +92,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		assert.Equal(t, 2, int(r.indexEndTxNum))
 	})
 	t.Run("idx merged, history not yet", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-2.ef",
 			"test.2-3.ef",
@@ -119,14 +110,14 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		hc := h.MakeContext()
 		defer hc.Close()
 
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.True(t, r.history)
 		assert.False(t, r.index)
 		assert.Equal(t, 0, int(r.historyStartTxNum))
 		assert.Equal(t, 2, int(r.historyEndTxNum))
 	})
 	t.Run("idx merged, history not yet, 2", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-1.ef",
 			"test.1-2.ef",
@@ -148,7 +139,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		hc := h.MakeContext()
 		defer hc.Close()
 
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.False(t, r.index)
 		assert.True(t, r.history)
 		assert.Equal(t, 2, int(r.historyEndTxNum))
@@ -158,7 +149,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		require.Equal(t, 2, len(histFiles))
 	})
 	t.Run("idx merged and small files lost", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-4.ef",
 		})
@@ -176,7 +167,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		hc := h.MakeContext()
 		defer hc.Close()
 
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.False(t, r.index)
 		assert.True(t, r.history)
 		assert.Equal(t, 2, int(r.historyEndTxNum))
@@ -185,7 +176,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 	})
 
 	t.Run("history merged, but index not and history garbage left", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-1.ef",
 			"test.1-2.ef",
@@ -204,7 +195,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		hc := h.MakeContext()
 		defer hc.Close()
 
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.True(t, r.index)
 		assert.False(t, r.history)
 		assert.Equal(t, uint64(2), r.indexEndTxNum)
@@ -214,7 +205,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		require.Equal(t, 0, len(histFiles))
 	})
 	t.Run("history merge progress ahead of idx", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-1.ef",
 			"test.1-2.ef",
@@ -237,7 +228,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		hc := h.MakeContext()
 		defer hc.Close()
 
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.True(t, r.index)
 		assert.True(t, r.history)
 		assert.Equal(t, 4, int(r.indexEndTxNum))
@@ -247,7 +238,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		require.Equal(t, 3, len(histFiles))
 	})
 	t.Run("idx merge progress ahead of history", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-1.ef",
 			"test.1-2.ef",
@@ -267,7 +258,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		hc := h.MakeContext()
 		defer hc.Close()
 
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.False(t, r.index)
 		assert.True(t, r.history)
 		assert.Equal(t, 2, int(r.historyEndTxNum))
@@ -277,7 +268,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		require.Equal(t, 2, len(histFiles))
 	})
 	t.Run("idx merged, but garbage left", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-1.ef",
 			"test.1-2.ef",
@@ -296,12 +287,12 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 
 		hc := h.MakeContext()
 		defer hc.Close()
-		r := hc.findMergeRange(4, 32)
+		r := h.findMergeRange(4, 32)
 		assert.False(t, r.index)
 		assert.False(t, r.history)
 	})
 	t.Run("idx merged, but garbage left2", func(t *testing.T) {
-		ii := emptyTestInvertedIndex(1)
+		ii := &InvertedIndex{filenameBase: "test", aggregationStep: 1, files: btree2.NewBTreeG[*filesItem](filesItemLess)}
 		ii.scanStateFiles([]string{
 			"test.0-1.ef",
 			"test.1-2.ef",
@@ -312,7 +303,7 @@ func TestFindMergeRangeCornerCases(t *testing.T) {
 		ii.reCalcRoFiles()
 		ic := ii.MakeContext()
 		defer ic.Close()
-		needMerge, from, to := ic.findMergeRange(4, 32)
+		needMerge, from, to := ii.findMergeRange(4, 32)
 		assert.True(t, needMerge)
 		require.Equal(t, 0, int(from))
 		require.Equal(t, 4, int(to))

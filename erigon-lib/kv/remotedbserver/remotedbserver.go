@@ -27,7 +27,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/log/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -73,7 +72,7 @@ type KvServer struct {
 	kv                 kv.RoDB
 	stateChangeStreams *StateChangePubSub
 	blockSnapshots     Snapsthots
-	historySnapshots   *state.AggregatorV3
+	historySnapshots   Snapsthots
 	ctx                context.Context
 
 	//v3 fields
@@ -95,7 +94,7 @@ type Snapsthots interface {
 	Files() []string
 }
 
-func NewKvServer(ctx context.Context, db kv.RoDB, snapshots Snapsthots, historySnapshots *state.AggregatorV3, logger log.Logger) *KvServer {
+func NewKvServer(ctx context.Context, db kv.RoDB, snapshots Snapsthots, historySnapshots Snapsthots, logger log.Logger) *KvServer {
 	return &KvServer{
 		trace:     false,
 		rangeStep: 1024,
@@ -457,9 +456,7 @@ func (s *KvServer) Snapshots(ctx context.Context, _ *remote.SnapshotsRequest) (*
 		return &remote.SnapshotsReply{BlocksFiles: []string{}, HistoryFiles: []string{}}, nil
 	}
 
-	ac := s.historySnapshots.MakeContext()
-	defer ac.Close()
-	return &remote.SnapshotsReply{BlocksFiles: s.blockSnapshots.Files(), HistoryFiles: ac.Files()}, nil
+	return &remote.SnapshotsReply{BlocksFiles: s.blockSnapshots.Files(), HistoryFiles: s.historySnapshots.Files()}, nil
 }
 
 type StateChangePubSub struct {
@@ -519,7 +516,7 @@ func (s *KvServer) DomainGet(ctx context.Context, req *remote.DomainGetReq) (rep
 			return fmt.Errorf("server DB doesn't implement kv.Temporal interface")
 		}
 		if req.Latest {
-			reply.V, err = ttx.DomainGet(kv.Domain(req.Table), req.K, req.K2)
+			reply.V, reply.Ok, err = ttx.DomainGet(kv.Domain(req.Table), req.K, req.K2)
 			if err != nil {
 				return err
 			}

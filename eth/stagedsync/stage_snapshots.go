@@ -24,9 +24,7 @@ import (
 	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/turbo/services"
-	"github.com/ledgerwatch/erigon/turbo/silkworm"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync"
-	"github.com/ledgerwatch/erigon/turbo/snapshotsync/freezeblocks"
 )
 
 type SnapshotsCfg struct {
@@ -41,19 +39,14 @@ type SnapshotsCfg struct {
 
 	historyV3 bool
 	agg       *state.AggregatorV3
-	silkworm  *silkworm.Silkworm
 }
 
 func StageSnapshotsCfg(db kv.RwDB,
-	chainConfig chain.Config,
-	dirs datadir.Dirs,
+	chainConfig chain.Config, dirs datadir.Dirs,
 	blockRetire services.BlockRetire,
 	snapshotDownloader proto_downloader.DownloaderClient,
-	blockReader services.FullBlockReader,
-	dbEventNotifier services.DBEventNotifier,
-	historyV3 bool,
-	agg *state.AggregatorV3,
-	silkworm *silkworm.Silkworm,
+	blockReader services.FullBlockReader, dbEventNotifier services.DBEventNotifier,
+	historyV3 bool, agg *state.AggregatorV3,
 ) SnapshotsCfg {
 	return SnapshotsCfg{
 		db:                 db,
@@ -65,7 +58,6 @@ func StageSnapshotsCfg(db kv.RwDB,
 		dbEventNotifier:    dbEventNotifier,
 		historyV3:          historyV3,
 		agg:                agg,
-		silkworm:           silkworm,
 	}
 }
 
@@ -124,31 +116,19 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 		return err
 	}
 
-	{
-		ac := cfg.agg.MakeContext()
-		defer ac.Close()
-		ac.LogStats(tx, func(endTxNumMinimax uint64) uint64 {
-			_, histBlockNumProgress, _ := rawdbv3.TxNums.FindBlockNum(tx, endTxNumMinimax)
-			return histBlockNumProgress
-		})
-		ac.Close()
-	}
+	cfg.agg.LogStats(tx, func(endTxNumMinimax uint64) uint64 {
+		_, histBlockNumProgress, _ := rawdbv3.TxNums.FindBlockNum(tx, endTxNumMinimax)
+		return histBlockNumProgress
+	})
 
 	if err := cfg.blockRetire.BuildMissedIndicesIfNeed(ctx, s.LogPrefix(), cfg.dbEventNotifier, &cfg.chainConfig); err != nil {
 		return err
 	}
 
-	if cfg.silkworm != nil {
-		if err := cfg.blockReader.Snapshots().(*freezeblocks.RoSnapshots).AddSnapshotsToSilkworm(cfg.silkworm); err != nil {
-			return err
-		}
-	}
-
 	if cfg.historyV3 {
+		cfg.agg.CleanDir()
+
 		indexWorkers := estimate.IndexSnapshot.Workers()
-		if err := cfg.agg.BuildOptionalMissedIndices(ctx, indexWorkers); err != nil {
-			return err
-		}
 		if err := cfg.agg.BuildMissedIndices(ctx, indexWorkers); err != nil {
 			return err
 		}
@@ -284,12 +264,9 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 					}
 				}
 			}
-			ac := agg.MakeContext()
-			defer ac.Close()
-			if err := rawdb.WriteSnapshots(tx, blockReader.FrozenFiles(), ac.Files()); err != nil {
+			if err := rawdb.WriteSnapshots(tx, blockReader.FrozenFiles(), agg.Files()); err != nil {
 				return err
 			}
-			ac.Close()
 		}
 	}
 	return nil
@@ -317,12 +294,7 @@ func SnapshotsPrune(s *PruneState, initialCycle bool, cfg SnapshotsCfg, ctx cont
 	if freezingCfg.Enabled && freezingCfg.Produce {
 		//TODO: initialSync maybe save files progress here
 		if cfg.blockRetire.HasNewFrozenFiles() || cfg.agg.HasNewFrozenFiles() {
-			ac := cfg.agg.MakeContext()
-			defer ac.Close()
-			aggFiles := ac.Files()
-			ac.Close()
-
-			if err := rawdb.WriteSnapshots(tx, cfg.blockReader.FrozenFiles(), aggFiles); err != nil {
+			if err := rawdb.WriteSnapshots(tx, cfg.blockReader.FrozenFiles(), cfg.agg.Files()); err != nil {
 				return err
 			}
 		}

@@ -148,7 +148,7 @@ func (b *SimulatedBackend) Commit() {
 		Headers:  []*types.Header{b.pendingHeader},
 		Blocks:   []*types.Block{b.pendingBlock},
 		TopBlock: b.pendingBlock,
-	}); err != nil {
+	}, nil); err != nil {
 		panic(err)
 	}
 	//nolint:prealloc

@@ -23,24 +23,24 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ledgerwatch/erigon/eth/ethconfig"
-
 	"github.com/holiman/uint256"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/memdb"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ledgerwatch/erigon/accounts/abi/bind"
 	"github.com/ledgerwatch/erigon/accounts/abi/bind/backends"
+
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core"
+	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/state/contracts"
 	"github.com/ledgerwatch/erigon/core/types"
+	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/stages/mock"
@@ -143,7 +143,7 @@ func TestCreate2Revive(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 1
-	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -157,7 +157,7 @@ func TestCreate2Revive(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 2
-	if err = m.InsertChain(chain.Slice(1, 2)); err != nil {
+	if err = m.InsertChain(chain.Slice(1, 2), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -179,7 +179,7 @@ func TestCreate2Revive(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 3
-	if err = m.InsertChain(chain.Slice(2, 3)); err != nil {
+	if err = m.InsertChain(chain.Slice(2, 3), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -192,7 +192,7 @@ func TestCreate2Revive(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 4
-	if err = m.InsertChain(chain.Slice(3, 4)); err != nil {
+	if err = m.InsertChain(chain.Slice(3, 4), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -349,7 +349,7 @@ func TestCreate2Polymorth(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 1
-	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -364,7 +364,7 @@ func TestCreate2Polymorth(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 2
-	if err = m.InsertChain(chain.Slice(1, 2)); err != nil {
+	if err = m.InsertChain(chain.Slice(1, 2), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -376,17 +376,15 @@ func TestCreate2Polymorth(t *testing.T) {
 		if !bytes.Equal(st.GetCode(create2address), common.FromHex("6002ff")) {
 			t.Errorf("Expected CREATE2 deployed code 6002ff, got %x", st.GetCode(create2address))
 		}
-		if !m.HistoryV3 { //AccountsDomain: has no "incarnation" concept
-			if st.GetIncarnation(create2address) != 1 {
-				t.Errorf("expected incarnation 1, got %d", st.GetIncarnation(create2address))
-			}
+		if st.GetIncarnation(create2address) != 1 {
+			t.Errorf("expected incarnation 1, got %d", st.GetIncarnation(create2address))
 		}
 		return nil
 	})
 	require.NoError(t, err)
 
 	// BLOCK 3
-	if err = m.InsertChain(chain.Slice(2, 3)); err != nil {
+	if err = m.InsertChain(chain.Slice(2, 3), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -399,7 +397,7 @@ func TestCreate2Polymorth(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 4
-	if err = m.InsertChain(chain.Slice(3, 4)); err != nil {
+	if err = m.InsertChain(chain.Slice(3, 4), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -410,17 +408,16 @@ func TestCreate2Polymorth(t *testing.T) {
 		if !bytes.Equal(st.GetCode(create2address), common.FromHex("6004ff")) {
 			t.Errorf("Expected CREATE2 deployed code 6004ff, got %x", st.GetCode(create2address))
 		}
-		if !m.HistoryV3 { //AccountsDomain: has no "incarnation" concept
-			if st.GetIncarnation(create2address) != 2 {
-				t.Errorf("expected incarnation 2, got %d", st.GetIncarnation(create2address))
-			}
+		if st.GetIncarnation(create2address) != 2 {
+			t.Errorf("expected incarnation 2, got %d", st.GetIncarnation(create2address))
 		}
+
 		return nil
 	})
 	require.NoError(t, err)
 
 	// BLOCK 5
-	if err = m.InsertChain(chain.Slice(4, 5)); err != nil {
+	if err = m.InsertChain(chain.Slice(4, 5), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -431,11 +428,8 @@ func TestCreate2Polymorth(t *testing.T) {
 		if !bytes.Equal(st.GetCode(create2address), common.FromHex("6005ff")) {
 			t.Errorf("Expected CREATE2 deployed code 6005ff, got %x", st.GetCode(create2address))
 		}
-
-		if !m.HistoryV3 { //AccountsDomain: has no "incarnation" concept
-			if st.GetIncarnation(create2address) != 4 {
-				t.Errorf("expected incarnation 4 (two self-destructs and two-recreations within a block), got %d", st.GetIncarnation(create2address))
-			}
+		if st.GetIncarnation(create2address) != 4 {
+			t.Errorf("expected incarnation 4 (two self-destructs and two-recreations within a block), got %d", st.GetIncarnation(create2address))
 		}
 		return nil
 	})
@@ -540,7 +534,7 @@ func TestReorgOverSelfDestruct(t *testing.T) {
 	})
 	require.NoError(t, err)
 	// BLOCK 1
-	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -559,7 +553,7 @@ func TestReorgOverSelfDestruct(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCKS 2 + 3
-	if err = m.InsertChain(chain.Slice(1, chain.Length())); err != nil {
+	if err = m.InsertChain(chain.Slice(1, chain.Length()), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -573,7 +567,7 @@ func TestReorgOverSelfDestruct(t *testing.T) {
 	require.NoError(t, err)
 
 	// REORG of block 2 and 3, and insert new (empty) BLOCK 2, 3, and 4
-	if err = m.InsertChain(longerChain.Slice(1, 4)); err != nil {
+	if err = m.InsertChain(longerChain.Slice(1, 4), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -681,7 +675,7 @@ func TestReorgOverStateChange(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 1
-	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -700,12 +694,12 @@ func TestReorgOverStateChange(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 2
-	if err = m.InsertChain(chain.Slice(1, chain.Length())); err != nil {
+	if err = m.InsertChain(chain.Slice(1, chain.Length()), nil); err != nil {
 		t.Fatal(err)
 	}
 
 	// REORG of block 2 and 3, and insert new (empty) BLOCK 2, 3, and 4
-	if err = m.InsertChain(longerChain.Slice(1, 3)); err != nil {
+	if err = m.InsertChain(longerChain.Slice(1, 3), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -808,7 +802,7 @@ func TestCreateOnExistingStorage(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 1
-	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -944,7 +938,7 @@ func TestEip2200Gas(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 1
-	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1030,17 +1024,17 @@ func TestWrongIncarnation(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 1
-	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
 	}
 
+	var acc accounts.Account
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
-		stateReader := m.NewStateReader(tx)
-		acc, err := stateReader.ReadAccountData(contractAddress)
+		ok, err := rawdb.ReadAccount(tx, contractAddress, &acc)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if acc == nil {
+		if !ok {
 			t.Fatal(errors.New("acc not found"))
 		}
 
@@ -1048,7 +1042,7 @@ func TestWrongIncarnation(t *testing.T) {
 			t.Fatal("Incorrect incarnation", acc.Incarnation)
 		}
 
-		st := state.New(stateReader)
+		st := state.New(m.NewStateReader(tx))
 		if !st.Exist(contractAddress) {
 			t.Error("expected contractAddress to exist at the block 1", contractAddress.String())
 		}
@@ -1057,16 +1051,15 @@ func TestWrongIncarnation(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCKS 2
-	if err = m.InsertChain(chain.Slice(1, 2)); err != nil {
+	if err = m.InsertChain(chain.Slice(1, 2), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
-		stateReader := m.NewStateReader(tx)
-		acc, err := stateReader.ReadAccountData(contractAddress)
+		ok, err := rawdb.ReadAccount(tx, contractAddress, &acc)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if acc == nil {
+		if !ok {
 			t.Fatal(errors.New("acc not found"))
 		}
 		if acc.Incarnation != state.FirstContractIncarnation {
@@ -1176,27 +1169,27 @@ func TestWrongIncarnation2(t *testing.T) {
 	require.NoError(t, err)
 
 	// BLOCK 1
-	if err = m.InsertChain(chain.Slice(0, 1)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 1), nil); err != nil {
 		t.Fatal(err)
 	}
 
 	// BLOCKS 2
-	if err = m.InsertChain(chain.Slice(1, chain.Length())); err != nil {
+	if err = m.InsertChain(chain.Slice(1, chain.Length()), nil); err != nil {
 		t.Fatal(err)
 	}
 
+	var acc accounts.Account
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
 		st := state.New(m.NewStateReader(tx))
 		if !st.Exist(contractAddress) {
 			t.Error("expected contractAddress to exist at the block 1", contractAddress.String())
 		}
 
-		stateReader := m.NewStateReader(tx)
-		acc, err := stateReader.ReadAccountData(contractAddress)
+		ok, err := rawdb.ReadAccount(tx, contractAddress, &acc)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if acc == nil {
+		if !ok {
 			t.Fatal(errors.New("acc not found"))
 		}
 		if acc.Incarnation != state.FirstContractIncarnation {
@@ -1206,17 +1199,16 @@ func TestWrongIncarnation2(t *testing.T) {
 	})
 	require.NoError(t, err)
 	// REORG of block 2 and 3, and insert new (empty) BLOCK 2, 3, and 4
-	if err = m.InsertChain(longerChain.Slice(1, longerChain.Length())); err != nil {
+	if err = m.InsertChain(longerChain.Slice(1, longerChain.Length()), nil); err != nil {
 		t.Fatal(err)
 	}
 
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
-		stateReader := m.NewStateReader(tx)
-		acc, err := stateReader.ReadAccountData(contractAddress)
+		ok, err := rawdb.ReadAccount(tx, contractAddress, &acc)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if acc == nil {
+		if !ok {
 			t.Fatal(errors.New("acc not found"))
 		}
 		if acc.Incarnation != state.NonContractIncarnation {
@@ -1480,7 +1472,7 @@ func TestRecreateAndRewind(t *testing.T) {
 	}
 
 	// BLOCKS 1 and 2
-	if err = m.InsertChain(chain.Slice(0, 2)); err != nil {
+	if err = m.InsertChain(chain.Slice(0, 2), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1501,7 +1493,7 @@ func TestRecreateAndRewind(t *testing.T) {
 	require.NoError(t, err)
 
 	// Block 3 and 4
-	if err = m.InsertChain(chain.Slice(2, chain.Length())); err != nil {
+	if err = m.InsertChain(chain.Slice(2, chain.Length()), nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -1520,7 +1512,7 @@ func TestRecreateAndRewind(t *testing.T) {
 	require.NoError(t, err)
 
 	// Reorg
-	if err = m.InsertChain(longerChain); err != nil {
+	if err = m.InsertChain(longerChain, nil); err != nil {
 		t.Fatal(err)
 	}
 	err = m.DB.View(context.Background(), func(tx kv.Tx) error {
@@ -1539,9 +1531,6 @@ func TestRecreateAndRewind(t *testing.T) {
 
 }
 func TestTxLookupUnwind(t *testing.T) {
-	if ethconfig.EnableHistoryV4InTest {
-		t.Skip("TODO: [e4] implement me")
-	}
 	var (
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)
@@ -1583,10 +1572,10 @@ func TestTxLookupUnwind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = m.InsertChain(chain1); err != nil {
+	if err = m.InsertChain(chain1, nil); err != nil {
 		t.Fatal(err)
 	}
-	if err = m.InsertChain(chain2); err != nil {
+	if err = m.InsertChain(chain2, nil); err != nil {
 		t.Fatal(err)
 	}
 	var count uint64

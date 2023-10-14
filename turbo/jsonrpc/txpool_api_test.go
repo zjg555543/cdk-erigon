@@ -10,7 +10,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/txpool"
 	txPoolProto "github.com/ledgerwatch/erigon-lib/gointerfaces/txpool"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcache"
-	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ledgerwatch/erigon/cmd/rpcdaemon/rpcdaemontest"
@@ -24,16 +23,12 @@ import (
 )
 
 func TestTxPoolContent(t *testing.T) {
-	if ethconfig.EnableHistoryV4InTest {
-		t.Skip("TODO: [e4] implement me")
-	}
-
 	m, require := mock.MockWithTxPool(t), require.New(t)
 	chain, err := core.GenerateChain(m.ChainConfig, m.Genesis, m.Engine, m.DB, 1, func(i int, b *core.BlockGen) {
 		b.SetCoinbase(libcommon.Address{1})
 	})
 	require.NoError(err)
-	err = m.InsertChain(chain)
+	err = m.InsertChain(chain, nil)
 	require.NoError(err)
 
 	ctx, conn := rpcdaemontest.CreateTestGrpcConn(t, m)

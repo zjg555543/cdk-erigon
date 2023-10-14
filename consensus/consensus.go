@@ -119,9 +119,6 @@ type EngineReader interface {
 
 	CalculateRewards(config *chain.Config, header *types.Header, uncles []*types.Header, syscall SystemCall,
 	) ([]Reward, error)
-
-	// Close terminates any background threads, DB's etc maintained by the consensus engine.
-	Close() error
 }
 
 // EngineReader are write methods of the consensus engine
@@ -182,6 +179,9 @@ type EngineWriter interface {
 
 	// APIs returns the RPC APIs this consensus engine provides.
 	APIs(chain ChainHeaderReader) []rpc.API
+
+	// Close terminates any background threads maintained by the consensus engine.
+	Close() error
 }
 
 // PoW is a consensus engine based on proof-of-work.

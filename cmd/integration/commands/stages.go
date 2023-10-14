@@ -5,36 +5,33 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
-	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/ledgerwatch/log/v3"
-	"github.com/ledgerwatch/secp256k1"
-	"github.com/shirou/gopsutil/v3/process"
-	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
-
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdallgrpc"
 	"github.com/ledgerwatch/erigon/core/rawdb/blockio"
-	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/erigon/node/nodecfg"
 	"github.com/ledgerwatch/erigon/turbo/builder"
 	"github.com/ledgerwatch/erigon/turbo/snapshotsync/freezeblocks"
+	"github.com/ledgerwatch/log/v3"
+	"github.com/ledgerwatch/secp256k1"
+	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 
 	chain2 "github.com/ledgerwatch/erigon-lib/chain"
+	"github.com/ledgerwatch/erigon-lib/commitment"
 	common2 "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/cmp"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
+	"github.com/ledgerwatch/erigon-lib/common/dir"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
-
 	"github.com/ledgerwatch/erigon/cmd/hack/tool/fromdb"
 	"github.com/ledgerwatch/erigon/cmd/sentry/sentry"
 	"github.com/ledgerwatch/erigon/consensus"
@@ -64,7 +61,7 @@ var cmdStageSnapshots = &cobra.Command{
 	Short: "",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := debug.SetupCobra(cmd, "integration")
-		db, err := openDBWithDefaultV3(dbCfg(kv.ChainDB, chaindata), true, logger)
+		db, err := openDB(dbCfg(kv.ChainDB, chaindata), true, logger)
 		if err != nil {
 			logger.Error("Opening DB", "error", err)
 			return
@@ -169,14 +166,14 @@ var cmdStageExec = &cobra.Command{
 	Short: "",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := debug.SetupCobra(cmd, "integration")
-		db, err := openDBWithDefaultV3(dbCfg(kv.ChainDB, chaindata), true, logger)
+		db, err := openDB(dbCfg(kv.ChainDB, chaindata), true, logger)
 		if err != nil {
 			logger.Error("Opening DB", "error", err)
 			return
 		}
 		defer db.Close()
 
-		defer func(t time.Time) { logger.Info("stage_exec total", "took", time.Since(t)) }(time.Now())
+		defer func(t time.Time) { logger.Info("total", "took", time.Since(t)) }(time.Now())
 
 		if err := stageExec(db, cmd.Context(), logger); err != nil {
 			if !errors.Is(err, context.Canceled) {
@@ -200,27 +197,6 @@ var cmdStageTrie = &cobra.Command{
 		defer db.Close()
 
 		if err := stageTrie(db, cmd.Context(), logger); err != nil {
-			if !errors.Is(err, context.Canceled) {
-				logger.Error(err.Error())
-			}
-			return
-		}
-	},
-}
-
-var cmdStagePatriciaTrie = &cobra.Command{
-	Use:   "stage_trie3",
-	Short: "",
-	Run: func(cmd *cobra.Command, args []string) {
-		logger := debug.SetupCobra(cmd, "integration")
-		db, err := openDB(dbCfg(kv.ChainDB, chaindata), true, logger)
-		if err != nil {
-			logger.Error("Opening DB", "error", err)
-			return
-		}
-		defer db.Close()
-
-		if err := stagePatriciaTrie(db, cmd.Context(), logger); err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Error(err.Error())
 			}
@@ -497,7 +473,6 @@ func init() {
 
 	withConfig(cmdStageSnapshots)
 	withDataDir(cmdStageSnapshots)
-	withChain(cmdStageSnapshots)
 	withReset(cmdStageSnapshots)
 	rootCmd.AddCommand(cmdStageSnapshots)
 
@@ -529,7 +504,6 @@ func init() {
 	withBlock(cmdStageExec)
 	withUnwind(cmdStageExec)
 	withNoCommit(cmdStageExec)
-	withBtreePlus(cmdStageExec)
 	withPruneTo(cmdStageExec)
 	withBatchSize(cmdStageExec)
 	withTxTrace(cmdStageExec)
@@ -559,18 +533,6 @@ func init() {
 	withChain(cmdStageTrie)
 	withHeimdall(cmdStageTrie)
 	rootCmd.AddCommand(cmdStageTrie)
-
-	withConfig(cmdStagePatriciaTrie)
-	withBtreePlus(cmdStagePatriciaTrie)
-	withDataDir(cmdStagePatriciaTrie)
-	withReset(cmdStagePatriciaTrie)
-	withBlock(cmdStagePatriciaTrie)
-	withUnwind(cmdStagePatriciaTrie)
-	withPruneTo(cmdStagePatriciaTrie)
-	withIntegrityChecks(cmdStagePatriciaTrie)
-	withChain(cmdStagePatriciaTrie)
-	withHeimdall(cmdStagePatriciaTrie)
-	rootCmd.AddCommand(cmdStagePatriciaTrie)
 
 	withConfig(cmdStageHistory)
 	withDataDir(cmdStageHistory)
@@ -656,52 +618,15 @@ func init() {
 }
 
 func stageSnapshots(db kv.RwDB, ctx context.Context, logger log.Logger) error {
-	sn, borSn, agg := allSnapshots(ctx, db, logger)
-	defer sn.Close()
-	defer borSn.Close()
-	defer agg.Close()
-
-	br, bw := blocksIO(db, logger)
-	_, _, _, _, _ = newSync(ctx, db, nil /* miningConfig */, logger)
-	chainConfig, _, _ := fromdb.ChainConfig(db), kvcfg.HistoryV3.FromDB(db), fromdb.PruneMode(db)
-
 	return db.Update(ctx, func(tx kv.RwTx) error {
 		if reset {
 			if err := stages.SaveStageProgress(tx, stages.Snapshots, 0); err != nil {
 				return fmt.Errorf("saving Snapshots progress failed: %w", err)
 			}
 		}
-		dirs := datadir.New(datadirCli)
-		if err := reset2.ResetBlocks(tx, db, agg, br, bw, dirs, *chainConfig, logger); err != nil {
-			return fmt.Errorf("resetting blocks: %w", err)
-		}
-		ac := agg.MakeContext()
-		defer ac.Close()
-
-		domains := libstate.NewSharedDomains(tx)
-		defer domains.Close()
-
-		_, err := domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
-		if err != nil {
-			return fmt.Errorf("seek commitment: %w", err)
-		}
-		//txnUm := domains.TxNum()
-		blockNum := domains.BlockNum()
-
-		// stagedsync.SpawnStageSnapshots(s, ctx, rwTx, logger)
 		progress, err := stages.GetStageProgress(tx, stages.Snapshots)
 		if err != nil {
 			return fmt.Errorf("re-read Snapshots progress: %w", err)
-		}
-
-		if blockNum > progress {
-			if err := stages.SaveStageProgress(tx, stages.Execution, blockNum); err != nil {
-				return fmt.Errorf("saving Snapshots progress failed: %w", err)
-			}
-			progress, err = stages.GetStageProgress(tx, stages.Snapshots)
-			if err != nil {
-				return fmt.Errorf("re-read Snapshots progress: %w", err)
-			}
 		}
 		logger.Info("Progress", "snapshots", progress)
 		return nil
@@ -709,27 +634,22 @@ func stageSnapshots(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 }
 
 func stageHeaders(db kv.RwDB, ctx context.Context, logger log.Logger) error {
-	dirs := datadir.New(datadirCli)
-	if err := datadir.ApplyMigrations(dirs); err != nil {
-		return err
-	}
-
 	sn, borSn, agg := allSnapshots(ctx, db, logger)
 	defer sn.Close()
 	defer borSn.Close()
 	defer agg.Close()
 	br, bw := blocksIO(db, logger)
-	_, _, _, _, _ = newSync(ctx, db, nil /* miningConfig */, logger)
+	engine, _, _, _, _ := newSync(ctx, db, nil /* miningConfig */, logger)
 	chainConfig, _, _ := fromdb.ChainConfig(db), kvcfg.HistoryV3.FromDB(db), fromdb.PruneMode(db)
 
-	if !(unwind > 0 || reset) {
-		logger.Error("This command only works with --unwind or --reset options")
-		return nil
-	}
-
 	return db.Update(ctx, func(tx kv.RwTx) error {
+		if !(unwind > 0 || reset) {
+			logger.Info("This command only works with --unwind or --reset options")
+		}
+
 		if reset {
-			if err := reset2.ResetBlocks(tx, db, agg, br, bw, dirs, *chainConfig, logger); err != nil {
+			dirs := datadir.New(datadirCli)
+			if err := reset2.ResetBlocks(tx, db, agg, br, bw, dirs, *chainConfig, engine, logger); err != nil {
 				return err
 			}
 			return nil
@@ -932,10 +852,6 @@ func stageSenders(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 
 func stageExec(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	dirs := datadir.New(datadirCli)
-	if err := datadir.ApplyMigrations(dirs); err != nil {
-		return err
-	}
-
 	engine, vmConfig, sync, _, _ := newSync(ctx, db, nil /* miningConfig */, logger)
 	must(sync.SetCurrentStage(stages.Execution))
 	sn, borSn, agg := allSnapshots(ctx, db, logger)
@@ -947,44 +863,7 @@ func stageExec(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 		return reset2.WarmupExec(ctx, db)
 	}
 	if reset {
-		var blockNum uint64
-		var err error
-
-		if v3db, ok := db.(*temporal.DB); ok {
-			agg := v3db.Agg()
-			err = v3db.Update(ctx, func(tx kv.RwTx) error {
-				ct := agg.MakeContext()
-				defer ct.Close()
-				doms := libstate.NewSharedDomains(tx)
-				defer doms.Close()
-				_, err = doms.SeekCommitment(ctx, tx, 0, math.MaxUint64)
-				if err != nil {
-					return err
-				}
-				if err := doms.Flush(ctx, tx); err != nil {
-					return err
-				}
-				blockNum = doms.BlockNum()
-				return err
-			})
-			if err != nil {
-				return err
-			}
-		}
-
-		if err := reset2.ResetExec(ctx, db, chain, "", blockNum); err != nil {
-			return err
-		}
-
-		//br, bw := blocksIO(db, logger)
-		//chainConfig := fromdb.ChainConfig(db)
-		//return db.Update(ctx, func(tx kv.RwTx) error {
-		//	if err := reset2.ResetBlocks(tx, db, agg, br, bw, dirs, *chainConfig, logger); err != nil {
-		//		return err
-		//	}
-		//	return nil
-		//})
-		return nil
+		return reset2.ResetExec(ctx, db, chain, "")
 	}
 
 	if txtrace {
@@ -1015,7 +894,7 @@ func stageExec(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	br, _ := blocksIO(db, logger)
 	cfg := stagedsync.StageExecuteBlocksCfg(db, pm, batchSize, nil, chainConfig, engine, vmConfig, nil,
 		/*stateStream=*/ false,
-		/*badBlockHalt=*/ true, historyV3, dirs, br, nil, genesis, syncCfg, agg, nil)
+		/*badBlockHalt=*/ false, historyV3, dirs, br, nil, genesis, syncCfg, agg)
 
 	var tx kv.RwTx //nil - means lower-level code (each stage) will manage transactions
 	if noCommit {
@@ -1052,7 +931,6 @@ func stageExec(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -1111,39 +989,6 @@ func stageTrie(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 		}
 	}
 	integrity.Trie(db, tx, integritySlow, ctx)
-	return tx.Commit()
-}
-
-func stagePatriciaTrie(db kv.RwDB, ctx context.Context, logger log.Logger) error {
-	dirs, pm, historyV3 := datadir.New(datadirCli), fromdb.PruneMode(db), kvcfg.HistoryV3.FromDB(db)
-	_ = pm
-	sn, _, agg := allSnapshots(ctx, db, logger)
-	defer sn.Close()
-	defer agg.Close()
-	_, _, _, _, _ = newSync(ctx, db, nil /* miningConfig */, logger)
-
-	if warmup {
-		return reset2.Warmup(ctx, db, log.LvlInfo, stages.Execution)
-	}
-	if reset {
-		return reset2.Reset(ctx, db, stages.Execution)
-	}
-	tx, err := db.BeginRw(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if enabled, _ := kvcfg.HistoryV3.Enabled(tx); !enabled {
-		panic("this method for v3 only")
-	}
-
-	br, _ := blocksIO(db, logger)
-	cfg := stagedsync.StageTrieCfg(db, true /* checkRoot */, true /* saveHashesToDb */, false /* badBlockHalt */, dirs.Tmp, br, nil /* hd */, historyV3, agg)
-
-	if _, err := stagedsync.RebuildPatriciaTrieBasedOnFiles(tx, cfg, ctx, logger); err != nil {
-		return err
-	}
 	return tx.Commit()
 }
 
@@ -1452,51 +1297,11 @@ func stageTxLookup(db kv.RwDB, ctx context.Context, logger log.Logger) error {
 	return tx.Commit()
 }
 
-var rlimit2str = map[int32]string{
-	process.RLIMIT_CPU:        "cpu",
-	process.RLIMIT_FSIZE:      "fsize",
-	process.RLIMIT_DATA:       "data",
-	process.RLIMIT_STACK:      "stack",
-	process.RLIMIT_CORE:       "core",
-	process.RLIMIT_RSS:        "rss",
-	process.RLIMIT_NPROC:      "nproc",
-	process.RLIMIT_NOFILE:     "nofile",
-	process.RLIMIT_MEMLOCK:    "memlock",
-	process.RLIMIT_AS:         "as",
-	process.RLIMIT_LOCKS:      "locks",
-	process.RLIMIT_SIGPENDING: "sigpending",
-	process.RLIMIT_MSGQUEUE:   "msgqueue",
-	process.RLIMIT_NICE:       "nice",
-	process.RLIMIT_RTPRIO:     "prtrio",
-	process.RLIMIT_RTTIME:     "rttime",
-}
-
 func printAllStages(db kv.RoDB, ctx context.Context, logger log.Logger) error {
-	checkPid := os.Getpid()
-	pr, err := process.NewProcess(int32(checkPid))
-	if err != nil {
-		panic(err)
-	}
-	rl, err := pr.RlimitUsage(true)
-	if err != nil {
-		panic(err)
-	}
-	for _, rll := range rl {
-		if rll.Used < 1000 {
-			continue
-		}
-		//switch rll.Resource {
-		//case process.RLIMIT_RSS, process.RLIMIT_RSS:
-		fmt.Printf("%s: hard=%s, soft=%s, used=%s, %d%%\n", rlimit2str[rll.Resource], datasize.ByteSize(rll.Hard).String(), datasize.ByteSize(rll.Soft).String(), datasize.ByteSize(rll.Used).String(), rll.Used/rll.Soft)
-		//default:
-		//}
-	}
-
 	sn, borSn, agg := allSnapshots(ctx, db, logger)
 	defer sn.Close()
 	defer borSn.Close()
 	defer agg.Close()
-
 	return db.View(ctx, func(tx kv.Tx) error { return printStages(tx, sn, agg) })
 }
 
@@ -1531,22 +1336,20 @@ var _aggSingleton *libstate.AggregatorV3
 
 func allSnapshots(ctx context.Context, db kv.RoDB, logger log.Logger) (*freezeblocks.RoSnapshots, *freezeblocks.BorRoSnapshots, *libstate.AggregatorV3) {
 	openSnapshotOnce.Do(func() {
-		libstate.UseBpsTree = useBtreePlus
-
 		var useSnapshots bool
 		_ = db.View(context.Background(), func(tx kv.Tx) error {
 			useSnapshots, _ = snap.Enabled(tx)
 			return nil
 		})
 		dirs := datadir.New(datadirCli)
+		dir.MustExist(dirs.SnapHistory)
 
-		//useSnapshots = true
 		snapCfg := ethconfig.NewSnapCfg(useSnapshots, true, true)
 		_allSnapshotsSingleton = freezeblocks.NewRoSnapshots(snapCfg, dirs.Snap, logger)
 		_allBorSnapshotsSingleton = freezeblocks.NewBorRoSnapshots(snapCfg, dirs.Snap, logger)
 
 		var err error
-		_aggSingleton, err = libstate.NewAggregatorV3(ctx, dirs, ethconfig.HistoryV3AggregationStep, db, logger)
+		_aggSingleton, err = libstate.NewAggregatorV3(ctx, dirs.SnapHistory, dirs.Tmp, ethconfig.HistoryV3AggregationStep, db, logger)
 		if err != nil {
 			panic(err)
 		}
@@ -1565,9 +1368,7 @@ func allSnapshots(ctx context.Context, db kv.RoDB, logger log.Logger) (*freezebl
 			}
 			_allBorSnapshotsSingleton.LogStat()
 			db.View(context.Background(), func(tx kv.Tx) error {
-				ac := _aggSingleton.MakeContext()
-				defer ac.Close()
-				ac.LogStats(tx, func(endTxNumMinimax uint64) uint64 {
+				_aggSingleton.LogStats(tx, func(endTxNumMinimax uint64) uint64 {
 					_, histBlockNumProgress, _ := rawdbv3.TxNums.FindBlockNum(tx, endTxNumMinimax)
 					return histBlockNumProgress
 				})
@@ -1592,7 +1393,49 @@ func blocksIO(db kv.RoDB, logger log.Logger) (services.FullBlockReader, *blockio
 	return _blockReaderSingleton, _blockWriterSingleton
 }
 
-func newDomains(ctx context.Context, db kv.RwDB, logger log.Logger) (consensus.Engine, ethconfig.Config, *freezeblocks.RoSnapshots, *libstate.AggregatorV3) {
+var openDomainsOnce sync.Once
+var _aggDomainSingleton *libstate.Aggregator
+
+func allDomains(ctx context.Context, db kv.RoDB, stepSize uint64, mode libstate.CommitmentMode, trie commitment.TrieVariant, logger log.Logger) (*freezeblocks.RoSnapshots, *libstate.Aggregator) {
+	openDomainsOnce.Do(func() {
+		var useSnapshots bool
+		_ = db.View(context.Background(), func(tx kv.Tx) error {
+			useSnapshots, _ = snap.Enabled(tx)
+			return nil
+		})
+		dirs := datadir.New(datadirCli)
+		dir.MustExist(dirs.SnapHistory)
+
+		snapCfg := ethconfig.NewSnapCfg(useSnapshots, true, true)
+		_allSnapshotsSingleton = freezeblocks.NewRoSnapshots(snapCfg, dirs.Snap, logger)
+
+		var err error
+		_aggDomainSingleton, err = libstate.NewAggregator(filepath.Join(dirs.DataDir, "state"), dirs.Tmp, stepSize, mode, trie, logger)
+		if err != nil {
+			panic(err)
+		}
+		if err = _aggDomainSingleton.ReopenFolder(); err != nil {
+			panic(err)
+		}
+
+		if useSnapshots {
+			if err := _allSnapshotsSingleton.ReopenFolder(); err != nil {
+				panic(err)
+			}
+			_allSnapshotsSingleton.LogStat()
+			//db.View(context.Background(), func(tx kv.Tx) error {
+			//	_aggSingleton.LogStats(tx, func(endTxNumMinimax uint64) uint64 {
+			//		_, histBlockNumProgress, _ := rawdbv3.TxNums.FindBlockNum(tx, endTxNumMinimax)
+			//		return histBlockNumProgress
+			//	})
+			//	return nil
+			//})
+		}
+	})
+	return _allSnapshotsSingleton, _aggDomainSingleton
+}
+
+func newDomains(ctx context.Context, db kv.RwDB, stepSize uint64, mode libstate.CommitmentMode, trie commitment.TrieVariant, logger log.Logger) (consensus.Engine, ethconfig.Config, *freezeblocks.RoSnapshots, *libstate.Aggregator) {
 	historyV3, pm := kvcfg.HistoryV3.FromDB(db), fromdb.PruneMode(db)
 	//events := shards.NewEvents()
 	genesis := core.GenesisBlockByChainName(chain)
@@ -1614,9 +1457,12 @@ func newDomains(ctx context.Context, db kv.RwDB, logger log.Logger) (consensus.E
 	cfg.BatchSize = batchSize
 	cfg.DeprecatedTxPool.Disable = true
 	cfg.Genesis = core.GenesisBlockByChainName(chain)
+	//if miningConfig != nil {
+	//	cfg.Miner = *miningConfig
+	//}
 	cfg.Dirs = datadir.New(datadirCli)
 
-	allSn, _, agg := allSnapshots(ctx, db, logger)
+	allSn, agg := allDomains(ctx, db, stepSize, mode, trie, logger)
 	cfg.Snapshot = allSn.Cfg()
 
 	blockReader, _ := blocksIO(db, logger)
@@ -1685,7 +1531,7 @@ func newSync(ctx context.Context, db kv.RwDB, miningConfig *params.MiningConfig,
 	notifications := &shards.Notifications{}
 	blockRetire := freezeblocks.NewBlockRetire(1, dirs, blockReader, blockWriter, db, notifications.Events, logger)
 
-	stages := stages2.NewDefaultStages(context.Background(), db, p2p.Config{}, &cfg, sentryControlServer, notifications, nil, blockReader, blockRetire, agg, nil, nil, heimdallClient, logger)
+	stages := stages2.NewDefaultStages(context.Background(), db, p2p.Config{}, &cfg, sentryControlServer, notifications, nil, blockReader, blockRetire, agg, nil, heimdallClient, logger)
 	sync := stagedsync.New(stages, stagedsync.DefaultUnwindOrder, stagedsync.DefaultPruneOrder, logger)
 
 	miner := stagedsync.NewMiningState(&cfg.Miner)
@@ -1760,7 +1606,6 @@ func initConsensusEngine(cc *chain2.Config, dir string, db kv.RwDB, blockReader 
 		consensusConfig = &config.Bor
 		config.HeimdallURL = HeimdallURL
 		if !config.WithoutHeimdall {
-			config.HeimdallURL = HeimdallURL
 			if config.HeimdallgRPCAddress != "" {
 				heimdallClient = heimdallgrpc.NewHeimdallGRPCClient(config.HeimdallgRPCAddress, logger)
 			} else {

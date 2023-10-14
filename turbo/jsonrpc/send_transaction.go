@@ -27,7 +27,7 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility
 	if err := checkTxFee(txn.GetPrice().ToBig(), txn.GetGas(), ethconfig.Defaults.RPCTxFeeCap); err != nil {
 		return common.Hash{}, err
 	}
-	if !txn.Protected() && !api.AllowUnprotectedTxs {
+	if !txn.Protected() {
 		return common.Hash{}, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
 	}
 
@@ -45,12 +45,11 @@ func (api *APIImpl) SendRawTransaction(ctx context.Context, encodedTx hexutility
 		return common.Hash{}, err
 	}
 
-	if txn.Protected() {
-		txnChainId := txn.GetChainID()
-		chainId := cc.ChainID
-		if chainId.Cmp(txnChainId.ToBig()) != 0 {
-			return common.Hash{}, fmt.Errorf("invalid chain id, expected: %d got: %d", chainId, *txnChainId)
-		}
+	txnChainId := txn.GetChainID()
+	chainId := cc.ChainID
+
+	if chainId.Cmp(txnChainId.ToBig()) != 0 {
+		return common.Hash{}, fmt.Errorf("invalid chain id, expected: %d got: %d", chainId, *txnChainId)
 	}
 
 	hash := txn.Hash()

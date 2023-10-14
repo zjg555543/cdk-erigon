@@ -32,7 +32,6 @@ import (
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/erigon/core/vm/evmtypes"
-	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/rpchelper"
 )
@@ -145,8 +144,8 @@ func TestCreateGas(t *testing.T) {
 		tx, _ := db.BeginRw(context.Background())
 		defer tx.Rollback()
 
-		stateReader := rpchelper.NewLatestStateReader(tx, ethconfig.EnableHistoryV4InTest)
-		stateWriter := rpchelper.NewLatestStateWriter(tx, 0, ethconfig.EnableHistoryV4InTest)
+		stateReader := rpchelper.NewLatestStateReader(tx)
+		stateWriter := rpchelper.NewLatestStateWriter(tx, 0)
 
 		s := state.New(stateReader)
 		s.CreateAccount(address, true)

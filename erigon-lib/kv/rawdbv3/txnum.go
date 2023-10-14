@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
@@ -91,7 +90,7 @@ func (txNums) Append(tx kv.RwTx, blockNum, maxTxNum uint64) (err error) {
 	if len(lastK) != 0 {
 		lastBlockNum := binary.BigEndian.Uint64(lastK)
 		if lastBlockNum > 1 && lastBlockNum+1 != blockNum { //allow genesis
-			return fmt.Errorf("append with gap blockNum=%d, but current heigh=%d, stack: %s", blockNum, lastBlockNum, dbg.Stack())
+			return fmt.Errorf("append with gap blockNum=%d, but current heigh=%d", blockNum, lastBlockNum)
 		}
 	}
 
@@ -136,14 +135,10 @@ func (txNums) FindBlockNum(tx kv.Tx, endTxNumMinimax uint64) (ok bool, blockNum 
 	}
 	defer c.Close()
 
-	lastK, _, err := c.Last()
+	cnt, err := c.Count()
 	if err != nil {
 		return false, 0, err
 	}
-	if lastK == nil {
-		return false, 0, nil
-	}
-	cnt := binary.BigEndian.Uint64(lastK)
 
 	blockNum = uint64(sort.Search(int(cnt), func(i int) bool {
 		binary.BigEndian.PutUint64(seek[:], uint64(i))

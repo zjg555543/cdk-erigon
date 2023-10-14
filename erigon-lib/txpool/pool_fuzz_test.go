@@ -334,6 +334,9 @@ func FuzzOnNewBlocks(f *testing.F) {
 				if tx.subPool&NoNonceGaps > 0 {
 					assert.GreaterOrEqual(i.Nonce, senders[i.SenderID].nonce, msg, i.SenderID)
 				}
+				if tx.subPool&EnoughFeeCapProtocol > 0 {
+					assert.LessOrEqual(calcProtocolBaseFee(pendingBaseFee), tx.Tx.FeeCap, msg)
+				}
 				if tx.subPool&EnoughFeeCapBlock > 0 {
 					assert.LessOrEqual(pendingBaseFee, tx.Tx.FeeCap, msg)
 				}
@@ -367,6 +370,9 @@ func FuzzOnNewBlocks(f *testing.F) {
 				if tx.subPool&NoNonceGaps > 0 {
 					assert.GreaterOrEqual(i.Nonce, senders[i.SenderID].nonce, msg)
 				}
+				if tx.subPool&EnoughFeeCapProtocol > 0 {
+					assert.LessOrEqual(calcProtocolBaseFee(pendingBaseFee), tx.Tx.FeeCap, msg)
+				}
 				if tx.subPool&EnoughFeeCapBlock > 0 {
 					assert.LessOrEqual(pendingBaseFee, tx.Tx.FeeCap, msg)
 				}
@@ -384,6 +390,9 @@ func FuzzOnNewBlocks(f *testing.F) {
 				i := tx.Tx
 				if tx.subPool&NoNonceGaps > 0 {
 					assert.GreaterOrEqual(i.Nonce, senders[i.SenderID].nonce, msg, i.SenderID, senders[i.SenderID].nonce)
+				}
+				if tx.subPool&EnoughFeeCapProtocol > 0 {
+					assert.LessOrEqual(calcProtocolBaseFee(pendingBaseFee), tx.Tx.FeeCap, msg)
 				}
 				if tx.subPool&EnoughFeeCapBlock > 0 {
 					assert.LessOrEqual(pendingBaseFee, tx.Tx.FeeCap, msg)

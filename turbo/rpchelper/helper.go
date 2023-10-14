@@ -9,12 +9,12 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcache"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
-	state2 "github.com/ledgerwatch/erigon-lib/state"
-	borfinality "github.com/ledgerwatch/erigon/consensus/bor/finality"
-	"github.com/ledgerwatch/erigon/consensus/bor/finality/whitelist"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/systemcontracts"
+	"github.com/ledgerwatch/erigon/eth/borfinality"
+	"github.com/ledgerwatch/erigon/eth/borfinality/whitelist"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/rpc"
 )
@@ -58,8 +58,7 @@ func _GetBlockNumber(requireCanonical bool, blockNrOrHash rpc.BlockNumberOrHash,
 			if whitelist.GetWhitelistingService() != nil {
 				num := borfinality.GetFinalizedBlockNumber(tx)
 				if num == 0 {
-					// nolint
-					return 0, libcommon.Hash{}, false, errors.New("No finalized block")
+					return 0, libcommon.Hash{}, false, errors.New("no finalized block")
 				}
 
 				blockNum := borfinality.CurrentFinalizedBlock(tx, num).NumberU64()
@@ -145,16 +144,16 @@ func CreateHistoryStateReader(tx kv.Tx, blockNumber uint64, txnIndex int, histor
 	return r, nil
 }
 
-func NewLatestStateReader(tx kv.Getter, histV3 bool) state.StateReader {
-	if histV3 {
-		return state.NewReaderV4(tx.(kv.TemporalGetter))
+func NewLatestStateReader(tx kv.Getter) state.StateReader {
+	if ethconfig.EnableHistoryV4InTest {
+		panic("implement me")
+		//b.pendingReader = state.NewReaderV4(b.pendingReaderTx.(kv.TemporalTx))
 	}
 	return state.NewPlainStateReader(tx)
 }
-func NewLatestStateWriter(tx kv.RwTx, blockNum uint64, histV3 bool) state.StateWriter {
-	if histV3 {
-		domains := state2.NewSharedDomains(tx)
-		return state.NewWriterV4(domains)
+func NewLatestStateWriter(tx kv.RwTx, blockNum uint64) state.StateWriter {
+	if ethconfig.EnableHistoryV4InTest {
+		panic("implement me")
 	}
 	return state.NewPlainStateWriter(tx, tx, blockNum)
 }

@@ -3,11 +3,10 @@ package stagedsync
 import (
 	"context"
 
-	"github.com/ledgerwatch/log/v3"
-
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
+	"github.com/ledgerwatch/log/v3"
 )
 
 func DefaultStages(ctx context.Context,
@@ -66,6 +65,8 @@ func DefaultStages(ctx context.Context,
 				if badBlockUnwind {
 					return nil
 				}
+				//fmt.Println("BorHeimdallForward", "validate")
+				//defer fmt.Println("BorHeimdallForward", "validate", "DONE")
 				return BorHeimdallForward(s, u, ctx, tx, borHeimdallCfg, false, logger)
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx, logger log.Logger) error {
@@ -130,7 +131,7 @@ func DefaultStages(ctx context.Context,
 		{
 			ID:          stages.HashState,
 			Description: "Hash the key in the state",
-			Disabled:    bodies.historyV3,
+			Disabled:    bodies.historyV3 && ethconfig.EnableHistoryV4InTest,
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
 				return SpawnHashStateStage(s, tx, hashState, ctx, logger)
 			},
@@ -144,7 +145,7 @@ func DefaultStages(ctx context.Context,
 		{
 			ID:          stages.IntermediateHashes,
 			Description: "Generate intermediate hashes and computing state root",
-			Disabled:    bodies.historyV3,
+			Disabled:    bodies.historyV3 && ethconfig.EnableHistoryV4InTest,
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
 				if exec.chainConfig.IsPrague(0) {
 					_, err := SpawnVerkleTrie(s, u, tx, trieCfg, ctx, logger)
@@ -309,7 +310,7 @@ func PipelineStages(ctx context.Context, snapshots SnapshotsCfg, blockHashCfg Bl
 		{
 			ID:          stages.HashState,
 			Description: "Hash the key in the state",
-			Disabled:    exec.historyV3,
+			Disabled:    exec.historyV3 && ethconfig.EnableHistoryV4InTest,
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
 				return SpawnHashStateStage(s, tx, hashState, ctx, logger)
 			},
@@ -323,7 +324,7 @@ func PipelineStages(ctx context.Context, snapshots SnapshotsCfg, blockHashCfg Bl
 		{
 			ID:          stages.IntermediateHashes,
 			Description: "Generate intermediate hashes and computing state root",
-			Disabled:    exec.historyV3,
+			Disabled:    exec.historyV3 && ethconfig.EnableHistoryV4InTest,
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
 				if exec.chainConfig.IsPrague(0) {
 					_, err := SpawnVerkleTrie(s, u, tx, trieCfg, ctx, logger)
@@ -445,7 +446,7 @@ func StateStages(ctx context.Context, headers HeadersCfg, bodies BodiesCfg, bloc
 			ID:          stages.Bodies,
 			Description: "Download block bodies",
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
-				return nil
+				return BodiesForward(s, u, ctx, tx, bodies, false, false, logger)
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx, logger log.Logger) error {
 				return UnwindBodiesStage(u, tx, bodies, ctx)
@@ -484,7 +485,6 @@ func StateStages(ctx context.Context, headers HeadersCfg, bodies BodiesCfg, bloc
 		{
 			ID:          stages.HashState,
 			Description: "Hash the key in the state",
-			Disabled:    bodies.historyV3 && ethconfig.EnableHistoryV4InTest,
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
 				return SpawnHashStateStage(s, tx, hashState, ctx, logger)
 			},
@@ -495,7 +495,6 @@ func StateStages(ctx context.Context, headers HeadersCfg, bodies BodiesCfg, bloc
 		{
 			ID:          stages.IntermediateHashes,
 			Description: "Generate intermediate hashes and computing state root",
-			Disabled:    bodies.historyV3 && ethconfig.EnableHistoryV4InTest,
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
 				_, err := SpawnIntermediateHashesStage(s, u, tx, trieCfg, ctx, logger)
 				return err

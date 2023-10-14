@@ -26,7 +26,6 @@ var (
 	ErrNotSuccessfulResponse = errors.New("error while fetching data from Heimdall")
 	ErrNotInRejectedList     = errors.New("milestoneID doesn't exist in rejected list")
 	ErrNotInMilestoneList    = errors.New("milestoneID doesn't exist in Heimdall")
-	ErrServiceUnavailable    = errors.New("service unavailable")
 )
 
 const (
@@ -280,18 +279,10 @@ func FetchWithRetry[T any](ctx context.Context, client http.Client, url *url.URL
 		return result, nil
 	}
 
-	// 503 (Service Unavailable) is thrown when an endpoint isn't activated
-	// yet in heimdall. E.g. when the hardfork hasn't hit yet but heimdall
-	// is upgraded.
-	if errors.Is(err, ErrServiceUnavailable) {
-		logger.Debug("Heimdall service unavailable at the moment", "path", url.Path, "error", err)
-		return nil, err
-	}
-
 	// attempt counter
 	attempt := 1
 
-	logger.Warn("an error while trying fetching from Heimdall", "path", url.Path, "attempt", attempt, "error", err)
+	logger.Warn("an error while trying fetching from Heimdall", "attempt", attempt, "error", err)
 
 	// create a new ticker for retrying the request
 	ticker := time.NewTicker(retryCall)
@@ -318,14 +309,9 @@ retryLoop:
 			request = &Request{client: client, url: url, start: time.Now()}
 			result, err = Fetch[T](ctx, request)
 
-			if errors.Is(err, ErrServiceUnavailable) {
-				logger.Debug("Heimdall service unavailable at the moment", "path", url.Path, "error", err)
-				return nil, err
-			}
-
 			if err != nil {
 				if attempt%logEach == 0 {
-					logger.Warn("an error while trying fetching from Heimdall", "path", url.Path, "attempt", attempt, "error", err)
+					logger.Warn("an error while trying fetching from Heimdall", "attempt", attempt, "error", err)
 				}
 
 				continue retryLoop
@@ -437,10 +423,6 @@ func internalFetch(ctx context.Context, client http.Client, u *url.URL) ([]byte,
 	}
 
 	defer res.Body.Close()
-
-	if res.StatusCode == http.StatusServiceUnavailable {
-		return nil, fmt.Errorf("%w: response code %d", ErrServiceUnavailable, res.StatusCode)
-	}
 
 	// check status code
 	if res.StatusCode != 200 && res.StatusCode != 204 {

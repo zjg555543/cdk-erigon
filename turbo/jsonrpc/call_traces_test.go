@@ -8,7 +8,6 @@ import (
 	"github.com/holiman/uint256"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/ledgerwatch/erigon-lib/common"
-	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/fastjson"
@@ -53,7 +52,7 @@ func TestCallTraceOneByOne(t *testing.T) {
 	api := NewTraceAPI(newBaseApiForTest(m), m.DB, &httpcfg.HttpCfg{})
 	// Insert blocks 1 by 1, to tirgget possible "off by one" errors
 	for i := 0; i < chain.Length(); i++ {
-		if err = m.InsertChain(chain.Slice(i, i+1)); err != nil {
+		if err = m.InsertChain(chain.Slice(i, i+1), nil); err != nil {
 			t.Fatalf("inserting chain: %v", err)
 		}
 	}
@@ -75,9 +74,6 @@ func TestCallTraceOneByOne(t *testing.T) {
 }
 
 func TestCallTraceUnwind(t *testing.T) {
-	if ethconfig.EnableHistoryV4InTest {
-		t.Skip("fix me")
-	}
 	m := mock.Mock(t)
 	var chainA, chainB *core.ChainPack
 	var err error
@@ -100,7 +96,7 @@ func TestCallTraceUnwind(t *testing.T) {
 
 	api := NewTraceAPI(newBaseApiForTest(m), m.DB, &httpcfg.HttpCfg{})
 
-	if err = m.InsertChain(chainA); err != nil {
+	if err = m.InsertChain(chainA, nil); err != nil {
 		t.Fatalf("inserting chainA: %v", err)
 	}
 	stream := jsoniter.ConfigDefault.BorrowStream(nil)
@@ -119,7 +115,7 @@ func TestCallTraceUnwind(t *testing.T) {
 	}
 	assert.Equal(t, []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, blockNumbersFromTraces(t, stream.Buffer()))
 
-	if err = m.InsertChain(chainB.Slice(0, 12)); err != nil {
+	if err = m.InsertChain(chainB.Slice(0, 12), nil); err != nil {
 		t.Fatalf("inserting chainB: %v", err)
 	}
 	stream.Reset(nil)
@@ -134,7 +130,7 @@ func TestCallTraceUnwind(t *testing.T) {
 	}
 	assert.Equal(t, []int{1, 2, 3, 4, 5, 11, 12}, blockNumbersFromTraces(t, stream.Buffer()))
 
-	if err = m.InsertChain(chainB.Slice(12, 20)); err != nil {
+	if err = m.InsertChain(chainB.Slice(12, 20), nil); err != nil {
 		t.Fatalf("inserting chainB: %v", err)
 	}
 	stream.Reset(nil)
@@ -162,7 +158,7 @@ func TestFilterNoAddresses(t *testing.T) {
 	api := NewTraceAPI(newBaseApiForTest(m), m.DB, &httpcfg.HttpCfg{})
 	// Insert blocks 1 by 1, to tirgget possible "off by one" errors
 	for i := 0; i < chain.Length(); i++ {
-		if err = m.InsertChain(chain.Slice(i, i+1)); err != nil {
+		if err = m.InsertChain(chain.Slice(i, i+1), nil); err != nil {
 			t.Fatalf("inserting chain: %v", err)
 		}
 	}
@@ -209,7 +205,7 @@ func TestFilterAddressIntersection(t *testing.T) {
 	})
 	require.NoError(t, err, "generate chain")
 
-	err = m.InsertChain(chain)
+	err = m.InsertChain(chain, nil)
 	require.NoError(t, err, "inserting chain")
 
 	fromBlock, toBlock := uint64(1), uint64(15)

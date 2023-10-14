@@ -2,13 +2,14 @@ package temporal
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"testing"
 
-	"github.com/ledgerwatch/log/v3"
-
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
+	"github.com/ledgerwatch/erigon-lib/common/dir"
+	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/iter"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
@@ -22,6 +23,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
+	"github.com/ledgerwatch/log/v3"
 )
 
 //Variables Naming:
@@ -194,13 +196,8 @@ type Tx struct {
 func (tx *Tx) AggCtx() *state.AggregatorV3Context { return tx.aggCtx }
 func (tx *Tx) Agg() *state.AggregatorV3           { return tx.db.agg }
 func (tx *Tx) Rollback() {
-	if tx.MdbxTx == nil { // invariant: it's safe to call Commit/Rollback multiple times
-		return
-	}
-	mdbxTx := tx.MdbxTx
-	tx.MdbxTx = nil
 	tx.autoClose()
-	mdbxTx.Rollback()
+	tx.MdbxTx.Rollback()
 }
 func (tx *Tx) autoClose() {
 	for _, closer := range tx.resourcesToClose {
@@ -211,41 +208,159 @@ func (tx *Tx) autoClose() {
 	}
 }
 func (tx *Tx) Commit() error {
-	if tx.MdbxTx == nil { // invariant: it's safe to call Commit/Rollback multiple times
-		return nil
-	}
-	mdbxTx := tx.MdbxTx
-	tx.MdbxTx = nil
 	tx.autoClose()
-	return mdbxTx.Commit()
+	return tx.MdbxTx.Commit()
 }
 
 func (tx *Tx) DomainRange(name kv.Domain, fromKey, toKey []byte, asOfTs uint64, asc order.By, limit int) (it iter.KV, err error) {
-	it, err = tx.aggCtx.DomainRange(tx.MdbxTx, name, fromKey, toKey, asOfTs, asc, limit)
-	if err != nil {
-		return nil, err
+	if asc == order.Desc {
+		panic("not supported yet")
 	}
+	switch name {
+	case kv.AccountsDomain:
+		histStateIt := tx.aggCtx.AccountHistoricalStateRange(asOfTs, fromKey, toKey, limit, tx)
+		// TODO: somehow avoid common.Copy(k) - WalkAsOfIter is not zero-copy
+		// Is histStateIt possible to increase keys lifetime to: 2 .Next() calls??
+		histStateIt2 := iter.TransformKV(histStateIt, func(k, v []byte) ([]byte, []byte, error) {
+			if len(v) == 0 {
+				return k[:20], v, nil
+			}
+			v, err = tx.db.convertV3toV2(v)
+			if err != nil {
+				return nil, nil, err
+			}
+			/*
+				var force *common.Hash
+				if tx.db.systemContractLookup != nil {
+					if records, ok := tx.db.systemContractLookup[common.BytesToAddress(k)]; ok {
+						p := sort.Search(len(records), func(i int) bool {
+							return records[i].TxNumber > asOfTs
+						})
+						hash := records[p-1].CodeHash
+						force = &hash
+					}
+				}
+				v, err = tx.db.restoreCodeHash(tx.MdbxTx, k, v, force)
+				if err != nil {
+					return nil, nil, err
+				}
+			*/
+			return k[:20], common.Copy(v), nil
+		})
+		lastestStateIt, err := tx.RangeAscend(kv.PlainState, fromKey, toKey, -1) // don't apply limit, because need filter
+		if err != nil {
+			return nil, err
+		}
+		// TODO: instead of iterate over whole storage, need implement iterator which does cursor.Seek(nextAccount)
+		latestStateIt2 := iter.FilterKV(lastestStateIt, func(k, v []byte) bool {
+			return len(k) == 20
+		})
+		it = iter.UnionKV(histStateIt2, latestStateIt2, limit)
+	case kv.StorageDomain:
+		storageIt := tx.aggCtx.StorageHistoricalStateRange(asOfTs, fromKey, toKey, limit, tx)
+		storageIt1 := iter.TransformKV(storageIt, func(k, v []byte) ([]byte, []byte, error) {
+			return k, v, nil
+		})
+
+		accData, err := tx.GetOne(kv.PlainState, fromKey[:20])
+		if err != nil {
+			return nil, err
+		}
+		inc, err := tx.db.parseInc(accData)
+		if err != nil {
+			return nil, err
+		}
+		startkey := make([]byte, length.Addr+length.Incarnation+length.Hash)
+		copy(startkey, fromKey[:20])
+		binary.BigEndian.PutUint64(startkey[length.Addr:], inc)
+		copy(startkey[length.Addr+length.Incarnation:], fromKey[20:])
+
+		toPrefix := make([]byte, length.Addr+length.Incarnation)
+		copy(toPrefix, fromKey[:20])
+		binary.BigEndian.PutUint64(toPrefix[length.Addr:], inc+1)
+
+		it2, err := tx.RangeAscend(kv.PlainState, startkey, toPrefix, limit)
+		if err != nil {
+			return nil, err
+		}
+		it3 := iter.TransformKV(it2, func(k, v []byte) ([]byte, []byte, error) {
+			return append(append([]byte{}, k[:20]...), k[28:]...), v, nil
+		})
+		it = iter.UnionKV(storageIt1, it3, limit)
+	case kv.CodeDomain:
+		panic("not implemented yet")
+	default:
+		panic(fmt.Sprintf("unexpected: %s", name))
+	}
+
 	if closer, ok := it.(kv.Closer); ok {
 		tx.resourcesToClose = append(tx.resourcesToClose, closer)
 	}
+
 	return it, nil
 }
-
-func (tx *Tx) DomainGet(name kv.Domain, k, k2 []byte) (v []byte, err error) {
-	v, ok, err := tx.aggCtx.GetLatest(name, k, k2, tx.MdbxTx)
-	if err != nil {
-		return nil, err
+func (tx *Tx) DomainGet(name kv.Domain, key, key2 []byte) (v []byte, ok bool, err error) {
+	if ethconfig.EnableHistoryV4InTest {
+		panic("implement me")
 	}
-	if !ok {
-		return nil, nil
+	switch name {
+	case kv.AccountsDomain:
+		v, err = tx.GetOne(kv.PlainState, key)
+		return v, v != nil, err
+	case kv.StorageDomain:
+		v, err = tx.GetOne(kv.PlainState, append(common.Copy(key), key2...))
+		return v, v != nil, err
+	case kv.CodeDomain:
+		v, err = tx.GetOne(kv.Code, key2)
+		return v, v != nil, err
+	default:
+		panic(fmt.Sprintf("unexpected: %s", name))
 	}
-	return v, nil
 }
 func (tx *Tx) DomainGetAsOf(name kv.Domain, key, key2 []byte, ts uint64) (v []byte, ok bool, err error) {
-	if key2 != nil {
-		key = append(common.Copy(key), key2...)
+	if ethconfig.EnableHistoryV4InTest {
+		panic("implement me")
 	}
-	return tx.aggCtx.DomainGetAsOf(tx.MdbxTx, name, key, ts)
+	switch name {
+	case kv.AccountsDomain:
+		v, ok, err = tx.HistoryGet(kv.AccountsHistory, key, ts)
+		if err != nil {
+			return nil, false, err
+		}
+		if ok {
+			return v, true, nil
+		}
+		v, err = tx.GetOne(kv.PlainState, key)
+		if len(v) > 0 {
+			v, err = accounts.ConvertV2toV3(v)
+			if err != nil {
+				return nil, false, err
+			}
+		}
+		return v, v != nil, err
+	case kv.StorageDomain:
+		v, ok, err = tx.HistoryGet(kv.StorageHistory, append(key[:20], key2...), ts)
+		if err != nil {
+			return nil, false, err
+		}
+		if ok {
+			return v, true, nil
+		}
+		v, err = tx.GetOne(kv.PlainState, append(key, key2...))
+		return v, v != nil, err
+	case kv.CodeDomain:
+		v, ok, err = tx.HistoryGet(kv.CodeHistory, key, ts)
+		if err != nil {
+			return nil, false, err
+		}
+		if ok {
+			return v, true, nil
+		}
+		v, err = tx.GetOne(kv.Code, key2)
+		return v, v != nil, err
+	default:
+		panic(fmt.Sprintf("unexpected: %s", name))
+	}
 }
 
 func (tx *Tx) HistoryGet(name kv.History, key []byte, ts uint64) (v []byte, ok bool, err error) {
@@ -258,6 +373,32 @@ func (tx *Tx) HistoryGet(name kv.History, key []byte, ts uint64) (v []byte, ok b
 		if !ok || len(v) == 0 {
 			return v, ok, nil
 		}
+		/*
+			v, err = tx.db.convertV3toV2(v)
+			if err != nil {
+				return nil, false, err
+			}
+			var force *common.Hash
+			if tx.db.systemContractLookup != nil {
+				if records, ok := tx.db.systemContractLookup[common.BytesToAddress(key)]; ok {
+					p := sort.Search(len(records), func(i int) bool {
+						return records[i].TxNumber > ts
+					})
+					hash := records[p-1].CodeHash
+					force = &hash
+				}
+			}
+			v, err = tx.db.restoreCodeHash(tx.MdbxTx, key, v, force)
+			if err != nil {
+				return nil, false, err
+			}
+			if len(v) > 0 {
+				v, err = tx.db.convertV2toV3(v)
+				if err != nil {
+					return nil, false, err
+				}
+			}
+		*/
 		return v, true, nil
 	case kv.StorageHistory:
 		return tx.aggCtx.ReadAccountStorageNoStateWithRecent2(key, ts, tx.MdbxTx)
@@ -309,6 +450,7 @@ func (tx *Tx) HistoryRange(name kv.History, fromTs, toTs int, asc order.By, limi
 func NewTestDB(tb testing.TB, dirs datadir.Dirs, gspec *types.Genesis) (histV3 bool, db kv.RwDB, agg *state.AggregatorV3) {
 	historyV3 := ethconfig.EnableHistoryV3InTest
 	logger := log.New()
+	ctx := context.Background()
 
 	if tb != nil {
 		db = memdb.NewTestDB(tb)
@@ -322,7 +464,8 @@ func NewTestDB(tb testing.TB, dirs datadir.Dirs, gspec *types.Genesis) (histV3 b
 
 	if historyV3 {
 		var err error
-		agg, err = state.NewAggregatorV3(context.Background(), dirs, ethconfig.HistoryV3AggregationStep, db, logger)
+		dir.MustExist(dirs.SnapHistory)
+		agg, err = state.NewAggregatorV3(ctx, dirs.SnapHistory, dirs.Tmp, ethconfig.HistoryV3AggregationStep, db, logger)
 		if err != nil {
 			panic(err)
 		}

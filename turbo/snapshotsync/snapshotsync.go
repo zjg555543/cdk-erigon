@@ -201,9 +201,9 @@ Loop:
 				}
 				dbg.ReadMemStats(&m)
 				downloadTimeLeft := calculateTime(stats.BytesTotal-stats.BytesCompleted, stats.DownloadRate)
-				suffix := "downloading"
+				suffix := "downloading archives"
 				if stats.Progress > 0 && stats.DownloadRate == 0 {
-					suffix += " (or verifying)"
+					suffix += "verifying archives"
 				}
 				log.Info(fmt.Sprintf("[%s] %s", logPrefix, suffix),
 					"progress", fmt.Sprintf("%.2f%% %s/%s", stats.Progress, common.ByteCount(stats.BytesCompleted), common.ByteCount(stats.BytesTotal)),
@@ -246,9 +246,7 @@ Finish:
 		return err
 	}
 
-	ac := agg.MakeContext()
-	defer ac.Close()
-	if err := rawdb.WriteSnapshots(tx, blockReader.FrozenFiles(), ac.Files()); err != nil {
+	if err := rawdb.WriteSnapshots(tx, blockReader.FrozenFiles(), agg.Files()); err != nil {
 		return err
 	}
 	if notifier != nil { // can notify right here, even that write txn is not commit
