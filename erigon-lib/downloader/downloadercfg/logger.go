@@ -65,6 +65,8 @@ func (b adapterHandler) Handle(r lg.Record) {
 		skip := strings.Contains(str, "completion change") ||
 			strings.Contains(str, "connection reset by peer") ||
 			strings.Contains(str, "set torrent=") ||
+			strings.Contains(str, "announce to") ||
+			strings.Contains(str, "EOF") ||
 			strings.Contains(str, "broken pipe")
 		if skip {
 			break
@@ -72,7 +74,7 @@ func (b adapterHandler) Handle(r lg.Record) {
 		log.Debug(str)
 	case lg.Info:
 		str := r.String()
-		skip := strings.Contains(str, "EOF")
+		skip := false //strings.Contains(str, "EOF")
 		//strings.Contains(str, "banning ip <nil>") ||
 		//strings.Contains(str, "spurious timer") { // suppress useless errors
 		if skip {
