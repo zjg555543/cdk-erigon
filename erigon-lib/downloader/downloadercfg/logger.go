@@ -70,6 +70,7 @@ func (b adapterHandler) Handle(r lg.Record) {
 			strings.Contains(str, "sending PEX message") ||
 			strings.Contains(str, "announce to") ||
 			strings.Contains(str, "EOF") ||
+			strings.Contains(str, "inited with remoteAddr") ||
 			strings.Contains(str, "broken pipe")
 		if skip {
 			break
