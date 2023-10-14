@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/anacrolix/dht/v2"
 	lg "github.com/anacrolix/log"
@@ -57,6 +58,9 @@ type Cfg struct {
 
 func Default() *torrent.ClientConfig {
 	torrentConfig := torrent.NewDefaultClientConfig()
+
+	torrentConfig.MinDialTimeout = 6 * time.Second    //default: 3s
+	torrentConfig.HandshakesTimeout = 8 * time.Second //default: 4s
 
 	// enable dht
 	torrentConfig.NoDHT = true
