@@ -101,9 +101,8 @@ func New(dirs datadir.Dirs, version string, verbosity lg.Level, downloadRate, up
 
 	// debug
 	//	torrentConfig.Debug = false
-	_ = verbosity
-	torrentConfig.Logger = torrentConfig.Logger.WithFilterLevel(lg.Debug)
-	torrentConfig.Logger.Handlers = []lg.Handler{adapterHandler{}}
+	torrentConfig.Logger = torrentConfig.Logger.WithFilterLevel(verbosity)
+	torrentConfig.Logger.SetHandlers(adapterHandler{})
 
 	if len(staticPeers) > 0 {
 		torrentConfig.NoDHT = false
