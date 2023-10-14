@@ -64,6 +64,7 @@ func (b adapterHandler) Handle(r lg.Record) {
 		str := r.String()
 		skip := strings.Contains(str, "completion change") ||
 			strings.Contains(str, "connection reset by peer") ||
+			strings.Contains(str, "set torrent=") ||
 			strings.Contains(str, "broken pipe")
 		if skip {
 			break
