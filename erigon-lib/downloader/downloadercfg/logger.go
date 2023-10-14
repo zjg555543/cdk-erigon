@@ -65,6 +65,9 @@ func (b adapterHandler) Handle(r lg.Record) {
 		skip := strings.Contains(str, "completion change") ||
 			strings.Contains(str, "connection reset by peer") ||
 			strings.Contains(str, "set torrent=") ||
+			strings.Contains(str, "use of closed network connection") ||
+			strings.Contains(str, "is mutually complete") ||
+			strings.Contains(str, "sending PEX message") ||
 			strings.Contains(str, "announce to") ||
 			strings.Contains(str, "EOF") ||
 			strings.Contains(str, "broken pipe")
