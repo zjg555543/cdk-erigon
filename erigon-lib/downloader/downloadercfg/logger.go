@@ -68,11 +68,11 @@ func (b adapterHandler) Handle(r lg.Record) {
 		log.Debug(str)
 	case lg.Info:
 		str := r.String()
-		//if strings.Contains(str, "EOF") ||
-		//	strings.Contains(str, "banning ip <nil>") ||
-		//	strings.Contains(str, "spurious timer") { // suppress useless errors
-		//	break
-		//}
+		if strings.Contains(str, "EOF") {
+			//strings.Contains(str, "banning ip <nil>") ||
+			//strings.Contains(str, "spurious timer") { // suppress useless errors
+			break
+		}
 
 		log.Info(str)
 	case lg.Warning:
