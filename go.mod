@@ -1,11 +1,11 @@
 module github.com/ledgerwatch/erigon
 
-go 1.19
+go 1.21
 
 require (
 	github.com/erigontech/mdbx-go v0.35.0
 	github.com/ledgerwatch/erigon-lib v1.0.0
-	github.com/ledgerwatch/erigon-snapshot v1.3.1-0.20231013042807-9cb09a846d1f
+	github.com/ledgerwatch/erigon-snapshot v1.3.1-0.20231015095551-ab6cbbd51368
 	github.com/ledgerwatch/log/v3 v3.9.0
 	github.com/ledgerwatch/secp256k1 v1.0.0
 )
@@ -19,9 +19,9 @@ require (
 	github.com/RoaringBitmap/roaring v1.6.0
 	github.com/VictoriaMetrics/fastcache v1.12.1
 	github.com/VictoriaMetrics/metrics v1.23.1
-	github.com/alecthomas/kong v0.8.0
-	github.com/anacrolix/sync v0.4.1-0.20230926072150-b8cd7cfb92d0
-	github.com/anacrolix/torrent v1.52.6-0.20231010053406-366c6a0baafd
+	github.com/alecthomas/kong v0.8.1
+	github.com/anacrolix/sync v0.5.1
+	github.com/anacrolix/torrent v1.53.1
 	github.com/benesch/cgosymbolizer v0.0.0-20190515212042-bec6fe6e597b
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
@@ -96,7 +96,7 @@ require (
 	golang.org/x/sync v0.4.0
 	golang.org/x/sys v0.13.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.58.2
+	google.golang.org/grpc v1.58.3
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c

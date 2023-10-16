@@ -53,7 +53,7 @@ type SharedDomains struct {
 
 	txNum    atomic.Uint64
 	blockNum atomic.Uint64
-	estSize  atomic.Uint64
+	estSize  int
 	trace    bool
 	//muMaps   sync.RWMutex
 	walLock sync.RWMutex
@@ -215,48 +215,44 @@ func (sd *SharedDomains) ClearRam(resetCommitment bool) {
 	}
 
 	sd.storage = btree2.NewMap[string, []byte](128)
-	sd.estSize.Store(0)
+	sd.estSize = 0
 }
 
 func (sd *SharedDomains) put(table kv.Domain, key string, val []byte) {
 	// disable mutex - becuse work on parallel execution postponed after E3 release.
 	//sd.muMaps.Lock()
-	sd.puts(table, key, val)
-	//sd.muMaps.Unlock()
-}
-
-func (sd *SharedDomains) puts(table kv.Domain, key string, val []byte) {
 	switch table {
 	case kv.AccountsDomain:
 		if old, ok := sd.account[key]; ok {
-			sd.estSize.Add(uint64(len(val) - len(old)))
+			sd.estSize += len(val) - len(old)
 		} else {
-			sd.estSize.Add(uint64(len(key) + len(val)))
+			sd.estSize += len(key) + len(val)
 		}
 		sd.account[key] = val
 	case kv.CodeDomain:
 		if old, ok := sd.code[key]; ok {
-			sd.estSize.Add(uint64(len(val) - len(old)))
+			sd.estSize += len(val) - len(old)
 		} else {
-			sd.estSize.Add(uint64(len(key) + len(val)))
+			sd.estSize += len(key) + len(val)
 		}
 		sd.code[key] = val
 	case kv.StorageDomain:
 		if old, ok := sd.storage.Set(key, val); ok {
-			sd.estSize.Add(uint64(len(val) - len(old)))
+			sd.estSize += len(val) - len(old)
 		} else {
-			sd.estSize.Add(uint64(len(key) + len(val)))
+			sd.estSize += len(key) + len(val)
 		}
 	case kv.CommitmentDomain:
 		if old, ok := sd.commitment[key]; ok {
-			sd.estSize.Add(uint64(len(val) - len(old)))
+			sd.estSize += len(val) - len(old)
 		} else {
-			sd.estSize.Add(uint64(len(key) + len(val)))
+			sd.estSize += len(key) + len(val)
 		}
 		sd.commitment[key] = val
 	default:
 		panic(fmt.Errorf("sharedDomains put to invalid table %s", table))
 	}
+	//sd.muMaps.Unlock()
 }
 
 // Get returns cached value by key. Cache is invalidated when associated WAL is flushed
@@ -286,7 +282,9 @@ func (sd *SharedDomains) get(table kv.Domain, key []byte) (v []byte, ok bool) {
 }
 
 func (sd *SharedDomains) SizeEstimate() uint64 {
-	return sd.estSize.Load() * 2 // multiply 2 here, to cover data-structures overhead. more precise accounting - expensive.
+	//sd.muMaps.RLock()
+	//defer sd.muMaps.RUnlock()
+	return uint64(sd.estSize) * 2 // multiply 2 here, to cover data-structures overhead. more precise accounting - expensive.
 }
 
 func (sd *SharedDomains) LatestCommitment(prefix []byte) ([]byte, error) {
@@ -950,15 +948,15 @@ func (sd *SharedDomains) DomainPut(domain kv.Domain, k1, k2 []byte, val, prevVal
 			return err
 		}
 	}
+	if bytes.Equal(prevVal, val) {
+		return nil
+	}
 	switch domain {
 	case kv.AccountsDomain:
 		return sd.updateAccountData(k1, val, prevVal)
 	case kv.StorageDomain:
 		return sd.writeAccountStorage(k1, k2, val, prevVal)
 	case kv.CodeDomain:
-		if bytes.Equal(prevVal, val) {
-			return nil
-		}
 		return sd.updateAccountCode(k1, val, prevVal)
 	case kv.CommitmentDomain:
 		return sd.updateCommitmentData(k1, val, prevVal)
@@ -980,15 +978,15 @@ func (sd *SharedDomains) DomainDel(domain kv.Domain, k1, k2 []byte, prevVal []by
 			return err
 		}
 	}
+	if prevVal == nil {
+		return nil
+	}
 	switch domain {
 	case kv.AccountsDomain:
 		return sd.deleteAccount(k1, prevVal)
 	case kv.StorageDomain:
 		return sd.writeAccountStorage(k1, k2, nil, prevVal)
 	case kv.CodeDomain:
-		if bytes.Equal(prevVal, nil) {
-			return nil
-		}
 		return sd.updateAccountCode(k1, nil, prevVal)
 	case kv.CommitmentDomain:
 		return sd.updateCommitmentData(k1, nil, prevVal)
