@@ -16,11 +16,15 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/dir"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/erigon-lib/chain"
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
+	"github.com/ledgerwatch/erigon/core/state/temporal"
+	"github.com/ledgerwatch/erigon/core/systemcontracts"
+	"github.com/ledgerwatch/log/v3"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
-	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/compress"
 	"github.com/ledgerwatch/erigon-lib/downloader/snaptype"
 	"github.com/ledgerwatch/erigon-lib/etl"
@@ -29,8 +33,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	libstate "github.com/ledgerwatch/erigon-lib/state"
-
-	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon/cmd/hack/tool/fromdb"
 	"github.com/ledgerwatch/erigon/cmd/utils"
@@ -277,7 +279,6 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 
 	dirs := datadir.New(cliCtx.String(utils.DataDirFlag.Name))
 	rebuild := cliCtx.Bool(SnapshotRebuildFlag.Name)
-	//from := cliCtx.Uint64(SnapshotFromFlag.Name)
 	chainDB := mdbx.NewMDBX(logger).Path(dirs.Chaindata).MustOpen()
 	defer chainDB.Close()
 
@@ -292,10 +293,10 @@ func doIndicesCommand(cliCtx *cli.Context) error {
 	}
 	allSnapshots.LogStat()
 	indexWorkers := estimate.IndexSnapshot.Workers()
-	//chainConfig := fromdb.ChainConfig(chainDB)
-	//if err := freezeblocks.BuildMissedIndices("Indexing", ctx, dirs, chainConfig, indexWorkers, logger); err != nil {
-	//	return err
-	//}
+	chainConfig := fromdb.ChainConfig(chainDB)
+	if err := freezeblocks.BuildMissedIndices("Indexing", ctx, dirs, chainConfig, indexWorkers, logger); err != nil {
+		return err
+	}
 	agg, err := libstate.NewAggregatorV3(ctx, dirs, ethconfig.HistoryV3AggregationStep, chainDB, logger)
 	if err != nil {
 		return err
@@ -450,8 +451,8 @@ func doRetireCommand(cliCtx *cli.Context) error {
 	}
 	blockReader := freezeblocks.NewBlockReader(blockSnapshots, borSnapshots)
 	blockWriter := blockio.NewBlockWriter(fromdb.HistV3(db))
-
 	br := freezeblocks.NewBlockRetire(estimate.CompressSnapshot.Workers(), dirs, blockReader, blockWriter, db, nil, logger)
+
 	agg, err := libstate.NewAggregatorV3(ctx, dirs, ethconfig.HistoryV3AggregationStep, db, logger)
 	if err != nil {
 		return err
@@ -461,13 +462,25 @@ func doRetireCommand(cliCtx *cli.Context) error {
 		return err
 	}
 	agg.SetCompressWorkers(estimate.CompressSnapshot.Workers())
-	{
-		//TODO: remove it before release!
-		agg.KeepStepsInDB(0)
-		db.Update(ctx, func(tx kv.RwTx) error {
-			return tx.(*mdbx.MdbxTx).LockDBInRam()
-		})
+
+	var cc *chain.Config
+	if err := db.View(ctx, func(tx kv.Tx) error {
+		genesisHash, err := rawdb.ReadCanonicalHash(tx, 0)
+		if err != nil {
+			return err
+		}
+		cc, err = rawdb.ReadChainConfig(tx, genesisHash)
+		return err
+	}); err != nil {
+		return err
 	}
+
+	db, err = temporal.New(db, agg, systemcontracts.SystemContractCodeLookup[cc.ChainName])
+	if err != nil {
+		return err
+	}
+
+	//agg.KeepStepsInDB(0)
 
 	db.View(ctx, func(tx kv.Tx) error {
 		blockSnapshots.LogStat()
@@ -520,25 +533,23 @@ func doRetireCommand(cliCtx *cli.Context) error {
 
 	logger.Info("Compute commitment")
 	if err = db.Update(ctx, func(tx kv.RwTx) error {
-		if err := tx.(*mdbx.MdbxTx).WarmupDB(false); err != nil {
-			return err
+		if casted, ok := tx.(kv.CanWarmupDB); ok {
+			if err := casted.WarmupDB(false); err != nil {
+				return err
+			}
 		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	if err = func() error {
 		ac := agg.MakeContext()
 		defer ac.Close()
-		sd := agg.SharedDomains(ac)
+		sd := libstate.NewSharedDomains(tx)
 		defer sd.Close()
-		defer sd.StartWrites().FinishWrites()
-		if _, err = agg.ComputeCommitment(true, false); err != nil {
+		if _, err = sd.ComputeCommitment(ctx, true, false); err != nil {
+			return err
+		}
+		if err := sd.Flush(ctx, tx); err != nil {
 			return err
 		}
 		return err
-	}(); err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -558,7 +569,7 @@ func doRetireCommand(cliCtx *cli.Context) error {
 		}
 	}
 
-	logger.Info("Work on state history blockSnapshots")
+	logger.Info("Work on state history snapshots")
 	indexWorkers := estimate.IndexSnapshot.Workers()
 	if err = agg.BuildOptionalMissedIndices(ctx, indexWorkers); err != nil {
 		return err
@@ -577,16 +588,12 @@ func doRetireCommand(cliCtx *cli.Context) error {
 
 		ac := agg.MakeContext()
 		defer ac.Close()
-
-		domains := agg.SharedDomains(ac)
-		domains.SetTx(tx)
-		domains.SetTxNum(lastTxNum)
 		return nil
 	}); err != nil {
 		return err
 	}
 
-	logger.Info("Build state history blockSnapshots")
+	logger.Info("Build state history snapshots")
 	if err = agg.BuildFiles(lastTxNum); err != nil {
 		return err
 	}
