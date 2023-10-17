@@ -959,6 +959,8 @@ func checkCommitmentV3(header *types.Header, applyTx kv.RwTx, doms *state2.Share
 		//unwindTo := maxBlockNum - 1
 
 		logger.Warn("Unwinding due to incorrect root hash", "to", unwindTo)
+		// protect from too far unwind
+		unwindTo = max(unwindTo, applyTx.(state2.HasAggCtx).AggCtx().CanUnwindDomainsTo())
 		u.UnwindTo(unwindTo, BadBlock(header.Hash(), ErrInvalidStateRootHash))
 	}
 	return false, nil
@@ -975,6 +977,9 @@ func blockWithSenders(db kv.RoDB, tx kv.Tx, blockReader services.BlockReader, bl
 	b, err = blockReader.BlockByNumber(context.Background(), tx, blockNum)
 	if err != nil {
 		return nil, err
+	}
+	if b == nil {
+		return nil, nil
 	}
 	for _, txn := range b.Transactions() {
 		_ = txn.Hash()
