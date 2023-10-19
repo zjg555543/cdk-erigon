@@ -14,6 +14,7 @@ import (
 	"github.com/c2h5oh/datasize"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	"github.com/ledgerwatch/erigon-lib/chain/snapcfg"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	"github.com/ledgerwatch/erigon-lib/common/dir"
@@ -41,7 +42,6 @@ import (
 	"github.com/ledgerwatch/erigon/params"
 	"github.com/ledgerwatch/erigon/turbo/debug"
 	"github.com/ledgerwatch/erigon/turbo/logging"
-	"github.com/ledgerwatch/erigon/turbo/snapshotsync/snapcfg"
 )
 
 func main() {
@@ -168,7 +168,12 @@ func Downloader(ctx context.Context, logger log.Logger) error {
 	staticPeers := common.CliString2Array(staticPeersStr)
 
 	version := "erigon: " + params.VersionWithCommit(params.GitCommit)
-	cfg, err := downloadercfg2.New(dirs, version, torrentLogLevel, downloadRate, uploadRate, torrentPort, torrentConnsPerFile, torrentDownloadSlots, staticPeers, webseeds)
+
+	webseedsList := common.CliString2Array(webseeds)
+	if known, ok := snapcfg.KnownWebseeds[chain]; ok {
+		webseedsList = append(webseedsList, known...)
+	}
+	cfg, err := downloadercfg2.New(dirs, version, torrentLogLevel, downloadRate, uploadRate, torrentPort, torrentConnsPerFile, torrentDownloadSlots, staticPeers, webseedsList, chain)
 	if err != nil {
 		return err
 	}

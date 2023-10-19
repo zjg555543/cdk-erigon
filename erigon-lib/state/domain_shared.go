@@ -948,15 +948,15 @@ func (sd *SharedDomains) DomainPut(domain kv.Domain, k1, k2 []byte, val, prevVal
 			return err
 		}
 	}
-	if bytes.Equal(prevVal, val) {
-		return nil
-	}
 	switch domain {
 	case kv.AccountsDomain:
 		return sd.updateAccountData(k1, val, prevVal)
 	case kv.StorageDomain:
 		return sd.writeAccountStorage(k1, k2, val, prevVal)
 	case kv.CodeDomain:
+		if bytes.Equal(prevVal, val) {
+			return nil
+		}
 		return sd.updateAccountCode(k1, val, prevVal)
 	case kv.CommitmentDomain:
 		return sd.updateCommitmentData(k1, val, prevVal)
@@ -978,19 +978,31 @@ func (sd *SharedDomains) DomainDel(domain kv.Domain, k1, k2 []byte, prevVal []by
 			return err
 		}
 	}
-	if prevVal == nil {
-		return nil
-	}
 	switch domain {
 	case kv.AccountsDomain:
 		return sd.deleteAccount(k1, prevVal)
 	case kv.StorageDomain:
 		return sd.writeAccountStorage(k1, k2, nil, prevVal)
 	case kv.CodeDomain:
+		if bytes.Equal(prevVal, nil) {
+			return nil
+		}
 		return sd.updateAccountCode(k1, nil, prevVal)
 	case kv.CommitmentDomain:
 		return sd.updateCommitmentData(k1, nil, prevVal)
 	default:
 		panic(domain)
 	}
+}
+
+func (sd *SharedDomains) DomainDelPrefix(domain kv.Domain, prefix []byte) error {
+	if domain != kv.StorageDomain {
+		return fmt.Errorf("DomainDelPrefix: not supported")
+	}
+	if err := sd.IterateStoragePrefix(prefix, func(k, v []byte) error {
+		return sd.DomainDel(kv.StorageDomain, k, nil, v)
+	}); err != nil {
+		return err
+	}
+	return nil
 }
