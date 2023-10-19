@@ -391,6 +391,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 			if err != nil {
 				return nil, nil, fmt.Errorf("call to CalcTrieRoot: %w", err)
 			}
+			fmt.Printf("root: %d, %x\n", b.header.Number.Uint64(), b.header.Root)
 			// Recreating block to make sure Root makes it into the header
 			block := types.NewBlock(b.header, b.txs, b.uncles, b.receipts, nil /* withdrawals */)
 			return block, b.receipts, nil

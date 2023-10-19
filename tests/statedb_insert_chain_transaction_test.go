@@ -592,6 +592,7 @@ func TestAccountUpdateIncorrectRoot(t *testing.T) {
 	if err = m.InsertChain(chain.Slice(3, 4)); err != nil {
 		t.Fatal(err)
 	}
+	t.Fail()
 }
 
 func TestAccountDeleteIncorrectRoot(t *testing.T) {
