@@ -393,8 +393,9 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 				//if err = domains.Flush(ctx, tx); err != nil {
 				//	return nil, nil, err
 				//}
-				//b.header.Root, err = CalcHashRootForTests(tx, b.header, histV3, true)
-
+				//b.header.Root, err = CalcHashRootForTests(tx, b.header, histV3, false)
+				//fmt.Printf("root: %d, %x\n", b.header.Number.Uint64(), b.header.Root)
+				//
 				stateRoot, err := domains.ComputeCommitment(ctx, false, false)
 				if err != nil {
 					return nil, nil, fmt.Errorf("call to CalcTrieRoot: %w", err)
@@ -406,6 +407,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 					return nil, nil, fmt.Errorf("call to CalcTrieRoot: %w", err)
 				}
 				b.header.Root = libcommon.BytesToHash(stateRoot)
+				fmt.Printf("root: %d, %x\n", b.header.Number.Uint64(), b.header.Root)
 			} else {
 				b.header.Root, err = CalcHashRootForTests(tx, b.header, histV3, false)
 			}

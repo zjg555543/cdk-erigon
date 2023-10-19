@@ -324,6 +324,8 @@ func reconstituteBlock(agg *libstate.AggregatorV3, db kv.RoDB, tx kv.Tx) (n uint
 var ErrTooDeepUnwind = fmt.Errorf("too deep unwind")
 
 func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context, accumulator *shards.Accumulator, logger log.Logger) (err error) {
+	fmt.Printf("unw start: %d->%d\n", u.CurrentBlockNumber, u.UnwindPoint)
+	defer fmt.Printf("unw end\n")
 	domains := libstate.NewSharedDomains(tx)
 	defer domains.Close()
 	rs := state.NewStateV3(domains, logger)
