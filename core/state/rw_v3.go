@@ -234,6 +234,7 @@ func (rs *StateV3) Unwind(ctx context.Context, tx kv.RwTx, txUnwindTo uint64, ac
 
 	handle := func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
 		if len(k) == length.Addr {
+			fmt.Printf("[dbg] unw: %x, %x\n", k, v)
 			if len(v) > 0 {
 				var acc accounts.Account
 				if err := accounts.DeserialiseV3(&acc, v); err != nil {
