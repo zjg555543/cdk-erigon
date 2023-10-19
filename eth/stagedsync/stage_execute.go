@@ -735,6 +735,7 @@ func unwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, ctx context
 
 	if err := changes.Load(tx, stateBucket, func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
 		if len(k) == 20 {
+			fmt.Printf("[dbg] unw: %x, %x\n", k, v)
 			if len(v) > 0 {
 				var acc accounts.Account
 				if err := acc.DecodeForStorage(v); err != nil {
