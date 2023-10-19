@@ -476,7 +476,6 @@ func (p *HashPromoter) Unwind(logPrefix string, s *StageState, u *UnwindState, s
 	var deletedAccounts [][]byte
 	extract := func(dbKey, dbValue []byte, next etl.ExtractNextFunc) error {
 		_, k, v, err := decode(dbKey, dbValue)
-		fmt.Printf("[dbg] unw: %x, %x\n", k, v)
 		if err != nil {
 			return err
 		}
