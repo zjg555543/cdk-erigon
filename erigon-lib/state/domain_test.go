@@ -1169,7 +1169,6 @@ func TestDomainContext_IteratePrefixAgain(t *testing.T) {
 		rnd.Read(value)
 		if i%5 == 0 {
 			dc.SetTxNum(uint64(i))
-			//d.SetTxNum(uint64(i))
 		}
 
 		if i == 0 || i == 15 {
@@ -1246,6 +1245,7 @@ func TestDomainContext_IteratePrefix(t *testing.T) {
 
 		values[hex.EncodeToString(key)] = common.Copy(value)
 
+		dc.SetTxNum(uint64(i))
 		err := dc.PutWithPrev(key, nil, value, nil)
 		require.NoError(t, err)
 	}
