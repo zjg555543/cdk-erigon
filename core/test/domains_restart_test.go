@@ -246,9 +246,6 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	defer domains.Close()
 	writer = state2.NewWriterV4(domains)
 
-	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
-	require.NoError(t, err)
-
 	txToStart := domains.TxNum()
 
 	rh, err = domains.ComputeCommitment(ctx, false, false)
