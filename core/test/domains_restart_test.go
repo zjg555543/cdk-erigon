@@ -244,10 +244,9 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	defer domCtx.Close()
 	domains = state.NewSharedDomains(tx)
 	defer domains.Close()
-	writer = state2.NewWriterV4(domains)
+	//domains.SetTxNum(ctx, 0)
 
-	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
-	require.NoError(t, err)
+	writer = state2.NewWriterV4(domains)
 
 	txToStart := domains.TxNum()
 
@@ -305,6 +304,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 
 	domains := state.NewSharedDomains(tx)
 	defer domains.Close()
+	domains.SetTxNum(ctx, 0)
 
 	rnd := rand.New(rand.NewSource(time.Now().Unix()))
 
