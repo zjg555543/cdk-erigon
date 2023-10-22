@@ -706,6 +706,7 @@ func collateAndMergeOnce(t *testing.T, d *Domain, tx kv.RwTx, step uint64) {
 }
 
 func TestDomain_MergeFiles(t *testing.T) {
+
 	logger := log.New()
 	db, d, txs := filledDomain(t, logger)
 	rwTx, err := db.BeginRw(context.Background())
@@ -718,6 +719,7 @@ func TestDomain_MergeFiles(t *testing.T) {
 }
 
 func TestDomain_ScanFiles(t *testing.T) {
+
 	logger := log.New()
 	db, d, txs := filledDomain(t, logger)
 	collateAndMerge(t, db, nil, d, txs)
@@ -734,6 +736,7 @@ func TestDomain_ScanFiles(t *testing.T) {
 }
 
 func TestDomain_Delete(t *testing.T) {
+
 	logger := log.New()
 	db, d := testDbAndDomain(t, logger)
 	ctx, require := context.Background(), require.New(t)
@@ -853,6 +856,7 @@ func filledDomainFixedSize(t *testing.T, keysCount, txCount, aggStep uint64, log
 // then check.
 // in real life we periodically do collate-merge-prune without stopping adding data
 func TestDomain_Prune_AfterAllWrites(t *testing.T) {
+
 	logger := log.New()
 	keyCount, txCount := uint64(4), uint64(64)
 	db, dom, data := filledDomainFixedSize(t, keyCount, txCount, 16, logger)
@@ -922,6 +926,7 @@ func TestDomain_Prune_AfterAllWrites(t *testing.T) {
 }
 
 func TestDomain_PruneOnWrite(t *testing.T) {
+
 	logger := log.New()
 	keysCount, txCount := uint64(16), uint64(64)
 
@@ -1025,6 +1030,7 @@ func TestDomain_PruneOnWrite(t *testing.T) {
 }
 
 func TestScanStaticFilesD(t *testing.T) {
+
 	ii := &Domain{History: &History{InvertedIndex: emptyTestInvertedIndex(1)},
 		files: btree2.NewBTreeG[*filesItem](filesItemLess),
 	}
@@ -1048,6 +1054,7 @@ func TestScanStaticFilesD(t *testing.T) {
 }
 
 func TestDomain_CollationBuildInMem(t *testing.T) {
+
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
 	db, d := testDbAndDomain(t, log.New())
@@ -1136,9 +1143,8 @@ func TestDomain_CollationBuildInMem(t *testing.T) {
 }
 
 func TestDomainContext_IteratePrefixAgain(t *testing.T) {
+
 	db, d := testDbAndDomain(t, log.New())
-	defer db.Close()
-	defer d.Close()
 
 	tx, err := db.BeginRw(context.Background())
 	require.NoError(t, err)
@@ -1216,9 +1222,9 @@ func TestDomainContext_IteratePrefixAgain(t *testing.T) {
 }
 
 func TestDomainContext_IteratePrefix(t *testing.T) {
+	t.Parallel()
+
 	db, d := testDbAndDomain(t, log.New())
-	defer db.Close()
-	defer d.Close()
 
 	tx, err := db.BeginRw(context.Background())
 	require.NoError(t, err)
@@ -1496,9 +1502,8 @@ func generateRandomTxNum(r *rand.Rand, maxTxNum uint64, usedTxNums map[uint64]bo
 }
 
 func TestDomain_GetAfterAggregation(t *testing.T) {
+
 	db, d := testDbAndDomainOfStep(t, 25, log.New())
-	defer db.Close()
-	defer d.Close()
 
 	tx, err := db.BeginRw(context.Background())
 	require.NoError(t, err)

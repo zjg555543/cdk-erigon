@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	math2 "math"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -109,6 +110,7 @@ func NewSharedDomains(tx kv.Tx) *SharedDomains {
 
 	sd.Commitment.ResetFns(sd.branchFn, sd.accountFn, sd.storageFn)
 	sd.StartWrites()
+	sd.SetTxNum(context.Background(), 0)
 	if _, err := sd.SeekCommitment(context.Background(), tx); err != nil {
 		panic(err)
 	}
@@ -581,7 +583,7 @@ func (sd *SharedDomains) SetTxNum(ctx context.Context, txNum uint64) {
 	if txNum%sd.Account.aggregationStep == 0 && txNum > 0 { //
 		// We do not update txNum before commitment cuz otherwise committed state will be in the beginning of next file, not in the latest.
 		// That's why we need to make txnum++ on SeekCommitment to get exact txNum for the latest committed state.
-		fmt.Printf("[commitment] running due to txNum reached aggregation step %d\n", txNum/sd.Account.aggregationStep)
+		//fmt.Printf("[commitment] running due to txNum reached aggregation step %d\n", txNum/sd.Account.aggregationStep)
 		_, err := sd.ComputeCommitment(ctx, true, sd.trace)
 		if err != nil {
 			panic(err)
@@ -620,13 +622,20 @@ func (sd *SharedDomains) ComputeCommitment(ctx context.Context, saveStateAfter, 
 
 	defer func(t time.Time) { mxCommitmentWriteTook.UpdateDuration(t) }(time.Now())
 
-	for pref, update := range branchNodeUpdates {
+	keys := make([][]byte, 0, len(branchNodeUpdates))
+	for k := range branchNodeUpdates {
+		keys = append(keys, []byte(k))
+	}
+	sort.SliceStable(keys, func(i, j int) bool { return bytes.Compare(keys[i], keys[j]) < 0 })
+
+	for _, key := range keys {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 		}
-		prefix := []byte(pref)
+		prefix := key
+		update := branchNodeUpdates[string(prefix)]
 
 		stateValue, err := sd.LatestCommitment(prefix)
 		if err != nil {
