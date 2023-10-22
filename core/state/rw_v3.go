@@ -89,11 +89,11 @@ func (rs *StateV3) CommitTxNum(sender *common.Address, txNum uint64, in *QueueWi
 	ExecTxsDone.Inc()
 
 	// this is done by sharedomains.SetTxNum.
-	//if txNum > 0 && txNum%ethconfig.HistoryV3AggregationStep == 0 {
-	//	if _, err := rs.Commitment(txNum, true); err != nil {
-	//		panic(fmt.Errorf("txnum %d: %w", txNum, err))
-	//	}
-	//}
+	// if txNum > 0 && txNum%ethconfig.HistoryV3AggregationStep == 0 {
+	// 	if _, err := rs.Commitment(txNum, true); err != nil {
+	// 		panic(fmt.Errorf("txnum %d: %w", txNum, err))
+	// 	}
+	// }
 
 	rs.triggerLock.Lock()
 	defer rs.triggerLock.Unlock()
@@ -110,8 +110,6 @@ func (rs *StateV3) CommitTxNum(sender *common.Address, txNum uint64, in *QueueWi
 	}
 	return count
 }
-
-const AssertReads = false
 
 func (rs *StateV3) applyState(txTask *TxTask, domains *libstate.SharedDomains) error {
 	var acc accounts.Account
@@ -230,6 +228,11 @@ func (rs *StateV3) ApplyLogsAndTraces4(txTask *TxTask, domains *libstate.SharedD
 }
 
 func (rs *StateV3) Unwind(ctx context.Context, tx kv.RwTx, txUnwindTo uint64, accumulator *shards.Accumulator) error {
+	unwindToLimit := tx.(libstate.HasAggCtx).AggCtx().CanUnwindDomainsToTxNum()
+	if txUnwindTo < unwindToLimit {
+		return fmt.Errorf("can't unwind to txNum=%d, limit is %d", txUnwindTo, unwindToLimit)
+	}
+
 	var currentInc uint64
 
 	handle := func(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {

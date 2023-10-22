@@ -23,8 +23,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ledgerwatch/erigon/eth/ethconfig"
-
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1377,7 +1375,7 @@ func TestRecreateAndRewind(t *testing.T) {
 		case 1:
 			// Calculate the address of the Phoenix and create handle to phoenix contract
 			var codeHash libcommon.Hash
-			if codeHash, err = common.HashData(common.FromHex(contracts.PhoenixBin)); err != nil {
+			if codeHash, err = libcommon.HashData(common.FromHex(contracts.PhoenixBin)); err != nil {
 				panic(err)
 			}
 			phoenixAddress = crypto.CreateAddress2(reviveAddress, [32]byte{}, codeHash.Bytes())
@@ -1439,7 +1437,7 @@ func TestRecreateAndRewind(t *testing.T) {
 		case 1:
 			// Calculate the address of the Phoenix and create handle to phoenix contract
 			var codeHash libcommon.Hash
-			if codeHash, err = common.HashData(common.FromHex(contracts.PhoenixBin)); err != nil {
+			if codeHash, err = libcommon.HashData(common.FromHex(contracts.PhoenixBin)); err != nil {
 				panic(err)
 			}
 			phoenixAddress = crypto.CreateAddress2(reviveAddress, [32]byte{}, codeHash.Bytes())
@@ -1539,9 +1537,6 @@ func TestRecreateAndRewind(t *testing.T) {
 
 }
 func TestTxLookupUnwind(t *testing.T) {
-	if ethconfig.EnableHistoryV4InTest {
-		t.Skip("TODO: [e4] implement me")
-	}
 	var (
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)

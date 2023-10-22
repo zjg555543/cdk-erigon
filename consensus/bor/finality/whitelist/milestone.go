@@ -2,10 +2,10 @@ package whitelist
 
 import (
 	"github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/metrics"
 	"github.com/ledgerwatch/erigon/consensus/bor/finality/flags"
 	"github.com/ledgerwatch/erigon/consensus/bor/finality/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
-	"github.com/ledgerwatch/erigon/metrics"
 	"github.com/ledgerwatch/log/v3"
 )
 
@@ -61,9 +61,9 @@ func (m *milestone) IsValidChain(currentHeader uint64, chain []*types.Header) bo
 	var isValid bool = false
 	defer func() {
 		if isValid {
-			MilestoneChainMeter.Add(1)
+			MilestoneChainMeter.Inc()
 		} else {
-			MilestoneChainMeter.Add(-1)
+			MilestoneChainMeter.Dec()
 		}
 	}()
 
@@ -255,25 +255,25 @@ func (m *milestone) ProcessFutureMilestone(num uint64, hash common.Hash) {
 	err := rawdb.WriteLockField(m.db, m.Locked, m.LockedMilestoneNumber, m.LockedMilestoneHash, m.LockedMilestoneIDs)
 
 	if err != nil {
-		log.Error("Error in writing lock data of milestone to db", "err", err)
+		log.Error("[bor] Error in writing lock data of milestone to db", "err", err)
 	}
 }
 
 // EnqueueFutureMilestone add the future milestone to the list
 func (m *milestone) enqueueFutureMilestone(key uint64, hash common.Hash) {
 	if _, ok := m.FutureMilestoneList[key]; ok {
-		log.Debug("Future milestone already exist", "endBlockNumber", key, "futureMilestoneHash", hash)
+		log.Debug("[bor] Future milestone already exist", "endBlockNumber", key, "futureMilestoneHash", hash)
 		return
 	}
 
-	log.Debug("Enqueing new future milestone", "endBlockNumber", key, "futureMilestoneHash", hash)
+	log.Debug("[bor] Enqueing new future milestone", "endBlockNumber", key, "futureMilestoneHash", hash)
 
 	m.FutureMilestoneList[key] = hash
 	m.FutureMilestoneOrder = append(m.FutureMilestoneOrder, key)
 
 	err := rawdb.WriteFutureMilestoneList(m.db, m.FutureMilestoneOrder, m.FutureMilestoneList)
 	if err != nil {
-		log.Error("Error in writing future milestone data to db", "err", err)
+		log.Error("[bor] Error in writing future milestone data to db", "err", err)
 	}
 
 	FutureMilestoneMeter.Set(key)
@@ -286,6 +286,6 @@ func (m *milestone) dequeueFutureMilestone() {
 
 	err := rawdb.WriteFutureMilestoneList(m.db, m.FutureMilestoneOrder, m.FutureMilestoneList)
 	if err != nil {
-		log.Error("Error in writing future milestone data to db", "err", err)
+		log.Error("[bor] Error in writing future milestone data to db", "err", err)
 	}
 }

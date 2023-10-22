@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
-	"github.com/ledgerwatch/erigon-lib/kv/membatch"
-	"github.com/ledgerwatch/erigon-lib/kv/membatchwithdb"
+	"github.com/ledgerwatch/erigon-lib/kv/dbutils"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/ledgerwatch/erigon-lib/kv/membatch"
+	"github.com/ledgerwatch/erigon-lib/kv/membatchwithdb"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -29,7 +31,6 @@ import (
 	libstate "github.com/ledgerwatch/erigon-lib/state"
 
 	"github.com/ledgerwatch/erigon/common/changeset"
-	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/core"
@@ -328,17 +329,18 @@ func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context,
 	defer domains.Close()
 	rs := state.NewStateV3(domains, logger)
 
-	if u.UnwindPoint < tx.(libstate.HasAggCtx).AggCtx().CanUnwindDomainsTo() {
-		return fmt.Errorf("%w: %d < %d", ErrTooDeepUnwind, u.UnwindPoint, tx.(libstate.HasAggCtx).AggCtx().CanUnwindDomainsTo())
+	unwindToLimit, err := tx.(libstate.HasAggCtx).AggCtx().CanUnwindDomainsToBlockNum(tx)
+	if err != nil {
+		return err
+	}
+	if u.UnwindPoint < unwindToLimit {
+		return fmt.Errorf("%w: %d < %d", ErrTooDeepUnwind, u.UnwindPoint, unwindToLimit)
 	}
 
 	// unwind all txs of u.UnwindPoint block. 1 txn in begin/end of block - system txs
 	txNum, err := rawdbv3.TxNums.Min(tx, u.UnwindPoint+1)
 	if err != nil {
 		return err
-	}
-	if tx == nil {
-		panic(1)
 	}
 	if err := rs.Unwind(ctx, tx, txNum, accumulator); err != nil {
 		return fmt.Errorf("StateV3.Unwind: %w", err)
@@ -353,7 +355,7 @@ func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context,
 		return fmt.Errorf("delete newer epochs: %w", err)
 	}
 
-	return nil
+	return domains.Flush(ctx, tx)
 }
 
 func senderStageProgress(tx kv.Tx, db kv.RoDB) (prevStageProgress uint64, err error) {
