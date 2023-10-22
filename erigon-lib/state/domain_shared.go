@@ -53,7 +53,7 @@ type SharedDomains struct {
 	aggCtx *AggregatorV3Context
 	roTx   kv.Tx
 
-	txNum    atomic.Uint64
+	txNum    uint64
 	blockNum atomic.Uint64
 	estSize  int
 	trace    bool
@@ -111,6 +111,9 @@ func NewSharedDomains(tx kv.Tx) *SharedDomains {
 
 	sd.Commitment.ResetFns(sd.branchFn, sd.accountFn, sd.storageFn)
 	sd.StartWrites()
+	if _, err := sd.SeekCommitment(context.Background(), tx); err != nil {
+		panic(err)
+	}
 	return sd
 }
 
@@ -154,11 +157,13 @@ func (sd *SharedDomains) Unwind(ctx context.Context, rwTx kv.RwTx, txUnwindTo ui
 	}
 	sd.ClearRam(true)
 
-	_, err := sd.SeekCommitment(ctx, rwTx, 0, txUnwindTo)
+	_, err := sd.SeekCommitment(ctx, rwTx)
 	return err
 }
 
-func (sd *SharedDomains) SeekCommitment(ctx context.Context, tx kv.Tx, fromTx, toTx uint64) (txsFromBlockBeginning uint64, err error) {
+func (sd *SharedDomains) SeekCommitment(ctx context.Context, tx kv.Tx) (txsFromBlockBeginning uint64, err error) {
+	fromTx := uint64(0)
+	toTx := uint64(math2.MaxUint64)
 	bn, txn, err := sd.Commitment.SeekCommitment(tx, fromTx, toTx, sd.aggCtx.commitment)
 	if err != nil {
 		return 0, err
@@ -588,7 +593,7 @@ func (sd *SharedDomains) SetTxNum(ctx context.Context, txNum uint64) {
 		}
 	}
 
-	sd.txNum.Store(txNum)
+	sd.txNum = txNum
 	sd.aggCtx.account.SetTxNum(txNum)
 	sd.aggCtx.code.SetTxNum(txNum)
 	sd.aggCtx.storage.SetTxNum(txNum)
@@ -599,7 +604,7 @@ func (sd *SharedDomains) SetTxNum(ctx context.Context, txNum uint64) {
 	sd.aggCtx.logTopics.SetTxNum(txNum)
 }
 
-func (sd *SharedDomains) TxNum() uint64 { return sd.txNum.Load() }
+func (sd *SharedDomains) TxNum() uint64 { return sd.txNum }
 
 func (sd *SharedDomains) BlockNum() uint64 { return sd.blockNum.Load() }
 
@@ -621,7 +626,7 @@ func (sd *SharedDomains) ComputeCommitment(ctx context.Context, saveStateAfter, 
 	defer func(t time.Time) { mxCommitmentWriteTook.UpdateDuration(t) }(time.Now())
 
 	keys := make([][]byte, 0, len(branchNodeUpdates))
-	for k, _ := range branchNodeUpdates {
+	for k := range branchNodeUpdates {
 		keys = append(keys, []byte(k))
 	}
 	sort.SliceStable(keys, func(i, j int) bool { return bytes.Compare(keys[i], keys[j]) < 0 })
@@ -687,7 +692,7 @@ func (sd *SharedDomains) IterateStoragePrefix(prefix []byte, it func(k []byte, v
 		k = []byte(kx)
 
 		if len(kx) > 0 && bytes.HasPrefix(k, prefix) {
-			heap.Push(cpPtr, &CursorItem{t: RAM_CURSOR, key: common.Copy(k), val: common.Copy(v), iter: iter, endTxNum: sd.txNum.Load(), reverse: true})
+			heap.Push(cpPtr, &CursorItem{t: RAM_CURSOR, key: common.Copy(k), val: common.Copy(v), iter: iter, endTxNum: sd.txNum, reverse: true})
 		}
 	}
 

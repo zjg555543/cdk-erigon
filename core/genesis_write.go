@@ -27,9 +27,10 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ledgerwatch/erigon-lib/common/hexutil"
+
 	"github.com/c2h5oh/datasize"
 	"github.com/holiman/uint256"
-	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/exp/slices"
 
@@ -43,7 +44,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon/common"
-	"github.com/ledgerwatch/erigon/common/hexutil"
 	"github.com/ledgerwatch/erigon/consensus/ethash"
 	"github.com/ledgerwatch/erigon/consensus/merge"
 	"github.com/ledgerwatch/erigon/core/rawdb"
@@ -202,7 +202,6 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	if histV3 {
 		domains = state2.NewSharedDomains(tx)
 		defer domains.Close()
-		domains.StartWrites()
 		domains.SetTxNum(ctx, 0)
 		stateWriter = state.NewWriterV4(domains)
 	} else {
@@ -228,18 +227,17 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	}
 
 	if histV3 {
-		rh, err := domains.ComputeCommitment(ctx, tx.(*temporal.Tx).Agg().EndTxNumMinimax() == 0, false)
-		//rh, err := domains.ComputeCommitment(ctx, true, false)
+		//rh, err := domains.ComputeCommitment(ctx, tx.(*temporal.Tx).Agg().EndTxNumMinimax() == 0, false)
+		rh, err := domains.ComputeCommitment(ctx, true, false)
 		if err != nil {
 			return nil, nil, err
 		}
 		if !bytes.Equal(rh, block.Root().Bytes()) {
-			fmt.Printf("invalid genesis root hash: %x, expected %x\n", rh, block.Root().Bytes())
+			return nil, nil, fmt.Errorf("invalid genesis root hash: %x, expected %x\n", rh, block.Root().Bytes())
 		}
 		if err := domains.Flush(ctx, tx); err != nil {
 			return nil, nil, err
 		}
-		domains.FinishWrites()
 	} else {
 		if csw, ok := stateWriter.(state.WriterWithChangeSets); ok {
 			if err := csw.WriteChangeSets(); err != nil {
@@ -535,6 +533,10 @@ func GenesisToBlock(g *types.Genesis, tmpDir string) (*types.Block, *state.Intra
 	var withdrawals []*types.Withdrawal
 	if g.Config != nil && g.Config.IsShanghai(g.Timestamp) {
 		withdrawals = []*types.Withdrawal{}
+	}
+
+	if g.Config != nil && g.Config.Bor != nil && g.Config.Bor.IsAgra(g.Number) {
+		withdrawals = nil
 	}
 
 	if g.Config != nil && g.Config.IsCancun(g.Timestamp) {

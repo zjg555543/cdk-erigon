@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io/fs"
-	"math"
 	"math/big"
 	"math/rand"
 	"os"
@@ -100,6 +99,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 
 	domains := state.NewSharedDomains(tx)
 	defer domains.Close()
+	domains.SetTxNum(ctx, 0)
 
 	rnd := rand.New(rand.NewSource(time.Now().Unix()))
 
@@ -226,7 +226,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	//	cct.Close()
 	//}
 
-	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
+	_, err = domains.SeekCommitment(ctx, tx)
 	require.NoError(t, err)
 	tx.Rollback()
 
@@ -245,9 +245,6 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutDB(t *testing.T) {
 	domains = state.NewSharedDomains(tx)
 	defer domains.Close()
 	writer = state2.NewWriterV4(domains)
-
-	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
-	require.NoError(t, err)
 
 	txToStart := domains.TxNum()
 
@@ -305,6 +302,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 
 	domains := state.NewSharedDomains(tx)
 	defer domains.Close()
+	domains.SetTxNum(ctx, 0)
 
 	rnd := rand.New(rand.NewSource(time.Now().Unix()))
 
@@ -393,7 +391,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 	domains = state.NewSharedDomains(tx)
 	defer domains.Close()
 
-	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
+	_, err = domains.SeekCommitment(ctx, tx)
 	tx.Rollback()
 	require.NoError(t, err)
 
@@ -414,7 +412,7 @@ func Test_AggregatorV3_RestartOnDatadir_WithoutAnything(t *testing.T) {
 
 	writer = state2.NewWriterV4(domains)
 
-	_, err = domains.SeekCommitment(ctx, tx, 0, math.MaxUint64)
+	_, err = domains.SeekCommitment(ctx, tx)
 	require.NoError(t, err)
 
 	txToStart := domains.TxNum()
