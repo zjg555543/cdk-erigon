@@ -101,6 +101,7 @@ func NewHexPatriciaHashed(accountKeyLen int,
 		storageFn:     storageFn,
 		auxBuffer:     bytes.NewBuffer(make([]byte, 8192)),
 		branchMerger:  NewHexBranchMerger(1024),
+		trace:         true,
 	}
 }
 
@@ -976,6 +977,7 @@ func (hph *HexPatriciaHashed) unfold(hashedKey []byte, unfolding int) error {
 }
 
 func (hph *HexPatriciaHashed) needFolding(hashedKey []byte) bool {
+	fmt.Printf("needFolding: %x, %x\n", hashedKey, hph.currentKey[:hph.currentKeyLen])
 	return !bytes.HasPrefix(hashedKey, hph.currentKey[:hph.currentKeyLen])
 }
 
@@ -1373,6 +1375,7 @@ func (hph *HexPatriciaHashed) ProcessKeys(ctx context.Context, plainKeys [][]byt
 func (hph *HexPatriciaHashed) ProcessUpdates(ctx context.Context, plainKeys [][]byte, updates []Update) (rootHash []byte, branchNodeUpdates map[string]BranchData, err error) {
 	branchNodeUpdates = make(map[string]BranchData)
 
+	fmt.Printf("[dbg] plainKeys: %d\n", len(plainKeys))
 	for i, pk := range plainKeys {
 		updates[i].hashedKey = hph.hashAndNibblizeKey(pk)
 		updates[i].plainKey = pk

@@ -501,6 +501,7 @@ func (d *DomainCommitted) ComputeCommitment(ctx context.Context, trace bool) (ro
 
 	touchedKeys, updates := d.updates.List(true)
 	mxCommitmentKeys.Add(len(touchedKeys))
+	fmt.Printf("[dbg] touchedKeys: %d, %d\n", len(touchedKeys), len(updates))
 
 	if len(touchedKeys) == 0 {
 		rootHash, err = d.patriciaTrie.RootHash()

@@ -419,7 +419,7 @@ func (sd *SharedDomains) branchFn(pref []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("branchFn failed: %w", err)
 	}
-	//fmt.Printf("branchFn[sd]: %x: %x\n", pref, v)
+	fmt.Printf("branchFn[sd]: %x: %x\n", pref, v)
 	if len(v) == 0 {
 		return nil, nil
 	}
@@ -441,7 +441,7 @@ func (sd *SharedDomains) accountFn(plainKey []byte, cell *commitment.Cell) error
 		if len(chash) > 0 {
 			copy(cell.CodeHash[:], chash)
 		}
-		//fmt.Printf("accountFn[sd]: %x: n=%d b=%d ch=%x\n", plainKey, nonce, balance, chash)
+		fmt.Printf("accountFn[sd]: %x: n=%d b=%d ch=%x\n", plainKey, nonce, balance, chash)
 	}
 
 	code, err := sd.LatestCode(plainKey)
@@ -449,7 +449,7 @@ func (sd *SharedDomains) accountFn(plainKey []byte, cell *commitment.Cell) error
 		return fmt.Errorf("accountFn[sd]: failed to read latest code: %w", err)
 	}
 	if len(code) > 0 {
-		//fmt.Printf("accountFn[sd]: code %x - %x\n", plainKey, code)
+		fmt.Printf("accountFn[sd]: code %x - %x\n", plainKey, code)
 		sd.Commitment.updates.keccak.Reset()
 		sd.Commitment.updates.keccak.Write(code)
 		sd.Commitment.updates.keccak.Read(cell.CodeHash[:])
@@ -492,6 +492,7 @@ func (sd *SharedDomains) updateAccountCode(addr, code, prevCode []byte) error {
 }
 
 func (sd *SharedDomains) updateCommitmentData(prefix []byte, data, prev []byte) error {
+	fmt.Printf("== updateCommitmentData %x => %x\n", prefix, data)
 	sd.put(kv.CommitmentDomain, string(prefix), data)
 	return sd.aggCtx.commitment.PutWithPrev(prefix, nil, data, prev)
 }
@@ -649,7 +650,7 @@ func (sd *SharedDomains) ComputeCommitment(ctx context.Context, saveStateAfter, 
 			continue
 		}
 		if trace {
-			fmt.Printf("sd computeCommitment merge [%x] [%x]+[%x]=>[%x]\n", prefix, stated, update, merged)
+			fmt.Printf("== sd computeCommitment merge [%x] [%x]+[%x]=>[%x]\n", prefix, stated, update, merged)
 		}
 
 		if err = sd.updateCommitmentData(prefix, merged, stated); err != nil {
@@ -663,6 +664,7 @@ func (sd *SharedDomains) ComputeCommitment(ctx context.Context, saveStateAfter, 
 			return nil, err
 		}
 
+		fmt.Printf("root: %x, %x\n", keyCommitmentState, prevState)
 		if !been {
 			prevState = nil
 		}

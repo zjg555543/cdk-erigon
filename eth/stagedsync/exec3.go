@@ -596,7 +596,7 @@ func ExecV3(ctx context.Context,
 	var b *types.Block
 	//var err error
 
-	//fmt.Printf("exec: %d -> %d\n", blockNum, maxBlockNum)
+	fmt.Printf("exec: %d -> %d\n", blockNum, maxBlockNum)
 Loop:
 	for ; blockNum <= maxBlockNum; blockNum++ {
 		if blockNum >= blocksInSnapshots {
@@ -911,8 +911,6 @@ Loop:
 		fmt.Printf("[dbg] mmmm... do we need action here????\n")
 	}
 
-	//dumpPlainStateDebug(applyTx, doms)
-
 	if !useExternalTx && applyTx != nil {
 		if err = applyTx.Commit(); err != nil {
 			return err
@@ -1026,10 +1024,14 @@ func flushAndCheckCommitmentV3(ctx context.Context, header *types.Header, applyT
 	if dbg.DiscardCommitment() {
 		return true, nil
 	}
-	rh, err := doms.ComputeCommitment(context.Background(), true, false)
+
+	dumpPlainStateDebug(applyTx, doms)
+
+	rh, err := doms.ComputeCommitment(context.Background(), true, true)
 	if err != nil {
 		return false, fmt.Errorf("StateV3.Apply: %w", err)
 	}
+	fmt.Printf("state root: %d, %x, %x\n", header.Number.Uint64(), rh, header.Root.Bytes())
 	if bytes.Equal(rh, header.Root.Bytes()) {
 		if err := doms.Flush(ctx, applyTx); err != nil {
 			return false, err
