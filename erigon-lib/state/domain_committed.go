@@ -351,7 +351,6 @@ func (d *DomainCommitted) Restore(value []byte) (uint64, uint64, error) {
 	} else {
 		return 0, 0, fmt.Errorf("state storing is only supported hex patricia trie")
 	}
-	fmt.Printf("[dbg] a2: %d, %d\n", cs.blockNum, cs.txNum)
 	return cs.blockNum, cs.txNum, nil
 }
 
