@@ -209,7 +209,6 @@ func ExecV3(ctx context.Context,
 	if execStage.BlockNumber > 0 {
 		stageProgress = execStage.BlockNumber
 		blockNum = execStage.BlockNumber + 1
-		fmt.Printf("exec1 blockNum=%d\n", blockNum)
 	} else if !useExternalTx { //nolint
 		//found, _downloadedBlockNum, err := rawdbv3.TxNums.FindBlockNum(applyTx, agg.EndTxNumMinimax())
 		//if err != nil {
@@ -284,7 +283,6 @@ func ExecV3(ctx context.Context,
 	}
 	if doms.BlockNum() > blockNum {
 		blockNum = doms.BlockNum()
-		fmt.Printf("exec2 blockNum=%d\n", blockNum)
 	}
 	outputTxNum.Store(inputTxNum)
 
