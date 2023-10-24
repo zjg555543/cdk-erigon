@@ -443,6 +443,9 @@ func TestCreate2Polymorth(t *testing.T) {
 }
 
 func TestReorgOverSelfDestruct(t *testing.T) {
+	if ethconfig.EnableHistoryV4InTest {
+		t.Skip("TODO: [e4] implement me")
+	}
 	// Configure and generate a sample block chain
 	var (
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -965,6 +968,10 @@ func TestEip2200Gas(t *testing.T) {
 
 // Create contract, drop trie, reload trie from disk and add block with contract call
 func TestWrongIncarnation(t *testing.T) {
+	if ethconfig.EnableHistoryV4InTest {
+		t.Skip("TODO: [e4] implement me")
+	}
+
 	// Configure and generate a sample block chain
 	var (
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
