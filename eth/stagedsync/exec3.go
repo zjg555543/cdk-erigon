@@ -699,7 +699,7 @@ Loop:
 				// use history reader instead of state reader to catch up to the tx where we left off
 				HistoryExecution: offsetFromBlockBeginning > 0 && txIndex < int(offsetFromBlockBeginning),
 			}
-			if txTask.HistoryExecution {
+			if blockNum > execStage.BlockNumber+1 && txTask.HistoryExecution {
 				panic("HistoryExecution")
 			}
 			if txIndex >= 0 && txIndex < len(txs) {
