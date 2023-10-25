@@ -346,7 +346,7 @@ func (d *DomainCommitted) Restore(value []byte) (uint64, uint64, error) {
 			if err != nil {
 				return 0, 0, fmt.Errorf("failed to get root hash after state restore: %w", err)
 			}
-			fmt.Printf("[commitment] restored state: block=%d txn=%d rh=%x\n", cs.blockNum, cs.txNum, rh)
+			d.logger.Warn("[commitment] restored state", "block", cs.blockNum, "txn", cs.txNum, "rh", fmt.Sprintf("%x", rh))
 		}
 	} else {
 		return 0, 0, fmt.Errorf("state storing is only supported hex patricia trie")
