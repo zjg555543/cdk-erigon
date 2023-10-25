@@ -332,7 +332,7 @@ func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context,
 	if err != nil {
 		return err
 	}
-	if bn != u.UnwindPoint {
+	if bn > 0 && bn != u.UnwindPoint {
 		return fmt.Errorf("commitment can unwind only to block: %d, requested: %d. UnwindTo was called with wrong value", bn, u.UnwindPoint)
 	}
 
