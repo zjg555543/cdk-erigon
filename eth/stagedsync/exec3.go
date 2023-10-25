@@ -1079,8 +1079,10 @@ func flushAndCheckCommitmentV3(ctx context.Context, header *types.Header, applyT
 	if err != nil {
 		return false, err
 	}
-	unwindTo = cmp.Min(unwindTo, blockNumWithCommitment) // not all blocks have commitment
-	unwindTo = cmp.Max(unwindTo, unwindToLimit)          // don't go too far
+	if blockNumWithCommitment > 0 {
+		unwindTo = cmp.Max(unwindTo, blockNumWithCommitment) // not all blocks have commitment
+	}
+	unwindTo = cmp.Max(unwindTo, unwindToLimit) // don't go too far
 	logger.Warn("Unwinding due to incorrect root hash", "to", unwindTo)
 	u.UnwindTo(unwindTo, BadBlock(header.Hash(), ErrInvalidStateRootHash))
 	return false, nil
