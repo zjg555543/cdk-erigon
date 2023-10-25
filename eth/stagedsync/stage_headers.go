@@ -314,10 +314,15 @@ Loop:
 			if err != nil {
 				return err
 			}
-			if blockNumWithCommitment != unwindTo {
-				log.Info(fmt.Sprintf("[%s] unwindTo != blockNumWithCommitment", logPrefix), "unwindTo", unwindTo, "blockNumWithCommitment", blockNumWithCommitment)
+			unwindToLimit, err := tx.(state.HasAggCtx).AggCtx().CanUnwindDomainsToBlockNum(tx)
+			if err != nil {
+				return err
 			}
 			unwindTo = cmp.Min(unwindTo, blockNumWithCommitment) // not all blocks have commitment
+			if blockNumWithCommitment != unwindTo {
+				log.Info(fmt.Sprintf("[%s] unwindTo != blockNumWithCommitment", logPrefix), "headerInserter.UnwindPoint()", headerInserter.UnwindPoint(), "unwindTo", unwindTo, "blockNumWithCommitment", blockNumWithCommitment)
+			}
+			unwindTo = cmp.Max(unwindTo, unwindToLimit) // don't go too far
 			u.UnwindTo(unwindTo, StagedUnwind)
 		} else {
 			u.UnwindTo(headerInserter.UnwindPoint(), StagedUnwind)
