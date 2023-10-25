@@ -555,7 +555,7 @@ func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *
 	}
 
 	//if d.trace {
-	d.logger.Warn("[snapshots] SeekCommitment", "sinceTx", sinceTx, "untilTx", untilTx)
+	d.logger.Warn("[snapshots] SeekCommitment", "sinceTx", sinceTx, "untilTx", untilTx, "stack", dbg.Stack())
 	//}
 
 	var latestState []byte
