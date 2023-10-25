@@ -1037,3 +1037,4 @@ func (sd *SharedDomains) DomainDelPrefix(domain kv.Domain, prefix []byte) error 
 	}
 	return nil
 }
+func (sd *SharedDomains) Tx() kv.Tx { return sd.roTx }
