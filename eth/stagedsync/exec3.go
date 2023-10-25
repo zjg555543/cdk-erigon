@@ -1080,7 +1080,6 @@ func flushAndCheckCommitmentV3(ctx context.Context, header *types.Header, applyT
 	if err != nil {
 		return false, err
 	}
-	fmt.Printf("[dbg] alex %d -> %d, unwindToLimit=%d\n", unwindTo, blockNumWithCommitment, unwindToLimit)
 	unwindTo = cmp.Min(unwindTo, blockNumWithCommitment) // not all blocks have commitment
 	logger.Warn("Unwinding due to incorrect root hash", "to", unwindTo)
 	u.UnwindTo(unwindTo, BadBlock(header.Hash(), ErrInvalidStateRootHash))
