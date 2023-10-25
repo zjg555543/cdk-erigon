@@ -328,11 +328,11 @@ var ErrTooDeepUnwind = fmt.Errorf("too deep unwind")
 func unwindExec3(u *UnwindState, s *StageState, tx kv.RwTx, ctx context.Context, accumulator *shards.Accumulator, logger log.Logger) (err error) {
 	domains := libstate.NewSharedDomains(tx)
 	defer domains.Close()
-	bn, _, err := domains.SeekCommitment2(tx, 0, u.UnwindPoint)
+	bn, _, ok, err := domains.SeekCommitment2(tx, 0, u.UnwindPoint)
 	if err != nil {
 		return err
 	}
-	if bn > 0 && bn != u.UnwindPoint {
+	if ok && bn != u.UnwindPoint {
 		return fmt.Errorf("commitment can unwind only to block: %d, requested: %d. UnwindTo was called with wrong value", bn, u.UnwindPoint)
 	}
 

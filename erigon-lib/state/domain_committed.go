@@ -545,13 +545,13 @@ var keyCommitmentState = []byte("state")
 
 // SeekCommitment searches for last encoded state from DomainCommitted
 // and if state found, sets it up to current domain
-func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *DomainContext) (blockNum, txNum uint64, err error) {
+func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *DomainContext) (blockNum, txNum uint64, ok bool, err error) {
 	if dbg.DiscardCommitment() {
-		return 0, 0, nil
+		return 0, 0, false, nil
 	}
 	if d.patriciaTrie.Variant() != commitment.VariantHexPatriciaTrie {
 		d.logger.Warn("[snapshots] DomainCommitted.Restore01", "err", err)
-		return 0, 0, fmt.Errorf("state storing is only supported hex patricia trie")
+		return 0, 0, false, fmt.Errorf("state storing is only supported hex patricia trie")
 	}
 
 	//if d.trace {
@@ -570,14 +570,19 @@ func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *
 
 		if txn >= sinceTx && txn <= untilTx {
 			latestState = value
+			ok = true
 		}
 		return nil
 	})
 	if err != nil {
 		d.logger.Warn("[snapshots] DomainCommitted.Restore02", "err", err)
-		return 0, 0, fmt.Errorf("failed to seek commitment state: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to seek commitment state: %w", err)
 	}
-	return d.Restore(latestState)
+	if !ok {
+		return 0, 0, false, nil
+	}
+	blockNum, txNum, err = d.Restore(latestState)
+	return blockNum, txNum, true, err
 }
 
 type commitmentState struct {
