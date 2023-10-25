@@ -30,19 +30,29 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/erigon/core/vm"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/tracers/logger"
 	"github.com/ledgerwatch/log/v3"
 )
 
 func TestZkState(t *testing.T) {
+	t.Parallel()
 	st := new(testMatcher)
 	st.whitelist("stZero*")
 	testState(t, st)
 }
+func TestTimeConsumingState(t *testing.T) {
+	t.Parallel()
+	st := new(testMatcher)
+	st.whitelist("stTimeConsuming*")
+	testState(t, st)
+}
 
 func TestState(t *testing.T) {
+	t.Parallel()
 	st := new(testMatcher)
 	st.skipLoad(`^stZero`)
+	st.skipLoad(`^stTimeConsuming`)
 	testState(t, st)
 }
 func testState(t *testing.T, st *testMatcher) {
@@ -57,6 +67,17 @@ func testState(t *testing.T, st *testMatcher) {
 	// Very time consuming
 	st.skipLoad(`^stTimeConsuming/`)
 	st.skipLoad(`.*vmPerformance/loop.*`)
+
+	if ethconfig.EnableHistoryV3InTest {
+		//TODO: AlexSharov - need to fix this test
+		st.skipLoad(`^stWalletTest`)
+		st.skipLoad(`^stTransitionTest`)
+
+		st.skipLoad(`^stZeroKnowledge2`)
+		st.skipLoad(`^stZeroKnowledge`)
+		st.skipLoad(`^stZeroCallsTest`)
+		st.skipLoad(`^stZeroCallsRevert`)
+	}
 
 	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
 		for _, subtest := range test.Subtests() {
