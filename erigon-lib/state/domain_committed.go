@@ -333,24 +333,31 @@ func (d *DomainCommitted) Restore(value []byte) (uint64, uint64, error) {
 	cs := new(commitmentState)
 	if err := cs.Decode(value); err != nil {
 		if len(value) > 0 {
+			d.logger.Warn("[snapshots] DomainCommitted.Restore1", "err", err)
 			return 0, 0, fmt.Errorf("failed to decode previous stored commitment state: %w", err)
 		}
 		// nil value is acceptable for SetState and will reset trie
 	}
 	if hext, ok := d.patriciaTrie.(*commitment.HexPatriciaHashed); ok {
 		if err := hext.SetState(cs.trieState); err != nil {
+			d.logger.Warn("[snapshots] DomainCommitted.Restore2", "err", err)
+
 			return 0, 0, fmt.Errorf("failed restore state : %w", err)
 		}
 		if d.trace {
 			rh, err := hext.RootHash()
+			d.logger.Warn("[snapshots] DomainCommitted.Restore3", "err", err)
 			if err != nil {
+
 				return 0, 0, fmt.Errorf("failed to get root hash after state restore: %w", err)
 			}
 			d.logger.Warn("[commitment] restored state", "block", cs.blockNum, "txn", cs.txNum, "rh", fmt.Sprintf("%x", rh))
 		}
 	} else {
+		d.logger.Warn("[snapshots] DomainCommitted.Restore4", "err", fmt.Errorf("state storing is only supported hex patricia trie"))
 		return 0, 0, fmt.Errorf("state storing is only supported hex patricia trie")
 	}
+	d.logger.Warn("[snapshots] DomainCommitted.Restore5", "block", cs.blockNum, "txn", cs.txNum)
 	return cs.blockNum, cs.txNum, nil
 }
 
@@ -543,6 +550,7 @@ func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *
 		return 0, 0, nil
 	}
 	if d.patriciaTrie.Variant() != commitment.VariantHexPatriciaTrie {
+		d.logger.Warn("[snapshots] DomainCommitted.Restore01", "err", err)
 		return 0, 0, fmt.Errorf("state storing is only supported hex patricia trie")
 	}
 
@@ -566,6 +574,7 @@ func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *
 		return nil
 	})
 	if err != nil {
+		d.logger.Warn("[snapshots] DomainCommitted.Restore02", "err", err)
 		return 0, 0, fmt.Errorf("failed to seek commitment state: %w", err)
 	}
 	return d.Restore(latestState)
