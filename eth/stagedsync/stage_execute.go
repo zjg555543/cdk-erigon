@@ -735,7 +735,7 @@ func UnwindExecutionStage(u *UnwindState, s *StageState, tx kv.RwTx, ctx context
 	if err = u.Done(tx); err != nil {
 		return err
 	}
-	//dumpPlainStateDebug(tx, nil)
+	dumpPlainStateDebug(tx, nil)
 
 	if !useExternalTx {
 		if err = tx.Commit(); err != nil {
