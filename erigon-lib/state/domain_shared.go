@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	math2 "math"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/commitment"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/types"
 )
@@ -53,7 +53,7 @@ type SharedDomains struct {
 	aggCtx *AggregatorV3Context
 	roTx   kv.Tx
 
-	txNum    atomic.Uint64
+	txNum    uint64
 	blockNum atomic.Uint64
 	estSize  int
 	trace    bool
@@ -111,6 +111,10 @@ func NewSharedDomains(tx kv.Tx) *SharedDomains {
 
 	sd.Commitment.ResetFns(sd.branchFn, sd.accountFn, sd.storageFn)
 	sd.StartWrites()
+	sd.SetTxNum(context.Background(), 0)
+	if _, err := sd.SeekCommitment(context.Background(), tx); err != nil {
+		panic(err)
+	}
 	return sd
 }
 
@@ -152,17 +156,79 @@ func (sd *SharedDomains) Unwind(ctx context.Context, rwTx kv.RwTx, txUnwindTo ui
 	if err := sd.aggCtx.tracesTo.Prune(ctx, rwTx, txUnwindTo, math2.MaxUint64, math2.MaxUint64, logEvery); err != nil {
 		return err
 	}
+	if err := sd.Flush(ctx, rwTx); err != nil {
+		return err
+	}
 	sd.ClearRam(true)
 
-	_, err := sd.SeekCommitment(ctx, rwTx, 0, txUnwindTo)
+	_, err := sd.SeekCommitment(ctx, rwTx)
 	return err
 }
 
-func (sd *SharedDomains) SeekCommitment(ctx context.Context, tx kv.Tx, fromTx, toTx uint64) (txsFromBlockBeginning uint64, err error) {
-	bn, txn, err := sd.Commitment.SeekCommitment(tx, fromTx, toTx, sd.aggCtx.commitment)
+func (sd *SharedDomains) rebuildCommitment(ctx context.Context, rwTx kv.Tx) ([]byte, error) {
+	it, err := sd.aggCtx.AccountHistoryRange(int(sd.TxNum()), math2.MaxInt64, order.Asc, -1, rwTx)
+	if err != nil {
+		return nil, err
+	}
+	for it.HasNext() {
+		k, _, err := it.Next()
+		if err != nil {
+			return nil, err
+		}
+		sd.Commitment.TouchPlainKey(string(k), nil, sd.Commitment.TouchAccount)
+	}
+
+	it, err = sd.aggCtx.StorageHistoryRange(int(sd.TxNum()), math2.MaxInt64, order.Asc, -1, rwTx)
+	if err != nil {
+		return nil, err
+	}
+
+	for it.HasNext() {
+		k, _, err := it.Next()
+		if err != nil {
+			return nil, err
+		}
+		sd.Commitment.TouchPlainKey(string(k), nil, sd.Commitment.TouchStorage)
+	}
+
+	return sd.ComputeCommitment(ctx, true, false)
+}
+
+func (sd *SharedDomains) SeekCommitment2(tx kv.Tx, sinceTx, untilTx uint64) (blockNum, txNum uint64, ok bool, err error) {
+	return sd.Commitment.SeekCommitment(tx, sinceTx, untilTx, sd.aggCtx.commitment)
+}
+
+func (sd *SharedDomains) SeekCommitment(ctx context.Context, tx kv.Tx) (txsFromBlockBeginning uint64, err error) {
+	fromTx := uint64(0)
+	toTx := uint64(math2.MaxUint64)
+	bn, txn, ok, err := sd.Commitment.SeekCommitment(tx, fromTx, toTx, sd.aggCtx.commitment)
 	if err != nil {
 		return 0, err
 	}
+	if !ok {
+		//TODO: implement me!
+	}
+
+	// startingBlock := sd.BlockNum()
+	// startingTxnum := sd.TxNum()
+	// if bn != startingBlock || txn != startingTxnum {
+	// 	sd.Commitment.Reset()
+	// 	snapTxNum := utils.Min64(sd.Account.endTxNumMinimax(), sd.Storage.endTxNumMinimax())
+	// 	toTx := utils.Max64(snapTxNum, startingTxnum)
+	// 	if toTx > 0 {
+	// 		sd.SetTxNum(ctx, toTx)
+	// 		newRh, err := sd.rebuildCommitment(ctx, tx)
+	// 		if err != nil {
+	// 			return 0, err
+	// 		}
+	// 		fmt.Printf("rebuilt commitment %x %d %d\n", newRh, sd.TxNum(), sd.BlockNum())
+	// 	}
+	// 	bn, txn, err = rawdbv3.TxNums.Last(tx)
+	// 	if err != nil {
+	// 		return 0, err
+	// 	}
+	// 	latestTxn := utils.Max64(txn, snapTxNum)
+	// }
 
 	ok, blockNum, err := rawdbv3.TxNums.FindBlockNum(tx, txn)
 	if ok {
@@ -181,17 +247,17 @@ func (sd *SharedDomains) SeekCommitment(ctx context.Context, tx kv.Tx, fromTx, t
 		if sd.trace {
 			fmt.Printf("[commitment] found block %d tx %d. DB found block %d, firstTxInBlock %d, lastTxInBlock %d\n", bn, txn, blockNum, firstTxInBlock, lastTxInBlock)
 		}
-		if txn > firstTxInBlock {
+		if txn == lastTxInBlock {
+			blockNum++
+		} else if txn > firstTxInBlock {
+			// snapshots are counted in transactions and can stop in the middle of block
 			txn++ // has to move txn cuz state committed at txNum-1 to be included in latest file
 			txsFromBlockBeginning = txn - firstTxInBlock
+		} else {
+			txn = firstTxInBlock
 		}
 		if sd.trace {
 			fmt.Printf("[commitment] block tx range -%d |%d| %d\n", txsFromBlockBeginning, txn, lastTxInBlock-txn)
-		}
-		if txn == lastTxInBlock {
-			blockNum++
-		} else {
-			txn = firstTxInBlock
 		}
 	} else {
 		blockNum = bn
@@ -588,7 +654,7 @@ func (sd *SharedDomains) SetTxNum(ctx context.Context, txNum uint64) {
 		}
 	}
 
-	sd.txNum.Store(txNum)
+	sd.txNum = txNum
 	sd.aggCtx.account.SetTxNum(txNum)
 	sd.aggCtx.code.SetTxNum(txNum)
 	sd.aggCtx.storage.SetTxNum(txNum)
@@ -599,7 +665,7 @@ func (sd *SharedDomains) SetTxNum(ctx context.Context, txNum uint64) {
 	sd.aggCtx.logTopics.SetTxNum(txNum)
 }
 
-func (sd *SharedDomains) TxNum() uint64 { return sd.txNum.Load() }
+func (sd *SharedDomains) TxNum() uint64 { return sd.txNum }
 
 func (sd *SharedDomains) BlockNum() uint64 { return sd.blockNum.Load() }
 
@@ -620,20 +686,13 @@ func (sd *SharedDomains) ComputeCommitment(ctx context.Context, saveStateAfter, 
 
 	defer func(t time.Time) { mxCommitmentWriteTook.UpdateDuration(t) }(time.Now())
 
-	keys := make([][]byte, 0, len(branchNodeUpdates))
-	for k, _ := range branchNodeUpdates {
-		keys = append(keys, []byte(k))
-	}
-	sort.SliceStable(keys, func(i, j int) bool { return bytes.Compare(keys[i], keys[j]) < 0 })
-
-	for _, key := range keys {
+	for pref, update := range branchNodeUpdates {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 		}
-		prefix := key
-		update := branchNodeUpdates[string(prefix)]
+		prefix := []byte(pref)
 
 		stateValue, err := sd.LatestCommitment(prefix)
 		if err != nil {
@@ -657,7 +716,16 @@ func (sd *SharedDomains) ComputeCommitment(ctx context.Context, saveStateAfter, 
 		mxCommitmentBranchUpdates.Inc()
 	}
 	if saveStateAfter {
-		if err := sd.Commitment.storeCommitmentState(sd.aggCtx.commitment, sd.blockNum.Load(), rootHash); err != nil {
+		prevState, been, err := sd.aggCtx.commitment.GetLatest(keyCommitmentState, nil, sd.roTx)
+		if err != nil {
+			return nil, err
+		}
+
+		if !been {
+			prevState = nil
+		}
+
+		if err := sd.Commitment.storeCommitmentState(sd.aggCtx.commitment, sd.blockNum.Load(), rootHash, prevState); err != nil {
 			return nil, err
 		}
 	}
@@ -687,7 +755,7 @@ func (sd *SharedDomains) IterateStoragePrefix(prefix []byte, it func(k []byte, v
 		k = []byte(kx)
 
 		if len(kx) > 0 && bytes.HasPrefix(k, prefix) {
-			heap.Push(cpPtr, &CursorItem{t: RAM_CURSOR, key: common.Copy(k), val: common.Copy(v), iter: iter, endTxNum: sd.txNum.Load(), reverse: true})
+			heap.Push(cpPtr, &CursorItem{t: RAM_CURSOR, key: common.Copy(k), val: common.Copy(v), iter: iter, endTxNum: sd.txNum, reverse: true})
 		}
 	}
 
@@ -871,18 +939,16 @@ func (sd *SharedDomains) FinishWrites() {
 	sd.walLock.Lock()
 	defer sd.walLock.Unlock()
 
-	if sd.aggCtx == nil {
-		return
+	if sd.aggCtx != nil {
+		sd.aggCtx.account.FinishWrites()
+		sd.aggCtx.storage.FinishWrites()
+		sd.aggCtx.code.FinishWrites()
+		sd.aggCtx.commitment.FinishWrites()
+		sd.aggCtx.logAddrs.FinishWrites()
+		sd.aggCtx.logTopics.FinishWrites()
+		sd.aggCtx.tracesFrom.FinishWrites()
+		sd.aggCtx.tracesTo.FinishWrites()
 	}
-
-	sd.aggCtx.account.FinishWrites()
-	sd.aggCtx.storage.FinishWrites()
-	sd.aggCtx.code.FinishWrites()
-	sd.aggCtx.commitment.FinishWrites()
-	sd.aggCtx.logAddrs.FinishWrites()
-	sd.aggCtx.logTopics.FinishWrites()
-	sd.aggCtx.tracesFrom.FinishWrites()
-	sd.aggCtx.tracesTo.FinishWrites()
 }
 
 func (sd *SharedDomains) BatchHistoryWriteStart() *SharedDomains {
@@ -961,7 +1027,7 @@ func (sd *SharedDomains) DomainGet(name kv.Domain, k, k2 []byte) (v []byte, err 
 //   - if `val == nil` it will call DomainDel
 func (sd *SharedDomains) DomainPut(domain kv.Domain, k1, k2 []byte, val, prevVal []byte) error {
 	if val == nil {
-		return sd.DomainDel(domain, k1, k2, prevVal)
+		return fmt.Errorf("DomainPut: %s, trying to put nil value. not allowed", domain)
 	}
 	if prevVal == nil {
 		var err error
@@ -1028,3 +1094,4 @@ func (sd *SharedDomains) DomainDelPrefix(domain kv.Domain, prefix []byte) error 
 	}
 	return nil
 }
+func (sd *SharedDomains) Tx() kv.Tx { return sd.roTx }

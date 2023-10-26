@@ -548,9 +548,9 @@ func (h *historyWAL) addPrevValue(key1, key2, original []byte) error {
 	}
 
 	ic := h.hc.ic
-	// defer func() {
-	// 	fmt.Printf("addPrevValue: %x tx %x %x lv=%t buffered=%t\n", key1, ic.txNumBytes, original, h.largeValues, h.buffered)
-	// }()
+	//defer func() {
+	//	fmt.Printf("addPrevValue: %x tx %x %x lv=%t buffered=%t\n", key1, ic.txNumBytes, original, h.largeValues, h.buffered)
+	//}()
 
 	if h.largeValues {
 		lk := len(key1) + len(key2)
@@ -1034,8 +1034,9 @@ type HistoryRecord struct {
 	PValue []byte
 }
 
-func (hc *HistoryContext) ifUnwindKey(key []byte, toTxNum uint64, roTx kv.Tx) (toRestore *HistoryRecord, needDeleting bool, err error) {
-	it, err := hc.IdxRange(key, 0, int(toTxNum+hc.ic.ii.aggregationStep), order.Asc, -1, roTx)
+func (hc *HistoryContext) ifUnwindKey(key []byte, txNumUnindTo uint64, roTx kv.Tx) (toRestore *HistoryRecord, needDeleting bool, err error) {
+	it, err := hc.IdxRange(key, 0, int(txNumUnindTo+hc.ic.ii.aggregationStep), order.Asc, -1, roTx)
+	//it, err := hc.IdxRange(key, int(txNumUnindTo), -1, order.Asc, -1, roTx)
 	if err != nil {
 		return nil, false, fmt.Errorf("idxRange %s: %w", hc.h.filenameBase, err)
 	}
@@ -1049,7 +1050,7 @@ func (hc *HistoryContext) ifUnwindKey(key []byte, toTxNum uint64, roTx kv.Tx) (t
 		if err != nil {
 			return nil, false, err
 		}
-		if txn < toTxNum {
+		if txn < txNumUnindTo {
 			tnums[0].TxNum = txn // 0 could be false-positive (having no value, even nil)
 			//fmt.Printf("seen %x @tx %d\n", key, txn)
 			continue
@@ -1063,10 +1064,10 @@ func (hc *HistoryContext) ifUnwindKey(key []byte, toTxNum uint64, roTx kv.Tx) (t
 		}
 		//fmt.Printf("found %x @tx %d ->%t '%x'\n", key, txn, ok, v)
 
-		if txn == toTxNum {
+		if txn == txNumUnindTo {
 			tnums[1] = &HistoryRecord{TxNum: txn, Value: common.Copy(v)}
 		}
-		if txn > toTxNum {
+		if txn > txNumUnindTo {
 			tnums[2] = &HistoryRecord{TxNum: txn, Value: common.Copy(v)}
 			break
 		}
@@ -1078,13 +1079,10 @@ func (hc *HistoryContext) ifUnwindKey(key []byte, toTxNum uint64, roTx kv.Tx) (t
 			return nil, false, err
 		}
 		if !ok {
-			tnums[0].TxNum = math.MaxUint64
-		} else {
-			tnums[0].Value = common.Copy(v)
+			return nil, true, nil
 		}
-	}
+		tnums[0].Value = common.Copy(v)
 
-	if tnums[0].TxNum != math.MaxUint64 {
 		if tnums[1] != nil {
 			toRestore = &HistoryRecord{TxNum: tnums[0].TxNum, Value: tnums[1].Value, PValue: tnums[0].Value}
 			//fmt.Printf("toRestore %x @%d [0-1] %x\n", key, toRestore.TxNum, toRestore.Value)
@@ -1101,41 +1099,6 @@ func (hc *HistoryContext) ifUnwindKey(key []byte, toTxNum uint64, roTx kv.Tx) (t
 	}
 	//fmt.Printf("toRestore NONE %x @%d ->%x [1] %+v [2] %+v\n", key, tnums[0].TxNum, tnums[0].Value, tnums[1], tnums[2])
 	return nil, true, nil
-}
-
-// deprecated
-// returns up to 2 records: one has txnum <= beforeTxNum, another has txnum > beforeTxNum, if any
-func (hc *HistoryContext) unwindKey(key []byte, beforeTxNum uint64, rwTx kv.RwTx) ([]HistoryRecord, error) {
-	it, err := hc.IdxRange(key, int(beforeTxNum), math.MaxInt, order.Asc, -1, rwTx)
-	if err != nil {
-		return nil, fmt.Errorf("idxRange %s: %w", hc.h.filenameBase, err)
-	}
-
-	res := make([]HistoryRecord, 0, 2)
-	var finished bool
-	for txn, err := it.Next(); !finished; txn, err = it.Next() {
-		if err != nil {
-			return nil, err
-		}
-		v, ok, err := hc.GetNoStateWithRecent(key, txn, rwTx)
-		if err != nil {
-			return nil, err
-		}
-		// if bytes.Equal(key, common.FromHex("1079")) {
-		fmt.Printf("unwind {largeVals=%t} %x [txn=%d, wanted %d] -> %t %x\n", hc.h.historyLargeValues, key, txn, beforeTxNum, ok, fmt.Sprintf("%x", v))
-		// }
-		if !ok {
-			continue
-		}
-		res = append(res, HistoryRecord{TxNum: txn, Value: v})
-		if len(res) == 2 {
-			break
-		}
-		finished = !it.HasNext()
-
-	}
-
-	return res, nil
 }
 
 type HistoryContext struct {
@@ -1200,6 +1163,7 @@ func (hc *HistoryContext) CanPrune(tx kv.Tx) bool {
 	return hc.ic.CanPruneFrom(tx) < hc.maxTxNumInFiles(false)
 }
 func (hc *HistoryContext) Prune(ctx context.Context, rwTx kv.RwTx, txFrom, txTo, limit uint64, logEvery *time.Ticker) error {
+	//fmt.Printf(" prune[%s] %t, %d-%d\n", hc.h.filenameBase, hc.CanPrune(rwTx), txFrom, txTo)
 	if !hc.CanPrune(rwTx) {
 		return nil
 	}

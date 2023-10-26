@@ -2,9 +2,9 @@ package whitelist
 
 import (
 	"github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/metrics"
 	"github.com/ledgerwatch/erigon/consensus/bor/finality/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
-	"github.com/ledgerwatch/erigon/metrics"
 )
 
 type checkpoint struct {
@@ -34,9 +34,9 @@ func (w *checkpoint) IsValidChain(currentHeader uint64, chain []*types.Header) b
 	res := w.finality.IsValidChain(currentHeader, chain)
 
 	if res {
-		CheckpointChainMeter.Add(1)
+		CheckpointChainMeter.Inc()
 	} else {
-		CheckpointPeerMeter.Add(-1)
+		CheckpointPeerMeter.Dec()
 	}
 
 	return res

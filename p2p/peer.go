@@ -25,12 +25,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ledgerwatch/erigon-lib/metrics"
+
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon/common/debug"
 	"github.com/ledgerwatch/erigon/common/mclock"
 	"github.com/ledgerwatch/erigon/event"
-	"github.com/ledgerwatch/erigon/metrics"
 	"github.com/ledgerwatch/erigon/p2p/enode"
 	"github.com/ledgerwatch/erigon/p2p/enr"
 	"github.com/ledgerwatch/erigon/rlp"
@@ -121,6 +122,9 @@ type Peer struct {
 	events         *event.Feed
 	pubkey         [64]byte
 	metricsEnabled bool
+
+	//diagnostics info
+	BytesTransfered int
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -490,7 +494,8 @@ type PeerInfo struct {
 		Trusted       bool   `json:"trusted"`
 		Static        bool   `json:"static"`
 	} `json:"network"`
-	Protocols map[string]interface{} `json:"protocols"` // Sub-protocol specific metadata fields
+	Protocols       map[string]interface{} `json:"protocols"` // Sub-protocol specific metadata fields
+	BytesTransfered int                    `json:"bytesTransfered,omitempty"`
 }
 
 // Info gathers and returns a collection of metadata known about a peer.
@@ -516,6 +521,7 @@ func (p *Peer) Info() *PeerInfo {
 	info.Network.Inbound = p.rw.is(inboundConn)
 	info.Network.Trusted = p.rw.is(trustedConn)
 	info.Network.Static = p.rw.is(staticDialedConn)
+	info.BytesTransfered = p.BytesTransfered
 
 	// Gather all the running protocol infos
 	for _, proto := range p.running {

@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/btree"
 	"golang.org/x/crypto/sha3"
+	"golang.org/x/exp/slices"
 
 	"github.com/ledgerwatch/erigon-lib/commitment"
 	"github.com/ledgerwatch/erigon-lib/common"
@@ -192,7 +193,7 @@ func (t *UpdateTree) List(clear bool) ([][]byte, []commitment.Update) {
 			plainKeys[i] = []byte(key)
 			i++
 		}
-		// slices.SortFunc(plainKeys, func(i, j []byte) int { return bytes.Compare(i, j) })
+		slices.SortFunc(plainKeys, func(i, j []byte) int { return bytes.Compare(i, j) })
 		if clear {
 			t.keys = make(map[string]struct{}, len(t.keys)/8)
 		}
@@ -224,7 +225,6 @@ type DomainCommitted struct {
 	mode         CommitmentMode
 	patriciaTrie commitment.Trie
 	branchMerger *commitment.BranchMerger
-	prevState    []byte
 	discard      bool
 }
 
@@ -309,7 +309,7 @@ func commitmentItemLessPlain(i, j *commitmentItem) bool {
 	return bytes.Compare(i.plainKey, j.plainKey) < 0
 }
 
-func (d *DomainCommitted) storeCommitmentState(dc *DomainContext, blockNum uint64, rh []byte) error {
+func (d *DomainCommitted) storeCommitmentState(dc *DomainContext, blockNum uint64, rh, prevState []byte) error {
 	state, err := d.PatriciaState()
 	if err != nil {
 		return err
@@ -323,10 +323,9 @@ func (d *DomainCommitted) storeCommitmentState(dc *DomainContext, blockNum uint6
 	if d.trace {
 		fmt.Printf("[commitment] put txn %d block %d rh %x\n", dc.hc.ic.txNum, blockNum, rh)
 	}
-	if err := dc.PutWithPrev(keyCommitmentState, nil, encoded, d.prevState); err != nil {
+	if err := dc.PutWithPrev(keyCommitmentState, nil, encoded, prevState); err != nil {
 		return err
 	}
-	d.prevState = common.Copy(encoded)
 	return nil
 }
 
@@ -501,6 +500,7 @@ func (d *DomainCommitted) ComputeCommitment(ctx context.Context, trace bool) (ro
 	defer func(s time.Time) { mxCommitmentTook.UpdateDuration(s) }(time.Now())
 
 	touchedKeys, updates := d.updates.List(true)
+	//fmt.Printf("[commitment] ComputeCommitment %d keys\n", len(touchedKeys))
 	mxCommitmentKeys.Add(len(touchedKeys))
 
 	if len(touchedKeys) == 0 {
@@ -511,7 +511,8 @@ func (d *DomainCommitted) ComputeCommitment(ctx context.Context, trace bool) (ro
 	if len(touchedKeys) > 1 {
 		d.patriciaTrie.Reset()
 	}
-	// data accessing functions should be set once before
+
+	// data accessing functions should be set when domain is opened/shared context updated
 	d.patriciaTrie.SetTrace(trace)
 
 	switch d.mode {
@@ -539,12 +540,12 @@ var keyCommitmentState = []byte("state")
 
 // SeekCommitment searches for last encoded state from DomainCommitted
 // and if state found, sets it up to current domain
-func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *DomainContext) (blockNum, txNum uint64, err error) {
+func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *DomainContext) (blockNum, txNum uint64, ok bool, err error) {
 	if dbg.DiscardCommitment() {
-		return 0, 0, nil
+		return 0, 0, false, nil
 	}
 	if d.patriciaTrie.Variant() != commitment.VariantHexPatriciaTrie {
-		return 0, 0, fmt.Errorf("state storing is only supported hex patricia trie")
+		return 0, 0, false, fmt.Errorf("state storing is only supported hex patricia trie")
 	}
 
 	if d.trace {
@@ -560,15 +561,21 @@ func (d *DomainCommitted) SeekCommitment(tx kv.Tx, sinceTx, untilTx uint64, cd *
 		if d.trace {
 			fmt.Printf("[commitment] Seek found committed txn %d block %d\n", txn, bn)
 		}
+
 		if txn >= sinceTx && txn <= untilTx {
 			latestState = value
+			ok = true
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to seek commitment state: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to seek commitment state: %w", err)
 	}
-	return d.Restore(latestState)
+	if !ok {
+		return 0, 0, false, nil
+	}
+	blockNum, txNum, err = d.Restore(latestState)
+	return blockNum, txNum, true, err
 }
 
 type commitmentState struct {
