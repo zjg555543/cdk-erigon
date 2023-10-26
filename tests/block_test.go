@@ -54,7 +54,7 @@ func TestBlockchain(t *testing.T) {
 		bt.skipLoad(`^ValidBlocks/bcTotalDifficultyTest/uncleBlockAtBlock3AfterBlock3.json`)
 		bt.skipLoad(`^TransitionTests/bcHomesteadToDao`)
 		bt.skipLoad(`^TransitionTests/bcFrontierToHomestead`)
-		bt.skipLoad(`^InvalidBlocks/bcUncleHeaderValidity/incorrectUncleTimestamp2.json`)
+		//bt.skipLoad(`^InvalidBlocks/bcUncleHeaderValidity/incorrectUncleTimestamp2.json`)
 	}
 
 	checkStateRoot := true
