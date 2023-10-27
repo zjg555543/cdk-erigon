@@ -69,7 +69,7 @@ type MdbxOpts struct {
 	dirtySpace      uint64 // if exeed this space, modified pages will `spill` to disk
 	mergeThreshold  uint64
 	verbosity       kv.DBVerbosityLvl
-	label           kv.Label // marker to distinct db instances - one process may open many databases. for example to collect metrics of only 1 database
+	label           kv.Label // marker to distinct db instances - one process may open many databases. for example to coll metrics of only 1 database
 	inMem           bool
 }
 
@@ -614,7 +614,7 @@ func (tx *MdbxTx) IsRo() bool     { return tx.readOnly }
 func (tx *MdbxTx) ViewID() uint64 { return tx.tx.ID() }
 
 func (tx *MdbxTx) CollectMetrics() {
-	if tx.db.opts.label != kv.ChainDB {
+	if tx.db.opts.label != kv.TxPoolDB {
 		return
 	}
 
@@ -831,7 +831,7 @@ func (tx *MdbxTx) Commit() error {
 		return fmt.Errorf("lable: %s, %w", tx.db.opts.label, err)
 	}
 
-	if tx.db.opts.label == kv.ChainDB {
+	if tx.db.opts.label == kv.TxPoolDB {
 		kv.DbCommitPreparation.Update(latency.Preparation.Seconds())
 		//kv.DbCommitAudit.Update(latency.Audit.Seconds())
 		kv.DbCommitWrite.Update(latency.Write.Seconds())

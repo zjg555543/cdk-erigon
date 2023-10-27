@@ -1786,7 +1786,9 @@ func (p *TxPool) flushNoFsync(ctx context.Context, db kv.RwDB) (written uint64, 
 		if err != nil {
 			return err
 		}
-		written, _, err = tx.(*mdbx.MdbxTx).SpaceDirty()
+		var aa uint64
+		written, aa, err = tx.(*mdbx.MdbxTx).SpaceDirty()
+		fmt.Printf("SpaceDirty: %d, %d\n", written, aa)
 		if err != nil {
 			return err
 		}
@@ -1810,14 +1812,14 @@ func (p *TxPool) flush(ctx context.Context, db kv.RwDB) (written uint64, err err
 
 	// fsync
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
-		v, err := tx.GetOne(kv.PoolInfo, PoolPendingBaseFeeKey)
-		if err != nil {
-			return err
-		}
-		err = tx.Put(kv.PoolInfo, PoolPendingBaseFeeKey, v)
-		if err != nil {
-			return err
-		}
+		//v, err := tx.GetOne(kv.PoolInfo, PoolPendingBaseFeeKey)
+		//if err != nil {
+		//	return err
+		//}
+		//err = tx.Put(kv.PoolInfo, PoolPendingBaseFeeKey, v)
+		//if err != nil {
+		//	return err
+		//}
 		return nil
 	}); err != nil {
 		return 0, err
