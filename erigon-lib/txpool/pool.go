@@ -1781,7 +1781,7 @@ func (p *TxPool) flushNoFsync(ctx context.Context, db kv.RwDB) (written uint64, 
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	//it's important that write db tx is done inside lock, to make last writes visible for all read operations
-	if err := db.UpdateNosync(ctx, func(tx kv.RwTx) error {
+	if err := db.Update(ctx, func(tx kv.RwTx) error {
 		err = p.flushLocked(tx)
 		if err != nil {
 			return err
@@ -1838,12 +1838,12 @@ func (p *TxPool) flushLocked(tx kv.RwTx) (err error) {
 				delete(p.senders.senderIDs, addr)
 			}
 		}
-		//fmt.Printf("del:%d,%d,%d\n", mt.Tx.senderID, mt.Tx.nonce, mt.Tx.tip)
 		has, err := tx.Has(kv.PoolTransaction, idHash)
 		if err != nil {
 			return err
 		}
 		if has {
+			//fmt.Printf("del:%d,%d,%d\n", mt.Tx.senderID, mt.Tx.nonce, mt.Tx.tip)
 			if err := tx.Delete(kv.PoolTransaction, idHash); err != nil {
 				return err
 			}
