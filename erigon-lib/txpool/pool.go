@@ -1806,6 +1806,7 @@ func (p *TxPool) flush(ctx context.Context, db kv.RwDB) (written uint64, err err
 		return 0, err
 	}
 
+	defer func(t time.Time) { fmt.Printf("sync pool.go:1809: %s\n", time.Since(t)) }(time.Now())
 	// fsync
 	if err := db.Update(ctx, func(tx kv.RwTx) error { return nil }); err != nil {
 		return 0, err
@@ -1813,6 +1814,7 @@ func (p *TxPool) flush(ctx context.Context, db kv.RwDB) (written uint64, err err
 	return written, nil
 }
 func (p *TxPool) flushLocked(tx kv.RwTx) (err error) {
+	fmt.Printf("flush: len(p.deletedTxs) = %d\n", len(p.deletedTxs))
 	for i, mt := range p.deletedTxs {
 		id := mt.Tx.SenderID
 		idHash := mt.Tx.IDHash[:]
@@ -1841,6 +1843,7 @@ func (p *TxPool) flushLocked(tx kv.RwTx) (err error) {
 	if err := tx.ClearBucket(kv.RecentLocalTransaction); err != nil {
 		return err
 	}
+	fmt.Printf("flush: len(p.isLocalLRU.Keys()) = %d\n", len(txHashes))
 	for i, txHash := range txHashes {
 		binary.BigEndian.PutUint64(encID, uint64(i))
 		if err := tx.Append(kv.RecentLocalTransaction, encID, []byte(txHash)); err != nil {
@@ -1849,6 +1852,7 @@ func (p *TxPool) flushLocked(tx kv.RwTx) (err error) {
 	}
 
 	v := make([]byte, 0, 1024)
+	fmt.Printf("flush: len(p.byHash) = %d\n", len(txHashes))
 	for txHash, metaTx := range p.byHash {
 		if metaTx.Tx.Rlp == nil {
 			continue
