@@ -1427,15 +1427,14 @@ func (d *Domain) integrateFiles(sf StaticFiles, txNumFrom, txNumTo uint64) {
 
 // unwind is similar to prune but the difference is that it restores domain values from the history as of txFrom
 // context Flush should be managed by caller.
-func (dc *DomainContext) Unwind(ctx context.Context, rwTx kv.RwTx, step, txNumUnindTo, txNumUnindFrom, limit uint64, f func(step uint64, k, v []byte) error) error {
-	d := dc.d
+func (dc *DomainContext) Unwind(ctx context.Context, rwTx kv.RwTx, step, txNumUnindTo, txNumUnindFrom, limit uint64) error {
+	//d := dc.d
 	//fmt.Printf("[domain][%s] unwinding txs [%d; %d) step %d largeValues=%t\n", d.filenameBase, txNumUnindTo, txNumUnindFrom, step, d.domainLargeValues)
 	histRng, err := dc.hc.HistoryRange(int(txNumUnindTo), -1, order.Asc, -1, rwTx)
 	if err != nil {
 		return fmt.Errorf("historyRange %s: %w", dc.hc.h.filenameBase, err)
 	}
 
-	seen := make(map[string]struct{})
 	restored := dc.newWriter(dc.d.dirs.Tmp, true, false)
 
 	dc.SetTxNum(txNumUnindTo)
@@ -1447,38 +1446,6 @@ func (dc *DomainContext) Unwind(ctx context.Context, rwTx kv.RwTx, step, txNumUn
 		//fmt.Printf("[%s]unwinding %x ->'%x'\n", dc.d.filenameBase, k, v)
 		if err := restored.addValue(k, nil, v); err != nil {
 			return err
-		}
-		seen[string(k)] = struct{}{}
-	}
-
-	state, err := dc.IteratePrefix2(rwTx, nil, nil, -1)
-	if err != nil {
-		return err
-	}
-	for state.HasNext() {
-		k, v, err := state.Next()
-		if err != nil {
-			return err
-		}
-		//fmt.Printf("[%s]un-iter %x ->'%x'\n", dc.d.filenameBase, k, v)
-		toRestore, needDelete, err := dc.hc.ifUnwindKey(k, txNumUnindTo-1, rwTx)
-		if err != nil {
-			return fmt.Errorf("unwind key %s %x: %w", d.filenameBase, k, err)
-		}
-		if !needDelete && toRestore == nil {
-			toRestore = &HistoryRecord{Value: v}
-		}
-		if toRestore != nil {
-			_, ok := seen[string(k)]
-			if !ok {
-				if err := restored.addValue(k, nil, toRestore.Value); err != nil {
-					return err
-				}
-				//} else {
-				//fmt.Printf(" skip unwind %x\n", k)
-			}
-
-			//fmt.Printf("[domain][%s][toTx=%d] restore %x to txNum %d -> '%x'\n", d.filenameBase, txNumUnindTo, k, toRestore.TxNum, toRestore.Value)
 		}
 	}
 

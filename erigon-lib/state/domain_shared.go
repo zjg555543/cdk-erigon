@@ -132,16 +132,16 @@ func (sd *SharedDomains) Unwind(ctx context.Context, rwTx kv.RwTx, txUnwindTo ui
 		return err
 	}
 
-	if err := sd.aggCtx.account.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64, nil); err != nil {
+	if err := sd.aggCtx.account.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64); err != nil {
 		return err
 	}
-	if err := sd.aggCtx.storage.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64, nil); err != nil {
+	if err := sd.aggCtx.storage.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64); err != nil {
 		return err
 	}
-	if err := sd.aggCtx.code.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64, nil); err != nil {
+	if err := sd.aggCtx.code.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64); err != nil {
 		return err
 	}
-	if err := sd.aggCtx.commitment.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64, nil); err != nil {
+	if err := sd.aggCtx.commitment.Unwind(ctx, rwTx, step, txUnwindTo, math2.MaxUint64, math2.MaxUint64); err != nil {
 		return err
 	}
 	if err := sd.aggCtx.logAddrs.Prune(ctx, rwTx, txUnwindTo, math2.MaxUint64, math2.MaxUint64, logEvery); err != nil {
