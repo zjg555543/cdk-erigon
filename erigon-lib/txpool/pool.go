@@ -1674,7 +1674,7 @@ func MainLoop(ctx context.Context, db kv.RwDB, coreDB kv.RoDB, p *TxPool, newTxs
 					continue
 				}
 				writeToDBBytesCounter.Set(written)
-				p.logger.Debug("[txpool] Commit", "written_kb", written/1024, "in", time.Since(t))
+				p.logger.Warn("[txpool] Commit", "written_kb", written/1024, "in", time.Since(t))
 			}
 		case announcements := <-newTxs:
 			go func() {
