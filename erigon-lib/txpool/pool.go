@@ -1780,6 +1780,8 @@ func MainLoop(ctx context.Context, db kv.RwDB, coreDB kv.RoDB, p *TxPool, newTxs
 func (p *TxPool) flushNoFsync(ctx context.Context, db kv.RwDB) (written uint64, err error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
+
+	defer func(t time.Time) { fmt.Printf("commit pool.go:1781: %s\n", time.Since(t)) }(time.Now())
 	//it's important that write db tx is done inside lock, to make last writes visible for all read operations
 	if err := db.Update(ctx, func(tx kv.RwTx) error {
 		err = p.flushLocked(tx)
