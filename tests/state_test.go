@@ -23,6 +23,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
@@ -65,29 +67,43 @@ func TestState(t *testing.T) {
 		//TODO: AlexSharov - need to fix this test
 	}
 
-	_, db, _ := temporal.NewTestDB(t, datadir.New(t.TempDir()), nil)
-	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
-		for _, subtest := range test.Subtests() {
-			subtest := subtest
-			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
-			t.Run(key, func(t *testing.T) {
-				withTrace(t, func(vmconfig vm.Config) error {
-					tx, err := db.BeginRw(context.Background())
-					if err != nil {
-						t.Fatal(err)
-					}
-					defer tx.Rollback()
-					_, err = test.Run(tx, subtest, vmconfig)
-					tx.Rollback()
-					if err != nil && len(test.json.Post[subtest.Fork][subtest.Index].ExpectException) > 0 {
-						// Ignore expected errors
-						return nil
-					}
-					return st.checkFailure(t, err)
-				})
-			})
+	entries, err := os.ReadDir(stateTestDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
 		}
-	})
+		t.Run(e.Name(), func(t *testing.T) {
+			t.Parallel()
+			dir := filepath.Join(stateTestDir, e.Name())
+			_, db, _ := temporal.NewTestDB(t, datadir.New(t.TempDir()), nil)
+			st.walk(t, dir, func(t *testing.T, name string, test *StateTest) {
+				for _, subtest := range test.Subtests() {
+					subtest := subtest
+					key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
+					t.Run(key, func(t *testing.T) {
+						withTrace(t, func(vmconfig vm.Config) error {
+							tx, err := db.BeginRw(context.Background())
+							if err != nil {
+								t.Fatal(err)
+							}
+							defer tx.Rollback()
+							_, err = test.Run(tx, subtest, vmconfig)
+							tx.Rollback()
+							if err != nil && len(test.json.Post[subtest.Fork][subtest.Index].ExpectException) > 0 {
+								// Ignore expected errors
+								return nil
+							}
+							return st.checkFailure(t, err)
+						})
+					})
+				}
+			})
+		})
+	}
+
 }
 
 func withTrace(t *testing.T, test func(vm.Config) error) {

@@ -198,35 +198,24 @@ func (tm *testMatcher) walk(t *testing.T, dir string, runTest interface{}) {
 		fmt.Fprintf(os.Stderr, "can't find test files in %s, did you clone the tests submodule?\n", dir)
 		t.Skip("missing test files")
 	}
-	entries, err := os.ReadDir(dir)
+
+	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		name := filepath.ToSlash(strings.TrimPrefix(path, dir+string(filepath.Separator)))
+		if info.IsDir() {
+			if _, skipload := tm.findSkip(name + "/"); skipload {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) == ".json" {
+			t.Run(name, func(t *testing.T) { tm.runTestFile(t, path, name, runTest) })
+		}
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		t.Run(e.Name(), func(t *testing.T) {
-			t.Parallel()
-			dir := filepath.Join(dir, e.Name())
-			err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-				name := filepath.ToSlash(strings.TrimPrefix(path, dir+string(filepath.Separator)))
-				if info.IsDir() {
-					if _, skipload := tm.findSkip(name + "/"); skipload {
-						return filepath.SkipDir
-					}
-					return nil
-				}
-				if filepath.Ext(path) == ".json" {
-					t.Run(name, func(t *testing.T) { tm.runTestFile(t, path, name, runTest) })
-				}
-				return nil
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-	}
+
 }
 
 func (tm *testMatcher) runTestFile(t *testing.T, path, name string, runTest interface{}) {
