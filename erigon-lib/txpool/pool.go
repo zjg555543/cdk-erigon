@@ -1807,8 +1807,19 @@ func (p *TxPool) flush(ctx context.Context, db kv.RwDB) (written uint64, err err
 	}
 
 	defer func(t time.Time) { fmt.Printf("sync pool.go:1809: %s\n", time.Since(t)) }(time.Now())
+
 	// fsync
-	if err := db.Update(ctx, func(tx kv.RwTx) error { return nil }); err != nil {
+	if err := db.Update(ctx, func(tx kv.RwTx) error {
+		v, err := tx.GetOne(kv.PoolInfo, PoolPendingBaseFeeKey)
+		if err != nil {
+			return err
+		}
+		err = tx.Put(kv.PoolInfo, PoolPendingBaseFeeKey, v)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		return 0, err
 	}
 	return written, nil
