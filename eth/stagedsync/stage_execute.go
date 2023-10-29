@@ -396,7 +396,7 @@ func SpawnExecuteBlocksStage(s *StageState, u Unwinder, tx kv.RwTx, toBlock uint
 		return nil
 	}
 	if to > s.BlockNumber+16 {
-		logger.Info(fmt.Sprintf("[%s] Blocks execution", logPrefix), "from", s.BlockNumber, "to", to)
+		logger.Info(fmt.Sprintf("[%s] Blocks execution", logPrefix), "from", s.BlockNumber, "to", to, "useExternalTx", useExternalTx)
 	}
 	stateStream := !initialCycle && cfg.stateStream && to-s.BlockNumber < stateStreamLimit
 
@@ -467,6 +467,15 @@ Loop:
 		_, is_memory_mutation := tx.(*membatchwithdb.MemoryMutation)
 		if cfg.silkworm != nil && !is_memory_mutation {
 			blockNum, err = cfg.silkworm.ExecuteBlocks(tx, cfg.chainConfig.ChainID, blockNum, to, uint64(cfg.batchSize), writeChangeSets, writeReceipts, writeCallTraces)
+			// Recreate tx because Silkworm has just done commit or abort on passed one
+			tx, tx_err := cfg.db.BeginRw(context.Background())
+			if tx_err != nil {
+				return tx_err
+			}
+			defer tx.Rollback()
+			// Recreate memory batch because underlying tx has changed
+			batch.Close()
+			batch = membatch.NewHashBatch(tx, quit, cfg.dirs.Tmp, logger)
 		} else {
 			err = executeBlock(block, tx, batch, cfg, *cfg.vmConfig, writeChangeSets, writeReceipts, writeCallTraces, initialCycle, stateStream, logger)
 		}
@@ -506,18 +515,24 @@ Loop:
 
 		shouldUpdateProgress := batch.BatchSize() >= int(cfg.batchSize)
 		if shouldUpdateProgress {
-			logger.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState)
+			logger.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState, "block", blockNum)
 			currentStateGas = 0
+			startTime := time.Now()
 			if err = batch.Flush(ctx, tx); err != nil {
 				return err
 			}
+			endTime := time.Now()
+			logger.Info("Batch flush", "elapsed", endTime.Sub(startTime).Milliseconds())
 			if err = s.Update(tx, stageProgress); err != nil {
 				return err
 			}
 			if !useExternalTx {
+				startTime := time.Now()
 				if err = tx.Commit(); err != nil {
 					return err
 				}
+				endTime := time.Now()
+				logger.Info("Batch commit", "elapsed", endTime.Sub(startTime).Milliseconds())
 				tx, err = cfg.db.BeginRw(context.Background())
 				if err != nil {
 					return err
@@ -543,9 +558,13 @@ Loop:
 	if err = s.Update(batch, stageProgress); err != nil {
 		return err
 	}
+	logger.Info("Committed State", "gas reached", currentStateGas, "gasTarget", gasState, "batch", batch.BatchSize())
+	startTime := time.Now()
 	if err = batch.Flush(ctx, tx); err != nil {
 		return fmt.Errorf("batch commit: %w", err)
 	}
+	endTime := time.Now()
+	logger.Info("Batch last flush", "elapsed", endTime.Sub(startTime).Milliseconds())
 
 	_, err = rawdb.IncrementStateVersion(tx)
 	if err != nil {
@@ -553,9 +572,12 @@ Loop:
 	}
 
 	if !useExternalTx {
+		startTime := time.Now()
 		if err = tx.Commit(); err != nil {
 			return err
 		}
+		endTime := time.Now()
+		logger.Info("Batch commit", "elapsed", endTime.Sub(startTime).Milliseconds())
 	}
 
 	logger.Info(fmt.Sprintf("[%s] Completed on", logPrefix), "block", stageProgress)
