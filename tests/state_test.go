@@ -28,17 +28,17 @@ import (
 	"testing"
 
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
-	"github.com/ledgerwatch/log/v3"
-
 	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/erigon/core/vm"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/eth/tracers/logger"
+	"github.com/ledgerwatch/log/v3"
 )
 
 func TestState(t *testing.T) {
 	defer log.Root().SetHandler(log.Root().GetHandler())
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlError, log.StderrHandler))
-	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+	if runtime.GOOS == "windows" {
 		t.Skip("fix me on win please") // it's too slow on win and stops on macos, need generally improve speed of this tests
 	}
 	//t.Parallel()
@@ -49,12 +49,22 @@ func TestState(t *testing.T) {
 	st.skipLoad(`^stTimeConsuming/`)
 	st.skipLoad(`.*vmPerformance/loop.*`)
 
+	//st.slow(`^/modexp`)
+	//st.slow(`^stQuadraticComplexityTest/`)
+
+	// Very time consuming
+	st.skipLoad(`^stTimeConsuming/`)
+	st.skipLoad(`.*vmPerformance/loop.*`)
+	if ethconfig.EnableHistoryV3InTest {
+		//TODO: AlexSharov - need to fix this test
+	}
+
+	_, db, _ := temporal.NewTestDB(t, datadir.New(t.TempDir()), nil)
 	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
 		for _, subtest := range test.Subtests() {
 			subtest := subtest
 			key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
 			t.Run(key, func(t *testing.T) {
-				_, db, _ := temporal.NewTestDB(t, datadir.New(t.TempDir()), nil)
 				withTrace(t, func(vmconfig vm.Config) error {
 					tx, err := db.BeginRw(context.Background())
 					if err != nil {
@@ -96,7 +106,8 @@ func withTrace(t *testing.T, test func(vm.Config) error) {
 	if buf.Len() == 0 {
 		t.Log("no EVM operation logs generated")
 	} else {
-		t.Log("EVM operation log:\n" + buf.String())
+		//enable it if need extensive logging
+		//t.Log("EVM operation log:\n" + buf.String())
 	}
 	//t.Logf("EVM output: 0x%x", tracer.Output())
 	//t.Logf("EVM error: %v", tracer.Error())

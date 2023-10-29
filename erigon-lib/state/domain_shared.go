@@ -12,12 +12,14 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/ledgerwatch/erigon-lib/kv/membatch"
 	btree2 "github.com/tidwall/btree"
+
+	"github.com/ledgerwatch/erigon-lib/kv/membatch"
 
 	"github.com/ledgerwatch/erigon-lib/commitment"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/order"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon-lib/types"
 )
@@ -154,19 +156,79 @@ func (sd *SharedDomains) Unwind(ctx context.Context, rwTx kv.RwTx, txUnwindTo ui
 	if err := sd.aggCtx.tracesTo.Prune(ctx, rwTx, txUnwindTo, math2.MaxUint64, math2.MaxUint64, logEvery); err != nil {
 		return err
 	}
+	if err := sd.Flush(ctx, rwTx); err != nil {
+		return err
+	}
 	sd.ClearRam(true)
 
 	_, err := sd.SeekCommitment(ctx, rwTx)
 	return err
 }
 
+func (sd *SharedDomains) rebuildCommitment(ctx context.Context, rwTx kv.Tx) ([]byte, error) {
+	it, err := sd.aggCtx.AccountHistoryRange(int(sd.TxNum()), math2.MaxInt64, order.Asc, -1, rwTx)
+	if err != nil {
+		return nil, err
+	}
+	for it.HasNext() {
+		k, _, err := it.Next()
+		if err != nil {
+			return nil, err
+		}
+		sd.Commitment.TouchPlainKey(string(k), nil, sd.Commitment.TouchAccount)
+	}
+
+	it, err = sd.aggCtx.StorageHistoryRange(int(sd.TxNum()), math2.MaxInt64, order.Asc, -1, rwTx)
+	if err != nil {
+		return nil, err
+	}
+
+	for it.HasNext() {
+		k, _, err := it.Next()
+		if err != nil {
+			return nil, err
+		}
+		sd.Commitment.TouchPlainKey(string(k), nil, sd.Commitment.TouchStorage)
+	}
+
+	return sd.ComputeCommitment(ctx, true, false)
+}
+
+func (sd *SharedDomains) SeekCommitment2(tx kv.Tx, sinceTx, untilTx uint64) (blockNum, txNum uint64, ok bool, err error) {
+	return sd.Commitment.SeekCommitment(tx, sinceTx, untilTx, sd.aggCtx.commitment)
+}
+
 func (sd *SharedDomains) SeekCommitment(ctx context.Context, tx kv.Tx) (txsFromBlockBeginning uint64, err error) {
 	fromTx := uint64(0)
 	toTx := uint64(math2.MaxUint64)
-	bn, txn, err := sd.Commitment.SeekCommitment(tx, fromTx, toTx, sd.aggCtx.commitment)
+	bn, txn, ok, err := sd.Commitment.SeekCommitment(tx, fromTx, toTx, sd.aggCtx.commitment)
 	if err != nil {
 		return 0, err
 	}
+	if !ok {
+		//TODO: implement me!
+	}
+
+	// startingBlock := sd.BlockNum()
+	// startingTxnum := sd.TxNum()
+	// if bn != startingBlock || txn != startingTxnum {
+	// 	sd.Commitment.Reset()
+	// 	snapTxNum := utils.Min64(sd.Account.endTxNumMinimax(), sd.Storage.endTxNumMinimax())
+	// 	toTx := utils.Max64(snapTxNum, startingTxnum)
+	// 	if toTx > 0 {
+	// 		sd.SetTxNum(ctx, toTx)
+	// 		newRh, err := sd.rebuildCommitment(ctx, tx)
+	// 		if err != nil {
+	// 			return 0, err
+	// 		}
+	// 		fmt.Printf("rebuilt commitment %x %d %d\n", newRh, sd.TxNum(), sd.BlockNum())
+	// 	}
+	// 	bn, txn, err = rawdbv3.TxNums.Last(tx)
+	// 	if err != nil {
+	// 		return 0, err
+	// 	}
+	// 	latestTxn := utils.Max64(txn, snapTxNum)
+	// }
 
 	ok, blockNum, err := rawdbv3.TxNums.FindBlockNum(tx, txn)
 	if ok {
@@ -185,17 +247,17 @@ func (sd *SharedDomains) SeekCommitment(ctx context.Context, tx kv.Tx) (txsFromB
 		if sd.trace {
 			fmt.Printf("[commitment] found block %d tx %d. DB found block %d, firstTxInBlock %d, lastTxInBlock %d\n", bn, txn, blockNum, firstTxInBlock, lastTxInBlock)
 		}
-		if txn > firstTxInBlock {
+		if txn == lastTxInBlock {
+			blockNum++
+		} else if txn > firstTxInBlock {
+			// snapshots are counted in transactions and can stop in the middle of block
 			txn++ // has to move txn cuz state committed at txNum-1 to be included in latest file
 			txsFromBlockBeginning = txn - firstTxInBlock
+		} else {
+			txn = firstTxInBlock
 		}
 		if sd.trace {
 			fmt.Printf("[commitment] block tx range -%d |%d| %d\n", txsFromBlockBeginning, txn, lastTxInBlock-txn)
-		}
-		if txn == lastTxInBlock {
-			blockNum++
-		} else {
-			txn = firstTxInBlock
 		}
 	} else {
 		blockNum = bn
@@ -220,7 +282,7 @@ func (sd *SharedDomains) ClearRam(resetCommitment bool) {
 	sd.commitment = map[string][]byte{}
 	if resetCommitment {
 		sd.Commitment.updates.List(true)
-		sd.Commitment.patriciaTrie.Reset()
+		sd.Commitment.Reset()
 	}
 
 	sd.storage = btree2.NewMap[string, []byte](128)
@@ -570,6 +632,9 @@ func (sd *SharedDomains) IndexAdd(table kv.InvertedIdx, key []byte) (err error) 
 
 func (sd *SharedDomains) SetContext(ctx *AggregatorV3Context) {
 	sd.aggCtx = ctx
+	if ctx != nil {
+		sd.Commitment.ResetFns(sd.branchFn, sd.accountFn, sd.storageFn)
+	}
 }
 
 func (sd *SharedDomains) SetTx(tx kv.RwTx) {
@@ -651,7 +716,16 @@ func (sd *SharedDomains) ComputeCommitment(ctx context.Context, saveStateAfter, 
 		mxCommitmentBranchUpdates.Inc()
 	}
 	if saveStateAfter {
-		if err := sd.Commitment.storeCommitmentState(sd.aggCtx.commitment, sd.blockNum.Load(), rootHash); err != nil {
+		prevState, been, err := sd.aggCtx.commitment.GetLatest(keyCommitmentState, nil, sd.roTx)
+		if err != nil {
+			return nil, err
+		}
+
+		if !been {
+			prevState = nil
+		}
+
+		if err := sd.Commitment.storeCommitmentState(sd.aggCtx.commitment, sd.blockNum.Load(), rootHash, prevState); err != nil {
 			return nil, err
 		}
 	}
@@ -864,14 +938,16 @@ func (sd *SharedDomains) FinishWrites() {
 	sd.walLock.Lock()
 	defer sd.walLock.Unlock()
 
-	sd.aggCtx.account.FinishWrites()
-	sd.aggCtx.storage.FinishWrites()
-	sd.aggCtx.code.FinishWrites()
-	sd.aggCtx.commitment.FinishWrites()
-	sd.aggCtx.logAddrs.FinishWrites()
-	sd.aggCtx.logTopics.FinishWrites()
-	sd.aggCtx.tracesFrom.FinishWrites()
-	sd.aggCtx.tracesTo.FinishWrites()
+	if sd.aggCtx != nil {
+		sd.aggCtx.account.FinishWrites()
+		sd.aggCtx.storage.FinishWrites()
+		sd.aggCtx.code.FinishWrites()
+		sd.aggCtx.commitment.FinishWrites()
+		sd.aggCtx.logAddrs.FinishWrites()
+		sd.aggCtx.logTopics.FinishWrites()
+		sd.aggCtx.tracesFrom.FinishWrites()
+		sd.aggCtx.tracesTo.FinishWrites()
+	}
 }
 
 func (sd *SharedDomains) BatchHistoryWriteStart() *SharedDomains {
@@ -1017,3 +1093,4 @@ func (sd *SharedDomains) DomainDelPrefix(domain kv.Domain, prefix []byte) error 
 	}
 	return nil
 }
+func (sd *SharedDomains) Tx() kv.Tx { return sd.roTx }

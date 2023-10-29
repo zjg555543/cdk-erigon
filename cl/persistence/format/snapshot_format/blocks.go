@@ -64,6 +64,10 @@ func computeInitialOffset(version clparams.StateVersion) uint64 {
 
 // WriteBlockForSnapshot writes a block to the given writer in the format expected by the snapshot.
 func WriteBlockForSnapshot(block *cltypes.SignedBeaconBlock, w io.Writer) error {
+	bodyRoot, err := block.Block.Body.HashSSZ()
+	if err != nil {
+		return err
+	}
 	// Maybe reuse the buffer?
 	encoded, err := block.EncodeSSZ(nil)
 	if err != nil {
@@ -73,31 +77,19 @@ func WriteBlockForSnapshot(block *cltypes.SignedBeaconBlock, w io.Writer) error 
 	if _, err := w.Write([]byte{byte(version)}); err != nil {
 		return err
 	}
+	if _, err := w.Write(bodyRoot[:]); err != nil {
+		return err
+	}
 	currentChunkLength := computeInitialOffset(version)
 
 	body := block.Block.Body
 	// count in body for phase0 fields
 	currentChunkLength += uint64(body.ProposerSlashings.EncodingSizeSSZ())
 	currentChunkLength += uint64(body.AttesterSlashings.EncodingSizeSSZ())
-
-	// Write the chunk and chunk attestations
-	if err := chunk_encoding.WriteChunk(w, encoded[:currentChunkLength], chunk_encoding.ChunkDataType); err != nil {
-		return err
-	}
-	encoded = encoded[currentChunkLength:]
-	snappyWriter := snappy.NewBufferedWriter(w)
-	if err := chunk_encoding.WriteChunk(snappyWriter, encoded[:uint64(body.Attestations.EncodingSizeSSZ())], chunk_encoding.ChunkDataType); err != nil {
-		return err
-	}
-	if err := snappyWriter.Close(); err != nil {
-		return err
-	}
-	encoded = encoded[body.Attestations.EncodingSizeSSZ():]
-	currentChunkLength = 0
-
+	currentChunkLength += uint64(body.Attestations.EncodingSizeSSZ())
 	currentChunkLength += uint64(body.Deposits.EncodingSizeSSZ())
 	currentChunkLength += uint64(body.VoluntaryExits.EncodingSizeSSZ())
-
+	// Write the chunk and chunk attestations
 	if err := chunk_encoding.WriteChunk(w, encoded[:currentChunkLength], chunk_encoding.ChunkDataType); err != nil {
 		return err
 	}
@@ -116,7 +108,7 @@ func WriteBlockForSnapshot(block *cltypes.SignedBeaconBlock, w io.Writer) error 
 }
 
 func readMetadataForBlock(r io.Reader) (clparams.StateVersion, error) {
-	b := []byte{0}
+	b := make([]byte, 33) // version + body root
 	if _, err := r.Read(b); err != nil {
 		return 0, err
 	}
@@ -127,6 +119,60 @@ func ReadBlockFromSnapshot(r io.Reader, executionReader ExecutionBlockReaderByNu
 	plainSSZ := []byte{}
 
 	block := cltypes.NewSignedBeaconBlock(cfg)
+	// Metadata section is just the current hardfork of the block. TODO(give it a useful purpose)
+	v, err := readMetadataForBlock(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read the first chunk
+	chunk1, dT1, err := chunk_encoding.ReadChunk(r)
+	if err != nil {
+		return nil, err
+	}
+	if dT1 != chunk_encoding.ChunkDataType {
+		return nil, fmt.Errorf("malformed beacon block, invalid chunk 1 type %d, expected: %d", dT1, chunk_encoding.ChunkDataType)
+	}
+	plainSSZ = append(plainSSZ, chunk1...)
+
+	if v <= clparams.AltairVersion {
+		return block, block.DecodeSSZ(plainSSZ, int(v))
+	}
+	// Read the block pointer and retrieve chunk4 from the execution reader
+	blockPointer, err := readExecutionBlockPtr(r)
+	if err != nil {
+		return nil, err
+	}
+	executionBlock, err := executionReader.BlockByNumber(blockPointer)
+	if err != nil {
+		return nil, err
+	}
+	// Read the 4th chunk
+	chunk2, err := executionBlock.EncodeSSZ(nil)
+	if err != nil {
+		return nil, err
+	}
+	plainSSZ = append(plainSSZ, chunk2...)
+	if v <= clparams.BellatrixVersion {
+		return block, block.DecodeSSZ(plainSSZ, int(v))
+	}
+
+	// Read the 5h chunk
+	chunk3, dT5, err := chunk_encoding.ReadChunk(r)
+	if err != nil {
+		return nil, err
+	}
+	if dT5 != chunk_encoding.ChunkDataType {
+		return nil, fmt.Errorf("malformed beacon block, invalid chunk 5 type %d, expected: %d", dT5, chunk_encoding.ChunkDataType)
+	}
+	plainSSZ = append(plainSSZ, chunk3...)
+
+	return block, block.DecodeSSZ(plainSSZ, int(v))
+}
+
+func ReadRawBlockFromSnapshot(r io.Reader, executionReader ExecutionBlockReaderByNumber, cfg *clparams.BeaconChainConfig) ([]byte, error) {
+	plainSSZ := []byte{}
+
 	// Metadata section is just the current hardfork of the block. TODO(give it a useful purpose)
 	v, err := readMetadataForBlock(r)
 	if err != nil {
@@ -161,7 +207,7 @@ func ReadBlockFromSnapshot(r io.Reader, executionReader ExecutionBlockReaderByNu
 	}
 	plainSSZ = append(plainSSZ, chunk3...)
 	if v <= clparams.AltairVersion {
-		return block, block.DecodeSSZ(plainSSZ, int(v))
+		return plainSSZ, nil
 	}
 	// Read the block pointer and retrieve chunk4 from the execution reader
 	blockPointer, err := readExecutionBlockPtr(r)
@@ -179,7 +225,7 @@ func ReadBlockFromSnapshot(r io.Reader, executionReader ExecutionBlockReaderByNu
 	}
 	plainSSZ = append(plainSSZ, chunk4...)
 	if v <= clparams.BellatrixVersion {
-		return block, block.DecodeSSZ(plainSSZ, int(v))
+		return plainSSZ, nil
 	}
 
 	// Read the 5h chunk
@@ -192,5 +238,5 @@ func ReadBlockFromSnapshot(r io.Reader, executionReader ExecutionBlockReaderByNu
 	}
 	plainSSZ = append(plainSSZ, chunk5...)
 
-	return block, block.DecodeSSZ(plainSSZ, int(v))
+	return plainSSZ, nil
 }

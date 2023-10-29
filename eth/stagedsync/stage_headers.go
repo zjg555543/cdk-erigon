@@ -9,14 +9,16 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/log/v3"
+
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/erigon/core/rawdb/blockio"
 	"github.com/ledgerwatch/erigon/eth/consensuschain"
-	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/core/rawdb"
@@ -44,6 +46,7 @@ type HeadersCfg struct {
 	batchSize         datasize.ByteSize
 	noP2PDiscovery    bool
 	tmpdir            string
+	historyV3         bool
 
 	blockReader   services.FullBlockReader
 	blockWriter   *blockio.BlockWriter
@@ -66,6 +69,7 @@ func StageHeadersCfg(
 	blockReader services.FullBlockReader,
 	blockWriter *blockio.BlockWriter,
 	tmpdir string,
+	historyV3 bool,
 	notifications *shards.Notifications,
 	forkValidator *engine_helpers.ForkValidator,
 	loopBreakCheck func() bool) HeadersCfg {
@@ -79,6 +83,7 @@ func StageHeadersCfg(
 		penalize:          penalize,
 		batchSize:         batchSize,
 		tmpdir:            tmpdir,
+		historyV3:         historyV3,
 		noP2PDiscovery:    noP2PDiscovery,
 		blockReader:       blockReader,
 		blockWriter:       blockWriter,
@@ -301,7 +306,26 @@ Loop:
 		timer.Stop()
 	}
 	if headerInserter.Unwind() {
-		u.UnwindTo(headerInserter.UnwindPoint(), StagedUnwind)
+		if cfg.historyV3 {
+			unwindTo := headerInserter.UnwindPoint()
+			doms := state.NewSharedDomains(tx)
+			defer doms.Close()
+			blockNumWithCommitment, _, ok, err := doms.SeekCommitment2(tx, 0, unwindTo)
+			if err != nil {
+				return err
+			}
+			if ok && unwindTo != blockNumWithCommitment {
+				unwindTo = blockNumWithCommitment // not all blocks have commitment
+			}
+			//unwindToLimit, err := tx.(state.HasAggCtx).AggCtx().CanUnwindDomainsToBlockNum(tx)
+			//if err != nil {
+			//	return err
+			//}
+			//unwindTo = cmp.Max(unwindTo, unwindToLimit) // don't go too far
+			u.UnwindTo(unwindTo, StagedUnwind)
+		} else {
+			u.UnwindTo(headerInserter.UnwindPoint(), StagedUnwind)
+		}
 	}
 	if headerInserter.GetHighest() != 0 {
 		if !headerInserter.Unwind() {

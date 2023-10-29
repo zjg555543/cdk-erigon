@@ -32,6 +32,8 @@ type StateV3 struct {
 	applyPrevAccountBuf []byte // buffer for ApplyState. Doesn't need mutex because Apply is single-threaded
 	addrIncBuf          []byte // buffer for ApplyState. Doesn't need mutex because Apply is single-threaded
 	logger              log.Logger
+
+	trace bool
 }
 
 func NewStateV3(domains *libstate.SharedDomains, logger log.Logger) *StateV3 {
@@ -41,6 +43,7 @@ func NewStateV3(domains *libstate.SharedDomains, logger log.Logger) *StateV3 {
 		senderTxNums:        map[common.Address]uint64{},
 		applyPrevAccountBuf: make([]byte, 256),
 		logger:              logger,
+		//trace: true,
 	}
 }
 
@@ -172,16 +175,15 @@ func (rs *StateV3) applyState(txTask *TxTask, domains *libstate.SharedDomains) e
 			}
 		}
 		acc.Balance.Add(&acc.Balance, &increase)
-		var enc1 []byte
 		if emptyRemoval && acc.Nonce == 0 && acc.Balance.IsZero() && acc.IsEmptyCodeHash() {
-			enc1 = nil
+			if err := domains.DomainDel(kv.AccountsDomain, addrBytes, nil, enc0); err != nil {
+				return err
+			}
 		} else {
-			enc1 = accounts.SerialiseV3(&acc)
-		}
-
-		//fmt.Printf("+applied %x b=%d n=%d c=%x\n", []byte(addrBytes), &acc.Balance, acc.Nonce, acc.CodeHash.Bytes())
-		if err := domains.DomainPut(kv.AccountsDomain, addrBytes, nil, enc1, enc0); err != nil {
-			return err
+			enc1 := accounts.SerialiseV3(&acc)
+			if err := domains.DomainPut(kv.AccountsDomain, addrBytes, nil, enc1, enc0); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -354,9 +356,9 @@ type StateWriterBufferedV3 struct {
 
 func NewStateWriterBufferedV3(rs *StateV3) *StateWriterBufferedV3 {
 	return &StateWriterBufferedV3{
-		rs: rs,
-		//trace:      true,
+		rs:         rs,
 		writeLists: newWriteList(),
+		//trace:      true,
 	}
 }
 
@@ -382,40 +384,37 @@ func (w *StateWriterBufferedV3) PrevAndDels() (map[string][]byte, map[string]*ac
 }
 
 func (w *StateWriterBufferedV3) UpdateAccountData(address common.Address, original, account *accounts.Account) error {
+	if w.trace {
+		fmt.Printf("acc %x: {Balance: %d, Nonce: %d, Inc: %d, CodeHash: %x}\n", address, &account.Balance, account.Nonce, account.Incarnation, account.CodeHash)
+	}
 	value := accounts.SerialiseV3(account)
 	w.writeLists[string(kv.AccountsDomain)].Push(string(address[:]), value)
 	if original.Incarnation > account.Incarnation {
 		w.writeLists[string(kv.CodeDomain)].Push(string(address[:]), nil)
-		err := w.rs.domains.IterateStoragePrefix(address[:], func(k, v []byte) error {
+		if err := w.rs.domains.IterateStoragePrefix(address[:], func(k, v []byte) error {
 			w.writeLists[string(kv.StorageDomain)].Push(string(k), nil)
 			return nil
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
 
-	if w.trace {
-		fmt.Printf("V3 account [%x]=>{Balance: %d, Nonce: %d, Root: %x, CodeHash: %x}\n", address.Bytes(), &account.Balance, account.Nonce, account.Root, account.CodeHash)
-	}
 	return nil
 }
 
 func (w *StateWriterBufferedV3) UpdateAccountCode(address common.Address, incarnation uint64, codeHash common.Hash, code []byte) error {
-	w.writeLists[string(kv.CodeDomain)].Push(string(address[:]), code)
-	if len(code) > 0 {
-		if w.trace {
-			fmt.Printf("V3 code [%x] => [%x] value: %x\n", address.Bytes(), codeHash, code)
-		}
+	if w.trace {
+		fmt.Printf("code: %x, %x, valLen: %d\n", address.Bytes(), codeHash, len(code))
 	}
+	w.writeLists[string(kv.CodeDomain)].Push(string(address[:]), code)
 	return nil
 }
 
 func (w *StateWriterBufferedV3) DeleteAccount(address common.Address, original *accounts.Account) error {
-	w.writeLists[string(kv.AccountsDomain)].Push(string(address.Bytes()), nil)
 	if w.trace {
-		fmt.Printf("V3 account [%x] deleted\n", address.Bytes())
+		fmt.Printf("del acc: %x\n", address)
 	}
+	w.writeLists[string(kv.AccountsDomain)].Push(string(address.Bytes()), nil)
 	return nil
 }
 
@@ -426,12 +425,16 @@ func (w *StateWriterBufferedV3) WriteAccountStorage(address common.Address, inca
 	compositeS := string(append(address.Bytes(), key.Bytes()...))
 	w.writeLists[string(kv.StorageDomain)].Push(compositeS, value.Bytes())
 	if w.trace {
-		fmt.Printf("V3 storage [%x] [%x] => [%x]\n", address, key.Bytes(), value.Bytes())
+		fmt.Printf("storage: %x,%x,%x\n", address, *key, value.Bytes())
 	}
 	return nil
 }
 
 func (w *StateWriterBufferedV3) CreateContract(address common.Address) error {
+	if w.trace {
+		fmt.Printf("create contract: %x\n", address)
+	}
+
 	//seems don't need delete code here - tests starting fail
 	//w.writeLists[string(kv.CodeDomain)].Push(string(address[:]), nil)
 	err := w.rs.domains.IterateStoragePrefix(address[:], func(k, v []byte) error {
@@ -440,9 +443,6 @@ func (w *StateWriterBufferedV3) CreateContract(address common.Address) error {
 	})
 	if err != nil {
 		return err
-	}
-	if w.trace {
-		fmt.Printf("V3 contract [%x]\n", address)
 	}
 	return nil
 }
@@ -460,8 +460,8 @@ type StateReaderV3 struct {
 
 func NewStateReaderV3(rs *StateV3) *StateReaderV3 {
 	return &StateReaderV3{
+		//trace:     true,
 		rs:        rs,
-		trace:     false,
 		readLists: newReadList(),
 	}
 }

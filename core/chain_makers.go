@@ -328,10 +328,6 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 	if histV3 {
 		domains = state2.NewSharedDomains(tx)
 		defer domains.Close()
-		_, err := domains.SeekCommitment(ctx, tx)
-		if err != nil {
-			return nil, err
-		}
 		stateReader = state.NewReaderV4(domains)
 		stateWriter = state.NewWriterV4(domains)
 	}
@@ -382,6 +378,7 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 			}
 			// Write state changes to db
 			if err := ibs.CommitBlock(config.Rules(b.header.Number.Uint64(), b.header.Time), stateWriter); err != nil {
+				panic(err)
 				return nil, nil, fmt.Errorf("call to CommitBlock to stateWriter: %w", err)
 			}
 
@@ -428,9 +425,6 @@ func GenerateChain(config *chain.Config, parent *types.Block, engine consensus.E
 		parent = block
 	}
 
-	if ethconfig.EnableHistoryV4InTest {
-		domains.ClearRam(true)
-	}
 	tx.Rollback()
 
 	return &ChainPack{Headers: headers, Blocks: blocks, Receipts: receipts, TopBlock: blocks[n-1]}, nil
