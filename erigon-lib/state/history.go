@@ -2061,6 +2061,9 @@ func (hi *HistoryChangesIterDB) advanceLargeVals() error {
 		if err != nil {
 			return err
 		}
+		//if cmp := bytes.Compare(seek, k); cmp > 0 {
+		//	fmt.Printf("cursor.Seek returned key %x, which is smaller than seek %x\n", k, seek)
+		//}
 		if hi.endTxNum >= 0 && int(binary.BigEndian.Uint64(k[len(k)-8:])) >= hi.endTxNum {
 			next, ok := kv.NextSubtree(k[:len(k)-8])
 			if !ok {
@@ -2070,7 +2073,26 @@ func (hi *HistoryChangesIterDB) advanceLargeVals() error {
 			seek = append(next, hi.startTxKey[:]...)
 			continue
 		}
-		if !bytes.Equal(seek[:len(k)-8], k[:len(k)-8]) {
+		//fmt.Printf("iter [seek=%x] %x %x\n", seek, k, v)
+		//if hi.nextKey != nil && bytes.Equal(k[:len(k)-8], hi.nextKey) && bytes.Equal(v, hi.nextVal) {
+		//	// key part of seek is smaller than key part of k
+		//
+		//	for {
+		//		k, v, err = hi.valsC.Next()
+		//		if err != nil {
+		//			return err
+		//		}
+		//		fmt.Printf("next [seek=%x] %x %x\n", seek, k, v)
+		//		if bytes.Compare(seek[:len(seek)-8], k[:len(k)-8]) <= 0 {
+		//			break
+		//		}
+		//	}
+		//}
+		if !bytes.HasPrefix(seek, k[:len(k)-8]) {
+			if len(seek) < len(k) {
+				seek = make([]byte, len(k))
+				copy(seek[len(seek)-8:], hi.startTxKey[:])
+			}
 			copy(seek[:len(k)-8], k[:len(k)-8])
 			continue
 		}
