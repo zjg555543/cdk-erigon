@@ -242,6 +242,10 @@ func New(
 	limits.ProtocolBaseLimit.StreamsInbound = 512  // 512
 	limits.ProtocolBaseLimit.StreamsOutbound = 128 // 2048
 
+	limits.ProtocolPeerBaseLimit.Streams = 128       // 256
+	limits.ProtocolPeerBaseLimit.StreamsInbound = 64 // 64
+	limits.ProtocolPeerBaseLimit.StreamsOutbound = 4 // 128
+
 	limits.PeerBaseLimit.Streams = 128       // 256
 	limits.PeerBaseLimit.StreamsInbound = 64 // 128
 	limits.PeerBaseLimit.StreamsOutbound = 1 // 256
