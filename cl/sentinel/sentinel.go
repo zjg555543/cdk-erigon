@@ -26,7 +26,6 @@ import (
 	"github.com/ledgerwatch/erigon/cl/sentinel/handshake"
 	"github.com/ledgerwatch/erigon/cl/sentinel/httpreqresp"
 	"github.com/ledgerwatch/erigon/cl/sentinel/peers"
-	"github.com/libp2p/go-libp2p"
 
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/cl/persistence"
@@ -35,6 +34,7 @@ import (
 	"github.com/ledgerwatch/erigon/p2p/enode"
 	"github.com/ledgerwatch/erigon/p2p/enr"
 	"github.com/ledgerwatch/log/v3"
+	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -217,110 +217,7 @@ func New(
 		return nil, err
 	}
 
-	//var reduce = 8
-	//v, _ := os.LookupEnv("LIB_P2P_REDUCE")
-	//if v != "" {
-	//	i, err := strconv.Atoi(v)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//	reduce = i
-	//}
-
-	limits := rcmgr.DefaultLimits
-	limits.SystemBaseLimit.Conns = 256              // 128
-	limits.SystemBaseLimit.ConnsInbound = 128       // 64
-	limits.SystemBaseLimit.ConnsOutbound = 64       // 128
-	limits.SystemBaseLimit.Streams = 64 * 16        // 128 * 16
-	limits.SystemBaseLimit.StreamsInbound = 32 * 16 // 64 * 16
-	limits.SystemBaseLimit.StreamsOutbound = 1 * 16 // 128 * 16
-
-	limits.TransientBaseLimit.Conns = 128          // 64
-	limits.TransientBaseLimit.ConnsInbound = 64    // 32
-	limits.TransientBaseLimit.ConnsOutbound = 32   // 64
-	limits.TransientBaseLimit.Streams = 512        // 256
-	limits.TransientBaseLimit.StreamsInbound = 256 // 128
-	limits.TransientBaseLimit.StreamsOutbound = 32 // 256
-
-	limits.ProtocolBaseLimit.Streams = 1024       // 2048
-	limits.ProtocolBaseLimit.StreamsInbound = 512 // 512
-	limits.ProtocolBaseLimit.StreamsOutbound = 16 // 2048
-
-	limits.ProtocolPeerBaseLimit.Streams = 128        // 256
-	limits.ProtocolPeerBaseLimit.StreamsInbound = 64  // 64
-	limits.ProtocolPeerBaseLimit.StreamsOutbound = 16 // 128
-
-	limits.PeerBaseLimit.Streams = 128        // 256
-	limits.PeerBaseLimit.StreamsInbound = 64  // 128
-	limits.PeerBaseLimit.StreamsOutbound = 16 // 256
-
-	limits.ServiceBaseLimit.Streams = 520        // 4096
-	limits.ServiceBaseLimit.StreamsInbound = 512 // 1024
-	limits.ServiceBaseLimit.StreamsOutbound = 32 // 4096
-
-	limits.ServicePeerBaseLimit.Streams = 256        // 256
-	limits.ServicePeerBaseLimit.StreamsInbound = 128 // 128
-	limits.ServicePeerBaseLimit.StreamsOutbound = 4  // 256
-
-	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
-	limits.SystemLimitIncrease.Conns = 0           // 128
-	limits.SystemLimitIncrease.ConnsInbound = 0    // 64
-	limits.SystemLimitIncrease.ConnsOutbound = 0   // 128
-	limits.SystemLimitIncrease.Streams = 0         // 128*16
-	limits.SystemLimitIncrease.StreamsInbound = 0  // 128*16
-	limits.SystemLimitIncrease.StreamsOutbound = 0 // 128*16
-
-	limits.TransientLimitIncrease.Conns = 0           // 32
-	limits.TransientLimitIncrease.ConnsInbound = 0    // 16
-	limits.TransientLimitIncrease.ConnsOutbound = 0   // 32
-	limits.TransientLimitIncrease.Streams = 0         // 256
-	limits.TransientLimitIncrease.StreamsInbound = 0  // 128
-	limits.TransientLimitIncrease.StreamsOutbound = 0 // 256
-
-	limits.ServicePeerLimitIncrease.Streams = 0         // 8
-	limits.ServicePeerLimitIncrease.StreamsInbound = 0  //4
-	limits.ServicePeerLimitIncrease.StreamsOutbound = 0 //4
-
-	limits.PeerLimitIncrease.Streams = 0         // 256
-	limits.PeerLimitIncrease.StreamsInbound = 0  // 128
-	limits.PeerLimitIncrease.StreamsOutbound = 0 // 256
-
-	limits.ProtocolLimitIncrease.Streams = 0         // 512
-	limits.ProtocolLimitIncrease.StreamsInbound = 0  // 256
-	limits.ProtocolLimitIncrease.StreamsOutbound = 0 // 512
-
-	limits.ProtocolPeerLimitIncrease.Streams = 0         // 16
-	limits.ProtocolPeerLimitIncrease.StreamsInbound = 0  // 4
-	limits.ProtocolPeerLimitIncrease.StreamsOutbound = 0 // 8
-
-	limits.ServiceLimitIncrease.Streams = 0         // 2048
-	limits.ServiceLimitIncrease.StreamsInbound = 0  // 512
-	limits.ServiceLimitIncrease.StreamsOutbound = 0 // 2048
-
-	// allow list
-	limits.AllowlistedSystemBaseLimit.Conns = 128              // 128
-	limits.AllowlistedSystemBaseLimit.ConnsOutbound = 128      // 128
-	limits.AllowlistedSystemBaseLimit.StreamsOutbound = 1 * 16 // 128 * 16
-	limits.AllowlistedSystemLimitIncrease.Conns = 0            // 128
-	limits.AllowlistedSystemLimitIncrease.ConnsInbound = 0     // 128
-	limits.AllowlistedSystemLimitIncrease.ConnsOutbound = 0    // 128
-	limits.AllowlistedSystemLimitIncrease.Streams = 0
-	limits.AllowlistedSystemLimitIncrease.StreamsInbound = 0
-	limits.AllowlistedSystemLimitIncrease.StreamsOutbound = 0 // 128 * 16
-
-	limits.AllowlistedTransientBaseLimit.ConnsOutbound = 32    // 64
-	limits.AllowlistedTransientBaseLimit.StreamsOutbound = 128 // 256
-	limits.AllowlistedTransientLimitIncrease.Conns = 0
-	limits.AllowlistedTransientLimitIncrease.ConnsInbound = 0
-	limits.AllowlistedTransientLimitIncrease.ConnsOutbound = 0 // 256
-	limits.AllowlistedTransientLimitIncrease.Streams = 0
-	limits.AllowlistedTransientLimitIncrease.StreamsInbound = 0
-	limits.AllowlistedTransientLimitIncrease.StreamsOutbound = 0 // 256
-
-	libp2p.SetDefaultServiceLimits(&limits)
-	fmt.Printf("%+v\n", limits)
-	fmt.Printf("%+v\n", limits.AutoScale())
-	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()), rcmgr.WithTraceReporter(str))
+	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()), rcmgr.WithTraceReporter(str))
 	if err != nil {
 		return nil, err
 	}
