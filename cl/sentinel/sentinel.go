@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -34,7 +36,6 @@ import (
 	"github.com/ledgerwatch/erigon/p2p/enode"
 	"github.com/ledgerwatch/erigon/p2p/enr"
 	"github.com/ledgerwatch/log/v3"
-	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -217,7 +218,54 @@ func New(
 		return nil, err
 	}
 
-	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(rcmgr.DefaultLimits.AutoScale()), rcmgr.WithTraceReporter(str))
+	var reduce = 4
+	v, _ := os.LookupEnv("LIB_P2P_REDUCE")
+	if v != "" {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			panic(err)
+		}
+		reduce = i
+	}
+
+	limits := rcmgr.DefaultLimits
+	limits.SystemLimitIncrease.Conns /= reduce
+	limits.StreamLimitIncrease.ConnsOutbound /= reduce
+	limits.SystemLimitIncrease.Streams /= reduce
+	limits.SystemLimitIncrease.StreamsOutbound /= reduce
+
+	limits.TransientLimitIncrease.Conns /= reduce
+	limits.TransientLimitIncrease.ConnsOutbound /= reduce
+	limits.TransientLimitIncrease.Streams /= reduce
+	limits.TransientLimitIncrease.StreamsOutbound /= reduce
+
+	limits.ConnLimitIncrease.Conns /= reduce
+	limits.ConnLimitIncrease.ConnsOutbound /= reduce
+	limits.ConnLimitIncrease.Streams /= reduce
+	limits.ConnLimitIncrease.StreamsOutbound /= reduce
+
+	limits.StreamLimitIncrease.Conns /= reduce
+	limits.StreamLimitIncrease.ConnsOutbound /= reduce
+	limits.StreamLimitIncrease.Streams /= reduce
+	limits.StreamLimitIncrease.StreamsOutbound /= reduce
+
+	limits.ServicePeerLimitIncrease.Conns /= reduce
+	limits.ServicePeerLimitIncrease.ConnsOutbound /= reduce
+	limits.ServicePeerLimitIncrease.Streams /= reduce
+	limits.ServicePeerLimitIncrease.StreamsOutbound /= reduce
+
+	limits.PeerLimitIncrease.Conns /= reduce
+	limits.PeerLimitIncrease.ConnsOutbound /= reduce
+	limits.PeerLimitIncrease.Streams /= reduce
+	limits.PeerLimitIncrease.StreamsOutbound /= reduce
+
+	limits.ProtocolLimitIncrease.Conns /= reduce
+	limits.ProtocolLimitIncrease.ConnsOutbound /= reduce
+	limits.ProtocolLimitIncrease.Streams /= reduce
+	limits.ProtocolLimitIncrease.StreamsOutbound /= reduce
+
+	libp2p.SetDefaultServiceLimits(&limits)
+	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()), rcmgr.WithTraceReporter(str))
 	if err != nil {
 		return nil, err
 	}
