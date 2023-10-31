@@ -31,10 +31,10 @@ import (
 )
 
 var (
-	broadcastCount = metrics.GetOrCreateCounter(`pool_p2p{method="broadcast"}`)
-	announceCount  = metrics.GetOrCreateCounter(`pool_p2p{method="announce""}`)
-	propagateCount = metrics.GetOrCreateCounter(`pool_p2p{method="propagate""}`)
-	blocbSkipCount = metrics.GetOrCreateCounter(`pool_p2p{method="blob_skip""}`)
+	broadcastCount = metrics.GetOrCreateCounter(`pool_p2p_out{method="broadcast"}`) //nolint
+	announceCount  = metrics.GetOrCreateCounter(`pool_p2p_out{method="announce"}`)  //nolint
+	propagateCount = metrics.GetOrCreateCounter(`pool_p2p_out{method="propagate"}`) //nolint
+	blocbSkipCount = metrics.GetOrCreateCounter(`pool_p2p_out{method="blob_skip"}`) //nolint
 )
 
 type SentryClient interface {
