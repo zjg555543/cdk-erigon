@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -219,17 +217,18 @@ func New(
 		return nil, err
 	}
 
-	var reduce = 8
-	v, _ := os.LookupEnv("LIB_P2P_REDUCE")
-	if v != "" {
-		i, err := strconv.Atoi(v)
-		if err != nil {
-			panic(err)
-		}
-		reduce = i
-	}
+	//var reduce = 8
+	//v, _ := os.LookupEnv("LIB_P2P_REDUCE")
+	//if v != "" {
+	//	i, err := strconv.Atoi(v)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	reduce = i
+	//}
 
 	limits := rcmgr.DefaultLimits
+	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 8           // 128
 	limits.StreamLimitIncrease.ConnsInbound = 4    // 64
 	limits.StreamLimitIncrease.ConnsOutbound = 4   // 128
@@ -237,47 +236,28 @@ func New(
 	limits.StreamLimitIncrease.StreamsInbound = 8  // 128*16
 	limits.SystemLimitIncrease.StreamsOutbound = 8 // 128*16
 
-	limits.TransientLimitIncrease.Conns /= reduce
-	limits.TransientLimitIncrease.ConnsInbound /= reduce
-	limits.TransientLimitIncrease.ConnsOutbound /= reduce
-	limits.TransientLimitIncrease.Streams /= reduce
-	limits.TransientLimitIncrease.StreamsInbound /= reduce
-	limits.TransientLimitIncrease.StreamsOutbound /= reduce
+	limits.TransientLimitIncrease.Conns = 4           // 32
+	limits.TransientLimitIncrease.ConnsInbound = 2    // 16
+	limits.TransientLimitIncrease.ConnsOutbound = 2   // 32
+	limits.TransientLimitIncrease.Streams = 4         // 256
+	limits.TransientLimitIncrease.StreamsInbound = 2  // 128
+	limits.TransientLimitIncrease.StreamsOutbound = 2 // 256
 
-	limits.ConnLimitIncrease.Conns /= reduce
-	limits.ConnLimitIncrease.ConnsInbound /= reduce
-	limits.ConnLimitIncrease.ConnsOutbound /= reduce
-	limits.ConnLimitIncrease.Streams /= reduce
-	limits.ConnLimitIncrease.StreamsInbound /= reduce
-	limits.ConnLimitIncrease.StreamsOutbound /= reduce
+	limits.ServicePeerLimitIncrease.Streams = 0         // 8
+	limits.ServicePeerLimitIncrease.StreamsInbound = 0  //4
+	limits.ServicePeerLimitIncrease.StreamsOutbound = 0 //4
 
-	limits.StreamLimitIncrease.Conns /= reduce
-	limits.StreamLimitIncrease.ConnsInbound /= reduce
-	limits.StreamLimitIncrease.ConnsOutbound /= reduce
-	limits.StreamLimitIncrease.Streams /= reduce
-	limits.StreamLimitIncrease.StreamsInbound /= reduce
-	limits.StreamLimitIncrease.StreamsOutbound /= reduce
+	limits.PeerLimitIncrease.Streams = 2         // 256
+	limits.PeerLimitIncrease.StreamsInbound = 1  // 128
+	limits.PeerLimitIncrease.StreamsOutbound = 1 // 256
 
-	limits.ServicePeerLimitIncrease.Conns /= reduce
-	limits.ServicePeerLimitIncrease.ConnsInbound /= reduce
-	limits.ServicePeerLimitIncrease.ConnsOutbound /= reduce
-	limits.ServicePeerLimitIncrease.Streams /= reduce
-	limits.ServicePeerLimitIncrease.StreamsInbound /= reduce
-	limits.ServicePeerLimitIncrease.StreamsOutbound /= reduce
+	limits.ProtocolLimitIncrease.Streams = 2         // 512
+	limits.ProtocolLimitIncrease.StreamsInbound = 1  // 256
+	limits.ProtocolLimitIncrease.StreamsOutbound = 1 // 512
 
-	limits.PeerLimitIncrease.Conns /= reduce
-	limits.PeerLimitIncrease.ConnsInbound /= reduce
-	limits.PeerLimitIncrease.ConnsOutbound /= reduce
-	limits.PeerLimitIncrease.Streams /= reduce
-	limits.PeerLimitIncrease.StreamsInbound /= reduce
-	limits.PeerLimitIncrease.StreamsOutbound /= reduce
-
-	limits.ProtocolLimitIncrease.Conns /= reduce
-	limits.ProtocolLimitIncrease.ConnsInbound /= reduce
-	limits.ProtocolLimitIncrease.ConnsOutbound /= reduce
-	limits.ProtocolLimitIncrease.Streams /= reduce
-	limits.ProtocolLimitIncrease.StreamsInbound /= reduce
-	limits.ProtocolLimitIncrease.StreamsOutbound /= reduce
+	limits.ProtocolPeerLimitIncrease.Streams = 2         // 16
+	limits.ProtocolPeerLimitIncrease.StreamsInbound = 1  // 4
+	limits.ProtocolPeerLimitIncrease.StreamsOutbound = 1 // 8
 
 	libp2p.SetDefaultServiceLimits(&limits)
 	fmt.Printf("%+v\n", limits)
