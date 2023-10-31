@@ -233,22 +233,22 @@ func New(
 	limits.SystemBaseLimit.ConnsOutbound = 32       // 128
 	limits.SystemBaseLimit.Streams = 128 * 16       // 128 * 16
 	limits.SystemBaseLimit.StreamsInbound = 64 * 16 // 64 * 16
-	limits.SystemBaseLimit.StreamsOutbound = 8 * 16 // 128 * 16
+	limits.SystemBaseLimit.StreamsOutbound = 1 * 16 // 128 * 16
 
-	limits.TransientBaseLimit.ConnsOutbound = 32   // 64
-	limits.TransientBaseLimit.StreamsOutbound = 16 // 256
+	limits.TransientBaseLimit.ConnsOutbound = 32  // 64
+	limits.TransientBaseLimit.StreamsOutbound = 4 // 256
 
 	limits.ProtocolBaseLimit.Streams = 1024        // 2048
 	limits.ProtocolBaseLimit.StreamsInbound = 512  // 512
-	limits.ProtocolBaseLimit.StreamsOutbound = 256 // 2048
+	limits.ProtocolBaseLimit.StreamsOutbound = 128 // 2048
 
 	limits.PeerBaseLimit.Streams = 128       // 256
 	limits.PeerBaseLimit.StreamsInbound = 64 // 128
-	limits.PeerBaseLimit.StreamsOutbound = 2 // 256
+	limits.PeerBaseLimit.StreamsOutbound = 1 // 256
 
 	limits.ServiceBaseLimit.Streams = 1024        // 4096
 	limits.ServiceBaseLimit.StreamsInbound = 1024 // 1024
-	limits.ServiceBaseLimit.StreamsOutbound = 128 // 4096
+	limits.ServiceBaseLimit.StreamsOutbound = 32  // 4096
 
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
@@ -283,7 +283,7 @@ func New(
 
 	limits.ServiceLimitIncrease.Streams = 8         // 2048
 	limits.ServiceLimitIncrease.StreamsInbound = 4  // 512
-	limits.ServiceLimitIncrease.StreamsOutbound = 2 // 2048
+	limits.ServiceLimitIncrease.StreamsOutbound = 1 // 2048
 
 	libp2p.SetDefaultServiceLimits(&limits)
 	fmt.Printf("%+v\n", limits)
