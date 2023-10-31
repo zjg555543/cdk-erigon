@@ -233,7 +233,7 @@ func New(
 	limits.SystemBaseLimit.ConnsOutbound = 32       // 128
 	limits.SystemBaseLimit.Streams = 128 * 16       // 128 * 16
 	limits.SystemBaseLimit.StreamsInbound = 64 * 16 // 64 * 16
-	limits.SystemBaseLimit.StreamsOutbound = 1 * 16 // 128 * 16
+	limits.SystemBaseLimit.StreamsOutbound = 128    // 128 * 16
 
 	limits.TransientBaseLimit.ConnsOutbound = 32  // 64
 	limits.TransientBaseLimit.StreamsOutbound = 4 // 256
@@ -264,7 +264,7 @@ func New(
 	limits.SystemLimitIncrease.ConnsOutbound = 1   // 128
 	limits.SystemLimitIncrease.Streams = 4         // 128*16
 	limits.SystemLimitIncrease.StreamsInbound = 2  // 128*16
-	limits.SystemLimitIncrease.StreamsOutbound = 1 // 128*16
+	limits.SystemLimitIncrease.StreamsOutbound = 0 // 128*16
 
 	limits.TransientLimitIncrease.Conns = 2           // 32
 	limits.TransientLimitIncrease.ConnsInbound = 1    // 16
