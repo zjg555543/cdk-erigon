@@ -53,7 +53,6 @@ func convertToCryptoPrivkey(privkey *ecdsa.PrivateKey) (crypto.PrivKey, error) {
 	}
 	return crypto.UnmarshalSecp256k1PrivateKey(privBytes)
 }
-
 func privKeyOption(privkey *ecdsa.PrivateKey) libp2p.Option {
 	return func(cfg *libp2p.Config) error {
 		ifaceKey, err := convertToCryptoPrivkey(privkey)
