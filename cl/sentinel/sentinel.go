@@ -254,6 +254,10 @@ func New(
 	limits.ServiceBaseLimit.StreamsInbound = 1024 // 1024
 	limits.ServiceBaseLimit.StreamsOutbound = 32  // 4096
 
+	limits.ServicePeerBaseLimit.Streams = 128       // 256
+	limits.ServicePeerBaseLimit.StreamsInbound = 64 // 128
+	limits.ServicePeerBaseLimit.StreamsOutbound = 2 // 256
+
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
 	limits.SystemLimitIncrease.ConnsInbound = 2    // 64
