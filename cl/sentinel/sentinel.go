@@ -240,13 +240,15 @@ func New(
 	limits.TransientBaseLimit.ConnsOutbound = 32   // 64
 	limits.TransientBaseLimit.StreamsOutbound = 32 // 256
 
-	limits.ProtocolBaseLimit.Streams = 512          // 2048
-	limits.ProtocolBaseLimit.StreamsOutbound = 512  // 512
-	limits.ProtocolBaseLimit.StreamsOutbound = 1024 // 2048
+	limits.ProtocolBaseLimit.Streams = 1024        // 2048
+	limits.ProtocolBaseLimit.StreamsOutbound = 512 // 512
+	limits.ProtocolBaseLimit.StreamsOutbound = 128 // 2048
 
 	limits.PeerBaseLimit.Streams = 128        // 256
 	limits.PeerBaseLimit.StreamsInbound = 64  // 512
 	limits.PeerBaseLimit.StreamsOutbound = 16 //512
+
+	limits.ServiceBaseLimit.StreamsOutbound = 32 // 4096
 
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns /= reduce
@@ -298,6 +300,7 @@ func New(
 	limits.ProtocolLimitIncrease.StreamsInbound /= reduce
 	limits.ProtocolLimitIncrease.StreamsOutbound /= reduce
 
+	limits.ServiceLimitIncrease.StreamsOutbound = 0 // 4096
 	libp2p.SetDefaultServiceLimits(&limits)
 	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()), rcmgr.WithTraceReporter(str))
 	if err != nil {
