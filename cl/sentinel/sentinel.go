@@ -228,19 +228,23 @@ func New(
 	//}
 
 	limits := rcmgr.DefaultLimits
-	limits.SystemBaseLimit.Conns = 128              // 128
-	limits.SystemBaseLimit.ConnsInbound = 64        // 64
-	limits.SystemBaseLimit.ConnsOutbound = 32       // 128
+	limits.SystemBaseLimit.Conns = 256              // 128
+	limits.SystemBaseLimit.ConnsInbound = 128       // 64
+	limits.SystemBaseLimit.ConnsOutbound = 64       // 128
 	limits.SystemBaseLimit.Streams = 128 * 16       // 128 * 16
 	limits.SystemBaseLimit.StreamsInbound = 64 * 16 // 64 * 16
-	limits.SystemBaseLimit.StreamsOutbound = 8      // 128 * 16
+	limits.SystemBaseLimit.StreamsOutbound = 4 * 16 // 128 * 16
 
-	limits.TransientBaseLimit.ConnsOutbound = 32  // 64
-	limits.TransientBaseLimit.StreamsOutbound = 2 // 256
+	limits.TransientBaseLimit.Conns = 128          // 64
+	limits.TransientBaseLimit.ConnsInbound = 64    // 32
+	limits.TransientBaseLimit.ConnsOutbound = 32   // 64
+	limits.TransientBaseLimit.Streams = 512        // 256
+	limits.TransientBaseLimit.StreamsInbound = 256 // 128
+	limits.TransientBaseLimit.StreamsOutbound = 64 // 256
 
-	limits.ProtocolBaseLimit.Streams = 1024       // 2048
-	limits.ProtocolBaseLimit.StreamsInbound = 512 // 512
-	limits.ProtocolBaseLimit.StreamsOutbound = 16 // 2048
+	limits.ProtocolBaseLimit.Streams = 2048        // 2048
+	limits.ProtocolBaseLimit.StreamsInbound = 1024 // 512
+	limits.ProtocolBaseLimit.StreamsOutbound = 16  // 2048
 
 	limits.ProtocolPeerBaseLimit.Streams = 128        // 256
 	limits.ProtocolPeerBaseLimit.StreamsInbound = 64  // 64
@@ -259,38 +263,38 @@ func New(
 	limits.ServicePeerBaseLimit.StreamsOutbound = 4  // 256
 
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
-	limits.SystemLimitIncrease.Conns = 4           // 128
-	limits.SystemLimitIncrease.ConnsInbound = 2    // 64
-	limits.SystemLimitIncrease.ConnsOutbound = 1   // 128
-	limits.SystemLimitIncrease.Streams = 4         // 128*16
-	limits.SystemLimitIncrease.StreamsInbound = 2  // 128*16
+	limits.SystemLimitIncrease.Conns = 0           // 128
+	limits.SystemLimitIncrease.ConnsInbound = 0    // 64
+	limits.SystemLimitIncrease.ConnsOutbound = 0   // 128
+	limits.SystemLimitIncrease.Streams = 0         // 128*16
+	limits.SystemLimitIncrease.StreamsInbound = 0  // 128*16
 	limits.SystemLimitIncrease.StreamsOutbound = 0 // 128*16
 
-	limits.TransientLimitIncrease.Conns = 2           // 32
-	limits.TransientLimitIncrease.ConnsInbound = 1    // 16
-	limits.TransientLimitIncrease.ConnsOutbound = 1   // 32
-	limits.TransientLimitIncrease.Streams = 2         // 256
-	limits.TransientLimitIncrease.StreamsInbound = 1  // 128
+	limits.TransientLimitIncrease.Conns = 0           // 32
+	limits.TransientLimitIncrease.ConnsInbound = 0    // 16
+	limits.TransientLimitIncrease.ConnsOutbound = 0   // 32
+	limits.TransientLimitIncrease.Streams = 0         // 256
+	limits.TransientLimitIncrease.StreamsInbound = 0  // 128
 	limits.TransientLimitIncrease.StreamsOutbound = 0 // 256
 
 	limits.ServicePeerLimitIncrease.Streams = 0         // 8
 	limits.ServicePeerLimitIncrease.StreamsInbound = 0  //4
 	limits.ServicePeerLimitIncrease.StreamsOutbound = 0 //4
 
-	limits.PeerLimitIncrease.Streams = 2         // 256
-	limits.PeerLimitIncrease.StreamsInbound = 1  // 128
+	limits.PeerLimitIncrease.Streams = 0         // 256
+	limits.PeerLimitIncrease.StreamsInbound = 0  // 128
 	limits.PeerLimitIncrease.StreamsOutbound = 0 // 256
 
-	limits.ProtocolLimitIncrease.Streams = 2         // 512
-	limits.ProtocolLimitIncrease.StreamsInbound = 1  // 256
+	limits.ProtocolLimitIncrease.Streams = 0         // 512
+	limits.ProtocolLimitIncrease.StreamsInbound = 0  // 256
 	limits.ProtocolLimitIncrease.StreamsOutbound = 0 // 512
 
-	limits.ProtocolPeerLimitIncrease.Streams = 2         // 16
-	limits.ProtocolPeerLimitIncrease.StreamsInbound = 1  // 4
+	limits.ProtocolPeerLimitIncrease.Streams = 0         // 16
+	limits.ProtocolPeerLimitIncrease.StreamsInbound = 0  // 4
 	limits.ProtocolPeerLimitIncrease.StreamsOutbound = 0 // 8
 
-	limits.ServiceLimitIncrease.Streams = 8         // 2048
-	limits.ServiceLimitIncrease.StreamsInbound = 4  // 512
+	limits.ServiceLimitIncrease.Streams = 0         // 2048
+	limits.ServiceLimitIncrease.StreamsInbound = 0  // 512
 	limits.ServiceLimitIncrease.StreamsOutbound = 0 // 2048
 
 	// allow list
