@@ -238,13 +238,13 @@ func New(
 	limits.TransientBaseLimit.ConnsOutbound = 32  // 64
 	limits.TransientBaseLimit.StreamsOutbound = 4 // 256
 
-	limits.ProtocolBaseLimit.Streams = 1024        // 2048
-	limits.ProtocolBaseLimit.StreamsInbound = 512  // 512
-	limits.ProtocolBaseLimit.StreamsOutbound = 128 // 2048
+	limits.ProtocolBaseLimit.Streams = 1024       // 2048
+	limits.ProtocolBaseLimit.StreamsInbound = 512 // 512
+	limits.ProtocolBaseLimit.StreamsOutbound = 64 // 2048
 
 	limits.ProtocolPeerBaseLimit.Streams = 128       // 256
 	limits.ProtocolPeerBaseLimit.StreamsInbound = 64 // 64
-	limits.ProtocolPeerBaseLimit.StreamsOutbound = 2 // 128
+	limits.ProtocolPeerBaseLimit.StreamsOutbound = 1 // 128
 
 	limits.PeerBaseLimit.Streams = 128       // 256
 	limits.PeerBaseLimit.StreamsInbound = 64 // 128
@@ -252,11 +252,11 @@ func New(
 
 	limits.ServiceBaseLimit.Streams = 1024        // 4096
 	limits.ServiceBaseLimit.StreamsInbound = 1024 // 1024
-	limits.ServiceBaseLimit.StreamsOutbound = 16  // 4096
+	limits.ServiceBaseLimit.StreamsOutbound = 8   // 4096
 
 	limits.ServicePeerBaseLimit.Streams = 256        // 256
 	limits.ServicePeerBaseLimit.StreamsInbound = 128 // 128
-	limits.ServicePeerBaseLimit.StreamsOutbound = 16 // 256
+	limits.ServicePeerBaseLimit.StreamsOutbound = 8  // 256
 
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
