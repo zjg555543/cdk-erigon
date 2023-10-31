@@ -298,10 +298,14 @@ func New(
 	limits.ServiceLimitIncrease.StreamsOutbound = 0 // 2048
 
 	// allow list
+	limits.AllowlistedSystemBaseLimit.ConnsOutbound = 256      // 128
 	limits.AllowlistedSystemBaseLimit.StreamsOutbound = 1 * 16 // 128 * 16
-	limits.AllowlistedSystemLimitIncrease.StreamsOutbound = 8  // 128 * 16
+	limits.AllowlistedSystemLimitIncrease.ConnsOutbound = 0    // 128
+	limits.AllowlistedSystemLimitIncrease.StreamsOutbound = 0  // 128 * 16
 
-	limits.AllowlistedTransientBaseLimit.StreamsOutbound = 8     // 256
+	limits.AllowlistedTransientBaseLimit.ConnsOutbound = 32      // 64
+	limits.AllowlistedTransientBaseLimit.StreamsOutbound = 128   // 256
+	limits.AllowlistedTransientLimitIncrease.ConnsOutbound = 0   // 256
 	limits.AllowlistedTransientLimitIncrease.StreamsOutbound = 0 // 256
 
 	libp2p.SetDefaultServiceLimits(&limits)
