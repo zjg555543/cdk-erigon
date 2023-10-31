@@ -235,6 +235,9 @@ func New(
 	limits.SystemBaseLimit.StreamsInbound = 64 * 16  // 64 * 16
 	limits.SystemBaseLimit.StreamsOutbound = 64 * 16 // 128 * 16
 
+	limits.TransientBaseLimit.ConnsOutbound = 32    // 64
+	limits.TransientBaseLimit.StreamsOutbound = 128 // 256
+
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
 	limits.SystemLimitIncrease.ConnsInbound = 2    // 64
