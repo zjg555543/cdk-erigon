@@ -293,6 +293,13 @@ func New(
 	limits.ServiceLimitIncrease.StreamsInbound = 4  // 512
 	limits.ServiceLimitIncrease.StreamsOutbound = 1 // 2048
 
+	// allow list
+	limits.AllowlistedSystemBaseLimit.StreamsOutbound = 1 * 16     // 128 * 16
+	limits.AllowlistedSystemLimitIncrease.StreamsOutbound = 1 * 16 // 128 * 16
+
+	limits.AllowlistedTransientBaseLimit.StreamsOutbound = 16    // 256
+	limits.AllowlistedTransientLimitIncrease.StreamsOutbound = 1 // 256
+
 	libp2p.SetDefaultServiceLimits(&limits)
 	fmt.Printf("%+v\n", limits)
 	fmt.Printf("%+v\n", limits.AutoScale())
