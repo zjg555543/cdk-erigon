@@ -233,30 +233,30 @@ func New(
 	limits.SystemBaseLimit.ConnsOutbound = 32       // 128
 	limits.SystemBaseLimit.Streams = 128 * 16       // 128 * 16
 	limits.SystemBaseLimit.StreamsInbound = 64 * 16 // 64 * 16
-	limits.SystemBaseLimit.StreamsOutbound = 128    // 128 * 16
+	limits.SystemBaseLimit.StreamsOutbound = 8      // 128 * 16
 
 	limits.TransientBaseLimit.ConnsOutbound = 32  // 64
-	limits.TransientBaseLimit.StreamsOutbound = 4 // 256
+	limits.TransientBaseLimit.StreamsOutbound = 2 // 256
 
 	limits.ProtocolBaseLimit.Streams = 1024       // 2048
 	limits.ProtocolBaseLimit.StreamsInbound = 512 // 512
-	limits.ProtocolBaseLimit.StreamsOutbound = 64 // 2048
+	limits.ProtocolBaseLimit.StreamsOutbound = 16 // 2048
 
 	limits.ProtocolPeerBaseLimit.Streams = 128        // 256
 	limits.ProtocolPeerBaseLimit.StreamsInbound = 64  // 64
-	limits.ProtocolPeerBaseLimit.StreamsOutbound = 32 // 128
+	limits.ProtocolPeerBaseLimit.StreamsOutbound = 16 // 128
 
 	limits.PeerBaseLimit.Streams = 128        // 256
 	limits.PeerBaseLimit.StreamsInbound = 64  // 128
-	limits.PeerBaseLimit.StreamsOutbound = 32 // 256
+	limits.PeerBaseLimit.StreamsOutbound = 16 // 256
 
 	limits.ServiceBaseLimit.Streams = 1024        // 4096
 	limits.ServiceBaseLimit.StreamsInbound = 1024 // 1024
-	limits.ServiceBaseLimit.StreamsOutbound = 8   // 4096
+	limits.ServiceBaseLimit.StreamsOutbound = 4   // 4096
 
 	limits.ServicePeerBaseLimit.Streams = 256        // 256
 	limits.ServicePeerBaseLimit.StreamsInbound = 128 // 128
-	limits.ServicePeerBaseLimit.StreamsOutbound = 8  // 256
+	limits.ServicePeerBaseLimit.StreamsOutbound = 4  // 256
 
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
@@ -283,7 +283,7 @@ func New(
 
 	limits.ProtocolLimitIncrease.Streams = 2         // 512
 	limits.ProtocolLimitIncrease.StreamsInbound = 1  // 256
-	limits.ProtocolLimitIncrease.StreamsOutbound = 1 // 512
+	limits.ProtocolLimitIncrease.StreamsOutbound = 0 // 512
 
 	limits.ProtocolPeerLimitIncrease.Streams = 2         // 16
 	limits.ProtocolPeerLimitIncrease.StreamsInbound = 1  // 4
@@ -291,7 +291,7 @@ func New(
 
 	limits.ServiceLimitIncrease.Streams = 8         // 2048
 	limits.ServiceLimitIncrease.StreamsInbound = 4  // 512
-	limits.ServiceLimitIncrease.StreamsOutbound = 1 // 2048
+	limits.ServiceLimitIncrease.StreamsOutbound = 0 // 2048
 
 	// allow list
 	limits.AllowlistedSystemBaseLimit.StreamsOutbound = 1 * 16 // 128 * 16
