@@ -284,10 +284,10 @@ func New(
 
 		limits := rcmgr.DefaultLimits
 		limits.SystemLimitIncrease.Conns /= reduce
-		limits.StreamLimitIncrease.ConnsInbound /= reduce
-		limits.StreamLimitIncrease.ConnsOutbound /= reduce
+		limits.SystemLimitIncrease.ConnsInbound /= reduce
+		limits.SystemLimitIncrease.ConnsOutbound /= reduce
 		limits.SystemLimitIncrease.Streams /= reduce
-		limits.StreamLimitIncrease.StreamsInbound /= reduce
+		limits.SystemLimitIncrease.StreamsInbound /= reduce
 		limits.SystemLimitIncrease.StreamsOutbound /= reduce
 
 		limits.TransientLimitIncrease.Conns /= reduce
