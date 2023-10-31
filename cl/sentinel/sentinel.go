@@ -271,15 +271,15 @@ func New(
 	limits.TransientLimitIncrease.ConnsOutbound = 1   // 32
 	limits.TransientLimitIncrease.Streams = 4         // 256
 	limits.TransientLimitIncrease.StreamsInbound = 2  // 128
-	limits.TransientLimitIncrease.StreamsOutbound = 0 // 256
+	limits.TransientLimitIncrease.StreamsOutbound = 1 // 256
 
 	limits.ServicePeerLimitIncrease.Streams = 0         // 8
 	limits.ServicePeerLimitIncrease.StreamsInbound = 0  //4
 	limits.ServicePeerLimitIncrease.StreamsOutbound = 0 //4
 
-	limits.PeerLimitIncrease.Streams = 0         // 256
-	limits.PeerLimitIncrease.StreamsInbound = 0  // 128
-	limits.PeerLimitIncrease.StreamsOutbound = 0 // 256
+	limits.PeerLimitIncrease.Streams = 2         // 256
+	limits.PeerLimitIncrease.StreamsInbound = 1  // 128
+	limits.PeerLimitIncrease.StreamsOutbound = 1 // 256
 
 	limits.ProtocolLimitIncrease.Streams = 2         // 512
 	limits.ProtocolLimitIncrease.StreamsInbound = 1  // 256
