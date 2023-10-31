@@ -266,6 +266,8 @@ func New(
 	limits.ProtocolLimitIncrease.StreamsOutbound /= reduce
 
 	libp2p.SetDefaultServiceLimits(&limits)
+	fmt.Printf("%+v\n", limits)
+	fmt.Printf("%+v\n", limits.AutoScale())
 	rmgr, err := rcmgr.NewResourceManager(rcmgr.NewFixedLimiter(limits.AutoScale()), rcmgr.WithTraceReporter(str))
 	if err != nil {
 		return nil, err
