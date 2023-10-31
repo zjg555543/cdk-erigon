@@ -23,10 +23,17 @@ import (
 
 	"github.com/ledgerwatch/erigon-lib/direct"
 	"github.com/ledgerwatch/erigon-lib/gointerfaces/sentry"
+	"github.com/ledgerwatch/erigon-lib/metrics"
 	"github.com/ledgerwatch/erigon-lib/rlp"
 	types2 "github.com/ledgerwatch/erigon-lib/types"
 	"github.com/ledgerwatch/log/v3"
 	"google.golang.org/grpc"
+)
+
+var (
+	broadcastCount = metrics.GetOrCreateCounter(`pool_p2p{method="broadcast"}`)
+	announceCount  = metrics.GetOrCreateCounter(`pool_p2p{method="announce""}`)
+	propagateCount = metrics.GetOrCreateCounter(`pool_p2p{method="propagate""}`)
 )
 
 type SentryClient interface {
@@ -97,6 +104,9 @@ func (f *Send) BroadcastPooledTxs(rlps [][]byte) (txSentTo []int) {
 						MaxPeers: 100,
 					}
 				}
+
+				broadcastCount.Inc()
+
 				peers, err := sentryClient.SendMessageToRandomPeers(f.ctx, txs66)
 				if err != nil {
 					f.logger.Debug("[txpool.send] BroadcastPooledTxs", "err", err)
@@ -153,6 +163,7 @@ func (f *Send) AnnouncePooledTxs(types []byte, sizes []uint32, hashes types2.Has
 						Id:   sentry.MessageId_NEW_POOLED_TRANSACTION_HASHES_66,
 						Data: iData,
 					}
+					announceCount.Inc()
 					peers, err := sentryClient.SendMessageToAll(f.ctx, req, &grpc.EmptyCallOption{})
 					if err != nil {
 						f.logger.Debug("[txpool.send] AnnouncePooledTxs", "err", err)
@@ -170,6 +181,7 @@ func (f *Send) AnnouncePooledTxs(types []byte, sizes []uint32, hashes types2.Has
 						Id:   sentry.MessageId_NEW_POOLED_TRANSACTION_HASHES_68,
 						Data: jData,
 					}
+					announceCount.Inc()
 					peers, err := sentryClient.SendMessageToAll(f.ctx, req, &grpc.EmptyCallOption{})
 					if err != nil {
 						f.logger.Debug("[txpool.send] AnnouncePooledTxs68", "err", err)
@@ -235,6 +247,7 @@ func (f *Send) PropagatePooledTxsToPeersList(peers []types2.PeerID, types []byte
 								Data: iData,
 							},
 						}
+						propagateCount.Inc()
 						if _, err := sentryClient.SendMessageById(f.ctx, req, &grpc.EmptyCallOption{}); err != nil {
 							f.logger.Debug("[txpool.send] PropagatePooledTxsToPeersList", "err", err)
 						}
@@ -249,6 +262,7 @@ func (f *Send) PropagatePooledTxsToPeersList(peers []types2.PeerID, types []byte
 								Data: jData,
 							},
 						}
+						propagateCount.Inc()
 						if _, err := sentryClient.SendMessageById(f.ctx, req, &grpc.EmptyCallOption{}); err != nil {
 							f.logger.Debug("[txpool.send] PropagatePooledTxsToPeersList68", "err", err)
 						}
