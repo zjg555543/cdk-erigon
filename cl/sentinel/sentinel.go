@@ -243,8 +243,8 @@ func New(
 	limits.ProtocolBaseLimit.StreamsOutbound = 256 // 2048
 
 	limits.PeerBaseLimit.Streams = 128       // 256
-	limits.PeerBaseLimit.StreamsInbound = 64 // 512
-	limits.PeerBaseLimit.StreamsOutbound = 2 //512
+	limits.PeerBaseLimit.StreamsInbound = 64 // 128
+	limits.PeerBaseLimit.StreamsOutbound = 2 // 256
 
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
