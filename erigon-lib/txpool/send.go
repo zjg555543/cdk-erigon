@@ -31,6 +31,7 @@ import (
 )
 
 var (
+	broadcastBytes = metrics.GetOrCreateCounter(`pool_p2p_broadcast_bytes`)         //nolint
 	broadcastCount = metrics.GetOrCreateCounter(`pool_p2p_out{method="broadcast"}`) //nolint
 	announceCount  = metrics.GetOrCreateCounter(`pool_p2p_out{method="announce"}`)  //nolint
 	propagateCount = metrics.GetOrCreateCounter(`pool_p2p_out{method="propagate"}`) //nolint
@@ -97,6 +98,8 @@ func (f *Send) BroadcastPooledTxs(rlps [][]byte) (txSentTo []int) {
 		}
 
 		size += len(rlps[i])
+		broadcastBytes.Add(len(rlps[i]))
+
 		// Wait till the combined size of rlps so far is greater than a threshold and
 		// send them all at once. Then wait till end of array or this threshold hits again
 		if i == l-1 || size >= p2pTxPacketLimit {
@@ -117,7 +120,6 @@ func (f *Send) BroadcastPooledTxs(rlps [][]byte) (txSentTo []int) {
 				}
 
 				broadcastCount.Inc()
-
 				peers, err := sentryClient.SendMessageToRandomPeers(f.ctx, txs66)
 				if err != nil {
 					f.logger.Debug("[txpool.send] BroadcastPooledTxs", "err", err)
