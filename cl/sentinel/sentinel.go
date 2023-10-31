@@ -230,10 +230,10 @@ func New(
 	limits := rcmgr.DefaultLimits
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
-	limits.StreamLimitIncrease.ConnsInbound = 2    // 64
-	limits.StreamLimitIncrease.ConnsOutbound = 2   // 128
+	limits.SystemLimitIncrease.ConnsInbound = 2    // 64
+	limits.SystemLimitIncrease.ConnsOutbound = 2   // 128
 	limits.SystemLimitIncrease.Streams = 4         // 128*16
-	limits.StreamLimitIncrease.StreamsInbound = 2  // 128*16
+	limits.SystemLimitIncrease.StreamsInbound = 2  // 128*16
 	limits.SystemLimitIncrease.StreamsOutbound = 2 // 128*16
 
 	limits.TransientLimitIncrease.Conns = 4           // 32
