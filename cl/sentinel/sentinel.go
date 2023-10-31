@@ -252,7 +252,8 @@ func New(
 
 	limits.ServiceBaseLimit.Streams = 1024        // 4096
 	limits.ServiceBaseLimit.StreamsInbound = 1024 // 1024
-	limits.ServiceBaseLimit.StreamsOutbound = 4   // 4096
+	limits.ServiceBaseLimit.StreamsOu
+	tbound = 16 // 4096
 
 	limits.ServicePeerBaseLimit.Streams = 256        // 256
 	limits.ServicePeerBaseLimit.StreamsInbound = 128 // 128
