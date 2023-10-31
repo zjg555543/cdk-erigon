@@ -272,7 +272,7 @@ func New(
 			return nil, err
 		}
 
-		var reduce = 4
+		var reduce = 8
 		v, _ := os.LookupEnv("LIB_P2P_REDUCE")
 		if v != "" {
 			i, err := strconv.Atoi(v)
@@ -284,38 +284,52 @@ func New(
 
 		limits := rcmgr.DefaultLimits
 		limits.SystemLimitIncrease.Conns /= reduce
+		limits.StreamLimitIncrease.ConnsInbound /= reduce
 		limits.StreamLimitIncrease.ConnsOutbound /= reduce
 		limits.SystemLimitIncrease.Streams /= reduce
+		limits.StreamLimitIncrease.StreamsInbound /= reduce
 		limits.SystemLimitIncrease.StreamsOutbound /= reduce
 
 		limits.TransientLimitIncrease.Conns /= reduce
+		limits.TransientLimitIncrease.ConnsInbound /= reduce
 		limits.TransientLimitIncrease.ConnsOutbound /= reduce
 		limits.TransientLimitIncrease.Streams /= reduce
+		limits.TransientLimitIncrease.StreamsInbound /= reduce
 		limits.TransientLimitIncrease.StreamsOutbound /= reduce
 
 		limits.ConnLimitIncrease.Conns /= reduce
+		limits.ConnLimitIncrease.ConnsInbound /= reduce
 		limits.ConnLimitIncrease.ConnsOutbound /= reduce
 		limits.ConnLimitIncrease.Streams /= reduce
+		limits.ConnLimitIncrease.StreamsInbound /= reduce
 		limits.ConnLimitIncrease.StreamsOutbound /= reduce
 
 		limits.StreamLimitIncrease.Conns /= reduce
+		limits.StreamLimitIncrease.ConnsInbound /= reduce
 		limits.StreamLimitIncrease.ConnsOutbound /= reduce
 		limits.StreamLimitIncrease.Streams /= reduce
+		limits.StreamLimitIncrease.StreamsInbound /= reduce
 		limits.StreamLimitIncrease.StreamsOutbound /= reduce
 
 		limits.ServicePeerLimitIncrease.Conns /= reduce
+		limits.ServicePeerLimitIncrease.ConnsInbound /= reduce
 		limits.ServicePeerLimitIncrease.ConnsOutbound /= reduce
 		limits.ServicePeerLimitIncrease.Streams /= reduce
+		limits.ServicePeerLimitIncrease.StreamsInbound /= reduce
 		limits.ServicePeerLimitIncrease.StreamsOutbound /= reduce
 
 		limits.PeerLimitIncrease.Conns /= reduce
+		limits.PeerLimitIncrease.ConnsInbound /= reduce
 		limits.PeerLimitIncrease.ConnsOutbound /= reduce
 		limits.PeerLimitIncrease.Streams /= reduce
+		limits.PeerLimitIncrease.StreamsInbound /= reduce
 		limits.PeerLimitIncrease.StreamsOutbound /= reduce
 
 		limits.ProtocolLimitIncrease.Conns /= reduce
+		limits.ProtocolLimitIncrease.ConnsInbound /= reduce
 		limits.ProtocolLimitIncrease.ConnsOutbound /= reduce
 		limits.ProtocolLimitIncrease.Streams /= reduce
+		limits.ProtocolLimitIncrease.StreamsInbound /= reduce
 		limits.ProtocolLimitIncrease.StreamsOutbound /= reduce
 
 		libp2p.SetDefaultServiceLimits(&limits)
