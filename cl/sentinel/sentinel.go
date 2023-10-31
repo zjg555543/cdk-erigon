@@ -228,23 +228,23 @@ func New(
 	//}
 
 	limits := rcmgr.DefaultLimits
-	limits.SystemBaseLimit.Conns = 128               // 128
-	limits.SystemBaseLimit.ConnsInbound = 64         // 64
-	limits.SystemBaseLimit.ConnsOutbound = 32        // 128
-	limits.SystemBaseLimit.Streams = 128 * 16        // 128 * 16
-	limits.SystemBaseLimit.StreamsInbound = 64 * 16  // 64 * 16
-	limits.SystemBaseLimit.StreamsOutbound = 16 * 16 // 128 * 16
+	limits.SystemBaseLimit.Conns = 128              // 128
+	limits.SystemBaseLimit.ConnsInbound = 64        // 64
+	limits.SystemBaseLimit.ConnsOutbound = 32       // 128
+	limits.SystemBaseLimit.Streams = 128 * 16       // 128 * 16
+	limits.SystemBaseLimit.StreamsInbound = 64 * 16 // 64 * 16
+	limits.SystemBaseLimit.StreamsOutbound = 8 * 16 // 128 * 16
 
 	limits.TransientBaseLimit.ConnsOutbound = 32   // 64
-	limits.TransientBaseLimit.StreamsOutbound = 32 // 256
+	limits.TransientBaseLimit.StreamsOutbound = 16 // 256
 
-	limits.ProtocolBaseLimit.Streams = 512          // 2048
-	limits.ProtocolBaseLimit.StreamsOutbound = 512  // 512
-	limits.ProtocolBaseLimit.StreamsOutbound = 1024 // 2048
+	limits.ProtocolBaseLimit.Streams = 1024        // 2048
+	limits.ProtocolBaseLimit.StreamsInbound = 512  // 512
+	limits.ProtocolBaseLimit.StreamsOutbound = 256 // 2048
 
-	limits.PeerBaseLimit.Streams = 128        // 256
-	limits.PeerBaseLimit.StreamsInbound = 64  // 512
-	limits.PeerBaseLimit.StreamsOutbound = 16 //512
+	limits.PeerBaseLimit.Streams = 128       // 256
+	limits.PeerBaseLimit.StreamsInbound = 64 // 512
+	limits.PeerBaseLimit.StreamsOutbound = 2 //512
 
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
