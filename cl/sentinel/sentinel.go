@@ -231,8 +231,8 @@ func New(
 	limits.SystemBaseLimit.Conns = 256              // 128
 	limits.SystemBaseLimit.ConnsInbound = 128       // 64
 	limits.SystemBaseLimit.ConnsOutbound = 64       // 128
-	limits.SystemBaseLimit.Streams = 128 * 16       // 128 * 16
-	limits.SystemBaseLimit.StreamsInbound = 64 * 16 // 64 * 16
+	limits.SystemBaseLimit.Streams = 64 * 16        // 128 * 16
+	limits.SystemBaseLimit.StreamsInbound = 32 * 16 // 64 * 16
 	limits.SystemBaseLimit.StreamsOutbound = 4 * 16 // 128 * 16
 
 	limits.TransientBaseLimit.Conns = 128          // 64
@@ -242,9 +242,9 @@ func New(
 	limits.TransientBaseLimit.StreamsInbound = 256 // 128
 	limits.TransientBaseLimit.StreamsOutbound = 64 // 256
 
-	limits.ProtocolBaseLimit.Streams = 2048        // 2048
-	limits.ProtocolBaseLimit.StreamsInbound = 1024 // 512
-	limits.ProtocolBaseLimit.StreamsOutbound = 16  // 2048
+	limits.ProtocolBaseLimit.Streams = 1024       // 2048
+	limits.ProtocolBaseLimit.StreamsInbound = 512 // 512
+	limits.ProtocolBaseLimit.StreamsOutbound = 16 // 2048
 
 	limits.ProtocolPeerBaseLimit.Streams = 128        // 256
 	limits.ProtocolPeerBaseLimit.StreamsInbound = 64  // 64
@@ -298,14 +298,23 @@ func New(
 	limits.ServiceLimitIncrease.StreamsOutbound = 0 // 2048
 
 	// allow list
-	limits.AllowlistedSystemBaseLimit.ConnsOutbound = 256      // 128
+	limits.AllowlistedSystemBaseLimit.Conns = 128              // 128
+	limits.AllowlistedSystemBaseLimit.ConnsOutbound = 128      // 128
 	limits.AllowlistedSystemBaseLimit.StreamsOutbound = 1 * 16 // 128 * 16
+	limits.AllowlistedSystemLimitIncrease.Conns = 0            // 128
+	limits.AllowlistedSystemLimitIncrease.ConnsInbound = 0     // 128
 	limits.AllowlistedSystemLimitIncrease.ConnsOutbound = 0    // 128
-	limits.AllowlistedSystemLimitIncrease.StreamsOutbound = 0  // 128 * 16
+	limits.AllowlistedSystemLimitIncrease.Streams = 0
+	limits.AllowlistedSystemLimitIncrease.StreamsInbound = 0
+	limits.AllowlistedSystemLimitIncrease.StreamsOutbound = 0 // 128 * 16
 
-	limits.AllowlistedTransientBaseLimit.ConnsOutbound = 32      // 64
-	limits.AllowlistedTransientBaseLimit.StreamsOutbound = 128   // 256
-	limits.AllowlistedTransientLimitIncrease.ConnsOutbound = 0   // 256
+	limits.AllowlistedTransientBaseLimit.ConnsOutbound = 32    // 64
+	limits.AllowlistedTransientBaseLimit.StreamsOutbound = 128 // 256
+	limits.AllowlistedTransientLimitIncrease.Conns = 0
+	limits.AllowlistedTransientLimitIncrease.ConnsInbound = 0
+	limits.AllowlistedTransientLimitIncrease.ConnsOutbound = 0 // 256
+	limits.AllowlistedTransientLimitIncrease.Streams = 0
+	limits.AllowlistedTransientLimitIncrease.StreamsInbound = 0
 	limits.AllowlistedTransientLimitIncrease.StreamsOutbound = 0 // 256
 
 	libp2p.SetDefaultServiceLimits(&limits)
