@@ -113,6 +113,7 @@ var DefaultFlags = []cli.Flag{
 	&utils.StaticPeersFlag,
 	&utils.TrustedPeersFlag,
 	&utils.MaxPeersFlag,
+	&utils.MaxPendingPeersFlag,
 	&utils.ChainFlag,
 	&utils.DeveloperPeriodFlag,
 	&utils.VMEnableDebugFlag,
