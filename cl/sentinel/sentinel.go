@@ -249,17 +249,17 @@ func New(
 	// LimitIncrease is the additional limit granted for every additional 1 GB of RAM.
 	limits.SystemLimitIncrease.Conns = 4           // 128
 	limits.SystemLimitIncrease.ConnsInbound = 2    // 64
-	limits.SystemLimitIncrease.ConnsOutbound = 2   // 128
+	limits.SystemLimitIncrease.ConnsOutbound = 1   // 128
 	limits.SystemLimitIncrease.Streams = 4         // 128*16
 	limits.SystemLimitIncrease.StreamsInbound = 2  // 128*16
-	limits.SystemLimitIncrease.StreamsOutbound = 2 // 128*16
+	limits.SystemLimitIncrease.StreamsOutbound = 1 // 128*16
 
 	limits.TransientLimitIncrease.Conns = 4           // 32
 	limits.TransientLimitIncrease.ConnsInbound = 2    // 16
-	limits.TransientLimitIncrease.ConnsOutbound = 2   // 32
+	limits.TransientLimitIncrease.ConnsOutbound = 1   // 32
 	limits.TransientLimitIncrease.Streams = 4         // 256
 	limits.TransientLimitIncrease.StreamsInbound = 2  // 128
-	limits.TransientLimitIncrease.StreamsOutbound = 2 // 256
+	limits.TransientLimitIncrease.StreamsOutbound = 1 // 256
 
 	limits.ServicePeerLimitIncrease.Streams = 0         // 8
 	limits.ServicePeerLimitIncrease.StreamsInbound = 0  //4
