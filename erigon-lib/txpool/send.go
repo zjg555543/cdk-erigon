@@ -68,6 +68,11 @@ const (
 	// This is the target size for the packs of transactions or announcements. A
 	// pack can get larger than this if a single transactions exceeds this size.
 	p2pTxPacketLimit = 100 * 1024
+
+	// txMaxBroadcastSize is the max size of a transaction that will be broadcasted.
+	// All transactions with a higher size will be announced and need to be fetched
+	// by the peer.
+	txMaxBroadcastSize = 4 * 1024
 )
 
 func (f *Send) notifyTests() {
@@ -85,6 +90,10 @@ func (f *Send) BroadcastPooledTxs(rlps [][]byte) (txSentTo []int) {
 	txSentTo = make([]int, len(rlps))
 	var prev, size int
 	for i, l := 0, len(rlps); i < len(rlps); i++ {
+		if len(rlps[i]) > txMaxBroadcastSize { // TODO: txpool must not send here blob-txs and big txs
+			continue
+		}
+
 		size += len(rlps[i])
 		// Wait till the combined size of rlps so far is greater than a threshold and
 		// send them all at once. Then wait till end of array or this threshold hits again
