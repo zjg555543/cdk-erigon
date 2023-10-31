@@ -233,14 +233,14 @@ func New(
 	limits.SystemBaseLimit.ConnsOutbound = 64       // 128
 	limits.SystemBaseLimit.Streams = 64 * 16        // 128 * 16
 	limits.SystemBaseLimit.StreamsInbound = 32 * 16 // 64 * 16
-	limits.SystemBaseLimit.StreamsOutbound = 4 * 16 // 128 * 16
+	limits.SystemBaseLimit.StreamsOutbound = 1 * 16 // 128 * 16
 
 	limits.TransientBaseLimit.Conns = 128          // 64
 	limits.TransientBaseLimit.ConnsInbound = 64    // 32
 	limits.TransientBaseLimit.ConnsOutbound = 32   // 64
 	limits.TransientBaseLimit.Streams = 512        // 256
 	limits.TransientBaseLimit.StreamsInbound = 256 // 128
-	limits.TransientBaseLimit.StreamsOutbound = 64 // 256
+	limits.TransientBaseLimit.StreamsOutbound = 32 // 256
 
 	limits.ProtocolBaseLimit.Streams = 1024       // 2048
 	limits.ProtocolBaseLimit.StreamsInbound = 512 // 512
