@@ -34,6 +34,7 @@ var (
 	broadcastCount = metrics.GetOrCreateCounter(`pool_p2p{method="broadcast"}`)
 	announceCount  = metrics.GetOrCreateCounter(`pool_p2p{method="announce""}`)
 	propagateCount = metrics.GetOrCreateCounter(`pool_p2p{method="propagate""}`)
+	blocbSkipCount = metrics.GetOrCreateCounter(`pool_p2p{method="blob_skip""}`)
 )
 
 type SentryClient interface {
@@ -91,6 +92,7 @@ func (f *Send) BroadcastPooledTxs(rlps [][]byte) (txSentTo []int) {
 	var prev, size int
 	for i, l := 0, len(rlps); i < len(rlps); i++ {
 		if len(rlps[i]) > txMaxBroadcastSize { // TODO: txpool must not send here blob-txs and big txs
+			blocbSkipCount.Inc()
 			continue
 		}
 
