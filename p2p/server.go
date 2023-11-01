@@ -1027,7 +1027,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	clog := srv.logger.New("id", c.node.ID(), "addr", c.fd.RemoteAddr(), "conn", c.flags)
 	err = srv.checkpoint(c, srv.checkpointPostHandshake)
 	if err != nil {
-		clog.Trace("Rejected peer", "err", err, "protocol", srv.Protocols[0].Name, "stack", dbg.Stack())
+		clog.Trace("Rejected peer", "err", err, "protocol", srv.Protocols[0].Name, "protocol_version", srv.Protocols[0].Version, "stack", dbg.Stack())
 		return err
 	}
 
@@ -1044,7 +1044,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	c.caps, c.name = phs.Caps, phs.Name
 	err = srv.checkpoint(c, srv.checkpointAddPeer)
 	if err != nil {
-		clog.Trace("Rejected peer", "err", err, "protocol", srv.Protocols[0].Name, "stack", dbg.Stack())
+		clog.Trace("Rejected peer", "err", err, "protocol", srv.Protocols[0].Name, "protocol_version", srv.Protocols[0].Version, "stack", dbg.Stack())
 		return err
 	}
 
