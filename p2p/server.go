@@ -822,7 +822,7 @@ running:
 				// The handshakes are done and it passed all checks.
 				p := srv.launchPeer(c, c.pubkey)
 				peers[c.node.ID()] = p
-				srv.logger.Trace("Adding p2p peer", "peercount", len(peers), "url", p.Node(), "conn", c.flags, "name", p.Fullname())
+				srv.logger.Trace("Adding p2p peer", "peercount", len(peers), "url", p.Node(), "conn", c.flags, "protocol_version", srv.Protocols[0].Version, "name", p.Fullname())
 				srv.dialsched.peerAdded(c)
 				if p.Inbound() {
 					inboundCount++
