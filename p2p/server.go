@@ -30,6 +30,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/ledgerwatch/log/v3"
@@ -1026,7 +1027,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	clog := srv.logger.New("id", c.node.ID(), "addr", c.fd.RemoteAddr(), "conn", c.flags)
 	err = srv.checkpoint(c, srv.checkpointPostHandshake)
 	if err != nil {
-		clog.Trace("Rejected peer", "err", err)
+		clog.Trace("Rejected peer", "err", err, "stack", dbg.Stack())
 		return err
 	}
 
@@ -1043,7 +1044,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	c.caps, c.name = phs.Caps, phs.Name
 	err = srv.checkpoint(c, srv.checkpointAddPeer)
 	if err != nil {
-		clog.Trace("Rejected peer", "err", err)
+		clog.Trace("Rejected peer", "err", err, "stack", dbg.Stack())
 		return err
 	}
 

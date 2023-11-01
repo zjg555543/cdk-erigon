@@ -20,7 +20,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon/p2p/enode"
+	"github.com/ledgerwatch/log/v3"
 )
 
 // lookup performs a network search for nodes close to the given target. It approaches the
@@ -41,6 +43,7 @@ type lookup struct {
 type queryFunc func(*node) ([]*node, error)
 
 func newLookup(ctx context.Context, tab *Table, target enode.ID, q queryFunc) *lookup {
+	log.Trace("[p2p.dbg] newLookup", "stack", dbg.Stack())
 	it := &lookup{
 		tab:       tab,
 		queryfunc: q,
