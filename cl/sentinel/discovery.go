@@ -85,11 +85,13 @@ func (s *Sentinel) listenForPeers() {
 			return
 		default:
 		}
+		log.Info("[Sentinel] peers amount", "amount", s.GetPeersCount())
 		if s.HasTooManyPeers() {
 			log.Trace("[Sentinel] Not looking for peers, at peer limit")
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
+
 		exists := iterator.Next()
 		if !exists {
 			continue
