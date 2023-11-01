@@ -822,7 +822,7 @@ running:
 				// The handshakes are done and it passed all checks.
 				p := srv.launchPeer(c, c.pubkey)
 				peers[c.node.ID()] = p
-				srv.logger.Trace("Adding p2p peer", "peercount", len(peers), "url", p.Node(), "conn", c.flags, "protocol_version", srv.Protocols[0].Version, "name", p.Fullname())
+				srv.logger.Warn("Adding p2p peer", "peercount", len(peers), "url", p.Node(), "conn", c.flags, "protocol_version", srv.Protocols[0].Version, "name", p.Fullname())
 				srv.dialsched.peerAdded(c)
 				if p.Inbound() {
 					inboundCount++
@@ -834,7 +834,7 @@ running:
 			// A peer disconnected.
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			delete(peers, pd.ID())
-			srv.logger.Trace("Removing p2p peer", "peercount", len(peers), "url", pd.Node(), "duration", d, "err", pd.err)
+			srv.logger.Warn("Removing p2p peer", "peercount", len(peers), "url", pd.Node(), "duration", d, "err", pd.err, "protocol_version", srv.Protocols[0].Version)
 			srv.dialsched.peerRemoved(pd.rw)
 			if pd.Inbound() {
 				inboundCount--
