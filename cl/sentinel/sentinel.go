@@ -366,6 +366,7 @@ func (s *Sentinel) Start() error {
 		DisconnectedF: func(n network.Network, c network.Conn) {
 			peerId := c.RemotePeer()
 			s.peers.RemovePeer(peerId)
+			s.logger.Warn("[Sentinel] DisconnectedF", "conn", c.ID())
 		},
 	})
 	s.subManager = NewGossipManager(s.ctx)
