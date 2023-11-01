@@ -145,7 +145,6 @@ func (s *Sentinel) setupENR(
 
 func (s *Sentinel) onConnection(net network.Network, conn network.Conn) {
 	go func() {
-		s.logger.Warn("[Sentinel] onConnection", "conn", conn.ID())
 		peerId := conn.RemotePeer()
 		valid, err := s.handshaker.ValidatePeer(peerId)
 		if err != nil {
