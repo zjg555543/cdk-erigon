@@ -177,7 +177,7 @@ func SpawnMiningCreateBlockStage(s *StageState, tx kv.RwTx, cfg MiningCreateBloc
 
 	if engine, ok := cfg.engine.(*bor.Bor); ok {
 		if err := engine.VerifyHeader(chain, header, false); err != nil {
-			logger.Info("verify", err)
+			logger.Info("verify", "err", err)
 			if errors.Is(err, bor.ErrUnauthorizedSigner) {
 				return fmt.Errorf("mining stopped: %w", err)
 			}
