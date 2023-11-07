@@ -175,21 +175,18 @@ func SpawnMiningCreateBlockStage(s *StageState, tx kv.RwTx, cfg MiningCreateBloc
 	header.Coinbase = coinbase
 	header.Extra = cfg.miner.MiningConfig.ExtraData
 
-	if engine, ok := cfg.engine.(*bor.Bor); ok {
-		if err := engine.VerifyHeader(chain, header, false); err != nil {
-			logger.Info("verify", "err", err)
-			if errors.Is(err, bor.ErrUnauthorizedSigner) {
-				return fmt.Errorf("mining stopped: %w", err)
-			}
-		}
-	}
-
 	logger.Info(fmt.Sprintf("[%s] Start mine", logPrefix), "block", executionAt+1, "baseFee", header.BaseFee, "gasLimit", header.GasLimit)
 
 	stateReader := state.NewPlainStateReader(tx)
 	ibs := state.New(stateReader)
 
 	if err = cfg.engine.Prepare(chain, header, ibs); err != nil {
+		if _, ok := cfg.engine.(*bor.Bor); ok {
+			if errors.Is(err, bor.ErrUnauthorizedSigner) {
+				return fmt.Errorf("mining stopped: %w", err)
+			}
+		}
+
 		logger.Error("Failed to prepare header for mining",
 			"err", err,
 			"headerNumber", header.Number.Uint64(),
