@@ -170,7 +170,7 @@ func tunnel(ctx context.Context, cancel context.CancelFunc, sigs chan os.Signal,
 		}
 
 		if debugResponse.StatusCode != http.StatusOK {
-			return fmt.Errorf("debug request to %s failed: %s", debugURL, debugResponse.Status)
+			return fmt.Errorf("debug request to %s failed: %s", debugURL+"/debug/nodeinfo", debugResponse.Status)
 		}
 
 		var reply remote.NodesInfoReply

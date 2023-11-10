@@ -5,10 +5,13 @@ import (
 	"net/http"
 
 	"github.com/ledgerwatch/erigon/turbo/node"
+	"github.com/ledgerwatch/log/v3"
 )
 
 func SetupNodeInfoAccess(metricsMux *http.ServeMux, node *node.ErigonNode) {
+	log.Info("[dbg] SetupNodeInfoAccess")
 	metricsMux.HandleFunc("/nodeinfo", func(w http.ResponseWriter, r *http.Request) {
+		log.Info("[dbg] /nodeinfo request")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		writeNodeInfo(w, node)
 	})
