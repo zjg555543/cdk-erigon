@@ -290,6 +290,7 @@ func ExecV3(ctx context.Context,
 		fmt.Printf("exec2 blockNum=%d\n", blockNum)
 	}
 	outputTxNum.Store(inputTxNum)
+	fmt.Printf("[dbg] e3: inputTxNum=%d, restored_block=%d, restored_txNum=%d, offsetFromBlockBeginning=%d\n", inputTxNum, blockNum, doms.TxNum(), offsetFromBlockBeginning)
 
 	blocksFreezeCfg := cfg.blockReader.FreezingCfg()
 	if (initialCycle || !useExternalTx) && blocksFreezeCfg.Produce {
