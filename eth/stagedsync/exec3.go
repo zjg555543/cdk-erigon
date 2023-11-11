@@ -211,6 +211,7 @@ func ExecV3(ctx context.Context,
 	if execStage.BlockNumber > 0 {
 		stageProgress = execStage.BlockNumber
 		blockNum = execStage.BlockNumber + 1
+		fmt.Printf("[dbg] e3, set bn1: blockNum=%d\n", blockNum)
 	} else if !useExternalTx { //nolint
 		//found, _downloadedBlockNum, err := rawdbv3.TxNums.FindBlockNum(applyTx, agg.EndTxNumMinimax())
 		//if err != nil {
