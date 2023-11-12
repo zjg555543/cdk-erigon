@@ -224,7 +224,7 @@ func tunnel(ctx context.Context, cancel context.CancelFunc, sigs chan os.Signal,
 		return err
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusSwitchingProtocols {
 		return fmt.Errorf("support request to %s failed: %s", diagnosticsUrl, resp.Status)
 	}
 
