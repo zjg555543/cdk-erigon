@@ -756,17 +756,21 @@ Loop:
 				}(); err != nil {
 					if !errors.Is(err, context.Canceled) {
 						logger.Warn(fmt.Sprintf("[%s] Execution failed", execStage.LogPrefix()), "block", blockNum, "hash", header.Hash().String(), "err", err)
-						panic(1)
+						log.Warn(fmt.Sprintf("[dbg] exec err1 %d\n", blockNum))
 						if cfg.hd != nil && errors.Is(err, consensus.ErrInvalidBlock) {
+							log.Warn(fmt.Sprintf("[dbg] exec err2 %d\n", blockNum))
 							cfg.hd.ReportBadHeaderPoS(header.Hash(), header.ParentHash)
 						}
 						if cfg.badBlockHalt {
+							log.Warn(fmt.Sprintf("[dbg] exec err3 %d\n", blockNum))
 							return err
 						}
 					}
 					if errors.Is(err, consensus.ErrInvalidBlock) {
+						log.Warn(fmt.Sprintf("[dbg] exec err4 %d\n", blockNum))
 						u.UnwindTo(blockNum-1, BadBlock(header.Hash(), err))
 					} else {
+						log.Warn(fmt.Sprintf("[dbg] exec err5 %d\n", blockNum))
 						u.UnwindTo(blockNum-1, ExecUnwind)
 					}
 					break Loop
