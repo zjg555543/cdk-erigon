@@ -698,7 +698,7 @@ Loop:
 				// use history reader instead of state reader to catch up to the tx where we left off
 				HistoryExecution: offsetFromBlockBeginning > 0 && (txIndex+1) < int(offsetFromBlockBeginning),
 			}
-			fmt.Printf("[dbg] txNum: %d, hist=%t\n", txTask.TxNum, txTask.HistoryExecution)
+			fmt.Printf("[dbg] txIndex = %d/%d, txNum: %d, hist=%t\n", txIndex, b.Transactions().Len(), txTask.TxNum, txTask.HistoryExecution)
 			//if txTask.HistoryExecution { // nolint
 			//	fmt.Printf("[dbg] txNum: %d, hist=%t\n", txTask.TxNum, txTask.HistoryExecution)
 			//}
@@ -756,6 +756,7 @@ Loop:
 				}(); err != nil {
 					if !errors.Is(err, context.Canceled) {
 						logger.Warn(fmt.Sprintf("[%s] Execution failed", execStage.LogPrefix()), "block", blockNum, "hash", header.Hash().String(), "err", err)
+						panic(1)
 						if cfg.hd != nil && errors.Is(err, consensus.ErrInvalidBlock) {
 							cfg.hd.ReportBadHeaderPoS(header.Hash(), header.ParentHash)
 						}
