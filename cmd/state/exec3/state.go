@@ -2,6 +2,7 @@ package exec3
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/eth/consensuschain"
 	"github.com/ledgerwatch/erigon/rlp"
+	"github.com/ledgerwatch/erigon/turbo/silkworm"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/sync/errgroup"
 
@@ -242,6 +244,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 		applyRes, err := core.ApplyMessage(rw.evm, msg, rw.taskGasPool, true /* refunds */, false /* gasBailout */)
 		if err != nil {
 			fmt.Printf("alex2: %+v, %#v, %T\n", err, err, err)
+			fmt.Printf("alex3: %t, %t, %t\n", errors.Is(err, silkworm.ErrInterrupted), errors.Is(err, context.Canceled), errors.Is(err, consensus.ErrInvalidBlock))
 			txTask.Error = err
 		} else {
 			txTask.UsedGas = applyRes.UsedGas
