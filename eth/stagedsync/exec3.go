@@ -737,7 +737,7 @@ Loop:
 				applyWorker.RunTxTaskNoLock(txTask)
 				if err := func() error {
 					if txTask.Error != nil {
-						return fmt.Errorf("%w, blockNum=%d", txTask.Error, txTask.BlockNum)
+						return fmt.Errorf("%w: %v", consensus.ErrInvalidBlock, err) //same as in ExecuteBlockEphemerally
 					}
 					if txTask.Final {
 						gasUsed += txTask.UsedGas
