@@ -768,10 +768,10 @@ Loop:
 						}
 					}
 					if errors.Is(err, consensus.ErrInvalidBlock) {
-						log.Warn(fmt.Sprintf("[dbg] exec err4 %d\n", blockNum))
+						log.Warn(fmt.Sprintf("[dbg] exec err4 %x\n", header.Hash()))
 						u.UnwindTo(blockNum-1, BadBlock(header.Hash(), err))
 					} else {
-						log.Warn(fmt.Sprintf("[dbg] exec err5 %d\n", blockNum))
+						log.Warn(fmt.Sprintf("[dbg] exec err5 %x\n", header.Hash()))
 						u.UnwindTo(blockNum-1, ExecUnwind)
 					}
 					panic(1)

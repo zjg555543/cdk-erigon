@@ -2,6 +2,7 @@ package exec3
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -215,6 +216,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 
 		_, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall, rw.logger)
 		if err != nil {
+			fmt.Printf("alex: %+v, %#v, %T\n", err, err, err)
 			txTask.Error = err
 		} else {
 			//incorrect unwind to block 2
