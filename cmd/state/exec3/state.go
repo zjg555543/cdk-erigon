@@ -216,7 +216,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 
 		_, _, err := rw.engine.Finalize(rw.chainConfig, types.CopyHeader(header), ibs, txTask.Txs, txTask.Uncles, nil, txTask.Withdrawals, rw.chain, syscall, rw.logger)
 		if err != nil {
-			fmt.Printf("alex: %+v, %#v, %T\n", err, err, err)
+			fmt.Printf("alex1: %+v, %#v, %T\n", err, err, err)
 			txTask.Error = err
 		} else {
 			//incorrect unwind to block 2
@@ -241,6 +241,7 @@ func (rw *Worker) RunTxTaskNoLock(txTask *state.TxTask) {
 		// MA applytx
 		applyRes, err := core.ApplyMessage(rw.evm, msg, rw.taskGasPool, true /* refunds */, false /* gasBailout */)
 		if err != nil {
+			fmt.Printf("alex2: %+v, %#v, %T\n", err, err, err)
 			txTask.Error = err
 		} else {
 			txTask.UsedGas = applyRes.UsedGas
