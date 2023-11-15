@@ -595,7 +595,7 @@ func ExecV3(ctx context.Context,
 	var b *types.Block
 	//var err error
 
-	//fmt.Printf("exec: %d -> %d\n", blockNum, maxBlockNum)
+	fmt.Printf("exec: %d -> %d\n", blockNum, maxBlockNum)
 Loop:
 	for ; blockNum <= maxBlockNum; blockNum++ {
 		if blockNum >= blocksInSnapshots {
@@ -736,8 +736,11 @@ Loop:
 				}
 				applyWorker.RunTxTaskNoLock(txTask)
 				if err := func() error {
+					if errors.Is(txTask.Error, context.Canceled) {
+						return err
+					}
 					if txTask.Error != nil {
-						return fmt.Errorf("%w: %v", consensus.ErrInvalidBlock, err) //same as in stage_exec.go
+						return fmt.Errorf("%w: %v", consensus.ErrInvalidBlock, txTask.Error) //same as in stage_exec.go
 					}
 					if txTask.Final {
 						gasUsed += txTask.UsedGas
@@ -754,8 +757,11 @@ Loop:
 					}
 					return nil
 				}(); err != nil {
+					//if errors.Is(err, context.Canceled) {
+					//	return err
+					//}
 					if !errors.Is(err, context.Canceled) {
-						logger.Warn(fmt.Sprintf("[%s] Execution failed", execStage.LogPrefix()), "block", blockNum, "hash", header.Hash().String(), "err", err)
+						logger.Warn(fmt.Sprintf("[%s] Execution failed1", execStage.LogPrefix()), "block", blockNum, "hash", header.Hash().String(), "err", err)
 						log.Warn(fmt.Sprintf("[dbg] exec err1 %d\n", blockNum))
 						log.Warn(fmt.Sprintf("[dbg] exec err11 %+v %#v\n", err, err))
 						if cfg.hd != nil && errors.Is(err, consensus.ErrInvalidBlock) {
