@@ -214,6 +214,7 @@ func ExecV3(ctx context.Context,
 
 	blockNum = doms.BlockNum()
 	var inputTxNum = doms.TxNum()
+	log.Warn(fmt.Sprintf("[dbg] exec see: %d, %d", blockNum, inputTxNum))
 	var offsetFromBlockBeginning uint64
 
 	nothingToExec := func(applyTx kv.Tx) (bool, error) {
