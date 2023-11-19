@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/btree"
 	"github.com/ledgerwatch/erigon-lib/kv/order"
+	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/exp/slices"
 
@@ -565,8 +566,12 @@ func (d *DomainCommitted) SeekCommitment(tx kv.Tx, cd *DomainContext, sinceTx, u
 			return 0, 0, false, err
 		}
 		blockNum, txNum, err = d.Restore(v)
+		log.Warn(fmt.Sprintf("[dbg] Seek commitment01: %d, %d", blockNum, txNum))
 		return blockNum, txNum, true, err
+	} else {
+		log.Warn(fmt.Sprintf("[dbg] Seek commitment02: %d, %d", blockNum, txNum))
 	}
+
 	// corner-case:
 	// it's normal to not have commitment.ef and commitment.v files. They are not determenistic - depend on batchSize, and not very useful.
 	// in this case `IdxRange` will be empty
@@ -577,6 +582,7 @@ func (d *DomainCommitted) SeekCommitment(tx kv.Tx, cd *DomainContext, sinceTx, u
 			return fmt.Errorf("invalid state value size %d [%x]", len(value), value)
 		}
 		txn, bn := binary.BigEndian.Uint64(value), binary.BigEndian.Uint64(value[8:16])
+		log.Warn(fmt.Sprintf("[dbg] Seek commitment03: %d, %d", bn, txn))
 		_ = bn
 		//fmt.Printf("[commitment] Seek found committed txn %d block %d\n", txn, bn)
 		if txn >= sinceTx && txn <= untilTx {
@@ -587,6 +593,7 @@ func (d *DomainCommitted) SeekCommitment(tx kv.Tx, cd *DomainContext, sinceTx, u
 		return 0, 0, false, fmt.Errorf("failed to seek commitment, IteratePrefix: %w", err)
 	}
 	blockNum, txNum, err = d.Restore(latestState)
+	log.Warn(fmt.Sprintf("[dbg] Seek commitment04: %d, %d", blockNum, txNum))
 	return blockNum, txNum, true, err
 }
 
