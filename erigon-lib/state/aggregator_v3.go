@@ -257,6 +257,45 @@ func (a *AggregatorV3) OpenFolder(readonly bool) error {
 	return nil
 }
 
+func (a *AggregatorV3) OpenList(files []string, readonly bool) error {
+	log.Warn("[dbg] OpenList", "l", files)
+
+	a.filesMutationLock.Lock()
+	defer a.filesMutationLock.Unlock()
+	var err error
+	if err = a.accounts.OpenFolder(readonly); err != nil {
+		return err
+	}
+	if err = a.storage.OpenFolder(readonly); err != nil {
+		return err
+	}
+	if err = a.code.OpenFolder(readonly); err != nil {
+		return err
+	}
+	if err = a.commitment.OpenFolder(readonly); err != nil {
+		return err
+	}
+	if err = a.logAddrs.OpenFolder(readonly); err != nil {
+		return err
+	}
+	if err = a.logTopics.OpenFolder(readonly); err != nil {
+		return err
+	}
+	if err = a.tracesFrom.OpenFolder(readonly); err != nil {
+		return err
+	}
+	if err = a.tracesTo.OpenFolder(readonly); err != nil {
+		return err
+	}
+	a.recalcMaxTxNum()
+	mx := a.minimaxTxNumInFiles.Load()
+	if mx > 0 {
+		mx--
+	}
+	a.aggregatedStep.Store(mx / a.aggregationStep)
+	return nil
+}
+
 func (a *AggregatorV3) Close() {
 	if a.ctxCancel == nil { // invariant: it's safe to call Close multiple times
 		return
