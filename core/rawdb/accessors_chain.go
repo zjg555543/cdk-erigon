@@ -55,6 +55,7 @@ func ReadCanonicalHash(db kv.Getter, number uint64) (common.Hash, error) {
 		return common.Hash{}, fmt.Errorf("failed ReadCanonicalHash: %w, number=%d", err, number)
 	}
 	if len(data) == 0 {
+		log.Warn("[dbg] ReadCanonicalHash, len(data) == 0", "block", number)
 		return common.Hash{}, nil
 	}
 	return common.BytesToHash(data), nil
