@@ -205,6 +205,7 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 			// for now easier just store them in db
 			td := big.NewInt(0)
 			blockNumBytes := make([]byte, 8)
+			var prevBlockNum uint64
 			if err := blockReader.HeadersRange(ctx, func(header *types.Header) error {
 				blockNum, blockHash := header.Number.Uint64(), header.Hash()
 				td.Add(td, header.Difficulty)
@@ -220,6 +221,10 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 					return err
 				}
 
+				if prevBlockNum > 0 && blockNum != prevBlockNum+1 {
+					log.Warn("[dbg] snapshots header missed?", "prev", prevBlockNum, "blockNum", blockNum)
+				}
+				prevBlockNum = blockNum
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
