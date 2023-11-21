@@ -227,11 +227,11 @@ func BorHeimdallForward(
 	if err != nil {
 		return err
 	}
+	chain := NewChainReaderImpl(&cfg.chainConfig, tx, cfg.blockReader, logger)
 
 	{
 		hh, ee := cfg.blockReader.HeaderByNumber(ctx, tx, 40834412)
 		log.Warn("[dbg] blockReader", "a", cfg.blockReader.FrozenBlocks(), "b", cfg.blockReader.FrozenBorBlocks(), "c", ee, "d", hh == nil)
-		chain := NewChainReaderImpl(&cfg.chainConfig, tx, cfg.blockReader, logger)
 		log.Warn("[dbg] chainReader", "e", chain.GetHeaderByNumber(40834412) == nil)
 		canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
 		log.Warn("[dbg] rawdb.ReadCanonicalHash", "canonicalHash", fmt.Sprintf("%x", canonicalHash), "ee", ee)
