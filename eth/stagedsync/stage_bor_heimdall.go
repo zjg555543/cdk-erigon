@@ -235,8 +235,11 @@ func BorHeimdallForward(
 		log.Warn("[dbg] chainReader", "e", chain.GetHeaderByNumber(40834412) == nil)
 		canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
 		log.Warn("[dbg] rawdb.ReadCanonicalHash", "canonicalHash", fmt.Sprintf("%x", canonicalHash), "ee", ee)
-		panic(1)
 	}
+	//  [EROR] [11-21|01:55:49.067] Staged Sync                              err="1, trace: [stageloop.go:105 panic.go:920 stage_bor_heimdall.go:238 default_stages.go:69 sync.go:432 sync.go:333 stageloop.go:150 stageloop.go:71 asm_amd64.s:1650]"
+	//	[WARN] [11-21|01:55:49.957] [dbg] blockReader                        a=42499999 b=42499999 c=nil d=true
+	//	[WARN] [11-21|01:55:49.957] [dbg] chainReader                        e=true
+	//	[WARN] [11-21|01:55:49.957] [dbg] rawdb.ReadCanonicalHash            canonicalHash=0000000000000000000000000000000000000000000000000000000000000000 ee=nil
 
 	var blockNum uint64
 	var fetchTime time.Duration

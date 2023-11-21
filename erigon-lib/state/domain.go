@@ -603,11 +603,14 @@ func (d *Domain) scanStateFiles(fileNames []string) (garbageFiles []*filesItem) 
 
 func (d *Domain) openFiles() (err error) {
 	invalidFileItems := make([]*filesItem, 0)
+	eg := &errgroup.Group{} //TODO: speedup btree open
 	d.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			if item.decompressor != nil {
 				continue
 			}
+			item := item
+
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
 			datPath := d.kvFilePath(fromStep, toStep)
 			if !dir.FileExist(datPath) {
@@ -633,11 +636,14 @@ func (d *Domain) openFiles() (err error) {
 			if item.bindex == nil {
 				bidxPath := d.kvBtFilePath(fromStep, toStep)
 				if dir.FileExist(bidxPath) {
-					if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
-						err = errors.Wrap(err, "btree index")
-						d.logger.Debug("Domain.openFiles: %w, %s", err, bidxPath)
-						return false
-					}
+					eg.Go(func() error {
+						if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
+							err = errors.Wrap(err, "btree index")
+							d.logger.Debug("Domain.openFiles: %w, %s", err, bidxPath)
+							return err
+						}
+						return nil
+					})
 				}
 			}
 			if item.existence == nil {
@@ -651,6 +657,9 @@ func (d *Domain) openFiles() (err error) {
 		}
 		return true
 	})
+	if err := eg.Wait(); err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
