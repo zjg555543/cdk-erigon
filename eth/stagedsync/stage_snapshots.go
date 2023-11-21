@@ -252,7 +252,7 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 
 			{ //assert
 				canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
-				log.Warn("[dbg] assert ReadCanonicalHash(40834412) hash: %x, %s", canonicalHash, ee)
+				log.Warn(fmt.Sprintf("[dbg] assert ReadCanonicalHash(40834412) hash: %x, %s", canonicalHash, ee))
 			}
 
 			canonicalHash, err := blockReader.CanonicalHash(ctx, tx, blocksAvailable)
