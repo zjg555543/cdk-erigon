@@ -226,6 +226,8 @@ func BorHeimdallForward(
 	if err != nil {
 		return err
 	}
+	hh, ee := cfg.blockReader.HeaderByNumber(ctx, tx, 40834412)
+	log.Warn("[dbg] blockReader", "a", cfg.blockReader.FrozenBlocks(), "b", cfg.blockReader.FrozenBorBlocks(), "c", ee, "d", hh == nil)
 	chain := NewChainReaderImpl(&cfg.chainConfig, tx, cfg.blockReader, logger)
 
 	var blockNum uint64
