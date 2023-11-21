@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
@@ -213,6 +214,17 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 				if err := rawdb.WriteTd(tx, blockHash, blockNum, td); err != nil {
 					return err
 				}
+				{ //assert
+					if blockNum == 40834412 {
+						log.Warn(fmt.Sprintf("[dbg] writing canonical marker: %d, %x\n", blockNum, blockHash))
+					}
+					if blockHash == (common.Hash{}) {
+						log.Warn(fmt.Sprintf("[dbg] writing canonical marker, but see empty hash!!: %d\n", blockNum))
+					}
+					canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
+					log.Warn("[dbg] assert ReadCanonicalHash(40834412) hash: %x, %s", canonicalHash, ee)
+				}
+
 				if err := rawdb.WriteCanonicalHash(tx, blockHash, blockNum); err != nil {
 					return err
 				}
