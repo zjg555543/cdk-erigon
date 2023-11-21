@@ -25,7 +25,6 @@ import (
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall/span"
 	"github.com/ledgerwatch/erigon/consensus/bor/valset"
-	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/dataflow"
 	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
@@ -228,18 +227,6 @@ func BorHeimdallForward(
 		return err
 	}
 	chain := NewChainReaderImpl(&cfg.chainConfig, tx, cfg.blockReader, logger)
-
-	{
-		hh, ee := cfg.blockReader.HeaderByNumber(ctx, tx, 40834412)
-		log.Warn("[dbg] blockReader", "a", cfg.blockReader.FrozenBlocks(), "b", cfg.blockReader.FrozenBorBlocks(), "c", ee, "d", hh == nil)
-		log.Warn("[dbg] chainReader", "e", chain.GetHeaderByNumber(40834412) == nil)
-		canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
-		log.Warn("[dbg] rawdb.ReadCanonicalHash", "canonicalHash", fmt.Sprintf("%x", canonicalHash), "ee", ee)
-	}
-	//  [EROR] [11-21|01:55:49.067] Staged Sync                              err="1, trace: [stageloop.go:105 panic.go:920 stage_bor_heimdall.go:238 default_stages.go:69 sync.go:432 sync.go:333 stageloop.go:150 stageloop.go:71 asm_amd64.s:1650]"
-	//	[WARN] [11-21|01:55:49.957] [dbg] blockReader                        a=42499999 b=42499999 c=nil d=true
-	//	[WARN] [11-21|01:55:49.957] [dbg] chainReader                        e=true
-	//	[WARN] [11-21|01:55:49.957] [dbg] rawdb.ReadCanonicalHash            canonicalHash=0000000000000000000000000000000000000000000000000000000000000000 ee=nil
 
 	var blockNum uint64
 	var fetchTime time.Duration
@@ -610,7 +597,7 @@ func PersistValidatorSets(
 			for i := uint64(1); i <= blockNum; i++ {
 				header := chain.GetHeaderByNumber(i) // can return only canonical headers, but not all headers in db may be marked as canoical yet.
 				if header == nil {
-					return nil
+					break
 				}
 
 				{
