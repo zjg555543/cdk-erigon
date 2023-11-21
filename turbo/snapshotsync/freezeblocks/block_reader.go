@@ -278,16 +278,19 @@ func (r *BlockReader) HeadersRange(ctx context.Context, walker func(header *type
 }
 
 func (r *BlockReader) HeaderByNumber(ctx context.Context, tx kv.Getter, blockHeight uint64) (h *types.Header, err error) {
-	blockHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
-	if err != nil {
-		return nil, err
-	}
-	if blockHash == (common.Hash{}) {
+	if blockHeight >= r.FrozenBorBlocks() {
+		blockHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
+		if err != nil {
+			return nil, err
+		}
+		if blockHash == (common.Hash{}) {
+			return nil, nil
+		}
+		h = rawdb.ReadHeader(tx, blockHash, blockHeight)
+		if h != nil {
+			return h, nil
+		}
 		return nil, nil
-	}
-	h = rawdb.ReadHeader(tx, blockHash, blockHeight)
-	if h != nil {
-		return h, nil
 	}
 
 	view := r.sn.View()
