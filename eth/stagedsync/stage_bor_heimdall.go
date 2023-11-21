@@ -25,6 +25,7 @@ import (
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall/span"
 	"github.com/ledgerwatch/erigon/consensus/bor/valset"
+	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/dataflow"
 	"github.com/ledgerwatch/erigon/eth/ethconfig/estimate"
@@ -226,9 +227,15 @@ func BorHeimdallForward(
 	if err != nil {
 		return err
 	}
-	hh, ee := cfg.blockReader.HeaderByNumber(ctx, tx, 40834412)
-	log.Warn("[dbg] blockReader", "a", cfg.blockReader.FrozenBlocks(), "b", cfg.blockReader.FrozenBorBlocks(), "c", ee, "d", hh == nil)
-	chain := NewChainReaderImpl(&cfg.chainConfig, tx, cfg.blockReader, logger)
+
+	{
+		hh, ee := cfg.blockReader.HeaderByNumber(ctx, tx, 40834412)
+		log.Warn("[dbg] blockReader", "a", cfg.blockReader.FrozenBlocks(), "b", cfg.blockReader.FrozenBorBlocks(), "c", ee, "d", hh == nil)
+		chain := NewChainReaderImpl(&cfg.chainConfig, tx, cfg.blockReader, logger)
+		log.Warn("[dbg] chainReader", "e", chain.GetHeaderByNumber(40834412) == nil)
+		canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
+		log.Warn("[dbg] rawdb.ReadCanonicalHash", "canonicalHash", fmt.Sprintf("%x", canonicalHash), "ee", ee)
+	}
 
 	var blockNum uint64
 	var fetchTime time.Duration
@@ -597,21 +604,19 @@ func PersistValidatorSets(
 			initialHeaders := make([]*types.Header, 0, batchSize)
 			parentHeader := zeroHeader
 			for i := uint64(1); i <= blockNum; i++ {
-				header := chain.GetHeaderByNumber(i)
+				header := chain.GetHeaderByNumber(i) // can return only canonical headers, but not all headers in db may be marked as canoical yet.
+				if header == nil {
+					return nil
+				}
+
 				{
 					// `snap.apply` bottleneck - is recover of signer.
 					// to speedup: recover signer in background goroutines and save in `sigcache`
 					// `batchSize` < `inmemorySignatures`: means all current batch will fit in cache - and `snap.apply` will find it there.
 					g.Go(func() error {
-						if header == nil {
-							return nil
-						}
 						_, _ = bor.Ecrecover(header, signatures, config)
 						return nil
 					})
-				}
-				if header == nil {
-					log.Debug(fmt.Sprintf("[%s] PersistValidatorSets nil header", logPrefix), "blockNum", i)
 				}
 				initialHeaders = append(initialHeaders, header)
 				if len(initialHeaders) == cap(initialHeaders) {
