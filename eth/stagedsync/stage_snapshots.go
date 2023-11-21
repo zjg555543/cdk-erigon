@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
@@ -206,7 +205,6 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 			// for now easier just store them in db
 			td := big.NewInt(0)
 			blockNumBytes := make([]byte, 8)
-			var prevBlockNum uint64
 			if err := blockReader.HeadersRange(ctx, func(header *types.Header) error {
 				blockNum, blockHash := header.Number.Uint64(), header.Hash()
 				td.Add(td, header.Difficulty)
@@ -214,15 +212,6 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 				if err := rawdb.WriteTd(tx, blockHash, blockNum, td); err != nil {
 					return err
 				}
-				{ //assert
-					if blockNum == 40834412 {
-						log.Warn(fmt.Sprintf("[dbg] writing canonical marker: %d, %x\n", blockNum, blockHash))
-					}
-					if blockHash == (common.Hash{}) {
-						log.Warn(fmt.Sprintf("[dbg] writing canonical marker, but see empty hash!!: %d\n", blockNum))
-					}
-				}
-
 				if err := rawdb.WriteCanonicalHash(tx, blockHash, blockNum); err != nil {
 					return err
 				}
@@ -230,11 +219,6 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 				if err := h2n.Collect(blockHash[:], blockNumBytes); err != nil {
 					return err
 				}
-
-				if prevBlockNum > 0 && blockNum != prevBlockNum+1 {
-					log.Warn("[dbg] snapshots header missed?", "prev", prevBlockNum, "blockNum", blockNum)
-				}
-				prevBlockNum = blockNum
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
@@ -249,12 +233,6 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 			if err := h2n.Load(tx, kv.HeaderNumber, etl.IdentityLoadFunc, etl.TransformArgs{}); err != nil {
 				return err
 			}
-
-			{ //assert
-				canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
-				log.Warn(fmt.Sprintf("[dbg] assert ReadCanonicalHash(40834412) hash: %x, %s", canonicalHash, ee))
-			}
-
 			canonicalHash, err := blockReader.CanonicalHash(ctx, tx, blocksAvailable)
 			if err != nil {
 				return err
