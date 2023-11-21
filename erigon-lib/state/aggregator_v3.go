@@ -223,6 +223,7 @@ func (a *AggregatorV3) OpenFolder(readonly bool) error {
 	a.filesMutationLock.Lock()
 	defer a.filesMutationLock.Unlock()
 	eg := &errgroup.Group{}
+	log.Warn("[dbg] agg.OpenFolder", "stack", dbg.Stack())
 	eg.Go(func() error { return a.accounts.OpenFolder(readonly) })
 	eg.Go(func() error { return a.storage.OpenFolder(readonly) })
 	eg.Go(func() error { return a.code.OpenFolder(readonly) })
@@ -245,6 +246,7 @@ func (a *AggregatorV3) OpenFolder(readonly bool) error {
 
 func (a *AggregatorV3) OpenList(files []string, readonly bool) error {
 	log.Warn("[dbg] OpenList", "l", files)
+	log.Warn("[dbg] agg.OpenList", "stack", dbg.Stack())
 
 	a.filesMutationLock.Lock()
 	defer a.filesMutationLock.Unlock()
