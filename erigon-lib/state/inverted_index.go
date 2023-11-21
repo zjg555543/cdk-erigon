@@ -463,7 +463,6 @@ func (ii *InvertedIndex) BuildMissedIndices(ctx context.Context, g *errgroup.Gro
 func (ii *InvertedIndex) openFiles() error {
 	var err error
 	var invalidFileItems []*filesItem
-	eg := errgroup.Group{}
 	ii.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			if item.decompressor != nil {
@@ -475,41 +474,33 @@ func (ii *InvertedIndex) openFiles() error {
 				invalidFileItems = append(invalidFileItems, item)
 				continue
 			}
-			item := item
 
-			eg.Go(func() error {
-				if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
-					ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, datPath)
-					return err
-				}
+			if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
+				ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, datPath)
+				continue
+			}
 
-				if item.index == nil {
-					idxPath := ii.efAccessorFilePath(fromStep, toStep)
-					if dir.FileExist(idxPath) {
-						if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
-							ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, idxPath)
-							return err
-						}
+			if item.index == nil {
+				idxPath := ii.efAccessorFilePath(fromStep, toStep)
+				if dir.FileExist(idxPath) {
+					if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
+						ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, idxPath)
+						return false
 					}
 				}
-				if item.existence == nil && ii.withExistenceIndex {
-					idxPath := ii.efExistenceIdxFilePath(fromStep, toStep)
-					if dir.FileExist(idxPath) {
-						if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
-							ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, idxPath)
-							return err
-						}
+			}
+			if item.existence == nil && ii.withExistenceIndex {
+				idxPath := ii.efExistenceIdxFilePath(fromStep, toStep)
+				if dir.FileExist(idxPath) {
+					if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
+						ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, idxPath)
+						return false
 					}
 				}
-				return nil
-			})
+			}
 		}
 		return true
 	})
-	if err := eg.Wait(); err != nil {
-		return err
-	}
-
 	for _, item := range invalidFileItems {
 		ii.files.Delete(item)
 	}

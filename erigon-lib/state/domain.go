@@ -603,65 +603,54 @@ func (d *Domain) scanStateFiles(fileNames []string) (garbageFiles []*filesItem) 
 
 func (d *Domain) openFiles() (err error) {
 	invalidFileItems := make([]*filesItem, 0)
-	eg := &errgroup.Group{} //TODO: speedup btree open
 	d.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			if item.decompressor != nil {
 				continue
 			}
-			item := item
-
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
 			datPath := d.kvFilePath(fromStep, toStep)
 			if !dir.FileExist(datPath) {
 				invalidFileItems = append(invalidFileItems, item)
 				continue
 			}
-			eg.Go(func() error {
-				if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
-					err = errors.Wrap(err, "decompressor")
-					d.logger.Debug("Domain.openFiles: %w, %s", err, datPath)
-					return err
-				}
+			if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
+				err = errors.Wrap(err, "decompressor")
+				d.logger.Debug("Domain.openFiles: %w, %s", err, datPath)
+				return false
+			}
 
-				if item.index == nil && !UseBpsTree {
-					idxPath := d.kvAccessorFilePath(fromStep, toStep)
-					if dir.FileExist(idxPath) {
-						if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
-							err = errors.Wrap(err, "recsplit index")
-							d.logger.Debug("Domain.openFiles: %w, %s", err, idxPath)
-							return err
-						}
+			if item.index == nil && !UseBpsTree {
+				idxPath := d.kvAccessorFilePath(fromStep, toStep)
+				if dir.FileExist(idxPath) {
+					if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
+						err = errors.Wrap(err, "recsplit index")
+						d.logger.Debug("Domain.openFiles: %w, %s", err, idxPath)
+						return false
 					}
 				}
-				if item.bindex == nil {
-					bidxPath := d.kvBtFilePath(fromStep, toStep)
-					if dir.FileExist(bidxPath) {
-						if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
-							err = errors.Wrap(err, "btree index")
-							d.logger.Debug("Domain.openFiles: %w, %s", err, bidxPath)
-							return err
-						}
-						return nil
+			}
+			if item.bindex == nil {
+				bidxPath := d.kvBtFilePath(fromStep, toStep)
+				if dir.FileExist(bidxPath) {
+					if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
+						err = errors.Wrap(err, "btree index")
+						d.logger.Debug("Domain.openFiles: %w, %s", err, bidxPath)
+						return false
 					}
 				}
-
-				if item.existence == nil {
-					idxPath := d.kvExistenceIdxFilePath(fromStep, toStep)
-					if dir.FileExist(idxPath) {
-						if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
-							return err
-						}
+			}
+			if item.existence == nil {
+				idxPath := d.kvExistenceIdxFilePath(fromStep, toStep)
+				if dir.FileExist(idxPath) {
+					if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
+						return false
 					}
 				}
-				return nil
-			})
+			}
 		}
 		return true
 	})
-	if err := eg.Wait(); err != nil {
-		return err
-	}
 	if err != nil {
 		return err
 	}
