@@ -222,6 +222,7 @@ func (a *AggregatorV3) DisableFsync() {
 func (a *AggregatorV3) OpenFolder(readonly bool) error {
 	a.filesMutationLock.Lock()
 	defer a.filesMutationLock.Unlock()
+	defer func(t time.Time) { fmt.Printf("aggregator_v3.go:225: %s\n", time.Since(t)) }(time.Now())
 	var err error
 	if err = a.accounts.OpenFolder(readonly); err != nil {
 		return err
