@@ -250,7 +250,7 @@ func NewBlockReader(snapshots services.BlockSnapshots, borSnapshots services.Blo
 }
 
 func (r *BlockReader) CanPruneTo(currentBlockInDB uint64) uint64 {
-	return CanDeleteTo(currentBlockInDB, r.sn.BlocksAvailable())
+	return CanDeleteTo(currentBlockInDB, r.sn.blocksAvailable())
 }
 func (r *BlockReader) Snapshots() services.BlockSnapshots { return r.sn }
 func (r *BlockReader) BorSnapshots() services.BlockSnapshots {
@@ -261,7 +261,7 @@ func (r *BlockReader) BorSnapshots() services.BlockSnapshots {
 	return nil
 }
 
-func (r *BlockReader) FrozenBlocks() uint64    { return r.sn.BlocksAvailable() }
+func (r *BlockReader) FrozenBlocks() uint64    { return r.sn.blocksAvailable() }
 func (r *BlockReader) FrozenBorBlocks() uint64 { return r.borSn.BlocksAvailable() }
 func (r *BlockReader) FrozenFiles() []string {
 	files := r.sn.Files()
@@ -442,7 +442,7 @@ func (r *BlockReader) BodyRlp(ctx context.Context, tx kv.Getter, hash common.Has
 }
 
 func (r *BlockReader) Body(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64) (body *types.Body, txAmount uint32, err error) {
-	blocksAvailable := r.sn.BlocksAvailable()
+	blocksAvailable := r.sn.blocksAvailable()
 	if blocksAvailable == 0 || blockHeight > blocksAvailable {
 		body, _, txAmount = rawdb.ReadBody(tx, hash, blockHeight)
 		return body, txAmount, nil
@@ -462,7 +462,7 @@ func (r *BlockReader) Body(ctx context.Context, tx kv.Getter, hash common.Hash, 
 }
 
 func (r *BlockReader) HasSenders(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64) (bool, error) {
-	blocksAvailable := r.sn.BlocksAvailable()
+	blocksAvailable := r.sn.blocksAvailable()
 	if blocksAvailable == 0 || blockHeight > blocksAvailable {
 		return rawdb.HasSenders(tx, hash, blockHeight)
 	}
@@ -473,7 +473,7 @@ func (r *BlockReader) BlockWithSenders(ctx context.Context, tx kv.Getter, hash c
 	return r.blockWithSenders(ctx, tx, hash, blockHeight, false)
 }
 func (r *BlockReader) blockWithSenders(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64, forceCanonical bool) (block *types.Block, senders []common.Address, err error) {
-	blocksAvailable := r.sn.BlocksAvailable()
+	blocksAvailable := r.sn.blocksAvailable()
 	if blocksAvailable == 0 || blockHeight > blocksAvailable {
 		if forceCanonical {
 			canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
@@ -759,7 +759,7 @@ func (r *BlockReader) txnByHash(txnHash common.Hash, segments []*TxnSegment, buf
 // TxnByIdxInBlock - doesn't include system-transactions in the begin/end of block
 // return nil if 0 < i < body.TxAmount
 func (r *BlockReader) TxnByIdxInBlock(ctx context.Context, tx kv.Getter, blockNum uint64, txIdxInBlock int) (txn types.Transaction, err error) {
-	blocksAvailable := r.sn.BlocksAvailable()
+	blocksAvailable := r.sn.blocksAvailable()
 	if blocksAvailable == 0 || blockNum > blocksAvailable {
 		canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockNum)
 		if err != nil {
@@ -826,7 +826,7 @@ func (r *BlockReader) FirstTxNumNotInSnapshots() uint64 {
 	view := r.sn.View()
 	defer view.Close()
 
-	sn, ok := view.TxsSegment(r.sn.BlocksAvailable())
+	sn, ok := view.TxsSegment(r.sn.blocksAvailable())
 	if !ok {
 		return 0
 	}
