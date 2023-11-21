@@ -346,7 +346,7 @@ func (s *RoSnapshots) SegmentsReady() bool           { return s.segmentsReady.Lo
 func (s *RoSnapshots) IndicesReady() bool            { return s.indicesReady.Load() }
 func (s *RoSnapshots) IndicesMax() uint64            { return s.idxMax.Load() }
 func (s *RoSnapshots) SegmentsMax() uint64           { return s.segmentsMax.Load() }
-func (s *RoSnapshots) BlocksAvailable() uint64       { return cmp.Min(s.segmentsMax.Load(), s.idxMax.Load()) }
+func (s *RoSnapshots) BlocksAvailable() uint64       { return s.idxMax.Load() }
 func (s *RoSnapshots) LogStat() {
 	var m runtime.MemStats
 	dbg.ReadMemStats(&m)
