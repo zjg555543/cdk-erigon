@@ -88,9 +88,9 @@ const StepsInColdFile = 32
 
 var (
 	asserts        = dbg.EnvBool("AGG_ASSERTS", false)
-	traceFileLife  = dbg.EnvString("AGG_TRACE_FILE_LIFE", "")
-	traceGetLatest = dbg.EnvString("AGG_TRACE_GET_LATEST", "")
-	traceGetAsOf   = dbg.EnvString("AGG_TRACE_GET_AS_OF", "")
+	traceFileLife  = dbg.EnvString("AGG_TRACE_FILE_LIFE", "")  //domain name
+	traceGetLatest = dbg.EnvString("AGG_TRACE_GET_LATEST", "") //domain name
+	traceGetAsOf   = dbg.EnvString("AGG_TRACE_GET_AS_OF", "")  //domain name
 )
 
 // filesItem corresponding to a pair of files (.dat and .idx)
