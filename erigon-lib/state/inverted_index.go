@@ -506,6 +506,10 @@ func (ii *InvertedIndex) openFiles() error {
 		}
 		return true
 	})
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+
 	for _, item := range invalidFileItems {
 		ii.files.Delete(item)
 	}
