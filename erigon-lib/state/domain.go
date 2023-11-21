@@ -617,43 +617,45 @@ func (d *Domain) openFiles() (err error) {
 				invalidFileItems = append(invalidFileItems, item)
 				continue
 			}
-			if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
-				err = errors.Wrap(err, "decompressor")
-				d.logger.Debug("Domain.openFiles: %w, %s", err, datPath)
-				return false
-			}
+			eg.Go(func() error {
+				if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
+					err = errors.Wrap(err, "decompressor")
+					d.logger.Debug("Domain.openFiles: %w, %s", err, datPath)
+					return err
+				}
 
-			if item.index == nil && !UseBpsTree {
-				idxPath := d.kvAccessorFilePath(fromStep, toStep)
-				if dir.FileExist(idxPath) {
-					if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
-						err = errors.Wrap(err, "recsplit index")
-						d.logger.Debug("Domain.openFiles: %w, %s", err, idxPath)
-						return false
+				if item.index == nil && !UseBpsTree {
+					idxPath := d.kvAccessorFilePath(fromStep, toStep)
+					if dir.FileExist(idxPath) {
+						if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
+							err = errors.Wrap(err, "recsplit index")
+							d.logger.Debug("Domain.openFiles: %w, %s", err, idxPath)
+							return err
+						}
 					}
 				}
-			}
-			if item.bindex == nil {
-				bidxPath := d.kvBtFilePath(fromStep, toStep)
-				if dir.FileExist(bidxPath) {
-					eg.Go(func() error {
+				if item.bindex == nil {
+					bidxPath := d.kvBtFilePath(fromStep, toStep)
+					if dir.FileExist(bidxPath) {
 						if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
 							err = errors.Wrap(err, "btree index")
 							d.logger.Debug("Domain.openFiles: %w, %s", err, bidxPath)
 							return err
 						}
 						return nil
-					})
-				}
-			}
-			if item.existence == nil {
-				idxPath := d.kvExistenceIdxFilePath(fromStep, toStep)
-				if dir.FileExist(idxPath) {
-					if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
-						return false
 					}
 				}
-			}
+
+				if item.existence == nil {
+					idxPath := d.kvExistenceIdxFilePath(fromStep, toStep)
+					if dir.FileExist(idxPath) {
+						if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
+							return err
+						}
+					}
+				}
+				return nil
+			})
 		}
 		return true
 	})
