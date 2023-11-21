@@ -221,8 +221,6 @@ func FillDBFromSnapshots(logPrefix string, ctx context.Context, tx kv.RwTx, dirs
 					if blockHash == (common.Hash{}) {
 						log.Warn(fmt.Sprintf("[dbg] writing canonical marker, but see empty hash!!: %d\n", blockNum))
 					}
-					canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
-					log.Warn("[dbg] assert ReadCanonicalHash(40834412) hash: %x, %s", canonicalHash, ee)
 				}
 
 				if err := rawdb.WriteCanonicalHash(tx, blockHash, blockNum); err != nil {
