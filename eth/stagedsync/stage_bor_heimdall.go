@@ -235,6 +235,7 @@ func BorHeimdallForward(
 		log.Warn("[dbg] chainReader", "e", chain.GetHeaderByNumber(40834412) == nil)
 		canonicalHash, ee := rawdb.ReadCanonicalHash(tx, 40834412)
 		log.Warn("[dbg] rawdb.ReadCanonicalHash", "canonicalHash", fmt.Sprintf("%x", canonicalHash), "ee", ee)
+		panic(1)
 	}
 
 	var blockNum uint64
