@@ -103,12 +103,13 @@ func seedableSnapshotsBySubDir(dir, subDir string) ([]string, error) {
 		if len(subs) != 5 {
 			continue
 		}
+		fmt.Printf("[dbg] %d, %d", subs[3], subs[4])
 		// Check that it's seedable
-		from, err := strconv.ParseUint(subs[2], 10, 64)
+		from, err := strconv.ParseUint(subs[3], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("ParseFileName: %w", err)
 		}
-		to, err := strconv.ParseUint(subs[3], 10, 64)
+		to, err := strconv.ParseUint(subs[4], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("ParseFileName: %w", err)
 		}
