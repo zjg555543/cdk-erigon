@@ -99,7 +99,7 @@ func seedableSnapshotsBySubDir(dir, subDir string) ([]string, error) {
 	for _, fPath := range files {
 		_, name := filepath.Split(fPath)
 		subs := historyFileRegex.FindStringSubmatch(name)
-		fmt.Printf("[dbg] %d, %s", len(subs), name)
+		fmt.Printf("[dbg] %d, %s, %s", len(subs), name, subs)
 		if len(subs) != 5 {
 			continue
 		}
