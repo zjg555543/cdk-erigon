@@ -175,11 +175,12 @@ func DownloadAndIndexSnapshotsIfNeed(s *StageState, ctx context.Context, tx kv.R
 		casted.ForceReopenAggCtx() // otherwise next stages will not see just-indexed-files
 		log.Info(fmt.Sprintf("[%s] ViewID: %d, AggCtxID: %d", s.LogPrefix(), tx.ViewID(), tx.(*temporal.Tx).AggCtx().ViewID()))
 	}
+
+	lastBn, lastTn, _ := rawdbv3.TxNums.Last(tx)
+	log.Info("[dbg] last tx num", "lastBn", lastBn, "tastTn", lastTn)
 	tx.(state.HasAggCtx).AggCtx().LogStats(tx, func(endTxNumMinimax uint64) uint64 {
 		found, histBlockNumProgress, _ := rawdbv3.TxNums.FindBlockNum(tx, endTxNumMinimax)
-		lastBn, lastTn, _ := rawdbv3.TxNums.Last(tx)
-
-		log.Info("[dbg] LogStats", "found", found, "txNum", endTxNumMinimax, "histBlockNumProgress", histBlockNumProgress, "lastBn", lastBn, "tastTn", lastTn)
+		log.Info("[dbg] LogStats", "found", found, "txNum", endTxNumMinimax, "histBlockNumProgress", histBlockNumProgress)
 		return histBlockNumProgress
 	})
 
