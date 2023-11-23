@@ -225,6 +225,7 @@ func (d *WebSeeds) downloadTorrentFilesFromProviders(ctx context.Context, rootDi
 	if !d.downloadTorrentFile {
 		return
 	}
+	fmt.Printf("verbosity: %s, %d\n", d.verbosity, len(d.TorrentUrls()))
 	if len(d.TorrentUrls()) == 0 {
 		return
 	}
