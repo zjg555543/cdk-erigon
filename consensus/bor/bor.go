@@ -992,19 +992,20 @@ func (c *Bor) Finalize(config *chain.Config, header *types.Header, state *state.
 		return nil, nil, consensus.ErrUnexpectedWithdrawals
 	}
 
-	if isSprintStart(headerNumber, c.config.CalculateSprint(headerNumber)) {
+	sprintNum := c.config.CalculateSprint(headerNumber)
+	if isSprintStart(headerNumber, sprintNum) {
 		cx := statefull.ChainContext{Chain: chain, Bor: c}
 
 		if c.blockReader != nil {
 			// check and commit span
 			if err := c.checkAndCommitSpan(state, header, cx, syscall); err != nil {
-				err := fmt.Errorf("Finalize.checkAndCommitSpan: %w", err)
+				err := fmt.Errorf("Finalize.checkAndCommitSpan: sprint=%d, %w", sprintNum, err)
 				c.logger.Error("[bor] committing span", "err", err)
 				return nil, types.Receipts{}, err
 			}
 			// commit states
 			if err := c.CommitStates(state, header, cx, syscall); err != nil {
-				err := fmt.Errorf("Finalize.CommitStates: %w", err)
+				err := fmt.Errorf("Finalize.CommitStates: sprint=%d, %w", sprintNum, err)
 				c.logger.Error("[bor] Error while committing states", "err", err)
 				return nil, types.Receipts{}, err
 			}
