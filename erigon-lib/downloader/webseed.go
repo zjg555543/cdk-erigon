@@ -233,6 +233,7 @@ func (d *WebSeeds) downloadTorrentFilesFromProviders(ctx context.Context, rootDi
 	urlsByName := d.TorrentUrls()
 	//TODO:
 	// - what to do if node already synced?
+	fmt.Printf("verbosity: %s\n", d.verbosity)
 	for name, tUrls := range urlsByName {
 		tPath := filepath.Join(rootDir, name)
 		if dir.FileExist(tPath) {
