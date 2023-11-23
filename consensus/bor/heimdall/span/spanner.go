@@ -57,7 +57,7 @@ func (c *ChainSpanner) GetCurrentSpan(syscall consensus.SystemCall) (*Span, erro
 	})
 
 	if err := c.validatorSet.UnpackIntoInterface(ret, method, result); err != nil {
-		return nil, fmt.Errorf("validatorContract=%x, data=%x, result=%x, %w", validatorContractAddr, data, result, err)
+		return nil, fmt.Errorf("validatorContract=%x, data=%x, result=%x, %w,  dataS=%x, resultS=%x,", validatorContractAddr, data, result, err, data, result)
 	}
 
 	// create new span
