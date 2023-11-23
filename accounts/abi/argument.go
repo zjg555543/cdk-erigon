@@ -98,7 +98,7 @@ func (arguments Arguments) Unpack(data []byte) ([]interface{}, error) {
 func (arguments Arguments) UnpackIntoMap(v map[string]interface{}, data []byte) error {
 	// Make sure map is not nil
 	if v == nil {
-		return fmt.Errorf("abi: cannot unpack into a nil map")
+		return fmt.Errorf("abi: cannot unpack into a nil map: %s", dbg.Stack())
 	}
 	if len(data) == 0 {
 		if len(arguments) != 0 {
