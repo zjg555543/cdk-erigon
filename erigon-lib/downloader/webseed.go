@@ -93,6 +93,7 @@ func (d *WebSeeds) downloadWebseedTomlFromProviders(ctx context.Context, s3Provi
 				webSeedUrls[name] = append(webSeedUrls[name], wUrl)
 				continue
 			}
+			fmt.Printf("whitelisted: %s, %t\n", name, d.isWhitelistedName(name))
 			if !d.isWhitelistedName(name) {
 				continue
 			}
