@@ -318,6 +318,7 @@ func validateTorrentBytes(fileName string, b []byte, whitelist snapcfg.Preverifi
 	torrentHash := mi.HashInfoBytes()
 	torrentHashString := torrentHash.String()
 	var whitelisted bool
+	fileName = strings.TrimSuffix(fileName, ".torrent")
 	for i := 0; i < len(whitelist); i++ {
 		// files with different names can have same hash. means need check AND name AND hash.
 		if whitelist[i].Name == fileName && whitelist[i].Hash == torrentHashString {
