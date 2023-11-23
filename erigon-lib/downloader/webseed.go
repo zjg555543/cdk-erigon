@@ -259,6 +259,7 @@ func (d *WebSeeds) downloadTorrentFilesFromProviders(ctx context.Context, rootDi
 		}
 		name := name
 		tUrls := tUrls
+		fmt.Printf("verbosity: %s\n", d.verbosity)
 		e.Go(func() error {
 			for _, url := range tUrls {
 				res, err := d.callTorrentHttpProvider(ctx, url, name)
