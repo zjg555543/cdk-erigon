@@ -239,15 +239,15 @@ func (d *WebSeeds) downloadTorrentFilesFromProviders(ctx context.Context, rootDi
 			continue
 		}
 		addedNew++
-		whiteListed := strings.HasSuffix(name, ".seg.torrent") ||
-			strings.HasSuffix(name, ".kv.torrent") ||
-			strings.HasSuffix(name, ".v.torrent") ||
-			strings.HasSuffix(name, ".ef.torrent")
-		if !whiteListed {
-			_, fName := filepath.Split(name)
-			d.logger.Log(d.verbosity, "[snapshots] webseed has .torrent, but we skip it because this file-type not supported yet", "name", fName)
-			continue
-		}
+		//whiteListedExtension := strings.HasSuffix(name, ".seg.torrent") ||
+		//	strings.HasSuffix(name, ".kv.torrent") ||
+		//	strings.HasSuffix(name, ".v.torrent") ||
+		//	strings.HasSuffix(name, ".ef.torrent")
+		//if !whiteListedExtension {
+		//	_, fName := filepath.Split(name)
+		//	d.logger.Log(d.verbosity, "[snapshots] webseed has .torrent, but we skip it because this file-type not supported yet", "name", fName)
+		//	continue
+		//}
 		//Erigon3 doesn't provide history of commitment (.v, .ef files), but does provide .kv:
 		// - prohibit v1-commitment...v, v2-commitment...ef, etc...
 		// - allow v1-commitment...kv
