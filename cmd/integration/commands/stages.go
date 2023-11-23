@@ -1600,7 +1600,9 @@ func newSync(ctx context.Context, db kv.RwDB, miningConfig *params.MiningConfig,
 		panic(genesisErr)
 	}
 	//logger.Info("Initialised chain configuration", "config", chainConfig)
-
+	if chainConfig.Bor != nil {
+		fmt.Printf("chainConfig.Bor: %#v\n", chainConfig)
+	}
 	var batchSize datasize.ByteSize
 	must(batchSize.UnmarshalText([]byte(batchSizeStr)))
 
