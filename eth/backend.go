@@ -337,6 +337,7 @@ func New(ctx context.Context, stack *node.Node, config *ethconfig.Config, logger
 		}
 		chainKv = backend.chainDB //nolint
 	}
+
 	if err := backend.setUpSnapDownloader(ctx, config.Downloader); err != nil {
 		return nil, err
 	}
