@@ -93,7 +93,6 @@ func (d *WebSeeds) downloadWebseedTomlFromProviders(ctx context.Context, s3Provi
 				webSeedUrls[name] = append(webSeedUrls[name], wUrl)
 				continue
 			}
-			fmt.Printf("whitelisted: %d, %s, %t\n", len(d.torrentsWhitelist), name, d.isWhitelistedName(name))
 			if !d.isWhitelistedName(name) {
 				continue
 			}
@@ -114,7 +113,9 @@ func (d *WebSeeds) downloadWebseedTomlFromProviders(ctx context.Context, s3Provi
 
 func (d *WebSeeds) isWhitelistedName(fileName string) bool {
 	for i := 0; i < len(d.torrentsWhitelist); i++ {
+		fmt.Printf("whitelisted: %s, %s\n", fileName, d.torrentsWhitelist[i].Name)
 		if d.torrentsWhitelist[i].Name == fileName {
+			fmt.Printf("")
 			return true
 		}
 	}
