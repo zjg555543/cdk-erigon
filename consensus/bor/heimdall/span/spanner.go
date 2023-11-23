@@ -43,9 +43,10 @@ func (c *ChainSpanner) GetCurrentSpan(syscall consensus.SystemCall) (*Span, erro
 		return nil, err
 	}
 
-	result, err := syscall(libcommon.HexToAddress(c.chainConfig.Bor.ValidatorContract), data)
+	validatorContractAddr := libcommon.HexToAddress(c.chainConfig.Bor.ValidatorContract)
+	result, err := syscall(validatorContractAddr, data)
 	if err != nil {
-		return nil, fmt.Errorf("validatorContract=%x, %w", c.chainConfig.Bor.ValidatorContract, err)
+		return nil, fmt.Errorf("validatorContract=%x, %w", validatorContractAddr, err)
 	}
 
 	// span result
@@ -56,7 +57,7 @@ func (c *ChainSpanner) GetCurrentSpan(syscall consensus.SystemCall) (*Span, erro
 	})
 
 	if err := c.validatorSet.UnpackIntoInterface(ret, method, result); err != nil {
-		return nil, fmt.Errorf("validatorContract=%x, %w", c.chainConfig.Bor.ValidatorContract, err)
+		return nil, fmt.Errorf("validatorContract=%x, %w", validatorContractAddr, err)
 	}
 
 	// create new span
