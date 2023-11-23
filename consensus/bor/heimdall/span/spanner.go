@@ -3,6 +3,7 @@ package span
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
@@ -55,7 +56,7 @@ func (c *ChainSpanner) GetCurrentSpan(syscall consensus.SystemCall) (*Span, erro
 	})
 
 	if err := c.validatorSet.UnpackIntoInterface(ret, method, result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("result=%x, %s, err=%w", result, result, err)
 	}
 
 	// create new span
