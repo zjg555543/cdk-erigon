@@ -31,8 +31,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
 	bloomfilter "github.com/holiman/bloomfilter/v2"
+	"github.com/ledgerwatch/erigon-lib/metrics"
 	"github.com/pkg/errors"
 	btree2 "github.com/tidwall/btree"
 	"golang.org/x/sync/errgroup"
