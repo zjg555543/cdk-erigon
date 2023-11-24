@@ -824,6 +824,7 @@ func (ac *AggregatorV3Context) LogStats(tx kv.Tx, tx2block func(endTxNumMinimax 
 		ac.tracesFrom.maxTxNumInFiles(false),
 		ac.tracesTo.maxTxNumInFiles(false),
 	)
+
 	if ac.a.minimaxTxNumInFiles.Load() == 0 {
 		return
 	}
