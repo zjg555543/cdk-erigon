@@ -38,6 +38,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
+	"github.com/ledgerwatch/erigon-lib/metrics"
 
 	"github.com/ledgerwatch/log/v3"
 
