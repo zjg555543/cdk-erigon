@@ -310,19 +310,16 @@ func (dc *DomainContext) maxTxNumInDomainFiles(cold bool) uint64 {
 	if len(dc.files) == 0 {
 		return 0
 	}
-	var max uint64
-	if cold {
-		for i := len(dc.files) - 1; i >= 0; i-- {
-			if !dc.files[i].src.frozen {
-				continue
-			}
-			max = dc.files[i].endTxNum
-			break
-		}
-	} else {
-		max = dc.files[len(dc.files)-1].endTxNum
+	if !cold {
+		return dc.files[len(dc.files)-1].endTxNum
 	}
-	return max
+	for i := len(dc.files) - 1; i >= 0; i-- {
+		if !dc.files[i].src.frozen {
+			continue
+		}
+		return dc.files[i].endTxNum
+	}
+	return 0
 }
 
 func (hc *HistoryContext) maxTxNumInFiles(cold bool) uint64 {

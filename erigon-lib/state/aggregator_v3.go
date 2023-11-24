@@ -701,21 +701,11 @@ type flusher interface {
 func (ac *AggregatorV3Context) maxTxNumInDomainFiles(cold bool) uint64 {
 	return cmp.Min(
 		cmp.Min(
-			cmp.Min(
-				ac.account.maxTxNumInDomainFiles(cold),
-				ac.code.maxTxNumInDomainFiles(cold)),
-			cmp.Min(
-				ac.storage.maxTxNumInDomainFiles(cold),
-				ac.commitment.maxTxNumInDomainFiles(cold)),
-		),
+			ac.account.maxTxNumInDomainFiles(cold),
+			ac.code.maxTxNumInDomainFiles(cold)),
 		cmp.Min(
-			cmp.Min(
-				ac.logAddrs.maxTxNumInFiles(cold),
-				ac.logTopics.maxTxNumInFiles(cold)),
-			cmp.Min(
-				ac.tracesFrom.maxTxNumInFiles(cold),
-				ac.tracesTo.maxTxNumInFiles(cold)),
-		),
+			ac.storage.maxTxNumInDomainFiles(cold),
+			ac.commitment.maxTxNumInDomainFiles(cold)),
 	)
 }
 
@@ -821,7 +811,6 @@ func (ac *AggregatorV3Context) LogStats(tx kv.Tx, tx2block func(endTxNumMinimax 
 	}
 
 	domainBlockNumProgress := tx2block(maxTxNum)
-
 	str := make([]string, 0, len(ac.account.files))
 	for _, item := range ac.account.files {
 		bn := tx2block(item.endTxNum)
@@ -868,7 +857,7 @@ func (a *AggregatorV3) EndTxNumNoCommitment() uint64 {
 }
 
 func (a *AggregatorV3) EndTxNumMinimax() uint64 { return a.minimaxTxNumInFiles.Load() }
-func (a *AggregatorV3) EndTxNumFrozenAndIndexed() uint64 {
+func (a *AggregatorV3) EndTxNumDomainsFrozen() uint64 {
 	return cmp.Min(
 		cmp.Min(
 			a.accounts.endIndexedTxNumMinimax(true),
@@ -1550,7 +1539,7 @@ type AggregatorStep struct {
 }
 
 func (a *AggregatorV3) MakeSteps() ([]*AggregatorStep, error) {
-	frozenAndIndexed := a.EndTxNumFrozenAndIndexed()
+	frozenAndIndexed := a.EndTxNumDomainsFrozen()
 	accountSteps := a.accounts.MakeSteps(frozenAndIndexed)
 	codeSteps := a.code.MakeSteps(frozenAndIndexed)
 	storageSteps := a.storage.MakeSteps(frozenAndIndexed)
