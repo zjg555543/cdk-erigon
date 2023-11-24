@@ -999,13 +999,13 @@ func (c *Bor) Finalize(config *chain.Config, header *types.Header, state *state.
 		if c.blockReader != nil {
 			// check and commit span
 			if err := c.checkAndCommitSpan(state, header, cx, syscall); err != nil {
-				err := fmt.Errorf("Finalize.checkAndCommitSpan: sprint=%d, blockNum=%d, %w", sprintNum, headerNumber, err)
+				err := fmt.Errorf("Finalize.checkAndCommitSpan: %w", err)
 				c.logger.Error("[bor] committing span", "err", err)
 				return nil, types.Receipts{}, err
 			}
 			// commit states
 			if err := c.CommitStates(state, header, cx, syscall); err != nil {
-				err := fmt.Errorf("Finalize.CommitStates: sprint=%d, blockNum=%d, %w", sprintNum, headerNumber, err)
+				err := fmt.Errorf("Finalize.CommitStates: %w", err)
 				c.logger.Error("[bor] Error while committing states", "err", err)
 				return nil, types.Receipts{}, err
 			}
