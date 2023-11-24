@@ -1528,8 +1528,10 @@ func allSnapshots(ctx context.Context, db kv.RoDB, logger log.Logger) (*freezebl
 			db.View(context.Background(), func(tx kv.Tx) error {
 				ac := _aggSingleton.MakeContext()
 				defer ac.Close()
+
 				ac.LogStats(tx, func(endTxNumMinimax uint64) uint64 {
 					_, histBlockNumProgress, _ := rawdbv3.TxNums.FindBlockNum(tx, endTxNumMinimax)
+					fmt.Printf("search: %d -> %d\n", endTxNumMinimax, histBlockNumProgress)
 					return histBlockNumProgress
 				})
 				return nil

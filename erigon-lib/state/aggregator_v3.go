@@ -818,6 +818,7 @@ func (ac *AggregatorV3Context) LogStats(tx kv.Tx, tx2block func(endTxNumMinimax 
 	}
 
 	histBlockNumProgress := tx2block(ac.maxTxNumInFiles(false))
+
 	str := make([]string, 0, len(ac.account.files))
 	for _, item := range ac.account.files {
 		bn := tx2block(item.endTxNum)
