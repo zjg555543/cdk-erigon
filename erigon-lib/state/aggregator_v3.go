@@ -814,6 +814,7 @@ func (ac *AggregatorV3Context) Prune(ctx context.Context, tx kv.RwTx) error {
 
 func (ac *AggregatorV3Context) LogStats(tx kv.Tx, tx2block func(endTxNumMinimax uint64) uint64) {
 	fmt.Printf("alex: %d\n", ac.maxTxNumInFiles(false))
+	fmt.Printf("alex2: %d\n", ac.a.minimaxTxNumInFiles.Load())
 	if ac.a.minimaxTxNumInFiles.Load() == 0 {
 		return
 	}
