@@ -815,25 +815,12 @@ func (ac *AggregatorV3Context) Prune(ctx context.Context, tx kv.RwTx) error {
 }
 
 func (ac *AggregatorV3Context) LogStats(tx kv.Tx, tx2block func(endTxNumMinimax uint64) uint64) {
-	fmt.Printf("alex: acc=%d, comm=%d, agg=%d, ac.a.minimaxTxNumInFiles.Load()=%d\n", ac.account.maxTxNumInDomainFiles(false), ac.commitment.maxTxNumInDomainFiles(false), ac.maxTxNumInDomainFiles(false),
-		ac.a.minimaxTxNumInFiles.Load())
-
-	fmt.Printf("alex2: %d, %d\n", ac.a.EndTxNumMinimax(), ac.a.EndTxNumFrozenAndIndexed())
-	fmt.Printf("alex3: %d, %d, %d, %d, %d, %d, %d, %d\n", ac.account.maxTxNumInDomainFiles(false),
-		ac.storage.maxTxNumInDomainFiles(false),
-		ac.code.maxTxNumInDomainFiles(false),
-		ac.commitment.maxTxNumInDomainFiles(false),
-		ac.logAddrs.maxTxNumInFiles(false),
-		ac.logTopics.maxTxNumInFiles(false),
-		ac.tracesFrom.maxTxNumInFiles(false),
-		ac.tracesTo.maxTxNumInFiles(false),
-	)
-
-	if ac.a.minimaxTxNumInFiles.Load() == 0 {
+	maxTxNum := ac.maxTxNumInDomainFiles(false)
+	if maxTxNum == 0 {
 		return
 	}
 
-	domainBlockNumProgress := tx2block(ac.maxTxNumInDomainFiles(false))
+	domainBlockNumProgress := tx2block(maxTxNum)
 
 	str := make([]string, 0, len(ac.account.files))
 	for _, item := range ac.account.files {
