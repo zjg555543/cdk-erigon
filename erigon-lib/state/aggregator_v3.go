@@ -698,15 +698,15 @@ type flusher interface {
 	Flush(ctx context.Context, tx kv.RwTx) error
 }
 
-func (ac *AggregatorV3Context) maxTxNumInFiles(cold bool) uint64 {
+func (ac *AggregatorV3Context) maxTxNumInDomainFiles(cold bool) uint64 {
 	return cmp.Min(
 		cmp.Min(
 			cmp.Min(
-				ac.account.maxTxNumInFiles(cold),
-				ac.code.maxTxNumInFiles(cold)),
+				ac.account.maxTxNumInDomainFiles(cold),
+				ac.code.maxTxNumInDomainFiles(cold)),
 			cmp.Min(
-				ac.storage.maxTxNumInFiles(cold),
-				ac.commitment.maxTxNumInFiles(cold)),
+				ac.storage.maxTxNumInDomainFiles(cold),
+				ac.commitment.maxTxNumInDomainFiles(cold)),
 		),
 		cmp.Min(
 			cmp.Min(
@@ -720,8 +720,8 @@ func (ac *AggregatorV3Context) maxTxNumInFiles(cold bool) uint64 {
 }
 
 func (ac *AggregatorV3Context) CanPrune(tx kv.Tx) bool {
-	//fmt.Printf("can prune: from=%d < current=%d, keep=%d\n", ac.CanPruneFrom(tx)/ac.a.aggregationStep, ac.maxTxNumInFiles(false)/ac.a.aggregationStep, ac.a.keepInDB)
-	return ac.CanPruneFrom(tx) < ac.maxTxNumInFiles(false)
+	//fmt.Printf("can prune: from=%d < current=%d, keep=%d\n", ac.CanPruneFrom(tx)/ac.a.aggregationStep, ac.maxTxNumInDomainFiles(false)/ac.a.aggregationStep, ac.a.keepInDB)
+	return ac.CanPruneFrom(tx) < ac.maxTxNumInDomainFiles(false)
 }
 func (ac *AggregatorV3Context) CanPruneFrom(tx kv.Tx) uint64 {
 	fst, _ := kv.FirstKey(tx, ac.a.tracesTo.indexKeysTable)
@@ -739,7 +739,9 @@ func (ac *AggregatorV3Context) CanUnwindDomainsToBlockNum(tx kv.Tx) (uint64, err
 	_, histBlockNumProgress, err := rawdbv3.TxNums.FindBlockNum(tx, ac.CanUnwindDomainsToTxNum())
 	return histBlockNumProgress, err
 }
-func (ac *AggregatorV3Context) CanUnwindDomainsToTxNum() uint64 { return ac.maxTxNumInFiles(false) }
+func (ac *AggregatorV3Context) CanUnwindDomainsToTxNum() uint64 {
+	return ac.maxTxNumInDomainFiles(false)
+}
 
 func (ac *AggregatorV3Context) PruneWithTimeout(ctx context.Context, timeout time.Duration, tx kv.RwTx) error {
 	cc, cancel := context.WithTimeout(ctx, timeout)
@@ -813,12 +815,14 @@ func (ac *AggregatorV3Context) Prune(ctx context.Context, tx kv.RwTx) error {
 }
 
 func (ac *AggregatorV3Context) LogStats(tx kv.Tx, tx2block func(endTxNumMinimax uint64) uint64) {
-	fmt.Printf("alex: %d\n", ac.maxTxNumInFiles(false))
+	fmt.Printf("alex: acc=%d, comm=%d, agg=%d, ac.a.minimaxTxNumInFiles.Load()=%d\n", ac.account.maxTxNumInDomainFiles(false), ac.commitment.maxTxNumInDomainFiles(false), ac.maxTxNumInDomainFiles(false),
+		ac.a.minimaxTxNumInFiles.Load())
+
 	fmt.Printf("alex2: %d, %d\n", ac.a.EndTxNumMinimax(), ac.a.EndTxNumFrozenAndIndexed())
-	fmt.Printf("alex3: %d, %d, %d, %d, %d, %d, %d, %d\n", ac.account.maxTxNumInFiles(false),
-		ac.storage.maxTxNumInFiles(false),
-		ac.code.maxTxNumInFiles(false),
-		ac.commitment.maxTxNumInFiles(false),
+	fmt.Printf("alex3: %d, %d, %d, %d, %d, %d, %d, %d\n", ac.account.maxTxNumInDomainFiles(false),
+		ac.storage.maxTxNumInDomainFiles(false),
+		ac.code.maxTxNumInDomainFiles(false),
+		ac.commitment.maxTxNumInDomainFiles(false),
 		ac.logAddrs.maxTxNumInFiles(false),
 		ac.logTopics.maxTxNumInFiles(false),
 		ac.tracesFrom.maxTxNumInFiles(false),
@@ -829,7 +833,7 @@ func (ac *AggregatorV3Context) LogStats(tx kv.Tx, tx2block func(endTxNumMinimax 
 		return
 	}
 
-	histBlockNumProgress := tx2block(ac.maxTxNumInFiles(false))
+	domainBlockNumProgress := tx2block(ac.maxTxNumInDomainFiles(false))
 
 	str := make([]string, 0, len(ac.account.files))
 	for _, item := range ac.account.files {
@@ -853,7 +857,7 @@ func (ac *AggregatorV3Context) LogStats(tx kv.Tx, tx2block func(endTxNumMinimax 
 	var m runtime.MemStats
 	dbg.ReadMemStats(&m)
 	log.Info("[snapshots] History Stat",
-		"blocks", fmt.Sprintf("%dk", (histBlockNumProgress+1)/1000),
+		"blocks", fmt.Sprintf("%dk", (domainBlockNumProgress+1)/1000),
 		"txs", fmt.Sprintf("%dm", ac.a.minimaxTxNumInFiles.Load()/1_000_000),
 		"txNum2blockNum", strings.Join(str, ","),
 		"first_history_idx_in_db", firstHistoryIndexBlockInDB,
