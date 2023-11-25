@@ -2026,6 +2026,7 @@ func (dc *DomainContext) IteratePrefix(roTx kv.Tx, prefix []byte, it func(k []by
 	}
 
 	for i, item := range dc.files {
+		log.Warn("[dbg] IteratePrefix", "file", item.getter.FileName())
 		if UseBtree || UseBpsTree {
 			cursor, err := dc.statelessBtree(i).Seek(dc.statelessGetter(i), prefix)
 			if err != nil {
@@ -2037,6 +2038,7 @@ func (dc *DomainContext) IteratePrefix(roTx kv.Tx, prefix []byte, it func(k []by
 			dc.d.stats.FilesQueries.Add(1)
 			key := cursor.Key()
 			if key != nil && bytes.HasPrefix(key, prefix) {
+				log.Warn("[dbg] IteratePrefix2", "file", item.getter.FileName())
 				val := cursor.Value()
 				heap.Push(&cp, &CursorItem{t: FILE_CURSOR, dg: dc.statelessGetter(i), key: key, val: val, btCursor: cursor, endTxNum: item.endTxNum, reverse: true})
 			}
