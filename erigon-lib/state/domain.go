@@ -612,18 +612,19 @@ func (d *Domain) openFiles() (err error) {
 	d.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			if item.decompressor != nil {
+				log.Warn("[dbg] skip????", "n", item.decompressor.FileName())
 				continue
 			}
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
 			datPath := d.kvFilePath(fromStep, toStep)
 			if !dir.FileExist(datPath) {
+				log.Warn("[dbg] skip1????", "n", datPath)
 				invalidFileItems = append(invalidFileItems, item)
 				continue
 			}
 			if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
 				err = errors.Wrap(err, "decompressor")
-				d.logger.Debug("Domain.openFiles: %w, %s", err, datPath)
-				return false
+				d.logger.Warn("Domain.openFiles: %w, %s", err, datPath)
 			}
 
 			if item.index == nil && !UseBpsTree {
@@ -631,8 +632,7 @@ func (d *Domain) openFiles() (err error) {
 				if dir.FileExist(idxPath) {
 					if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
 						err = errors.Wrap(err, "recsplit index")
-						d.logger.Debug("Domain.openFiles: %w, %s", err, idxPath)
-						return false
+						d.logger.Warn("Domain.openFiles: %w, %s", err, idxPath)
 					}
 				}
 			}
@@ -642,16 +642,18 @@ func (d *Domain) openFiles() (err error) {
 				if dir.FileExist(bidxPath) {
 					if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
 						err = errors.Wrap(err, "btree index")
-						d.logger.Debug("Domain.openFiles: %w, %s", err, bidxPath)
-						return false
+						d.logger.Warn("Domain.openFiles: %w, %s", err, bidxPath)
 					}
 				}
+			} else {
+				log.Warn("[dbg] open2", "see", item.bindex.FileName())
 			}
 			if item.existence == nil {
 				idxPath := d.kvExistenceIdxFilePath(fromStep, toStep)
 				if dir.FileExist(idxPath) {
 					if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
-						return false
+						err = errors.Wrap(err, "existence index")
+						d.logger.Warn("Domain.openFiles: %w, %s", err, idxPath)
 					}
 				}
 			}
