@@ -292,7 +292,7 @@ func (r *BlockReader) HeaderByNumber(ctx context.Context, tx kv.Getter, blockHei
 		if h != nil {
 			return h, nil
 		}
-		fmt.Printf("[dbg] HeaderByNumber3: %d, %d\n", blockHeight, r.FrozenBlocks())
+		fmt.Printf("[dbg] HeaderByNumber3: %d, %t\n", blockHeight, blockHeight >= r.FrozenBorBlocks())
 		return nil, nil
 	}
 
