@@ -638,6 +638,7 @@ func (d *Domain) openFiles() (err error) {
 			}
 			if item.bindex == nil {
 				bidxPath := d.kvBtFilePath(fromStep, toStep)
+				log.Warn("[dbg] open exists", "exists", dir.FileExist(bidxPath), "open", bidxPath)
 				if dir.FileExist(bidxPath) {
 					if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
 						err = errors.Wrap(err, "btree index")
