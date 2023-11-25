@@ -166,6 +166,7 @@ func ExecV3(ctx context.Context,
 
 	useExternalTx := applyTx != nil
 	if !useExternalTx {
+		log.Warn("[dbg] e3", "!useExternalTx", !useExternalTx)
 		if err := agg.BuildOptionalMissedIndices(ctx, estimate.IndexSnapshot.Workers()); err != nil {
 			return err
 		}
@@ -196,7 +197,9 @@ func ExecV3(ctx context.Context,
 	}
 	if initialCycle {
 		if casted, ok := applyTx.(*temporal.Tx); ok {
-			log.Info(fmt.Sprintf("[%s] ViewID: %d, AggCtxID: %d", execStage.LogPrefix(), casted.ViewID(), casted.AggCtx().ViewID()))
+			log.Info(fmt.Sprintf("[%s] ViewID1: %d, AggCtxID: %d", execStage.LogPrefix(), casted.ViewID(), casted.AggCtx().ViewID()))
+			casted.ForceReopenAggCtx()
+			log.Info(fmt.Sprintf("[%s] ViewID2: %d, AggCtxID: %d", execStage.LogPrefix(), casted.ViewID(), casted.AggCtx().ViewID()))
 			casted.AggCtx().LogStats(casted, func(endTxNumMinimax uint64) uint64 {
 				_, histBlockNumProgress, _ := rawdbv3.TxNums.FindBlockNum(casted, endTxNumMinimax)
 				return histBlockNumProgress
