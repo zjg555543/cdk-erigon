@@ -278,7 +278,8 @@ func (r *BlockReader) HeadersRange(ctx context.Context, walker func(header *type
 }
 
 func (r *BlockReader) HeaderByNumber(ctx context.Context, tx kv.Getter, blockHeight uint64) (h *types.Header, err error) {
-	fmt.Printf("[dbg] HeaderByNumber1: %d, %d, %t\n", blockHeight, r.FrozenBlocks(), blockHeight >= r.FrozenBorBlocks())
+	fmt.Printf("[dbg] HeaderByNumber1: %d, %d, %t, %t\n", blockHeight, r.FrozenBlocks(), blockHeight >= r.FrozenBorBlocks(), blockHeight < r.FrozenBorBlocks())
+	fmt.Printf("[dbg] HeaderByNumber1: %d, %d, %t, %t\n", blockHeight, r.FrozenBlocks(), blockHeight >= r.FrozenBorBlocks(), blockHeight < r.FrozenBorBlocks())
 	if blockHeight >= r.FrozenBorBlocks() {
 		blockHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
 		if err != nil {
