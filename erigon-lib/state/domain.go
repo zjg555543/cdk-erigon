@@ -704,7 +704,8 @@ func (d *Domain) closeWhatNotInList(fNames []string) {
 }
 
 func (d *Domain) reCalcRoFiles() {
-	roFiles := ctxFiles(d.files, d.indexList, false)
+	log.Warn("[dbg] reCalcRoFiles", "n", d.filenameBase)
+	roFiles := ctxFiles(d.files, d.indexList, true)
 	d.roFiles.Store(&roFiles)
 }
 
