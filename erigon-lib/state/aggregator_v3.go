@@ -244,7 +244,6 @@ func (a *AggregatorV3) OpenFolder(readonly bool) error {
 	a.aggregatedStep.Store(mx / a.aggregationStep)
 	return nil
 }
-
 func (a *AggregatorV3) OpenList(files []string, readonly bool) error {
 	//log.Warn("[dbg] OpenList", "l", files)
 

@@ -278,18 +278,21 @@ func (r *BlockReader) HeadersRange(ctx context.Context, walker func(header *type
 }
 
 func (r *BlockReader) HeaderByNumber(ctx context.Context, tx kv.Getter, blockHeight uint64) (h *types.Header, err error) {
+	fmt.Printf("[dbg] HeaderByNumber1: %d, %d\n", blockHeight, r.FrozenBlocks())
 	if blockHeight >= r.FrozenBorBlocks() {
 		blockHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
 		if err != nil {
 			return nil, err
 		}
 		if blockHash == (common.Hash{}) {
+			fmt.Printf("[dbg] HeaderByNumber2: %d, %d\n", blockHeight, r.FrozenBlocks())
 			return nil, nil
 		}
 		h = rawdb.ReadHeader(tx, blockHash, blockHeight)
 		if h != nil {
 			return h, nil
 		}
+		fmt.Printf("[dbg] HeaderByNumber3: %d, %d\n", blockHeight, r.FrozenBlocks())
 		return nil, nil
 	}
 
@@ -297,6 +300,7 @@ func (r *BlockReader) HeaderByNumber(ctx context.Context, tx kv.Getter, blockHei
 	defer view.Close()
 	seg, ok := view.HeadersSegment(blockHeight)
 	if !ok {
+		fmt.Printf("[dbg] HeaderByNumber4: %d, %d\n", blockHeight, r.FrozenBlocks())
 		return
 	}
 
@@ -304,6 +308,7 @@ func (r *BlockReader) HeaderByNumber(ctx context.Context, tx kv.Getter, blockHei
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("[dbg] HeaderByNumber5: %d, %t\n", blockHeight, h == nil)
 	return h, nil
 }
 
