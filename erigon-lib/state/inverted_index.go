@@ -943,7 +943,7 @@ func (ic *InvertedIndexContext) Prune(ctx context.Context, rwTx kv.RwTx, txFrom,
 	defer mxPruneInProgress.Dec()
 
 	ii := ic.ii
-	defer func(t time.Time) { mxPruneTookIndex.UpdateDuration(t) }(time.Now())
+	defer func(t time.Time) { mxPruneTookIndex.ObserveDuration(t) }(time.Now())
 
 	keysCursor, err := rwTx.RwCursorDupSort(ii.indexKeysTable)
 	if err != nil {
@@ -1485,7 +1485,7 @@ func (ii *InvertedIndex) collate(ctx context.Context, step uint64, roTx kv.Tx) (
 	stepTo := step + 1
 	txFrom, txTo := step*ii.aggregationStep, stepTo*ii.aggregationStep
 	start := time.Now()
-	defer mxCollateTook.UpdateDuration(start)
+	defer mxCollateTook.ObserveDuration(start)
 
 	keysCursor, err := roTx.CursorDupSort(ii.indexKeysTable)
 	if err != nil {
@@ -1664,18 +1664,6 @@ func (ii *InvertedIndex) integrateFiles(sf InvertedFiles, txNumFrom, txNumTo uin
 	ii.files.Set(fi)
 
 	ii.reCalcRoFiles()
-}
-
-func (ii *InvertedIndex) DisableReadAhead() {
-	ii.files.Walk(func(items []*filesItem) bool {
-		for _, item := range items {
-			item.decompressor.DisableReadAhead()
-			if item.index != nil {
-				item.index.DisableReadAhead()
-			}
-		}
-		return true
-	})
 }
 
 func (ii *InvertedIndex) collectFilesStat() (filesCount, filesSize, idxSize uint64) {
