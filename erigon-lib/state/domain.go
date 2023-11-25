@@ -2025,6 +2025,7 @@ func (dc *DomainContext) IteratePrefix(roTx kv.Tx, prefix []byte, it func(k []by
 		heap.Push(&cp, &CursorItem{t: DB_CURSOR, key: k, val: v, c: keysCursor, endTxNum: txNum + dc.d.aggregationStep, reverse: true})
 	}
 
+	log.Warn("[dbg] IteratePrefix0", "files", len(dc.files))
 	for i, item := range dc.files {
 		log.Warn("[dbg] IteratePrefix", "file", item.getter.FileName())
 		if UseBtree || UseBpsTree {
