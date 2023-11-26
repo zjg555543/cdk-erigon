@@ -870,15 +870,6 @@ func (a *AggregatorV3) EndTxNumDomainsFrozen() uint64 {
 	)
 }
 func (a *AggregatorV3) recalcMaxTxNum() {
-	log.Warn("[dbg] recalcMaxTxNum")
-	log.Warn("[dbg] recalcMaxTxNum", "accounts", a.accounts.endTxNumMinimax())
-	log.Warn("[dbg] recalcMaxTxNum", "storage", a.storage.endTxNumMinimax())
-	log.Warn("[dbg] recalcMaxTxNum", "code", a.code.endTxNumMinimax())
-	log.Warn("[dbg] recalcMaxTxNum", "commitment", a.commitment.endTxNumMinimax())
-	log.Warn("[dbg] recalcMaxTxNum", "logAddrs", a.logAddrs.endTxNumMinimax())
-	log.Warn("[dbg] recalcMaxTxNum", "logTopics", a.logTopics.endTxNumMinimax())
-	log.Warn("[dbg] recalcMaxTxNum", "tracesFrom", a.tracesFrom.endTxNumMinimax())
-	log.Warn("[dbg] recalcMaxTxNum", "tracesTo", a.tracesTo.endTxNumMinimax())
 	min := a.accounts.endTxNumMinimax()
 	if txNum := a.storage.endTxNumMinimax(); txNum < min {
 		min = txNum
