@@ -648,8 +648,6 @@ func (d *Domain) openFiles() (err error) {
 						// don't interrupt on error. other files may be good
 					}
 				}
-			} else {
-				log.Warn("[dbg] open2", "see", item.bindex.FileName())
 			}
 			if item.existence == nil {
 				fPath := d.kvExistenceIdxFilePath(fromStep, toStep)
