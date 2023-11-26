@@ -33,7 +33,6 @@ import (
 
 	bloomfilter "github.com/holiman/bloomfilter/v2"
 	"github.com/ledgerwatch/log/v3"
-	"github.com/pkg/errors"
 	btree2 "github.com/tidwall/btree"
 	"golang.org/x/sync/errgroup"
 
@@ -611,49 +610,53 @@ func (d *Domain) openFiles() (err error) {
 	invalidFileItems := make([]*filesItem, 0)
 	d.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
-			if item.decompressor != nil {
-				log.Warn("[dbg] skip????", "n", item.decompressor.FileName())
-				continue
-			}
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
-			datPath := d.kvFilePath(fromStep, toStep)
-			if !dir.FileExist(datPath) {
-				log.Warn("[dbg] skip1????", "n", datPath)
-				invalidFileItems = append(invalidFileItems, item)
-				continue
-			}
-			if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
-				err = errors.Wrap(err, "decompressor")
-				d.logger.Warn("Domain.openFiles: %w, %s", err, datPath)
+			if item.decompressor == nil {
+				fPath := d.kvFilePath(fromStep, toStep)
+				if !dir.FileExist(fPath) {
+					_, fName := filepath.Split(fPath)
+					d.logger.Debug("[agg] Domain.openFiles: file does not exists", "f", fName)
+					invalidFileItems = append(invalidFileItems, item)
+					continue
+				}
+
+				if item.decompressor, err = compress.NewDecompressor(fPath); err != nil {
+					_, fName := filepath.Split(fPath)
+					d.logger.Warn("[agg] Domain.openFiles", "err", err, "f", fName)
+					// don't interrupt on error. other files may be good. but skip indices open.
+					continue
+				}
 			}
 
 			if item.index == nil && !UseBpsTree {
-				idxPath := d.kvAccessorFilePath(fromStep, toStep)
-				if dir.FileExist(idxPath) {
-					if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
-						err = errors.Wrap(err, "recsplit index")
-						d.logger.Warn("Domain.openFiles: %w, %s", err, idxPath)
+				fPath := d.kvAccessorFilePath(fromStep, toStep)
+				if dir.FileExist(fPath) {
+					if item.index, err = recsplit.OpenIndex(fPath); err != nil {
+						_, fName := filepath.Split(fPath)
+						d.logger.Warn("[agg] Domain.openFiles", "err", err, "f", fName)
+						// don't interrupt on error. other files may be good
 					}
 				}
 			}
 			if item.bindex == nil {
-				bidxPath := d.kvBtFilePath(fromStep, toStep)
-				log.Warn("[dbg] open exists", "exists", dir.FileExist(bidxPath), "open", bidxPath)
-				if dir.FileExist(bidxPath) {
-					if item.bindex, err = OpenBtreeIndexWithDecompressor(bidxPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
-						err = errors.Wrap(err, "btree index")
-						d.logger.Warn("Domain.openFiles: %w, %s", err, bidxPath)
+				fPath := d.kvBtFilePath(fromStep, toStep)
+				if dir.FileExist(fPath) {
+					if item.bindex, err = OpenBtreeIndexWithDecompressor(fPath, DefaultBtreeM, item.decompressor, d.compression); err != nil {
+						_, fName := filepath.Split(fPath)
+						d.logger.Warn("[agg] Domain.openFiles", "err", err, "f", fName)
+						// don't interrupt on error. other files may be good
 					}
 				}
 			} else {
 				log.Warn("[dbg] open2", "see", item.bindex.FileName())
 			}
 			if item.existence == nil {
-				idxPath := d.kvExistenceIdxFilePath(fromStep, toStep)
-				if dir.FileExist(idxPath) {
-					if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
-						err = errors.Wrap(err, "existence index")
-						d.logger.Warn("Domain.openFiles: %w, %s", err, idxPath)
+				fPath := d.kvExistenceIdxFilePath(fromStep, toStep)
+				if dir.FileExist(fPath) {
+					if item.existence, err = OpenExistenceFilter(fPath); err != nil {
+						_, fName := filepath.Split(fPath)
+						d.logger.Warn("[agg] Domain.openFiles", "err", err, "f", fName)
+						// don't interrupt on error. other files may be good
 					}
 				}
 			}
@@ -1368,7 +1371,11 @@ func (d *Domain) BuildMissedIndices(ctx context.Context, g *errgroup.Group, ps *
 		if !UseBpsTree {
 			continue
 		}
+		if item.decompressor == nil {
+			log.Warn(fmt.Sprintf("[dbg] BuildMissedIndices: item with nil decompressor %s %d-%d", d.filenameBase, item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep))
+		}
 		item := item
+
 		g.Go(func() error {
 			fromStep, toStep := item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep
 			idxPath := d.kvBtFilePath(fromStep, toStep)
@@ -1381,6 +1388,9 @@ func (d *Domain) BuildMissedIndices(ctx context.Context, g *errgroup.Group, ps *
 	for _, item := range d.missedKviIdxFiles() {
 		if UseBpsTree {
 			continue
+		}
+		if item.decompressor == nil {
+			log.Warn(fmt.Sprintf("[dbg] BuildMissedIndices: item with nil decompressor %s %d-%d", d.filenameBase, item.startTxNum/d.aggregationStep, item.endTxNum/d.aggregationStep))
 		}
 		item := item
 		g.Go(func() error {
