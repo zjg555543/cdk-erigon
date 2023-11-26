@@ -2043,10 +2043,7 @@ func (dc *DomainContext) IteratePrefix(roTx kv.Tx, prefix []byte, it func(k []by
 		if item.src.decompressor == nil {
 			log.Warn("[dbg] IteratePrefix01", "file_is_nil", fmt.Sprintf("%s, %d-%d", dc.d.filenameBase, item.startTxNum/dc.d.aggregationStep, item.endTxNum/dc.d.aggregationStep))
 		}
-		if item.getter == nil {
-			log.Warn("[dbg] IteratePrefix02", "file_is_nil", fmt.Sprintf("%s, %d-%d", dc.d.filenameBase, item.startTxNum/dc.d.aggregationStep, item.endTxNum/dc.d.aggregationStep))
-		}
-		log.Warn("[dbg] IteratePrefix", "file", item.getter.FileName())
+		log.Warn("[dbg] IteratePrefix", "file", item.src.decompressor.FileName())
 		if UseBtree || UseBpsTree {
 			cursor, err := dc.statelessBtree(i).Seek(dc.statelessGetter(i), prefix)
 			if err != nil {
@@ -2058,7 +2055,7 @@ func (dc *DomainContext) IteratePrefix(roTx kv.Tx, prefix []byte, it func(k []by
 			dc.d.stats.FilesQueries.Add(1)
 			key := cursor.Key()
 			if key != nil && bytes.HasPrefix(key, prefix) {
-				log.Warn("[dbg] IteratePrefix2", "file", item.getter.FileName())
+				log.Warn("[dbg] IteratePrefix2", "file", item.src.decompressor.FileName())
 				val := cursor.Value()
 				heap.Push(&cp, &CursorItem{t: FILE_CURSOR, dg: dc.statelessGetter(i), key: key, val: val, btCursor: cursor, endTxNum: item.endTxNum, reverse: true})
 			}
