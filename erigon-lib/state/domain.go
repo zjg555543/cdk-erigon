@@ -2042,6 +2042,9 @@ func (dc *DomainContext) IteratePrefix(roTx kv.Tx, prefix []byte, it func(k []by
 
 	log.Warn("[dbg] IteratePrefix0", "files", len(dc.files))
 	for i, item := range dc.files {
+		if item.src.decompressor == nil {
+			log.Warn("[dbg] IteratePrefix", "file_is_nil", fmt.Sprintf("%s, %d-%d", dc.d.filenameBase, item.startTxNum/dc.d.aggregationStep, item.endTxNum/dc.d.aggregationStep))
+		}
 		log.Warn("[dbg] IteratePrefix", "file", item.getter.FileName())
 		if UseBtree || UseBpsTree {
 			cursor, err := dc.statelessBtree(i).Seek(dc.statelessGetter(i), prefix)
