@@ -246,7 +246,7 @@ func (a *AggregatorV3) OpenFolder(readonly bool) error {
 }
 
 func (a *AggregatorV3) OpenList(files []string, readonly bool) error {
-	log.Warn("[dbg] OpenList", "l", files)
+	//log.Warn("[dbg] OpenList", "l", files)
 
 	a.filesMutationLock.Lock()
 	defer a.filesMutationLock.Unlock()
@@ -587,7 +587,7 @@ func (a *AggregatorV3) buildFiles(ctx context.Context, step uint64) error {
 		static.CleanupOnError()
 		return fmt.Errorf("domain collate-build: %w", err)
 	}
-	mxStepTook.UpdateDuration(stepStartedAt)
+	mxStepTook.ObserveDuration(stepStartedAt)
 	a.integrateFiles(static, txFrom, txTo)
 	a.aggregatedStep.Store(step)
 
