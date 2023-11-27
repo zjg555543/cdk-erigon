@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	state2 "github.com/ledgerwatch/erigon-lib/state"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/spf13/cobra"
 
@@ -16,9 +17,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/common/length"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	kv2 "github.com/ledgerwatch/erigon-lib/kv/mdbx"
-	"github.com/ledgerwatch/erigon/common/math"
-	"github.com/ledgerwatch/erigon/core/state/temporal"
-
 	"github.com/ledgerwatch/erigon/cmd/utils"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/state"
@@ -89,7 +87,7 @@ var readDomains = &cobra.Command{
 		}
 		defer chainDb.Close()
 
-		stateDb, err := kv2.NewMDBX(log.New()).Path(filepath.Join(dirs.DataDir, "statedb")).WriteMap().Open()
+		stateDb, err := kv2.NewMDBX(log.New()).Path(filepath.Join(dirs.DataDir, "statedb")).WriteMap().Open(ctx)
 		if err != nil {
 			return
 		}
@@ -113,28 +111,21 @@ func requestDomains(chainDb, stateDb kv.RwDB, ctx context.Context, readDomain st
 	ac := agg.MakeContext()
 	defer ac.Close()
 
-	domains := agg.SharedDomains(ac)
-	defer agg.CloseSharedDomains()
-
 	stateTx, err := stateDb.BeginRw(ctx)
 	must(err)
 	defer stateTx.Rollback()
+	domains := state2.NewSharedDomains(stateTx)
+	defer agg.Close()
 
-	domains.SetTx(stateTx)
-
-	//defer agg.StartWrites().FinishWrites()
-
-	r := state.NewReaderV4(stateTx.(*temporal.Tx))
-	//w := state.NewWriterV4(stateTx.(*temporal.Tx))
-
-	latestBlock, latestTx, err := domains.SeekCommitment(0, math.MaxUint64)
+	r := state.NewReaderV4(domains)
 	if err != nil && startTxNum != 0 {
 		return fmt.Errorf("failed to seek commitment to tx %d: %w", startTxNum, err)
 	}
+	latestTx := domains.TxNum()
 	if latestTx < startTxNum {
 		return fmt.Errorf("latest available tx to start is  %d and its less than start tx %d", latestTx, startTxNum)
 	}
-	logger.Info("seek commitment", "block", latestBlock, "tx", latestTx)
+	logger.Info("seek commitment", "block", domains.BlockNum(), "tx", latestTx)
 
 	switch readDomain {
 	case "account":

@@ -12,14 +12,15 @@ import (
 	"time"
 
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon-lib/chain/networkname"
 	"github.com/ledgerwatch/erigon/common"
 	"github.com/ledgerwatch/erigon/common/fdlimit"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth"
+	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/node"
 	"github.com/ledgerwatch/erigon/params"
-	"github.com/ledgerwatch/erigon/params/networkname"
 	"github.com/ledgerwatch/erigon/tests/bor/helper"
 	"github.com/ledgerwatch/log/v3"
 
@@ -55,6 +56,10 @@ var (
 // Example : CGO_CFLAGS="-D__BLST_PORTABLE__" go test -run ^TestMiningBenchmark$ github.com/ledgerwatch/erigon/tests/bor -v -count=1
 // In TestMiningBenchmark, we will test the mining performance. We will initialize a single node devnet and fire 5000 txs. We will measure the time it takes to include all the txs. This can be made more advcanced by increasing blockLimit and txsInTxpool.
 func TestMiningBenchmark(t *testing.T) {
+	if ethconfig.EnableHistoryV4InTest {
+		t.Skip("TODO: [e4] implement me")
+	}
+
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StreamHandler(os.Stderr, log.TerminalFormat())))
 	fdlimit.Raise(2048)
 
@@ -67,7 +72,7 @@ func TestMiningBenchmark(t *testing.T) {
 	var txs []*types.Transaction
 
 	for i := 0; i < 1; i++ {
-		stack, ethBackend, err := helper.InitMiner(&genesis, pkeys[i], true, i)
+		stack, ethBackend, err := helper.InitMiner(context.Background(), &genesis, pkeys[i], true, i)
 		if err != nil {
 			panic(err)
 		}

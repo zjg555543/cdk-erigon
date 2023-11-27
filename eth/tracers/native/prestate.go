@@ -22,12 +22,13 @@ import (
 	"math/big"
 	"sync/atomic"
 
+	"github.com/ledgerwatch/erigon-lib/common/hexutil"
+
 	"github.com/holiman/uint256"
 
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 
-	"github.com/ledgerwatch/erigon/common/hexutil"
 	"github.com/ledgerwatch/erigon/core/vm"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/eth/tracers"
@@ -59,7 +60,7 @@ type accountMarshaling struct {
 
 type prestateTracer struct {
 	noopTracer
-	env       vm.VMInterface
+	env       *vm.EVM
 	pre       state
 	post      state
 	create    bool
@@ -93,7 +94,7 @@ func newPrestateTracer(ctx *tracers.Context, cfg json.RawMessage) (tracers.Trace
 }
 
 // CaptureStart implements the EVMLogger interface to initialize the tracing operation.
-func (t *prestateTracer) CaptureStart(env vm.VMInterface, from libcommon.Address, to libcommon.Address, precomplile, create bool, input []byte, gas uint64, value *uint256.Int, code []byte) {
+func (t *prestateTracer) CaptureStart(env *vm.EVM, from libcommon.Address, to libcommon.Address, precompile bool, create bool, input []byte, gas uint64, value *uint256.Int, code []byte) {
 	t.env = env
 	t.create = create
 	t.to = to

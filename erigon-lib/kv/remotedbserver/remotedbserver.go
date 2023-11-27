@@ -170,7 +170,7 @@ func (s *KvServer) rollback(id uint64) {
 	if ok {
 		tx.Lock()
 		defer tx.Unlock()
-		tx.Rollback()
+		tx.Rollback() //nolint
 		delete(s.txs, id)
 	}
 }
@@ -519,7 +519,7 @@ func (s *KvServer) DomainGet(ctx context.Context, req *remote.DomainGetReq) (rep
 			return fmt.Errorf("server DB doesn't implement kv.Temporal interface")
 		}
 		if req.Latest {
-			reply.V, reply.Ok, err = ttx.DomainGet(kv.Domain(req.Table), req.K, req.K2)
+			reply.V, err = ttx.DomainGet(kv.Domain(req.Table), req.K, req.K2)
 			if err != nil {
 				return err
 			}

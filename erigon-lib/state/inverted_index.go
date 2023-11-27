@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -54,7 +55,8 @@ import (
 
 type InvertedIndex struct {
 	iiCfg
-	files *btree2.BTreeG[*filesItem] // thread-safe, but maybe need 1 RWLock for all trees in AggregatorV3
+	files     *btree2.BTreeG[*filesItem] // thread-safe, but maybe need 1 RWLock for all trees in AggregatorV3
+	indexList idxList
 
 	// roFiles derivative from field `file`, but without garbage (canDelete=true, overlaps, etc...)
 	// MakeContext() using this field in zero-copy way
@@ -62,28 +64,25 @@ type InvertedIndex struct {
 
 	indexKeysTable  string // txnNum_u64 -> key (k+auto_increment)
 	indexTable      string // k -> txnNum_u64 , Needs to be table with DupSort
-	warmDir         string // Directory where static files are created
 	filenameBase    string
 	aggregationStep uint64
 
-	integrityFileExtensions []string
-	withLocalityIndex       bool
-	withExistenceIndex      bool
+	//TODO: re-visit this check - maybe we don't need it. It's abot kill in the middle of merge
+	integrityCheck func(fromStep, toStep uint64) bool
+
+	withLocalityIndex  bool
+	withExistenceIndex bool
 
 	// localityIdx of warm files - storing `steps` where `key` was updated
 	//  - need re-calc when new file created
 	//  - don't need re-calc after files merge - because merge doesn't change `steps` where `key` was updated
 	warmLocalityIdx *LocalityIndex
 	coldLocalityIdx *LocalityIndex
-	tx              kv.RwTx
 
 	garbageFiles []*filesItem // files that exist on disk, but ignored on opening folder - because they are garbage
 
 	// fields for history write
-	txNum      uint64
-	txNumBytes [8]byte
-	wal        *invertedIndexWAL
-	logger     log.Logger
+	logger log.Logger
 
 	noFsync bool // fsync is enabled by default, but tests can manually disable
 
@@ -92,9 +91,8 @@ type InvertedIndex struct {
 }
 
 type iiCfg struct {
-	salt        *uint32
-	dir, tmpdir string
-	dirs        datadir.Dirs
+	salt *uint32
+	dirs datadir.Dirs
 }
 
 func NewInvertedIndex(
@@ -104,27 +102,30 @@ func NewInvertedIndex(
 	indexKeysTable string,
 	indexTable string,
 	withLocalityIndex, withExistenceIndex bool,
-	integrityFileExtensions []string,
+	integrityCheck func(fromStep, toStep uint64) bool,
 	logger log.Logger,
 ) (*InvertedIndex, error) {
-	if cfg.dir == "" {
-		cfg.dir = cfg.dirs.SnapHistory
-		cfg.tmpdir = cfg.dirs.Tmp
+	if cfg.dirs.SnapDomain == "" {
+		panic("empty `dirs` varialbe")
 	}
 	ii := InvertedIndex{
-		iiCfg:                   cfg,
-		warmDir:                 cfg.dirs.SnapDomain,
-		files:                   btree2.NewBTreeGOptions[*filesItem](filesItemLess, btree2.Options{Degree: 128, NoLocks: false}),
-		aggregationStep:         aggregationStep,
-		filenameBase:            filenameBase,
-		indexKeysTable:          indexKeysTable,
-		indexTable:              indexTable,
-		compressWorkers:         1,
-		integrityFileExtensions: integrityFileExtensions,
-		withLocalityIndex:       withLocalityIndex,
-		withExistenceIndex:      withExistenceIndex,
-		logger:                  logger,
+		iiCfg:              cfg,
+		files:              btree2.NewBTreeGOptions[*filesItem](filesItemLess, btree2.Options{Degree: 128, NoLocks: false}),
+		aggregationStep:    aggregationStep,
+		filenameBase:       filenameBase,
+		indexKeysTable:     indexKeysTable,
+		indexTable:         indexTable,
+		compressWorkers:    1,
+		integrityCheck:     integrityCheck,
+		withLocalityIndex:  withLocalityIndex,
+		withExistenceIndex: withExistenceIndex,
+		logger:             logger,
 	}
+	ii.indexList = withHashMap
+	if ii.withExistenceIndex {
+		ii.indexList |= withExistence
+	}
+
 	ii.roFiles.Store(&[]ctxItem{})
 
 	if ii.withLocalityIndex {
@@ -136,28 +137,27 @@ func NewInvertedIndex(
 }
 
 func (ii *InvertedIndex) efExistenceIdxFilePath(fromStep, toStep uint64) string {
-	return filepath.Join(ii.dirs.SnapHistory, fmt.Sprintf("%s.%d-%d.efei", ii.filenameBase, fromStep, toStep))
+	return filepath.Join(ii.dirs.SnapAccessors, fmt.Sprintf("v1-%s.%d-%d.efei", ii.filenameBase, fromStep, toStep))
 }
 func (ii *InvertedIndex) efAccessorFilePath(fromStep, toStep uint64) string {
-	return filepath.Join(ii.dirs.SnapHistory, fmt.Sprintf("%s.%d-%d.efi", ii.filenameBase, fromStep, toStep))
+	return filepath.Join(ii.dirs.SnapAccessors, fmt.Sprintf("v1-%s.%d-%d.efi", ii.filenameBase, fromStep, toStep))
 }
 func (ii *InvertedIndex) efFilePath(fromStep, toStep uint64) string {
-	return filepath.Join(ii.dirs.SnapHistory, fmt.Sprintf("%s.%d-%d.ef", ii.filenameBase, fromStep, toStep))
+	return filepath.Join(ii.dirs.SnapIdx, fmt.Sprintf("v1-%s.%d-%d.ef", ii.filenameBase, fromStep, toStep))
 }
 
 func (ii *InvertedIndex) enableLocalityIndex() error {
 	var err error
-	ii.warmLocalityIdx = NewLocalityIndex(true, ii.warmDir, ii.filenameBase, ii.aggregationStep, ii.tmpdir, ii.salt, ii.logger)
+	ii.warmLocalityIdx = NewLocalityIndex(true, ii.dirs.SnapIdx, ii.filenameBase, ii.aggregationStep, ii.dirs.Tmp, ii.salt, ii.logger)
 	if err != nil {
-		return fmt.Errorf("NewHistory: %s, %w", ii.filenameBase, err)
+		return fmt.Errorf("NewLocalityIndex: %s, %w", ii.filenameBase, err)
 	}
-	ii.coldLocalityIdx = NewLocalityIndex(false, ii.dir, ii.filenameBase, ii.aggregationStep, ii.tmpdir, ii.salt, ii.logger)
+	ii.coldLocalityIdx = NewLocalityIndex(false, ii.dirs.SnapIdx, ii.filenameBase, ii.aggregationStep, ii.dirs.Tmp, ii.salt, ii.logger)
 	if err != nil {
-		return fmt.Errorf("NewHistory: %s, %w", ii.filenameBase, err)
+		return fmt.Errorf("NewLocalityIndex: %s, %w", ii.filenameBase, err)
 	}
 	return nil
 }
-
 func filesFromDir(dir string) ([]string, error) {
 	allFiles, err := os.ReadDir(dir)
 	if err != nil {
@@ -172,75 +172,72 @@ func filesFromDir(dir string) ([]string, error) {
 	}
 	return filtered, nil
 }
-func (ii *InvertedIndex) fileNamesOnDisk() ([]string, []string, error) {
-	files, err := os.ReadDir(ii.dir)
+func (ii *InvertedIndex) fileNamesOnDisk() (idx, hist, domain []string, err error) {
+	idx, err = filesFromDir(ii.dirs.SnapIdx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ReadDir: %w, %s", err, ii.dir)
+		return
 	}
-	filteredFiles := make([]string, 0, len(files))
-	for _, f := range files {
-		if !f.Type().IsRegular() {
-			continue
-		}
-		filteredFiles = append(filteredFiles, f.Name())
-	}
-
-	warmFiles := make([]string, 0, len(files))
-	files, err = os.ReadDir(ii.warmDir)
+	hist, err = filesFromDir(ii.dirs.SnapHistory)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ReadDir: %w, %s", err, ii.dir)
+		return
 	}
-	for _, f := range files {
-		if !f.Type().IsRegular() {
-			continue
-		}
-		warmFiles = append(warmFiles, f.Name())
+	domain, err = filesFromDir(ii.dirs.SnapDomain)
+	if err != nil {
+		return
 	}
-
-	return filteredFiles, warmFiles, nil
+	return
 }
 
-func (ii *InvertedIndex) OpenList(fNames, warmFNames []string) error {
-	if err := ii.warmLocalityIdx.OpenList(warmFNames); err != nil {
-		return err
+func (ii *InvertedIndex) OpenList(fNames []string, readonly bool) error {
+	{
+		if ii.withLocalityIndex {
+			accFiles, err := filesFromDir(ii.dirs.SnapAccessors)
+			if err != nil {
+				return err
+			}
+			if err := ii.warmLocalityIdx.OpenList(accFiles); err != nil {
+				return err
+			}
+			if err := ii.coldLocalityIdx.OpenList(accFiles); err != nil {
+				return err
+			}
+		}
 	}
-	if err := ii.coldLocalityIdx.OpenList(fNames); err != nil {
-		return err
-	}
+
 	ii.closeWhatNotInList(fNames)
 	ii.garbageFiles = ii.scanStateFiles(fNames)
 	if err := ii.openFiles(); err != nil {
-		return fmt.Errorf("InvertedIndex.openFiles: %s, %w", ii.filenameBase, err)
+		return fmt.Errorf("InvertedIndex(%s).openFiles: %w", ii.filenameBase, err)
 	}
+	_ = readonly // for future safety features. RPCDaemon must not delte files
 	return nil
 }
 
-func (ii *InvertedIndex) OpenFolder() error {
-	files, warm, err := ii.fileNamesOnDisk()
+func (ii *InvertedIndex) OpenFolder(readonly bool) error {
+	idxFiles, _, _, err := ii.fileNamesOnDisk()
 	if err != nil {
 		return err
 	}
-	return ii.OpenList(files, warm)
+	return ii.OpenList(idxFiles, readonly)
 }
 
 func (ii *InvertedIndex) scanStateFiles(fileNames []string) (garbageFiles []*filesItem) {
-	re := regexp.MustCompile("^" + ii.filenameBase + ".([0-9]+)-([0-9]+).ef$")
+	re := regexp.MustCompile("^v([0-9]+)-" + ii.filenameBase + ".([0-9]+)-([0-9]+).ef$")
 	var err error
-Loop:
 	for _, name := range fileNames {
 		subs := re.FindStringSubmatch(name)
-		if len(subs) != 3 {
+		if len(subs) != 4 {
 			if len(subs) != 0 {
 				ii.logger.Warn("File ignored by inverted index scan, more than 3 submatches", "name", name, "submatches", len(subs))
 			}
 			continue
 		}
 		var startStep, endStep uint64
-		if startStep, err = strconv.ParseUint(subs[1], 10, 64); err != nil {
+		if startStep, err = strconv.ParseUint(subs[2], 10, 64); err != nil {
 			ii.logger.Warn("File ignored by inverted index scan, parsing startTxNum", "error", err, "name", name)
 			continue
 		}
-		if endStep, err = strconv.ParseUint(subs[2], 10, 64); err != nil {
+		if endStep, err = strconv.ParseUint(subs[3], 10, 64); err != nil {
 			ii.logger.Warn("File ignored by inverted index scan, parsing endTxNum", "error", err, "name", name)
 			continue
 		}
@@ -252,13 +249,8 @@ Loop:
 		startTxNum, endTxNum := startStep*ii.aggregationStep, endStep*ii.aggregationStep
 		var newFile = newFilesItem(startTxNum, endTxNum, ii.aggregationStep)
 
-		for _, ext := range ii.integrityFileExtensions {
-			requiredFile := fmt.Sprintf("%s.%d-%d.%s", ii.filenameBase, startStep, endStep, ext)
-			if !dir.FileExist(filepath.Join(ii.dir, requiredFile)) {
-				ii.logger.Debug(fmt.Sprintf("[snapshots] skip %s because %s doesn't exists", name, requiredFile))
-				garbageFiles = append(garbageFiles, newFile)
-				continue Loop
-			}
+		if ii.integrityCheck != nil && !ii.integrityCheck(startStep, endStep) {
+			continue
 		}
 
 		if _, has := ii.files.Get(newFile); has {
@@ -292,32 +284,70 @@ Loop:
 		//for _, subSet := range subSets {
 		//	ii.files.Delete(subSet)
 		//}
-		if addNewFile {
+		if addNewFile && newFile != nil {
 			ii.files.Set(newFile)
 		}
 	}
 	return garbageFiles
 }
 
-func ctxFiles(files *btree2.BTreeG[*filesItem], requireHashIndex, requireBTreeIndex bool) (roItems []ctxItem) {
+type idxList int
+
+var (
+	withBTree     idxList = 0b1
+	withHashMap   idxList = 0b10
+	withExistence idxList = 0b100
+)
+
+func ctxFiles(files *btree2.BTreeG[*filesItem], l idxList, trace bool) (roItems []ctxItem) {
 	roFiles := make([]ctxItem, 0, files.Len())
+	if trace {
+		log.Warn("[dbg] roFiles01", "amount", files.Len())
+	}
 	files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			if item.canDelete.Load() {
+				if trace {
+					log.Warn("[dbg] roFiles0", "f", item.decompressor.FileName())
+				}
 				continue
 			}
 
 			// TODO: need somehow handle this case, but indices do not open in tests TestFindMergeRangeCornerCases
-			//if requireHashIndex && item.index == nil {
-			//	continue
-			//}
-			//if requireBTreeIndex && item.bindex == nil {
-			//	continue
-			//}
+			if item.decompressor == nil {
+				if trace {
+					log.Warn("[dbg] roFiles1", "from", item.startTxNum, "to", item.endTxNum)
+				}
+				continue
+			}
+			if (l&withBTree != 0) && item.bindex == nil {
+				if trace {
+					log.Warn("[dbg] roFiles2", "f", item.decompressor.FileName())
+				}
+				//panic(fmt.Errorf("btindex nil: %s", item.decompressor.FileName()))
+				continue
+			}
+			if (l&withHashMap != 0) && item.index == nil {
+				if trace {
+					log.Warn("[dbg] roFiles3", "f", item.decompressor.FileName())
+				}
+				//panic(fmt.Errorf("index nil: %s", item.decompressor.FileName()))
+				continue
+			}
+			if (l&withExistence != 0) && item.existence == nil {
+				if trace {
+					log.Warn("[dbg] roFiles4", "f", item.decompressor.FileName())
+				}
+				//panic(fmt.Errorf("existence nil: %s", item.decompressor.FileName()))
+				continue
+			}
 
 			// `kill -9` may leave small garbage files, but if big one already exists we assume it's good(fsynced) and no reason to merge again
 			// see super-set file, just drop sub-set files from list
 			for len(roFiles) > 0 && roFiles[len(roFiles)-1].src.isSubsetOf(item) {
+				if trace {
+					log.Warn("[dbg] roFiles5", "f", roFiles[len(roFiles)-1].src.decompressor.FileName())
+				}
 				roFiles[len(roFiles)-1].src = nil
 				roFiles = roFiles[:len(roFiles)-1]
 			}
@@ -337,7 +367,7 @@ func ctxFiles(files *btree2.BTreeG[*filesItem], requireHashIndex, requireBTreeIn
 }
 
 func (ii *InvertedIndex) reCalcRoFiles() {
-	roFiles := ctxFiles(ii.files, true, false)
+	roFiles := ctxFiles(ii.files, ii.indexList, false)
 	ii.roFiles.Store(&roFiles)
 }
 
@@ -345,7 +375,7 @@ func (ii *InvertedIndex) missedIdxFiles() (l []*filesItem) {
 	ii.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
-			if !dir.FileExist(filepath.Join(ii.dir, fmt.Sprintf("%s.%d-%d.efi", ii.filenameBase, fromStep, toStep))) {
+			if !dir.FileExist(ii.efAccessorFilePath(fromStep, toStep)) {
 				l = append(l, item)
 			}
 		}
@@ -357,7 +387,7 @@ func (ii *InvertedIndex) missedExistenceFilterFiles() (l []*filesItem) {
 	ii.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
 			fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
-			if !dir.FileExist(filepath.Join(ii.dir, fmt.Sprintf("%s.%d-%d.efei", ii.filenameBase, fromStep, toStep))) {
+			if !dir.FileExist(ii.efExistenceIdxFilePath(fromStep, toStep)) {
 				l = append(l, item)
 			}
 		}
@@ -367,28 +397,29 @@ func (ii *InvertedIndex) missedExistenceFilterFiles() (l []*filesItem) {
 }
 
 func (ii *InvertedIndex) buildEfi(ctx context.Context, item *filesItem, ps *background.ProgressSet) (err error) {
+	if item.decompressor == nil {
+		return fmt.Errorf("buildEfi: passed item with nil decompressor %s %d-%d", ii.filenameBase, item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep)
+	}
 	fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
-	fName := fmt.Sprintf("%s.%d-%d.efi", ii.filenameBase, fromStep, toStep)
-	idxPath := filepath.Join(ii.dir, fName)
-
-	return buildIndex(ctx, item.decompressor, CompressNone, idxPath, ii.tmpdir, false, ii.salt, ps, ii.logger, ii.noFsync)
+	idxPath := ii.efAccessorFilePath(fromStep, toStep)
+	return buildIndex(ctx, item.decompressor, CompressNone, idxPath, ii.dirs.Tmp, false, ii.salt, ps, ii.logger, ii.noFsync)
 }
 func (ii *InvertedIndex) buildExistenceFilter(ctx context.Context, item *filesItem, ps *background.ProgressSet) (err error) {
+	if item.decompressor == nil {
+		return fmt.Errorf("buildExistenceFilter: passed item with nil decompressor %s %d-%d", ii.filenameBase, item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep)
+	}
 	if !ii.withExistenceIndex {
 		return nil
 	}
 	fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
-	fName := fmt.Sprintf("%s.%d-%d.efei", ii.filenameBase, fromStep, toStep)
-	idxPath := filepath.Join(ii.dir, fName)
-	return buildIdxFilter(ctx, item.decompressor, CompressNone, idxPath, ii.tmpdir, ii.salt, ps, ii.logger, ii.noFsync)
+	idxPath := ii.efExistenceIdxFilePath(fromStep, toStep)
+	return buildIdxFilter(ctx, item.decompressor, CompressNone, idxPath, ii.salt, ps, ii.logger, ii.noFsync)
 }
-func buildIdxFilter(ctx context.Context, d *compress.Decompressor, compressed FileCompression, idxPath, tmpdir string, salt *uint32, ps *background.ProgressSet, logger log.Logger, noFsync bool) error {
+
+func buildIdxFilter(ctx context.Context, d *compress.Decompressor, compressed FileCompression, idxPath string, salt *uint32, ps *background.ProgressSet, logger log.Logger, noFsync bool) error {
 	g := NewArchiveGetter(d.MakeGetter(), compressed)
 	_, fileName := filepath.Split(idxPath)
 	count := d.Count() / 2
-	if count < 2 {
-		return nil
-	}
 
 	p := ps.AddNew(fileName, uint64(count))
 	defer ps.Delete(p)
@@ -397,6 +428,9 @@ func buildIdxFilter(ctx context.Context, d *compress.Decompressor, compressed Fi
 	idxFilter, err := NewExistenceFilter(uint64(count), idxPath)
 	if err != nil {
 		return err
+	}
+	if noFsync {
+		idxFilter.DisableFsync()
 	}
 	hasher := murmur3.New128WithSeed(*salt)
 
@@ -458,36 +492,42 @@ func (ii *InvertedIndex) openFiles() error {
 	var invalidFileItems []*filesItem
 	ii.files.Walk(func(items []*filesItem) bool {
 		for _, item := range items {
-			if item.decompressor != nil {
-				continue
-			}
 			fromStep, toStep := item.startTxNum/ii.aggregationStep, item.endTxNum/ii.aggregationStep
-			datPath := filepath.Join(ii.dir, fmt.Sprintf("%s.%d-%d.ef", ii.filenameBase, fromStep, toStep))
-			if !dir.FileExist(datPath) {
-				invalidFileItems = append(invalidFileItems, item)
-				continue
-			}
+			if item.decompressor == nil {
+				fPath := ii.efFilePath(fromStep, toStep)
+				if !dir.FileExist(fPath) {
+					_, fName := filepath.Split(fPath)
+					ii.logger.Debug("[agg] InvertedIndex.openFiles: file does not exists", "f", fName)
+					invalidFileItems = append(invalidFileItems, item)
+					continue
+				}
 
-			if item.decompressor, err = compress.NewDecompressor(datPath); err != nil {
-				ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, datPath)
-				continue
+				if item.decompressor, err = compress.NewDecompressor(fPath); err != nil {
+					_, fName := filepath.Split(fPath)
+					ii.logger.Warn("[agg] InvertedIndex.openFiles", "err", err, "f", fName)
+					invalidFileItems = append(invalidFileItems, item)
+					// don't interrupt on error. other files may be good. but skip indices open.
+					continue
+				}
 			}
 
 			if item.index == nil {
-				idxPath := filepath.Join(ii.dir, fmt.Sprintf("%s.%d-%d.efi", ii.filenameBase, fromStep, toStep))
-				if dir.FileExist(idxPath) {
-					if item.index, err = recsplit.OpenIndex(idxPath); err != nil {
-						ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, idxPath)
-						return false
+				fPath := ii.efAccessorFilePath(fromStep, toStep)
+				if dir.FileExist(fPath) {
+					if item.index, err = recsplit.OpenIndex(fPath); err != nil {
+						_, fName := filepath.Split(fPath)
+						ii.logger.Warn("[agg] InvertedIndex.openFiles", "err", err, "f", fName)
+						// don't interrupt on error. other files may be good
 					}
 				}
 			}
 			if item.existence == nil && ii.withExistenceIndex {
-				idxPath := filepath.Join(ii.dir, fmt.Sprintf("%s.%d-%d.efei", ii.filenameBase, fromStep, toStep))
-				if dir.FileExist(idxPath) {
-					if item.existence, err = OpenExistenceFilter(idxPath); err != nil {
-						ii.logger.Debug("InvertedIndex.openFiles: %w, %s", err, idxPath)
-						return false
+				fPath := ii.efExistenceIdxFilePath(fromStep, toStep)
+				if dir.FileExist(fPath) {
+					if item.existence, err = OpenExistenceFilter(fPath); err != nil {
+						_, fName := filepath.Split(fPath)
+						ii.logger.Warn("[agg] InvertedIndex.openFiles", "err", err, "f", fName)
+						// don't interrupt on error. other files may be good
 					}
 				}
 			}
@@ -528,6 +568,10 @@ func (ii *InvertedIndex) closeWhatNotInList(fNames []string) {
 			item.index.Close()
 			item.index = nil
 		}
+		if item.existence != nil {
+			item.existence.Close()
+			item.existence = nil
+		}
 		ii.files.Delete(item)
 	}
 }
@@ -551,60 +595,50 @@ func (ic *InvertedIndexContext) Files() (res []string) {
 	return res
 }
 
-func (ii *InvertedIndex) SetTx(tx kv.RwTx) {
-	ii.tx = tx
-}
-
-func (ii *InvertedIndex) SetTxNum(txNum uint64) {
-	ii.txNum = txNum
-	binary.BigEndian.PutUint64(ii.txNumBytes[:], ii.txNum)
+func (ic *InvertedIndexContext) SetTxNum(txNum uint64) {
+	ic.txNum = txNum
+	binary.BigEndian.PutUint64(ic.txNumBytes[:], ic.txNum)
 }
 
 // Add - !NotThreadSafe. Must use WalRLock/BatchHistoryWriteEnd
-func (ii *InvertedIndex) Add(key []byte) error {
-	return ii.wal.add(key, key)
-}
-func (ii *InvertedIndex) add(key, indexKey []byte) error { //nolint
-	return ii.wal.add(key, indexKey)
+func (ic *InvertedIndexContext) Add(key []byte) error {
+	return ic.wal.add(key, key)
 }
 
-func (ii *InvertedIndex) DiscardHistory(tmpdir string) {
-	ii.wal = ii.newWriter(tmpdir, false, true)
+func (ic *InvertedIndexContext) DiscardHistory() {
+	ic.wal = ic.newWriter(ic.ii.dirs.Tmp, true)
 }
-func (ii *InvertedIndex) StartWrites() {
-	ii.wal = ii.newWriter(ii.tmpdir, true, false)
+func (ic *InvertedIndexContext) StartWrites() {
+	ic.wal = ic.newWriter(ic.ii.dirs.Tmp, false)
 }
-func (ii *InvertedIndex) StartUnbufferedWrites() {
-	ii.wal = ii.newWriter(ii.tmpdir, false, false)
-}
-func (ii *InvertedIndex) FinishWrites() {
-	ii.wal.close()
-	ii.wal = nil
+func (ic *InvertedIndexContext) FinishWrites() {
+	if ic.wal != nil {
+		ic.wal.close()
+		ic.wal = nil
+	}
 }
 
-func (ii *InvertedIndex) Rotate() *invertedIndexWAL {
-	wal := ii.wal
+func (ic *InvertedIndexContext) Rotate() *invertedIndexWAL {
+	wal := ic.wal
 	if wal != nil {
-		if wal.buffered {
-			if err := wal.index.Flush(); err != nil {
-				panic(err)
-			}
-			if err := wal.indexKeys.Flush(); err != nil {
-				panic(err)
-			}
+		if err := wal.index.Flush(); err != nil {
+			panic(err)
 		}
-		ii.wal = ii.newWriter(ii.wal.tmpdir, ii.wal.buffered, ii.wal.discard)
+		if err := wal.indexKeys.Flush(); err != nil {
+			panic(err)
+		}
+		ic.wal = ic.newWriter(ic.wal.tmpdir, ic.wal.discard)
 	}
 	return wal
 }
 
 type invertedIndexWAL struct {
-	ii        *InvertedIndex
-	index     *etl.Collector
-	indexKeys *etl.Collector
-	tmpdir    string
-	buffered  bool
-	discard   bool
+	ic           *InvertedIndexContext
+	index        *etl.Collector
+	indexKeys    *etl.Collector
+	tmpdir       string
+	discard      bool
+	filenameBase string
 }
 
 // loadFunc - is analog of etl.Identity, but it signaling to etl - use .Put instead of .AppendDup - to allow duplicates
@@ -614,13 +648,13 @@ func loadFunc(k, v []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) 
 }
 
 func (ii *invertedIndexWAL) Flush(ctx context.Context, tx kv.RwTx) error {
-	if ii.discard || !ii.buffered {
+	if ii.discard {
 		return nil
 	}
-	if err := ii.index.Load(tx, ii.ii.indexTable, loadFunc, etl.TransformArgs{Quit: ctx.Done()}); err != nil {
+	if err := ii.index.Load(tx, ii.ic.ii.indexTable, loadFunc, etl.TransformArgs{Quit: ctx.Done()}); err != nil {
 		return err
 	}
-	if err := ii.indexKeys.Load(tx, ii.ii.indexKeysTable, loadFunc, etl.TransformArgs{Quit: ctx.Done()}); err != nil {
+	if err := ii.indexKeys.Load(tx, ii.ic.ii.indexKeysTable, loadFunc, etl.TransformArgs{Quit: ctx.Done()}); err != nil {
 		return err
 	}
 	ii.close()
@@ -641,21 +675,18 @@ func (ii *invertedIndexWAL) close() {
 
 // 3_domains * 2 + 3_history * 1 + 4_indices * 2 = 17 etl collectors, 17*(256Mb/8) = 512Mb - for all collectros
 var WALCollectorRAM = dbg.EnvDataSize("AGG_WAL_RAM", etl.BufferOptimalSize/8)
-var AggTraceFileLife = dbg.EnvString("AGG_TRACE_FILE_LIFE", "")
 
-func (ii *InvertedIndex) newWriter(tmpdir string, buffered, discard bool) *invertedIndexWAL {
-	w := &invertedIndexWAL{ii: ii,
-		buffered: buffered,
-		discard:  discard,
-		tmpdir:   tmpdir,
-	}
-	if buffered {
+func (ic *InvertedIndexContext) newWriter(tmpdir string, discard bool) *invertedIndexWAL {
+	w := &invertedIndexWAL{ic: ic,
+		discard:      discard,
+		tmpdir:       tmpdir,
+		filenameBase: ic.ii.filenameBase,
 		// etl collector doesn't fsync: means if have enough ram, all files produced by all collectors will be in ram
-		w.index = etl.NewCollector(ii.indexTable, tmpdir, etl.NewSortableBuffer(WALCollectorRAM), ii.logger)
-		w.indexKeys = etl.NewCollector(ii.indexKeysTable, tmpdir, etl.NewSortableBuffer(WALCollectorRAM), ii.logger)
-		w.index.LogLvl(log.LvlTrace)
-		w.indexKeys.LogLvl(log.LvlTrace)
+		indexKeys: etl.NewCollector(ic.ii.indexKeysTable, tmpdir, etl.NewSortableBuffer(WALCollectorRAM), ic.ii.logger),
+		index:     etl.NewCollector(ic.ii.indexTable, tmpdir, etl.NewSortableBuffer(WALCollectorRAM), ic.ii.logger),
 	}
+	w.indexKeys.LogLvl(log.LvlTrace)
+	w.index.LogLvl(log.LvlTrace)
 	return w
 }
 
@@ -663,22 +694,11 @@ func (ii *invertedIndexWAL) add(key, indexKey []byte) error {
 	if ii.discard {
 		return nil
 	}
-
-	if ii.buffered {
-		if err := ii.indexKeys.Collect(ii.ii.txNumBytes[:], key); err != nil {
-			return err
-		}
-
-		if err := ii.index.Collect(indexKey, ii.ii.txNumBytes[:]); err != nil {
-			return err
-		}
-	} else {
-		if err := ii.ii.tx.Put(ii.ii.indexKeysTable, ii.ii.txNumBytes[:], key); err != nil {
-			return err
-		}
-		if err := ii.ii.tx.Put(ii.ii.indexTable, indexKey, ii.ii.txNumBytes[:]); err != nil {
-			return err
-		}
+	if err := ii.indexKeys.Collect(ii.ic.txNumBytes[:], key); err != nil {
+		return err
+	}
+	if err := ii.index.Collect(indexKey, ii.ic.txNumBytes[:]); err != nil {
+		return err
 	}
 	return nil
 }
@@ -710,7 +730,7 @@ func (ic *InvertedIndexContext) Close() {
 		refCnt := files[i].src.refcount.Add(-1)
 		//GC: last reader responsible to remove useles files: close it and delete
 		if refCnt == 0 && files[i].src.canDelete.Load() {
-			if ic.ii.filenameBase == AggTraceFileLife {
+			if ic.ii.filenameBase == traceFileLife {
 				ic.ii.logger.Warn(fmt.Sprintf("[agg] real remove at ctx close: %s", files[i].src.decompressor.FileName()))
 			}
 			files[i].src.closeFilesAndRemove()
@@ -730,6 +750,10 @@ type InvertedIndexContext struct {
 	files   []ctxItem // have no garbage (overlaps, etc...)
 	getters []ArchiveGetter
 	readers []*recsplit.IndexReader
+
+	wal        *invertedIndexWAL
+	txNum      uint64
+	txNumBytes [8]byte
 
 	warmLocality *ctxLocalityIdx
 	coldLocality *ctxLocalityIdx
@@ -858,7 +882,6 @@ func (ic *InvertedIndexContext) recentIterateRange(key []byte, startTxNum, endTx
 		to = make([]byte, 8)
 		binary.BigEndian.PutUint64(to, uint64(endTxNum))
 	}
-
 	it, err := roTx.RangeDupSort(ic.ii.indexTable, key, from, to, asc, limit)
 	if err != nil {
 		return nil, err
@@ -897,6 +920,9 @@ func (ic *InvertedIndexContext) iterateRangeFrozen(key []byte, startTxNum, endTx
 			if startTxNum >= 0 && ic.files[i].endTxNum <= uint64(startTxNum) {
 				break
 			}
+			if ic.files[i].src.index.KeyCount() == 0 {
+				continue
+			}
 			it.stack = append(it.stack, ic.files[i])
 			it.stack[len(it.stack)-1].getter = it.stack[len(it.stack)-1].src.decompressor.MakeGetter()
 			it.stack[len(it.stack)-1].reader = it.stack[len(it.stack)-1].src.index.GetReaderFromPool()
@@ -911,7 +937,13 @@ func (ic *InvertedIndexContext) iterateRangeFrozen(key []byte, startTxNum, endTx
 			if startTxNum >= 0 && ic.files[i].startTxNum > uint64(startTxNum) {
 				break
 			}
-
+			if ic.files[i].src.index == nil { // assert
+				err := fmt.Errorf("why file has not index: %s\n", ic.files[i].src.decompressor.FileName())
+				panic(err)
+			}
+			if ic.files[i].src.index.KeyCount() == 0 {
+				continue
+			}
 			it.stack = append(it.stack, ic.files[i])
 			it.stack[len(it.stack)-1].getter = it.stack[len(it.stack)-1].src.decompressor.MakeGetter()
 			it.stack[len(it.stack)-1].reader = it.stack[len(it.stack)-1].src.index.GetReaderFromPool()
@@ -922,10 +954,29 @@ func (ic *InvertedIndexContext) iterateRangeFrozen(key []byte, startTxNum, endTx
 	return it, nil
 }
 
+func (ic *InvertedIndexContext) CanPruneFrom(tx kv.Tx) uint64 {
+	fst, _ := kv.FirstKey(tx, ic.ii.indexKeysTable)
+	if len(fst) > 0 {
+		fstInDb := binary.BigEndian.Uint64(fst)
+		return cmp.Min(fstInDb, math.MaxUint64)
+	}
+	return math.MaxUint64
+}
+
+func (ic *InvertedIndexContext) CanPrune(tx kv.Tx) bool {
+	return ic.CanPruneFrom(tx) < ic.maxTxNumInFiles(false)
+}
+
 // [txFrom; txTo)
 func (ic *InvertedIndexContext) Prune(ctx context.Context, rwTx kv.RwTx, txFrom, txTo, limit uint64, logEvery *time.Ticker) error {
+	if !ic.CanPrune(rwTx) {
+		return nil
+	}
+	mxPruneInProgress.Inc()
+	defer mxPruneInProgress.Dec()
+
 	ii := ic.ii
-	defer func(t time.Time) { mxPruneTookIndex.UpdateDuration(t) }(time.Now())
+	defer func(t time.Time) { mxPruneTookIndex.ObserveDuration(t) }(time.Now())
 
 	keysCursor, err := rwTx.RwCursorDupSort(ii.indexKeysTable)
 	if err != nil {
@@ -972,7 +1023,7 @@ func (ic *InvertedIndexContext) Prune(ctx context.Context, rwTx kv.RwTx, txFrom,
 		}
 
 		txNum := binary.BigEndian.Uint64(k)
-		if txNum >= txTo {
+		if txNum >= txTo { // [txFrom; txTo)
 			break
 		}
 		for ; v != nil; _, v, err = keysCursor.NextDup() {
@@ -1003,7 +1054,7 @@ func (ic *InvertedIndexContext) Prune(ctx context.Context, rwTx kv.RwTx, txFrom,
 				return err
 			}
 			txNum := binary.BigEndian.Uint64(v)
-			if txNum >= txTo {
+			if txNum >= txTo { // [txFrom; txTo)
 				break
 			}
 
@@ -1121,33 +1172,39 @@ func (it *FrozenInvertedIdxIter) advanceInFiles() {
 		}
 
 		//TODO: add seek method
-		//Asc:  [from, to) AND from > to
-		//Desc: [from, to) AND from < to
+		//Asc:  [from, to) AND from < to
+		//Desc: [from, to) AND from > to
 		if it.orderAscend {
 			for it.efIt.HasNext() {
 				n, _ := it.efIt.Next()
-				if it.endTxNum >= 0 && int(n) >= it.endTxNum {
+				isBeforeRange := int(n) < it.startTxNum
+				if isBeforeRange { //skip
+					continue
+				}
+				isAfterRange := it.endTxNum >= 0 && int(n) >= it.endTxNum
+				if isAfterRange { // terminate
 					it.hasNext = false
 					return
 				}
-				if int(n) >= it.startTxNum {
-					it.hasNext = true
-					it.nextN = n
-					return
-				}
+				it.hasNext = true
+				it.nextN = n
+				return
 			}
 		} else {
 			for it.efIt.HasNext() {
 				n, _ := it.efIt.Next()
-				if int(n) <= it.endTxNum {
+				isAfterRange := it.startTxNum >= 0 && int(n) > it.startTxNum
+				if isAfterRange { //skip
+					continue
+				}
+				isBeforeRange := it.endTxNum >= 0 && int(n) <= it.endTxNum
+				if isBeforeRange { // terminate
 					it.hasNext = false
 					return
 				}
-				if it.startTxNum >= 0 && int(n) <= it.startTxNum {
-					it.hasNext = true
-					it.nextN = n
-					return
-				}
+				it.hasNext = true
+				it.nextN = n
+				return
 			}
 		}
 		it.efIt = nil // Exhausted this iterator
@@ -1197,8 +1254,8 @@ func (it *RecentInvertedIdxIter) advanceInDB() {
 			it.hasNext = false
 			return
 		}
-		//Asc:  [from, to) AND from > to
-		//Desc: [from, to) AND from < to
+		//Asc:  [from, to) AND from < to
+		//Desc: [from, to) AND from > to
 		var keyBytes [8]byte
 		if it.startTxNum > 0 {
 			binary.BigEndian.PutUint64(keyBytes[:], uint64(it.startTxNum))
@@ -1233,8 +1290,8 @@ func (it *RecentInvertedIdxIter) advanceInDB() {
 		}
 	}
 
-	//Asc:  [from, to) AND from > to
-	//Desc: [from, to) AND from < to
+	//Asc:  [from, to) AND from < to
+	//Desc: [from, to) AND from > to
 	if it.orderAscend {
 		for ; v != nil; _, v, err = it.cursor.NextDup() {
 			if err != nil {
@@ -1457,12 +1514,11 @@ func (ic *InvertedIndexContext) IterateChangedKeys(startTxNum, endTxNum uint64, 
 }
 
 // collate [stepFrom, stepTo)
-func (ii *InvertedIndex) collate(ctx context.Context, stepFrom, stepTo uint64, roTx kv.Tx) (map[string]*roaring64.Bitmap, error) {
-	txFrom, txTo := stepFrom*ii.aggregationStep, stepTo*ii.aggregationStep
-	mxRunningCollations.Inc()
+func (ii *InvertedIndex) collate(ctx context.Context, step uint64, roTx kv.Tx) (map[string]*roaring64.Bitmap, error) {
+	stepTo := step + 1
+	txFrom, txTo := step*ii.aggregationStep, stepTo*ii.aggregationStep
 	start := time.Now()
-	defer mxRunningCollations.Dec()
-	defer mxCollateTook.UpdateDuration(start)
+	defer mxCollateTook.ObserveDuration(start)
 
 	keysCursor, err := roTx.CursorDupSort(ii.indexKeysTable)
 	if err != nil {
@@ -1472,18 +1528,16 @@ func (ii *InvertedIndex) collate(ctx context.Context, stepFrom, stepTo uint64, r
 	indexBitmaps := map[string]*roaring64.Bitmap{}
 	var txKey [8]byte
 	binary.BigEndian.PutUint64(txKey[:], txFrom)
-	var k, v []byte
-	for k, v, err = keysCursor.Seek(txKey[:]); k != nil; k, v, err = keysCursor.Next() {
+	for k, v, err := keysCursor.Seek(txKey[:]); k != nil; k, v, err = keysCursor.Next() {
 		if err != nil {
 			return nil, fmt.Errorf("iterate over %s keys cursor: %w", ii.filenameBase, err)
 		}
 		txNum := binary.BigEndian.Uint64(k)
-		if txNum >= txTo {
+		if txNum >= txTo { // [txFrom; txTo)
 			break
 		}
-		var bitmap *roaring64.Bitmap
-		var ok bool
-		if bitmap, ok = indexBitmaps[string(v)]; !ok {
+		bitmap, ok := indexBitmaps[string(v)]
+		if !ok {
 			bitmap = bitmapdb.NewBitmap64()
 			indexBitmaps[string(v)] = bitmap
 		}
@@ -1517,15 +1571,13 @@ func (sf InvertedFiles) CleanupOnError() {
 
 // buildFiles - `step=N` means build file `[N:N+1)` which is equal to [N:N+1)
 func (ii *InvertedIndex) buildFiles(ctx context.Context, step uint64, bitmaps map[string]*roaring64.Bitmap, ps *background.ProgressSet) (InvertedFiles, error) {
-	start := time.Now()
-	defer mxBuildTook.UpdateDuration(start)
-
 	var (
-		decomp    *compress.Decompressor
-		index     *recsplit.Index
-		existence *ExistenceFilter
-		comp      *compress.Compressor
-		err       error
+		decomp       *compress.Decompressor
+		index        *recsplit.Index
+		existence    *ExistenceFilter
+		comp         *compress.Compressor
+		warmLocality *LocalityIndexFiles
+		err          error
 	)
 	closeComp := true
 	defer func() {
@@ -1539,19 +1591,25 @@ func (ii *InvertedIndex) buildFiles(ctx context.Context, step uint64, bitmaps ma
 			if index != nil {
 				index.Close()
 			}
+			if existence != nil {
+				existence.Close()
+			}
+			if warmLocality != nil {
+				warmLocality.Close()
+			}
 		}
 	}()
-	datFileName := fmt.Sprintf("%s.%d-%d.ef", ii.filenameBase, step, step+1)
-	datPath := filepath.Join(ii.dir, datFileName)
+	datPath := ii.efFilePath(step, step+1)
 	keys := make([]string, 0, len(bitmaps))
 	for key := range bitmaps {
 		keys = append(keys, key)
 	}
+
 	slices.Sort(keys)
 	{
-		p := ps.AddNew(datFileName, 1)
+		p := ps.AddNew(path.Base(datPath), 1)
 		defer ps.Delete(p)
-		comp, err = compress.NewCompressor(ctx, "ef", datPath, ii.tmpdir, compress.MinPatternScore, ii.compressWorkers, log.LvlTrace, ii.logger)
+		comp, err = compress.NewCompressor(ctx, "snapshots", datPath, ii.dirs.Tmp, compress.MinPatternScore, ii.compressWorkers, log.LvlTrace, ii.logger)
 		if err != nil {
 			return InvertedFiles{}, fmt.Errorf("create %s compressor: %w", ii.filenameBase, err)
 		}
@@ -1584,21 +1642,19 @@ func (ii *InvertedIndex) buildFiles(ctx context.Context, step uint64, bitmaps ma
 		return InvertedFiles{}, fmt.Errorf("open %s decompressor: %w", ii.filenameBase, err)
 	}
 
-	idxFileName := fmt.Sprintf("%s.%d-%d.efi", ii.filenameBase, step, step+1)
-	idxPath := filepath.Join(ii.dir, idxFileName)
-	if index, err = buildIndexThenOpen(ctx, decomp, ii.compression, idxPath, ii.tmpdir, false, ii.salt, ps, ii.logger, ii.noFsync); err != nil {
+	idxPath := ii.efAccessorFilePath(step, step+1)
+	if index, err = buildIndexThenOpen(ctx, decomp, ii.compression, idxPath, ii.dirs.Tmp, false, ii.salt, ps, ii.logger, ii.noFsync); err != nil {
 		return InvertedFiles{}, fmt.Errorf("build %s efi: %w", ii.filenameBase, err)
 	}
 
 	if ii.withExistenceIndex {
-		idxFileName2 := fmt.Sprintf("%s.%d-%d.efei", ii.filenameBase, step, step+1)
-		idxPath2 := filepath.Join(ii.dir, idxFileName2)
-		if existence, err = buildIndexFilterThenOpen(ctx, decomp, ii.compression, idxPath2, ii.tmpdir, ii.salt, ps, ii.logger, ii.noFsync); err != nil {
+		idxPath2 := ii.efExistenceIdxFilePath(step, step+1)
+		if existence, err = buildIndexFilterThenOpen(ctx, decomp, ii.compression, idxPath2, ii.dirs.Tmp, ii.salt, ps, ii.logger, ii.noFsync); err != nil {
 			return InvertedFiles{}, fmt.Errorf("build %s efei: %w", ii.filenameBase, err)
 		}
 	}
 
-	warmLocality, err := ii.buildWarmLocality(ctx, decomp, step+1, ps)
+	warmLocality, err = ii.buildWarmLocality(ctx, decomp, step+1, ps)
 	if err != nil {
 		return InvertedFiles{}, fmt.Errorf("buildWarmLocality: %w", err)
 	}
@@ -1618,7 +1674,7 @@ func (ii *InvertedIndex) buildWarmLocality(ctx context.Context, decomp *compress
 	// Let's don't index. Because: speed of new files build is very important - to speed-up pruning
 	fromStep, toStep := ic.minWarmStep(), step+1
 	defer func() {
-		if ic.ii.filenameBase == AggTraceFileLife {
+		if ic.ii.filenameBase == traceFileLife {
 			ii.logger.Warn(fmt.Sprintf("[agg] BuildWarmLocality done: %s.%d-%d", ii.filenameBase, fromStep, toStep))
 		}
 	}()
@@ -1628,6 +1684,10 @@ func (ii *InvertedIndex) buildWarmLocality(ctx context.Context, decomp *compress
 }
 
 func (ii *InvertedIndex) integrateFiles(sf InvertedFiles, txNumFrom, txNumTo uint64) {
+	if asserts && ii.withExistenceIndex && sf.existence == nil {
+		panic(fmt.Errorf("assert: no existence index: %s", sf.decomp.FileName()))
+	}
+
 	ii.warmLocalityIdx.integrateFiles(sf.warmLocality)
 
 	fi := newFilesItem(txNumFrom, txNumTo, ii.aggregationStep)
@@ -1637,163 +1697,6 @@ func (ii *InvertedIndex) integrateFiles(sf InvertedFiles, txNumFrom, txNumTo uin
 	ii.files.Set(fi)
 
 	ii.reCalcRoFiles()
-}
-
-func (ii *InvertedIndex) warmup(ctx context.Context, txFrom, limit uint64, tx kv.Tx) error {
-	keysCursor, err := tx.CursorDupSort(ii.indexKeysTable)
-	if err != nil {
-		return fmt.Errorf("create %s keys cursor: %w", ii.filenameBase, err)
-	}
-	defer keysCursor.Close()
-	var txKey [8]byte
-	binary.BigEndian.PutUint64(txKey[:], txFrom)
-	var k, v []byte
-	idxC, err := tx.CursorDupSort(ii.indexTable)
-	if err != nil {
-		return err
-	}
-	defer idxC.Close()
-	k, v, err = keysCursor.Seek(txKey[:])
-	if err != nil {
-		return err
-	}
-	if k == nil {
-		return nil
-	}
-	txFrom = binary.BigEndian.Uint64(k)
-	txTo := txFrom + ii.aggregationStep
-	if limit != math.MaxUint64 && limit != 0 {
-		txTo = txFrom + limit
-	}
-	for ; k != nil; k, v, err = keysCursor.Next() {
-		if err != nil {
-			return fmt.Errorf("iterate over %s keys: %w", ii.filenameBase, err)
-		}
-		txNum := binary.BigEndian.Uint64(k)
-		if txNum >= txTo {
-			break
-		}
-		_, _ = idxC.SeekBothRange(v, k)
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-	}
-	return nil
-}
-
-// [txFrom; txTo)
-func (ii *InvertedIndex) prune(ctx context.Context, txFrom, txTo, limit uint64, logEvery *time.Ticker) error {
-	keysCursor, err := ii.tx.RwCursorDupSort(ii.indexKeysTable)
-	if err != nil {
-		return fmt.Errorf("create %s keys cursor: %w", ii.filenameBase, err)
-	}
-	defer keysCursor.Close()
-	var txKey [8]byte
-	binary.BigEndian.PutUint64(txKey[:], txFrom)
-	k, v, err := keysCursor.Seek(txKey[:])
-	if err != nil {
-		return err
-	}
-	if k == nil {
-		return nil
-	}
-	txFrom = binary.BigEndian.Uint64(k)
-	if limit != math.MaxUint64 && limit != 0 {
-		txTo = cmp.Min(txTo, txFrom+limit)
-	}
-	if txFrom >= txTo {
-		return nil
-	}
-
-	collector := etl.NewCollector("snapshots", ii.dirs.Tmp, etl.NewOldestEntryBuffer(etl.BufferOptimalSize), ii.logger)
-	defer collector.Close()
-	collector.LogLvl(log.LvlDebug)
-
-	idxCForDeletes, err := ii.tx.RwCursorDupSort(ii.indexTable)
-	if err != nil {
-		return err
-	}
-	defer idxCForDeletes.Close()
-	idxC, err := ii.tx.RwCursorDupSort(ii.indexTable)
-	if err != nil {
-		return err
-	}
-	defer idxC.Close()
-
-	// Invariant: if some `txNum=N` pruned - it's pruned Fully
-	// Means: can use DeleteCurrentDuplicates all values of given `txNum`
-	for ; k != nil; k, v, err = keysCursor.NextNoDup() {
-		if err != nil {
-			return err
-		}
-		txNum := binary.BigEndian.Uint64(k)
-		if txNum >= txTo {
-			break
-		}
-		for ; v != nil; _, v, err = keysCursor.NextDup() {
-			if err != nil {
-				return err
-			}
-			if err := collector.Collect(v, nil); err != nil {
-				return err
-			}
-		}
-
-		// This DeleteCurrent needs to the last in the loop iteration, because it invalidates k and v
-		if err = ii.tx.Delete(ii.indexKeysTable, k); err != nil {
-			return err
-		}
-	}
-	if err != nil {
-		return fmt.Errorf("iterate over %s keys: %w", ii.filenameBase, err)
-	}
-
-	if err := collector.Load(ii.tx, "", func(key, _ []byte, table etl.CurrentTableReader, next etl.LoadNextFunc) error {
-		for v, err := idxC.SeekBothRange(key, txKey[:]); v != nil; _, v, err = idxC.NextDup() {
-			if err != nil {
-				return err
-			}
-			txNum := binary.BigEndian.Uint64(v)
-			if txNum >= txTo {
-				break
-			}
-
-			if _, _, err = idxCForDeletes.SeekBothExact(key, v); err != nil {
-				return err
-			}
-			if err = idxCForDeletes.DeleteCurrent(); err != nil {
-				return err
-			}
-
-			select {
-			case <-logEvery.C:
-				ii.logger.Info("[snapshots] prune history", "name", ii.filenameBase, "to_step", fmt.Sprintf("%.2f", float64(txTo)/float64(ii.aggregationStep)), "prefix", fmt.Sprintf("%x", key[:8]))
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
-		}
-		return nil
-	}, etl.TransformArgs{}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (ii *InvertedIndex) DisableReadAhead() {
-	ii.files.Walk(func(items []*filesItem) bool {
-		for _, item := range items {
-			item.decompressor.DisableReadAhead()
-			if item.index != nil {
-				item.index.DisableReadAhead()
-			}
-		}
-		return true
-	})
 }
 
 func (ii *InvertedIndex) collectFilesStat() (filesCount, filesSize, idxSize uint64) {

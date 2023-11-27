@@ -47,14 +47,14 @@ Flag `--snapshots` is compatible with `--prune` flag
 # It will dump blocks from Database to .seg files:
 erigon snapshots retire --datadir=<your_datadir> 
 
-# Create .torrent files (Downloader will seed automatically all .torrent files)
+# Create .torrent files (you can think about them as "checksum")
+downloader torrent_create --datadir=<your_datadir>
+
 # output format is compatible with https://github.com/ledgerwatch/erigon-snapshot
-downloader torrent_hashes --rebuild --datadir=<your_datadir>
+downloader torrent_hashes --datadir=<your_datadir>
 
-# Start downloader (seeds automatically)
+# Start downloader (read all .torrent files, and download/seed data)
 downloader --downloader.api.addr=127.0.0.1:9093 --datadir=<your_datadir>
-
-# Erigon is not required for snapshots seeding. But Erigon with --snapshots also does seeding. 
 ```
 
 Additional info:
@@ -109,13 +109,50 @@ Technical details:
 - To prevent attack - .idx creation using random Seed - all nodes will have
   different .idx file (and same .seg files)
 - If you add/remove any .seg file manually, also need
-  remove `<your_datadir>/snapshots/db` folder
+  remove `<your_datadir>/downloader` folder
 
 ## How to verify that .seg files have the same checksum as current .torrent files
 
 ```
 # Use it if you see weird behavior, bugs, bans, hardware issues, etc...
 downloader --verify --datadir=<your_datadir>
+downloader --verify --verify.files=v1-1-2-transaction.seg --datadir=<your_datadir>
+```
+
+## Create cheap seedbox
+
+Usually Erigon's network is self-sufficient - peers automatically producing and
+seeding snapshots. But new network or new type of snapshots need Bootstraping
+step - no peers yet have this files.
+
+**Seedbox** - machie which ony seeding archive files:
+
+- Doesn't need synced erigon
+- Can work on very cheap disks, cpu, ram
+- It works exactly like Erigon node - downloading archive files and seed them
+
+```
+downloader --seedbox --datadir=<your> --chain=mainnet
+```
+
+Seedbox can fallback to **Webseed** - HTTP url to centralized infrastructure. For example: private S3 bucket with
+signed_urls, or any HTTP server with files. Main idea: erigon decentralized infrastructure has higher prioriity than
+centralized (which used as **support/fallback**).
+
+```
+# Erigon has default webseed url's - and you can create own
+downloader --datadir=<your> --chain=mainnet --webseed=<webseed_url>
+# See also: `downloader --help` of `--webseed` flag. There is an option to pass it by `datadir/webseed.toml` file
+```
+
+--------- 
+
+## Utilities
+
+```
+downloader torrent_cat /path/to.torrent
+
+downloader torrent_magnet /path/to.torrent
 ```
 
 ## Faster rsync
@@ -158,3 +195,78 @@ downloader --datadir=<your> --chain=mainnet --webseed=<webseed_url>
 
 # See also: `downloader --help` of `--webseed` flag. There is an option to pass it by `datadir/webseed.toml` file.   
 ```
+
+
+---------------
+
+## E3
+
+Git branch `e35`. Just start erigon as you usually do.
+
+RAM requirement is higher: 32gb and better 64gb. We will work on this topic a bit later.
+
+Golang 1.21
+
+Almost all RPC methods are implemented - if something doesn't work - just drop it on our head.
+
+### E3 changes from E2:
+
+- Sync from scratch doesn't require re-exec all history. Latest state and it's history are in snapshots - can download.
+- ExecutionStage - now including many E2 stages: stage_hash_state, stage_trie, stage_log_index, stage_history_index,
+  stage_trace_index
+- E3 can execute 1 historical transaction - without executing it's block - because history/indices have
+  transaction-granularity, instead of block-granularity.
+- Doesn't store Receipts/Logs - it always re-executing historical transactions - but re-execution is cheaper (see point
+  above). We would like to see how it will impact users - welcome feedback. Likely we will try add some small LRU-cache
+  here. Likely later we will add optional flag "to persist receipts".
+- More cold-start-friendly and os-pre-fetch-friendly. E2 DB had MADVISE_RANDOM (because b+tree gravitating towards
+  random-pages-distribution and confusing OS's pre-fetch logic), now snapshots storing data sequentially and have
+  MADVISE_NORMAL - and it showing better performance on our benchmarks.
+- datadir/chaindata is small now - to prevent it's grow: we recommend set --batchSize <= 1G. Probably 512mb is
+  enough.
+
+### E3 datadir structure
+
+```
+datadir        
+    chaindata   # "Recently-updated Latest State" and "Recent History"
+    snapshots   
+        domain    # Latest State: link to fast disk
+        history   # Historical values 
+        idx       # InvertedIndices: can search/filtering/union/intersect them - to find historical data. like eth_getLogs or trace_transaction
+        accessors # Additional (generated) indices of history - have "random-touch" read-pattern. They can serve only `Get` requests (no search/filters).
+    temp # buffers to sort data >> RAM. sequential-buffered IO - is slow-disk-friendly
+   
+# There is 4 domains: account, storage, code, commitment 
+```
+
+### E3 can store state on fast disk and history on slow disk
+
+If you can afford store datadir on 1 nvme-raid - great. If can't - it's possible to store history on cheap drive.
+
+```
+# place (or ln -s) `datadir` on slow disk. link some sub-folders to fast disk.
+# Example: what need link to fast disk to speedup execution
+datadir        
+    chaindata   # link to fast disk
+    snapshots   
+        domain    # link to fast disk
+        history   
+        idx       
+        accessors 
+    temp   
+
+# Example: how to speedup history access: 
+#   - go step-by-step - first try store `accessors` on fast disk
+#   - if speed is not good enough: `idx`
+#   - if still not enough: `history` 
+```
+
+### E3 public test goals
+
+- to gather RPC-usability feedback:
+    - E3 doesn't store receipts, using totally different indices, etc...
+    - It may behave different on warious stress-tests
+- to gather datadadir-usability feedback
+- discover bad data
+    - re-gen of snapshts takes much time, better fix data-bugs in-advance

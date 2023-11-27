@@ -5,17 +5,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ledgerwatch/erigon/core/state/temporal"
-
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcache"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
+	state2 "github.com/ledgerwatch/erigon-lib/state"
+	borfinality "github.com/ledgerwatch/erigon/consensus/bor/finality"
+	"github.com/ledgerwatch/erigon/consensus/bor/finality/whitelist"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/systemcontracts"
-	"github.com/ledgerwatch/erigon/eth/borfinality"
-	"github.com/ledgerwatch/erigon/eth/borfinality/whitelist"
 	"github.com/ledgerwatch/erigon/eth/stagedsync/stages"
 	"github.com/ledgerwatch/erigon/rpc"
 )
@@ -59,7 +58,8 @@ func _GetBlockNumber(requireCanonical bool, blockNrOrHash rpc.BlockNumberOrHash,
 			if whitelist.GetWhitelistingService() != nil {
 				num := borfinality.GetFinalizedBlockNumber(tx)
 				if num == 0 {
-					return 0, libcommon.Hash{}, false, errors.New("no finalized block")
+					// nolint
+					return 0, libcommon.Hash{}, false, errors.New("No finalized block")
 				}
 
 				blockNum := borfinality.CurrentFinalizedBlock(tx, num).NumberU64()
@@ -141,21 +141,25 @@ func CreateHistoryStateReader(tx kv.Tx, blockNumber uint64, txnIndex int, histor
 	if err != nil {
 		return nil, err
 	}
-	r.SetTxNum(uint64(int(minTxNum) + txnIndex + 1))
+	r.SetTxNum(uint64(int(minTxNum) + txnIndex + /* 1 system txNum in begining of block */ 1))
 	return r, nil
 }
 
 func NewLatestStateReader(tx kv.Getter, histV3 bool) state.StateReader {
 	if histV3 {
-		return state.NewReaderV4(tx.(kv.TemporalTx))
+		return state.NewReaderV4(tx.(kv.TemporalGetter))
 	}
 	return state.NewPlainStateReader(tx)
 }
 func NewLatestStateWriter(tx kv.RwTx, blockNum uint64, histV3 bool) state.StateWriter {
 	if histV3 {
-		ac := tx.(*temporal.Tx).AggCtx()
-		domains := tx.(*temporal.Tx).Agg().SharedDomains(ac)
-		return state.NewWriterV4(tx.(*temporal.Tx), domains)
+		domains := tx.(*state2.SharedDomains)
+		minTxNum, err := rawdbv3.TxNums.Min(domains.Tx(), blockNum)
+		if err != nil {
+			panic(err)
+		}
+		domains.SetTxNum(context.Background(), uint64(int(minTxNum)+ /* 1 system txNum in begining of block */ 1))
+		return state.NewWriterV4(domains)
 	}
 	return state.NewPlainStateWriter(tx, tx, blockNum)
 }

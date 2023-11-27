@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
@@ -90,7 +91,7 @@ func (txNums) Append(tx kv.RwTx, blockNum, maxTxNum uint64) (err error) {
 	if len(lastK) != 0 {
 		lastBlockNum := binary.BigEndian.Uint64(lastK)
 		if lastBlockNum > 1 && lastBlockNum+1 != blockNum { //allow genesis
-			return fmt.Errorf("append with gap blockNum=%d, but current heigh=%d", blockNum, lastBlockNum)
+			return fmt.Errorf("append with gap blockNum=%d, but current heigh=%d, stack: %s", blockNum, lastBlockNum, dbg.Stack())
 		}
 	}
 
@@ -135,21 +136,31 @@ func (txNums) FindBlockNum(tx kv.Tx, endTxNumMinimax uint64) (ok bool, blockNum 
 	}
 	defer c.Close()
 
-	cnt, err := c.Count()
+	lastK, _, err := c.Last()
 	if err != nil {
 		return false, 0, err
 	}
+	if lastK == nil {
+		return false, 0, nil
+	}
+	if len(lastK) != 8 {
+		return false, 0, fmt.Errorf("seems broken TxNum value: %x", lastK)
+	}
+	lastBlockNum := binary.BigEndian.Uint64(lastK)
 
-	blockNum = uint64(sort.Search(int(cnt), func(i int) bool {
+	blockNum = uint64(sort.Search(int(lastBlockNum+1), func(i int) bool {
 		binary.BigEndian.PutUint64(seek[:], uint64(i))
 		var v []byte
 		_, v, err = c.SeekExact(seek[:])
+		if len(v) != 8 {
+			panic(fmt.Errorf("seems broken TxNum value: %x -> %x", seek, v))
+		}
 		return binary.BigEndian.Uint64(v) >= endTxNumMinimax
 	}))
 	if err != nil {
 		return false, 0, err
 	}
-	if blockNum == cnt {
+	if blockNum > lastBlockNum {
 		return false, 0, nil
 	}
 	return true, blockNum, nil

@@ -18,21 +18,26 @@ package state
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"hash"
+	"sync/atomic"
 	"time"
 
-	"github.com/c2h5oh/datasize"
 	"github.com/google/btree"
 	"golang.org/x/crypto/sha3"
+	"golang.org/x/exp/slices"
+
+	"github.com/ledgerwatch/erigon-lib/kv/order"
 
 	"github.com/ledgerwatch/erigon-lib/commitment"
 	"github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/cryptozerocopy"
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
 	"github.com/ledgerwatch/erigon-lib/common/length"
-	"github.com/ledgerwatch/erigon-lib/etl"
+	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/types"
 )
 
 // Defines how to evaluate commitments
@@ -75,7 +80,7 @@ type ValueMerger func(prev, current []byte) (merged []byte, err error)
 type UpdateTree struct {
 	tree   *btree.BTreeG[*commitmentItem]
 	keccak cryptozerocopy.KeccakState
-	keys   etl.Buffer
+	keys   map[string]struct{}
 	mode   CommitmentMode
 }
 
@@ -83,7 +88,7 @@ func NewUpdateTree(m CommitmentMode) *UpdateTree {
 	return &UpdateTree{
 		tree:   btree.NewG[*commitmentItem](64, commitmentItemLessPlain),
 		keccak: sha3.NewLegacyKeccak256().(cryptozerocopy.KeccakState),
-		keys:   etl.NewOldestEntryBuffer(datasize.MB * 32),
+		keys:   map[string]struct{}{},
 		mode:   m,
 	}
 }
@@ -100,20 +105,20 @@ func (t *UpdateTree) get(key []byte) (*commitmentItem, bool) {
 
 // TouchPlainKey marks plainKey as updated and applies different fn for different key types
 // (different behaviour for Code, Account and Storage key modifications).
-func (t *UpdateTree) TouchPlainKey(key, val []byte, fn func(c *commitmentItem, val []byte)) {
+func (t *UpdateTree) TouchPlainKey(key string, val []byte, fn func(c *commitmentItem, val []byte)) {
 	switch t.mode {
 	case CommitmentModeUpdate:
-		item, _ := t.get(key)
+		item, _ := t.get([]byte(key))
 		fn(item, val)
 		t.tree.ReplaceOrInsert(item)
 	case CommitmentModeDirect:
-		t.keys.Put(key, nil)
+		t.keys[key] = struct{}{}
 	default:
 	}
 }
 
 func (t *UpdateTree) Size() uint64 {
-	return uint64(t.keys.Len())
+	return uint64(len(t.keys))
 }
 
 func (t *UpdateTree) TouchAccount(c *commitmentItem, val []byte) {
@@ -124,7 +129,7 @@ func (t *UpdateTree) TouchAccount(c *commitmentItem, val []byte) {
 	if c.update.Flags&commitment.DeleteUpdate != 0 {
 		c.update.Flags ^= commitment.DeleteUpdate
 	}
-	nonce, balance, chash := DecodeAccountBytes(val)
+	nonce, balance, chash := types.DecodeAccountBytesV3(val)
 	if c.update.Nonce != nonce {
 		c.update.Nonce = nonce
 		c.update.Flags |= commitment.NonceUpdate
@@ -181,20 +186,21 @@ func (t *UpdateTree) TouchCode(c *commitmentItem, val []byte) {
 }
 
 // Returns list of both plain and hashed keys. If .mode is CommitmentModeUpdate, updates also returned.
+// No ordering guarantees is provided.
 func (t *UpdateTree) List(clear bool) ([][]byte, []commitment.Update) {
 	switch t.mode {
 	case CommitmentModeDirect:
-		plainKeys := make([][]byte, t.keys.Len())
-		t.keys.Sort()
-
-		keyBuf := make([]byte, 0)
-		for i := 0; i < len(plainKeys); i++ {
-			key, _ := t.keys.Get(i, keyBuf, nil)
-			plainKeys[i] = common.Copy(key)
+		plainKeys := make([][]byte, len(t.keys))
+		i := 0
+		for key := range t.keys {
+			plainKeys[i] = []byte(key)
+			i++
 		}
+		slices.SortFunc(plainKeys, func(i, j []byte) int { return bytes.Compare(i, j) })
 		if clear {
-			t.keys.Reset()
+			t.keys = make(map[string]struct{}, len(t.keys)/8)
 		}
+
 		return plainKeys, nil
 	case CommitmentModeUpdate:
 		plainKeys := make([][]byte, t.tree.Len())
@@ -222,7 +228,7 @@ type DomainCommitted struct {
 	mode         CommitmentMode
 	patriciaTrie commitment.Trie
 	branchMerger *commitment.BranchMerger
-	prevState    []byte
+	justRestored atomic.Bool
 	discard      bool
 }
 
@@ -230,7 +236,7 @@ func NewCommittedDomain(d *Domain, mode CommitmentMode, trieVariant commitment.T
 	return &DomainCommitted{
 		Domain:       d,
 		mode:         mode,
-		trace:        false,
+		shortenKeys:  true,
 		updates:      NewUpdateTree(mode),
 		discard:      dbg.DiscardCommitment(),
 		patriciaTrie: commitment.InitializeTrie(trieVariant),
@@ -255,15 +261,13 @@ func (d *DomainCommitted) PatriciaState() ([]byte, error) {
 }
 
 func (d *DomainCommitted) Reset() {
-	d.patriciaTrie.Reset()
+	if !d.justRestored.Load() {
+		d.patriciaTrie.Reset()
+	}
 }
 
-func (d *DomainCommitted) ResetFns(
-	branchFn func(prefix []byte) ([]byte, error),
-	accountFn func(plainKey []byte, cell *commitment.Cell) error,
-	storageFn func(plainKey []byte, cell *commitment.Cell) error,
-) {
-	d.patriciaTrie.ResetFns(branchFn, accountFn, storageFn)
+func (d *DomainCommitted) ResetFns(ctx commitment.PatriciaContext) {
+	d.patriciaTrie.ResetContext(ctx)
 }
 
 func (d *DomainCommitted) Hasher() hash.Hash {
@@ -274,7 +278,7 @@ func (d *DomainCommitted) SetCommitmentMode(m CommitmentMode) { d.mode = m }
 
 // TouchPlainKey marks plainKey as updated and applies different fn for different key types
 // (different behaviour for Code, Account and Storage key modifications).
-func (d *DomainCommitted) TouchPlainKey(key, val []byte, fn func(c *commitmentItem, val []byte)) {
+func (d *DomainCommitted) TouchPlainKey(key string, val []byte, fn func(c *commitmentItem, val []byte)) {
 	if d.discard {
 		return
 	}
@@ -306,26 +310,28 @@ func commitmentItemLessPlain(i, j *commitmentItem) bool {
 	return bytes.Compare(i.plainKey, j.plainKey) < 0
 }
 
-func (d *DomainCommitted) storeCommitmentState(blockNum uint64, rh []byte) error {
+func (d *DomainCommitted) storeCommitmentState(dc *DomainContext, blockNum uint64, rh, prevState []byte) error {
 	state, err := d.PatriciaState()
 	if err != nil {
 		return err
 	}
-	cs := &commitmentState{txNum: d.txNum, trieState: state, blockNum: blockNum}
+	cs := &commitmentState{txNum: dc.hc.ic.txNum, trieState: state, blockNum: blockNum}
 	encoded, err := cs.Encode()
 	if err != nil {
 		return err
 	}
 
 	if d.trace {
-		fmt.Printf("[commitment] put txn %d block %d rh %x\n", d.txNum, blockNum, rh)
+		fmt.Printf("[commitment] put txn %d block %d rh %x, aaandInDC %d\n", dc.hc.ic.txNum, blockNum, rh, dc.hc.ic.txNum)
 	}
-	if err := d.Domain.PutWithPrev(keyCommitmentState, nil, encoded, d.prevState); err != nil {
+	if err := dc.PutWithPrev(keyCommitmentState, nil, encoded, prevState); err != nil {
 		return err
 	}
-	d.prevState = common.Copy(encoded)
 	return nil
 }
+
+// After commitment state is retored, method .Reset() should NOT be called until new updates.
+// Otherwise state should be Restore()d again.
 
 func (d *DomainCommitted) Restore(value []byte) (uint64, uint64, error) {
 	cs := new(commitmentState)
@@ -339,6 +345,7 @@ func (d *DomainCommitted) Restore(value []byte) (uint64, uint64, error) {
 		if err := hext.SetState(cs.trieState); err != nil {
 			return 0, 0, fmt.Errorf("failed restore state : %w", err)
 		}
+		d.justRestored.Store(true) // to prevent double reset
 		if d.trace {
 			rh, err := hext.RootHash()
 			if err != nil {
@@ -421,10 +428,13 @@ func (d *DomainCommitted) lookupByShortenedKey(shortKey []byte, list []*filesIte
 // to accounts and storage items, then looks them up in the new, merged files, and replaces them with
 // the updated references
 func (d *DomainCommitted) commitmentValTransform(files *SelectedStaticFiles, merged *MergedFiles, val commitment.BranchData) ([]byte, error) {
-	if /*!d.shortenKeys ||*/ len(val) == 0 {
+	if !d.shortenKeys || len(val) == 0 {
 		return val, nil
 	}
-	d.logger.Info("commitmentValTransform")
+	var transValBuf []byte
+	defer func(t time.Time) {
+		d.logger.Info("commitmentValTransform", "took", time.Since(t), "in_size", len(val), "out_size", len(transValBuf), "ratio", float64(len(transValBuf))/float64(len(val)))
+	}(time.Now())
 
 	accountPlainKeys, storagePlainKeys, err := val.ExtractPlainKeys()
 	if err != nil {
@@ -473,7 +483,7 @@ func (d *DomainCommitted) commitmentValTransform(files *SelectedStaticFiles, mer
 		transStoragePks = append(transStoragePks, storagePlainKey)
 	}
 
-	transValBuf, err := val.ReplacePlainKeys(transAccountPks, transStoragePks, nil)
+	transValBuf, err = val.ReplacePlainKeys(transAccountPks, transStoragePks, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -482,84 +492,104 @@ func (d *DomainCommitted) commitmentValTransform(files *SelectedStaticFiles, mer
 
 func (d *DomainCommitted) Close() {
 	d.Domain.Close()
-	d.updates.keys.Reset()
+	d.updates.keys = nil
 	d.updates.tree.Clear(true)
 }
 
 // Evaluates commitment for processed state.
-func (d *DomainCommitted) ComputeCommitment(trace bool) (rootHash []byte, branchNodeUpdates map[string]commitment.BranchData, err error) {
+func (d *DomainCommitted) ComputeCommitment(ctx context.Context, trace bool) (rootHash []byte, err error) {
 	if dbg.DiscardCommitment() {
 		d.updates.List(true)
-		return nil, nil, nil
+		return nil, nil
 	}
-	defer func(s time.Time) { mxCommitmentTook.UpdateDuration(s) }(time.Now())
+	defer func(s time.Time) { mxCommitmentTook.ObserveDuration(s) }(time.Now())
 
 	touchedKeys, updates := d.updates.List(true)
-	mxCommitmentKeys.Add(len(touchedKeys))
-
+	//fmt.Printf("[commitment] ComputeCommitment %d keys (mode=%s)\n", len(touchedKeys), d.mode)
+	//defer func() { fmt.Printf("root hash %x\n", rootHash) }()
 	if len(touchedKeys) == 0 {
 		rootHash, err = d.patriciaTrie.RootHash()
-		return rootHash, nil, err
+		return rootHash, err
 	}
 
-	if len(touchedKeys) > 1 {
-		d.patriciaTrie.Reset()
-	}
-	// data accessing functions should be set once before
+	d.Reset()
+
+	// data accessing functions should be set when domain is opened/shared context updated
 	d.patriciaTrie.SetTrace(trace)
 
 	switch d.mode {
 	case CommitmentModeDirect:
-		rootHash, branchNodeUpdates, err = d.patriciaTrie.ProcessKeys(touchedKeys)
+		rootHash, err = d.patriciaTrie.ProcessKeys(ctx, touchedKeys)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	case CommitmentModeUpdate:
-		rootHash, branchNodeUpdates, err = d.patriciaTrie.ProcessUpdates(touchedKeys, updates)
+		rootHash, err = d.patriciaTrie.ProcessUpdates(ctx, touchedKeys, updates)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	case CommitmentModeDisabled:
-		return nil, nil, nil
+		return nil, nil
 	default:
-		return nil, nil, fmt.Errorf("invalid commitment mode: %d", d.mode)
+		return nil, fmt.Errorf("invalid commitment mode: %d", d.mode)
 	}
-	return rootHash, branchNodeUpdates, err
+	d.justRestored.Store(false)
+
+	return rootHash, err
 }
 
 // by that key stored latest root hash and tree state
 var keyCommitmentState = []byte("state")
 
-// SeekCommitment searches for last encoded state from DomainCommitted
+// SeekCommitment [sinceTx, untilTx] searches for last encoded state from DomainCommitted
 // and if state found, sets it up to current domain
-func (d *DomainCommitted) SeekCommitment(sinceTx, untilTx uint64, cd *DomainContext) (blockNum, txNum uint64, err error) {
+func (d *DomainCommitted) SeekCommitment(tx kv.Tx, cd *DomainContext, sinceTx, untilTx uint64) (blockNum, txNum uint64, ok bool, err error) {
 	if dbg.DiscardCommitment() {
-		return 0, 0, nil
+		return 0, 0, false, nil
 	}
 	if d.patriciaTrie.Variant() != commitment.VariantHexPatriciaTrie {
-		return 0, 0, fmt.Errorf("state storing is only supported hex patricia trie")
+		return 0, 0, false, fmt.Errorf("state storing is only supported hex patricia trie")
 	}
 
-	if d.trace {
-		fmt.Printf("[commitment] SeekCommitment [%d, %d]\n", sinceTx, untilTx)
+	// Domain storing only 1 latest commitment (for each step). Erigon can unwind behind this - it means we must look into History (instead of Domain)
+	// IdxRange: looking into DB and Files (.ef). Using `order.Desc` to find latest txNum with commitment
+	it, err := cd.hc.IdxRange(keyCommitmentState, int(untilTx), int(sinceTx)-1, order.Desc, -1, tx) //[from, to)
+	if err != nil {
+		return 0, 0, false, err
 	}
-
+	if it.HasNext() {
+		txn, err := it.Next()
+		if err != nil {
+			return 0, 0, false, err
+		}
+		v, err := cd.GetAsOf(keyCommitmentState, txn+1, tx) //WHYYY +1 ???
+		if err != nil {
+			return 0, 0, false, err
+		}
+		blockNum, txNum, err = d.Restore(v)
+		return blockNum, txNum, true, err
+	}
+	// corner-case:
+	// it's normal to not have commitment.ef and commitment.v files. They are not determenistic - depend on batchSize, and not very useful.
+	// in this case `IdxRange` will be empty
+	// and can fallback to fallback to reading lstest commitment from .kv file
 	var latestState []byte
-	err = cd.IteratePrefix(d.tx, keyCommitmentState, func(key, value []byte) error {
+	if err = cd.IteratePrefix(tx, keyCommitmentState, func(key, value []byte) error {
 		if len(value) < 16 {
 			return fmt.Errorf("invalid state value size %d [%x]", len(value), value)
 		}
 		txn, bn := binary.BigEndian.Uint64(value), binary.BigEndian.Uint64(value[8:16])
-		fmt.Printf("[commitment] Seek found committed txn %d block %d\n", txn, bn)
+		_ = bn
+		//fmt.Printf("[commitment] Seek found committed txn %d block %d\n", txn, bn)
 		if txn >= sinceTx && txn <= untilTx {
 			latestState = value
 		}
 		return nil
-	})
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to seek commitment state: %w", err)
+	}); err != nil {
+		return 0, 0, false, fmt.Errorf("failed to seek commitment, IteratePrefix: %w", err)
 	}
-	return d.Restore(latestState)
+	blockNum, txNum, err = d.Restore(latestState)
+	return blockNum, txNum, true, err
 }
 
 type commitmentState struct {

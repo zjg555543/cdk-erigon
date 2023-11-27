@@ -21,13 +21,18 @@ import (
 	"os"
 	"time"
 
+	"github.com/ledgerwatch/erigon-lib/chain/networkname"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/types/ssz"
 	"gopkg.in/yaml.v2"
 
 	"github.com/ledgerwatch/erigon/cl/utils"
-	"github.com/ledgerwatch/erigon/params/networkname"
 )
+
+type CaplinConfig struct {
+	Backfilling bool
+	Archive     bool
+}
 
 type NetworkType int
 
@@ -266,9 +271,9 @@ var CheckpointSyncEndpoints = map[NetworkType][]string{
 		"https://prater-checkpoint-sync.stakely.io/eth/v2/debug/beacon/states/finalized",
 	},
 	SepoliaNetwork: {
-		"https://beaconstate-sepolia.chainsafe.io/eth/v2/debug/beacon/states/finalized",
-		// "https://sepolia.beaconstate.info/eth/v2/debug/beacon/states/finalized",
-		// "https://checkpoint-sync.sepolia.ethpandaops.io/eth/v2/debug/beacon/states/finalized",
+		//"https://beaconstate-sepolia.chainsafe.io/eth/v2/debug/beacon/states/finalized",
+		"https://sepolia.beaconstate.info/eth/v2/debug/beacon/states/finalized",
+		"https://checkpoint-sync.sepolia.ethpandaops.io/eth/v2/debug/beacon/states/finalized",
 	},
 	GnosisNetwork: {
 		"https://checkpoint.gnosis.gateway.fm/eth/v2/debug/beacon/states/finalized",
@@ -925,6 +930,22 @@ func (b *BeaconChainConfig) CurrentEpochAttestationsLength() uint64 {
 	return b.SlotsPerEpoch * b.MaxAttestations
 }
 
+func (b *BeaconChainConfig) GetForkVersionByVersion(v StateVersion) uint32 {
+	switch v {
+	case Phase0Version:
+		return b.GenesisForkVersion
+	case AltairVersion:
+		return b.AltairForkVersion
+	case BellatrixVersion:
+		return b.BellatrixForkVersion
+	case CapellaVersion:
+		return b.CapellaForkVersion
+	case DenebVersion:
+		return b.DenebForkVersion
+	}
+	panic("invalid version")
+}
+
 func GetConfigsByNetwork(net NetworkType) (*GenesisConfig, *NetworkConfig, *BeaconChainConfig) {
 	networkConfig := NetworkConfigs[net]
 	genesisConfig := GenesisConfigs[net]
@@ -953,6 +974,7 @@ func GetConfigsByNetworkName(net string) (*GenesisConfig, *NetworkConfig, *Beaco
 		return nil, nil, nil, MainnetNetwork, fmt.Errorf("chain not found")
 	}
 }
+
 func GetCheckpointSyncEndpoint(net NetworkType) string {
 	checkpoints, ok := CheckpointSyncEndpoints[net]
 	if !ok {
@@ -986,4 +1008,8 @@ func EmbeddedSupported(id uint64) bool {
 // (sufficient number of light-client peers) as to be enabled by default
 func EmbeddedEnabledByDefault(id uint64) bool {
 	return id == 1 || id == 5 || id == 11155111
+}
+
+func SupportBackfilling(networkId uint64) bool {
+	return networkId == uint64(MainnetNetwork) || networkId == uint64(SepoliaNetwork)
 }

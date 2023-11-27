@@ -20,13 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/ledgerwatch/erigon/cmd/utils"
@@ -65,7 +66,7 @@ const (
 )
 
 // New creates a new P2P node, ready for protocol registration.
-func New(conf *nodecfg.Config, logger log.Logger) (*Node, error) {
+func New(ctx context.Context, conf *nodecfg.Config, logger log.Logger) (*Node, error) {
 	// Copy config and resolve the datadir so future changes to the current
 	// working directory don't affect the node.
 	confCopy := *conf
@@ -88,7 +89,7 @@ func New(conf *nodecfg.Config, logger log.Logger) (*Node, error) {
 	}
 
 	// Acquire the instance directory lock.
-	if err := node.openDataDir(); err != nil {
+	if err := node.openDataDir(ctx); err != nil {
 		return nil, err
 	}
 
@@ -223,27 +224,32 @@ func (n *Node) stopServices(running []Lifecycle) error {
 	return nil
 }
 
-func (n *Node) openDataDir() error {
+func (n *Node) openDataDir(ctx context.Context) error {
 	if n.config.Dirs.DataDir == "" {
 		return nil // ephemeral
 	}
 
 	instdir := n.config.Dirs.DataDir
-	if err := os.MkdirAll(instdir, 0700); err != nil {
-		return err
+	for retry := 0; ; retry++ {
+		l, locked, err := datadir.TryFlock(n.config.Dirs)
+		if err != nil {
+			return err
+		}
+		if !locked {
+			if retry >= 10 {
+				return fmt.Errorf("%w: %s", datadir.ErrDataDirLocked, instdir)
+			}
+			log.Error(datadir.ErrDataDirLocked.Error() + ", retry in 2 sec")
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(2 * time.Second):
+			}
+			continue
+		}
+		n.dirLock = l
+		break
 	}
-	// Lock the instance directory to prevent concurrent use by another instance as well as
-	// accidental use of the instance directory as a database.
-	l := flock.New(filepath.Join(instdir, "LOCK"))
-
-	locked, err := l.TryLock()
-	if err != nil {
-		return convertFileLockError(err)
-	}
-	if !locked {
-		return fmt.Errorf("%w: %s", ErrDataDirUsed, instdir)
-	}
-	n.dirLock = l
 	return nil
 }
 
@@ -286,7 +292,7 @@ func (n *Node) DataDir() string {
 	return n.config.Dirs.DataDir
 }
 
-func OpenDatabase(config *nodecfg.Config, label kv.Label, name string, readonly bool, logger log.Logger) (kv.RwDB, error) {
+func OpenDatabase(ctx context.Context, config *nodecfg.Config, label kv.Label, name string, readonly bool, logger log.Logger) (kv.RwDB, error) {
 	switch label {
 	case kv.ChainDB:
 		name = "chaindata"
@@ -294,7 +300,7 @@ func OpenDatabase(config *nodecfg.Config, label kv.Label, name string, readonly 
 		name = "txpool"
 	case kv.ConsensusDB:
 		if len(name) == 0 {
-			return nil, fmt.Errorf("Expected a consensus name")
+			return nil, fmt.Errorf("expected a consensus name")
 		}
 	default:
 		name = "test"
@@ -315,8 +321,9 @@ func OpenDatabase(config *nodecfg.Config, label kv.Label, name string, readonly 
 			roTxLimit = int64(config.Http.DBReadConcurrency)
 		}
 		roTxsLimiter := semaphore.NewWeighted(roTxLimit) // 1 less than max to allow unlocking to happen
-		opts := mdbx.NewMDBX(log.Root()).
+		opts := mdbx.NewMDBX(logger).
 			Path(dbPath).Label(label).
+			GrowthStep(16 * datasize.MB).
 			DBVerbosity(config.DatabaseVerbosity).RoTxsLimiter(roTxsLimiter)
 
 		if readonly {
@@ -327,7 +334,7 @@ func OpenDatabase(config *nodecfg.Config, label kv.Label, name string, readonly 
 		}
 
 		switch label {
-		case kv.ChainDB, kv.ConsensusDB:
+		case kv.ChainDB:
 			if config.MdbxPageSize.Bytes() > 0 {
 				opts = opts.PageSize(config.MdbxPageSize.Bytes())
 			}
@@ -337,11 +344,22 @@ func OpenDatabase(config *nodecfg.Config, label kv.Label, name string, readonly 
 			if config.MdbxGrowthStep > 0 {
 				opts = opts.GrowthStep(config.MdbxGrowthStep)
 			}
+		case kv.ConsensusDB:
+			if config.MdbxPageSize.Bytes() > 0 {
+				opts = opts.PageSize(config.MdbxPageSize.Bytes())
+			}
+			// Don't adjust up the consensus DB - this will lead to resource exhaustion lor large map sizes
+			if config.MdbxDBSizeLimit > 0 && config.MdbxDBSizeLimit < mdbx.DefaultMapSize {
+				opts = opts.MapSize(config.MdbxDBSizeLimit)
+			}
+			// Don't adjust up the consensus DB - to align with db size limit above
+			if config.MdbxGrowthStep > 0 && config.MdbxGrowthStep < mdbx.DefaultGrowthStep {
+				opts = opts.GrowthStep(config.MdbxGrowthStep)
+			}
 		default:
-			opts = opts.GrowthStep(16 * datasize.MB)
 		}
 
-		return opts.Open()
+		return opts.Open(ctx)
 	}
 	var err error
 	db, err = openFunc(false)

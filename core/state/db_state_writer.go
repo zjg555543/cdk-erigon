@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	dbutils2 "github.com/ledgerwatch/erigon-lib/kv/dbutils"
+
 	"github.com/RoaringBitmap/roaring/roaring64"
 	"github.com/holiman/uint256"
 
@@ -13,8 +15,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/bitmapdb"
 	"github.com/ledgerwatch/erigon-lib/kv/temporal/historyv2"
 
-	"github.com/ledgerwatch/erigon/common"
-	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/core/types/accounts"
 	"github.com/ledgerwatch/erigon/ethdb"
@@ -68,7 +68,7 @@ func (dsw *DbStateWriter) UpdateAccountData(address libcommon.Address, original,
 	if err := dsw.csw.UpdateAccountData(address, original, account); err != nil {
 		return err
 	}
-	addrHash, err := common.HashData(address[:])
+	addrHash, err := libcommon.HashData(address[:])
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (dsw *DbStateWriter) DeleteAccount(address libcommon.Address, original *acc
 	if err := dsw.csw.DeleteAccount(address, original); err != nil {
 		return err
 	}
-	addrHash, err := common.HashData(address[:])
+	addrHash, err := libcommon.HashData(address[:])
 	if err != nil {
 		return err
 	}
@@ -102,6 +102,7 @@ func (dsw *DbStateWriter) DeleteAccount(address libcommon.Address, original *acc
 }
 
 func (dsw *DbStateWriter) UpdateAccountCode(address libcommon.Address, incarnation uint64, codeHash libcommon.Hash, code []byte) error {
+	//fmt.Printf("DBW code %x,%x\n", address, codeHash)
 	if err := dsw.csw.UpdateAccountCode(address, incarnation, codeHash, code); err != nil {
 		return err
 	}
@@ -109,12 +110,12 @@ func (dsw *DbStateWriter) UpdateAccountCode(address libcommon.Address, incarnati
 	if err := dsw.db.Put(kv.Code, codeHash[:], code); err != nil {
 		return err
 	}
-	addrHash, err := common.HashData(address.Bytes())
+	addrHash, err := libcommon.HashData(address.Bytes())
 	if err != nil {
 		return err
 	}
 	//save contract to codeHash mapping
-	if err := dsw.db.Put(kv.ContractCode, dbutils.GenerateStoragePrefix(addrHash[:], incarnation), codeHash[:]); err != nil {
+	if err := dsw.db.Put(kv.ContractCode, dbutils2.GenerateStoragePrefix(addrHash[:], incarnation), codeHash[:]); err != nil {
 		return err
 	}
 	return nil
@@ -122,21 +123,22 @@ func (dsw *DbStateWriter) UpdateAccountCode(address libcommon.Address, incarnati
 
 func (dsw *DbStateWriter) WriteAccountStorage(address libcommon.Address, incarnation uint64, key *libcommon.Hash, original, value *uint256.Int) error {
 	// We delegate here first to let the changeSetWrite make its own decision on whether to proceed in case *original == *value
+	//fmt.Printf("DBW storage %x,%x,%x\n", address, *key, value)
 	if err := dsw.csw.WriteAccountStorage(address, incarnation, key, original, value); err != nil {
 		return err
 	}
 	if *original == *value {
 		return nil
 	}
-	seckey, err := common.HashData(key[:])
+	seckey, err := libcommon.HashData(key[:])
 	if err != nil {
 		return err
 	}
-	addrHash, err := common.HashData(address[:])
+	addrHash, err := libcommon.HashData(address[:])
 	if err != nil {
 		return err
 	}
-	compositeKey := dbutils.GenerateCompositeStorageKey(addrHash, incarnation, seckey)
+	compositeKey := dbutils2.GenerateCompositeStorageKey(addrHash, incarnation, seckey)
 
 	v := value.Bytes()
 	if len(v) == 0 {
@@ -183,7 +185,7 @@ func (dsw *DbStateWriter) WriteHistory() error {
 func writeIndex(blocknum uint64, changes *historyv2.ChangeSet, bucket string, changeDb kv.RwTx) error {
 	buf := bytes.NewBuffer(nil)
 	for _, change := range changes.Changes {
-		k := dbutils.CompositeKeyWithoutIncarnation(change.Key)
+		k := dbutils2.CompositeKeyWithoutIncarnation(change.Key)
 
 		index, err := bitmapdb.Get64(changeDb, bucket, k, math.MaxUint32, math.MaxUint32)
 		if err != nil {
@@ -195,7 +197,7 @@ func writeIndex(blocknum uint64, changes *historyv2.ChangeSet, bucket string, ch
 			if _, err = chunk.WriteTo(buf); err != nil {
 				return err
 			}
-			return changeDb.Put(bucket, chunkKey, common.CopyBytes(buf.Bytes()))
+			return changeDb.Put(bucket, chunkKey, libcommon.CopyBytes(buf.Bytes()))
 		}); err != nil {
 			return err
 		}

@@ -8,6 +8,8 @@ import (
 	"math/bits"
 	"sync/atomic"
 
+	"github.com/ledgerwatch/erigon-lib/kv/dbutils"
+
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/hexutility"
 	"github.com/ledgerwatch/erigon-lib/common/length"
@@ -20,8 +22,6 @@ import (
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/exp/slices"
 
-	"github.com/ledgerwatch/erigon/common"
-	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/consensus"
 	"github.com/ledgerwatch/erigon/core/types"
@@ -45,7 +45,6 @@ type TrieCfg struct {
 }
 
 func StageTrieCfg(db kv.RwDB, checkRoot, saveNewHashesToDB, badBlockHalt bool, tmpDir string, blockReader services.FullBlockReader, hd *headerdownload.HeaderDownload, historyV3 bool, agg *state.AggregatorV3) TrieCfg {
-
 	return TrieCfg{
 		db:                db,
 		checkRoot:         checkRoot,
@@ -59,6 +58,8 @@ func StageTrieCfg(db kv.RwDB, checkRoot, saveNewHashesToDB, badBlockHalt bool, t
 		agg:       agg,
 	}
 }
+
+var ErrInvalidStateRootHash = fmt.Errorf("invalid state root hash")
 
 func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg TrieCfg, ctx context.Context, logger log.Logger) (libcommon.Hash, error) {
 	quit := ctx.Done()
@@ -137,7 +138,7 @@ func SpawnIntermediateHashesStage(s *StageState, u Unwinder, tx kv.RwTx, cfg Tri
 		if to > s.BlockNumber {
 			unwindTo := (to + s.BlockNumber) / 2 // Binary search for the correct block, biased to the lower numbers
 			logger.Warn("Unwinding due to incorrect root hash", "to", unwindTo)
-			u.UnwindTo(unwindTo, headerHash)
+			u.UnwindTo(unwindTo, BadBlock(headerHash, ErrInvalidStateRootHash))
 		}
 	} else if err = s.Update(tx, to); err != nil {
 		return trie.EmptyRoot, err
@@ -170,7 +171,7 @@ func RegenerateIntermediateHashes(logPrefix string, db kv.RwTx, cfg TrieCfg, exp
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := trie.NewFlatDBTrieLoader(logPrefix, trie.NewRetainList(0), accTrieCollectorFunc, stTrieCollectorFunc, true)
+	loader := trie.NewFlatDBTrieLoader(logPrefix, trie.NewRetainList(0), accTrieCollectorFunc, stTrieCollectorFunc, false)
 	hash, err := loader.CalcTrieRoot(db, ctx.Done())
 	if err != nil {
 		return trie.EmptyRoot, err
@@ -230,11 +231,11 @@ func (p *HashPromoter) PromoteOnHistoryV3(logPrefix string, from, to uint64, sto
 			if err != nil {
 				return err
 			}
-			addrHash, err := common.HashData(k[:length.Addr])
+			addrHash, err := libcommon.HashData(k[:length.Addr])
 			if err != nil {
 				return err
 			}
-			secKey, err := common.HashData(k[length.Addr:])
+			secKey, err := libcommon.HashData(k[length.Addr:])
 			if err != nil {
 				return err
 			}
@@ -348,7 +349,7 @@ func (p *HashPromoter) Promote(logPrefix string, from, to uint64, storage bool, 
 	}
 
 	if !storage { // delete Intermediate hashes of deleted accounts
-		slices.SortFunc(deletedAccounts, func(a, b []byte) bool { return bytes.Compare(a, b) < 0 })
+		slices.SortFunc(deletedAccounts, bytes.Compare)
 		for _, k := range deletedAccounts {
 			if err := p.tx.ForPrefix(kv.TrieOfStorage, k, func(k, v []byte) error {
 				if err := p.tx.Delete(kv.TrieOfStorage, k); err != nil {
@@ -446,7 +447,7 @@ func (p *HashPromoter) UnwindOnHistoryV3(logPrefix string, unwindFrom, unwindTo 
 	}
 
 	// delete Intermediate hashes of deleted accounts
-	slices.SortFunc(deletedAccounts, func(a, b []byte) bool { return bytes.Compare(a, b) < 0 })
+	slices.SortFunc(deletedAccounts, bytes.Compare)
 	for _, k := range deletedAccounts {
 		if err := p.tx.ForPrefix(kv.TrieOfStorage, k, func(k, v []byte) error {
 			if err := p.tx.Delete(kv.TrieOfStorage, k); err != nil {
@@ -534,7 +535,7 @@ func (p *HashPromoter) Unwind(logPrefix string, s *StageState, u *UnwindState, s
 	}
 
 	if !storage { // delete Intermediate hashes of deleted accounts
-		slices.SortFunc(deletedAccounts, func(a, b []byte) bool { return bytes.Compare(a, b) < 0 })
+		slices.SortFunc(deletedAccounts, bytes.Compare)
 		for _, k := range deletedAccounts {
 			if err := p.tx.ForPrefix(kv.TrieOfStorage, k, func(k, v []byte) error {
 				if err := p.tx.Delete(kv.TrieOfStorage, k); err != nil {
@@ -607,7 +608,7 @@ func IncrementIntermediateHashes(logPrefix string, s *StageState, db kv.RwTx, to
 	defer stTrieCollector.Close()
 	stTrieCollectorFunc := storageTrieCollector(stTrieCollector)
 
-	loader := trie.NewFlatDBTrieLoader(logPrefix, rl, accTrieCollectorFunc, stTrieCollectorFunc, true)
+	loader := trie.NewFlatDBTrieLoader(logPrefix, rl, accTrieCollectorFunc, stTrieCollectorFunc, false)
 	hash, err := loader.CalcTrieRoot(db, quit)
 	if err != nil {
 		return trie.EmptyRoot, err
@@ -686,7 +687,7 @@ func UnwindIntermediateHashesForTrieLoader(logPrefix string, rl *trie.RetainList
 		}
 	}
 
-	return trie.NewFlatDBTrieLoader(logPrefix, rl, accTrieCollectorFunc, stTrieCollectorFunc, true), nil
+	return trie.NewFlatDBTrieLoader(logPrefix, rl, accTrieCollectorFunc, stTrieCollectorFunc, false), nil
 }
 
 func unwindIntermediateHashesStageImpl(logPrefix string, u *UnwindState, s *StageState, db kv.RwTx, cfg TrieCfg, expectedRootHash libcommon.Hash, quit <-chan struct{}, logger log.Logger) error {

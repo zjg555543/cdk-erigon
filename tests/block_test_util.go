@@ -27,6 +27,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/ledgerwatch/erigon-lib/common/hexutil"
+
 	"github.com/holiman/uint256"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
@@ -39,7 +41,6 @@ import (
 	"github.com/ledgerwatch/log/v3"
 
 	"github.com/ledgerwatch/erigon/common"
-	"github.com/ledgerwatch/erigon/common/hexutil"
 	"github.com/ledgerwatch/erigon/common/math"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/rawdb"
@@ -120,8 +121,9 @@ func (bt *BlockTest) Run(t *testing.T, checkStateRoot bool) error {
 	if !ok {
 		return UnsupportedForkError{bt.json.Network}
 	}
-	engine := ethconsensusconfig.CreateConsensusEngineBareBones(config, log.New())
+	engine := ethconsensusconfig.CreateConsensusEngineBareBones(context.Background(), config, log.New())
 	m := mock.MockWithGenesisEngine(t, bt.genesis(config), engine, false, checkStateRoot)
+	defer m.Close()
 
 	bt.br = m.BlockReader
 	// import pre accounts & construct test genesis block & state root
@@ -132,16 +134,16 @@ func (bt *BlockTest) Run(t *testing.T, checkStateRoot bool) error {
 		return fmt.Errorf("genesis block state root does not match test: computed=%x, test=%x", m.Genesis.Root().Bytes()[:6], bt.json.Genesis.StateRoot[:6])
 	}
 
-	tx, err := m.DB.BeginRw(m.Ctx)
+	validBlocks, err := bt.insertBlocks(m)
+	if err != nil {
+		return err
+	}
+
+	tx, err := m.DB.BeginRo(m.Ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-
-	validBlocks, err := bt.insertBlocks(m, tx)
-	if err != nil {
-		return err
-	}
 
 	cmlast := rawdb.ReadHeadBlockHash(tx)
 	if libcommon.Hash(bt.json.BestBlock) != cmlast {
@@ -151,6 +153,7 @@ func (bt *BlockTest) Run(t *testing.T, checkStateRoot bool) error {
 	if err := bt.validatePostState(newDB); err != nil {
 		return fmt.Errorf("post state validation failed: %w", err)
 	}
+
 	return bt.validateImportedHeaders(tx, validBlocks, m)
 }
 
@@ -187,7 +190,7 @@ See https://github.com/ethereum/tests/wiki/Blockchain-Tests-II
 	expected we are expected to ignore it and continue processing and then validate the
 	post state.
 */
-func (bt *BlockTest) insertBlocks(m *mock.MockSentry, tx kv.RwTx) ([]btBlock, error) {
+func (bt *BlockTest) insertBlocks(m *mock.MockSentry) ([]btBlock, error) {
 	validBlocks := make([]btBlock, 0)
 	// insert the test blocks, which will execute all transaction
 	for bi, b := range bt.json.Blocks {
@@ -202,7 +205,7 @@ func (bt *BlockTest) insertBlocks(m *mock.MockSentry, tx kv.RwTx) ([]btBlock, er
 		// RLP decoding worked, try to insert into chain:
 		chain := &core.ChainPack{Blocks: []*types.Block{cb}, Headers: []*types.Header{cb.Header()}, TopBlock: cb}
 
-		err1 := m.InsertChain(chain, tx)
+		err1 := m.InsertChain(chain)
 		if err1 != nil {
 			if b.BlockHeader == nil {
 				continue // OK - block is supposed to be invalid, continue with next block
@@ -210,7 +213,12 @@ func (bt *BlockTest) insertBlocks(m *mock.MockSentry, tx kv.RwTx) ([]btBlock, er
 				return nil, fmt.Errorf("block #%v insertion into chain failed: %w", cb.Number(), err1)
 			}
 		} else if b.BlockHeader == nil {
-			canonical, cErr := bt.br.CanonicalHash(context.Background(), tx, cb.NumberU64())
+			roTx, err := m.DB.BeginRo(m.Ctx)
+			if err != nil {
+				return nil, err
+			}
+			defer roTx.Rollback()
+			canonical, cErr := bt.br.CanonicalHash(context.Background(), roTx, cb.NumberU64())
 			if cErr != nil {
 				return nil, cErr
 			}
@@ -307,14 +315,14 @@ func (bt *BlockTest) validatePostState(statedb *state.IntraBlockState) error {
 		code2 := statedb.GetCode(addr)
 		balance2 := statedb.GetBalance(addr)
 		nonce2 := statedb.GetNonce(addr)
+		if nonce2 != acct.Nonce {
+			return fmt.Errorf("account nonce mismatch for addr: %x want: %d have: %d", addr, acct.Nonce, nonce2)
+		}
 		if !bytes.Equal(code2, acct.Code) {
 			return fmt.Errorf("account code mismatch for addr: %x want: %v have: %s", addr, acct.Code, hex.EncodeToString(code2))
 		}
 		if balance2.ToBig().Cmp(acct.Balance) != 0 {
 			return fmt.Errorf("account balance mismatch for addr: %x, want: %d, have: %d", addr, acct.Balance, balance2)
-		}
-		if nonce2 != acct.Nonce {
-			return fmt.Errorf("account nonce mismatch for addr: %x want: %d have: %d", addr, acct.Nonce, nonce2)
 		}
 		for loc, val := range acct.Storage {
 			val1 := uint256.NewInt(0).SetBytes(val.Bytes())

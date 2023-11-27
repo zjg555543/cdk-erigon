@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/c2h5oh/datasize"
-	"github.com/erigontech/mdbx-go/mdbx"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/semaphore"
@@ -16,12 +14,10 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
 	kv2 "github.com/ledgerwatch/erigon-lib/kv/mdbx"
+	"github.com/ledgerwatch/erigon/cmd/utils"
 	"github.com/ledgerwatch/erigon/core/state/temporal"
 	"github.com/ledgerwatch/erigon/core/systemcontracts"
 	"github.com/ledgerwatch/erigon/eth/ethconfig"
-	"github.com/ledgerwatch/erigon/turbo/snapshotsync/snap"
-
-	"github.com/ledgerwatch/erigon/cmd/utils"
 	"github.com/ledgerwatch/erigon/migrations"
 	"github.com/ledgerwatch/erigon/turbo/debug"
 	"github.com/ledgerwatch/erigon/turbo/logging"
@@ -65,30 +61,12 @@ func RootCommand() *cobra.Command {
 func dbCfg(label kv.Label, path string) kv2.MdbxOpts {
 	const (
 		ThreadsLimit = 9_000
-		DBSizeLimit  = 3 * datasize.TB
-		DBPageSize   = 8 * datasize.KB
-		GrowthStep   = 2 * datasize.GB
 	)
 	limiterB := semaphore.NewWeighted(ThreadsLimit)
-	opts := kv2.NewMDBX(log.New()).Path(path).Label(label).RoTxsLimiter(limiterB)
-	if label == kv.ChainDB {
-		opts = opts.MapSize(DBSizeLimit)
-		opts = opts.PageSize(DBPageSize.Bytes())
-		opts = opts.GrowthStep(GrowthStep)
-	} else {
-		opts = opts.GrowthStep(16 * datasize.MB)
-	}
+	opts := kv2.NewMDBX(log.New()).Path(path).Label(label).RoTxsLimiter(limiterB).Accede()
 	if databaseVerbosity != -1 {
 		opts = opts.DBVerbosity(kv.DBVerbosityLvl(databaseVerbosity))
 	}
-
-	// if db is not exists, we dont want to pass this flag since it will create db with maplimit of 1mb
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		// integration tool don't intent to create db, then easiest way to open db - it's pass mdbx.Accede flag, which allow
-		// to read all options from DB, instead of overriding them
-		opts = opts.Flags(func(f uint) uint { return f | mdbx.Accede })
-	}
-
 	return opts
 }
 
@@ -105,6 +83,7 @@ func openDBDefault(opts kv2.MdbxOpts, applyMigrations, enableV3IfDBNotExists boo
 			db.Close()
 			db = opts.Exclusive().MustOpen()
 			if err := migrator.Apply(db, datadirCli, logger); err != nil {
+
 				return nil, err
 			}
 
@@ -114,18 +93,18 @@ func openDBDefault(opts kv2.MdbxOpts, applyMigrations, enableV3IfDBNotExists boo
 	}
 
 	if opts.GetLabel() == kv.ChainDB {
-		if enableV3IfDBNotExists {
-			logger.Info("history V3 is forcibly enabled")
-			err := db.Update(context.Background(), func(tx kv.RwTx) error {
-				if err := snap.ForceSetFlags(tx, ethconfig.BlocksFreezing{Enabled: true}); err != nil {
-					return err
-				}
-				return kvcfg.HistoryV3.ForceWrite(tx, true)
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
+		//if enableV3IfDBNotExists {
+		//	logger.Info("history V3 is forcibly enabled")
+		//	err := db.Update(context.Background(), func(tx kv.RwTx) error {
+		//		if err := snap.ForceSetFlags(tx, ethconfig.BlocksFreezing{Enabled: true}); err != nil {
+		//			return err
+		//		}
+		//		return kvcfg.HistoryV3.ForceWrite(tx, true)
+		//	})
+		//	if err != nil {
+		//		return nil, err
+		//	}
+		//}
 
 		var h3 bool
 		var err error

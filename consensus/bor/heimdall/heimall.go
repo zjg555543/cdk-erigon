@@ -4,10 +4,15 @@ import (
 	"context"
 
 	"github.com/ledgerwatch/erigon/consensus/bor/clerk"
+	"github.com/ledgerwatch/erigon/consensus/bor/finality/generics"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall/checkpoint"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall/milestone"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall/span"
 )
+
+func MilestoneRewindPending() bool {
+	return generics.BorMilestoneRewind.Load() != nil && *generics.BorMilestoneRewind.Load() != 0
+}
 
 //go:generate mockgen -destination=../../tests/bor/mocks/IHeimdallClient.go -package=mocks . IHeimdallClient
 type IHeimdallClient interface {

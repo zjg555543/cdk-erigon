@@ -2,8 +2,10 @@ package forkchoice
 
 import (
 	"github.com/ledgerwatch/erigon-lib/common"
+	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon/cl/cltypes"
 	"github.com/ledgerwatch/erigon/cl/cltypes/solid"
+	state2 "github.com/ledgerwatch/erigon/cl/phase1/core/state"
 	"github.com/ledgerwatch/erigon/cl/phase1/execution_client"
 )
 
@@ -23,13 +25,14 @@ type ForkChoiceStorageReader interface {
 	HighestSeen() uint64
 	JustifiedCheckpoint() solid.Checkpoint
 	ProposerBoostRoot() common.Hash
+	GetFullState(libcommon.Hash, bool) (*state2.CachingBeaconState, error)
 	Slot() uint64
 	Time() uint64
 }
 
 type ForkChoiceStorageWriter interface {
 	OnAttestation(attestation *solid.Attestation, fromBlock bool) error
-	OnAttesterSlashing(attesterSlashing *cltypes.AttesterSlashing) error
+	OnAttesterSlashing(attesterSlashing *cltypes.AttesterSlashing, test bool) error
 	OnBlock(block *cltypes.SignedBeaconBlock, newPayload bool, fullValidation bool) error
 	OnTick(time uint64)
 }

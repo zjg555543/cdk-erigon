@@ -20,12 +20,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/anacrolix/torrent/metainfo"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/anacrolix/torrent/metainfo"
+
+	"github.com/ledgerwatch/erigon-lib/common/cmp"
 	"github.com/ledgerwatch/erigon-lib/common/dir"
 	"golang.org/x/exp/slices"
 )
@@ -39,7 +41,10 @@ const (
 	BorEvents
 	BorSpans
 	NumberOfTypes
+	BeaconBlocks
 )
+
+var BorSnapshotTypes = []Type{BorEvents, BorSpans}
 
 func (ft Type) String() string {
 	switch ft {
@@ -53,6 +58,8 @@ func (ft Type) String() string {
 		return "borevents"
 	case BorSpans:
 		return "borspans"
+	case BeaconBlocks:
+		return "beaconblocks"
 	default:
 		panic(fmt.Sprintf("unknown file type: %d", ft))
 	}
@@ -70,6 +77,8 @@ func ParseFileType(s string) (Type, bool) {
 		return BorEvents, true
 	case "borspans":
 		return BorSpans, true
+	case "beaconblocks":
+		return BeaconBlocks, true
 	default:
 		return NumberOfTypes, false
 	}
@@ -83,7 +92,7 @@ const (
 
 func (it IdxType) String() string { return string(it) }
 
-var AllSnapshotTypes = []Type{Headers, Bodies, Transactions}
+var BlockSnapshotTypes = []Type{Headers, Bodies, Transactions}
 
 var (
 	ErrInvalidFileName = fmt.Errorf("invalid compressed file name")
@@ -115,7 +124,7 @@ func FilesWithExt(dir, expectExt string) ([]FileInfo, error) {
 
 func IsCorrectFileName(name string) bool {
 	parts := strings.Split(name, "-")
-	return len(parts) == 4 && parts[3] != "v1"
+	return len(parts) == 4
 }
 
 func IsCorrectHistoryFileName(name string) bool {
@@ -148,7 +157,15 @@ func ParseFileName(dir, fileName string) (res FileInfo, ok bool) {
 }
 
 const Erigon3SeedableSteps = 32
-const Erigon2SegmentSize = 500_000
+
+// Use-cases:
+//   - produce and seed snapshots earlier on chain tip. reduce depnedency on "good peers with history" at p2p-network.
+//     Some networks have no much archive peers, also ConsensusLayer clients are not-good(not-incentivised) at serving history.
+//   - avoiding having too much files:
+//     more files(shards) - means "more metadata", "more lookups for non-indexed queries", "more dictionaries", "more bittorrent connections", ...
+//     less files - means small files will be removed after merge (no peers for this files).
+const Erigon2RecentMergeLimit = 100_000 //nolint
+const Erigon2MergeLimit = 500_000
 const Erigon2MinSegmentSize = 1_000
 
 // FileInfo - parsed file metadata
@@ -160,8 +177,10 @@ type FileInfo struct {
 }
 
 func (f FileInfo) TorrentFileExists() bool { return dir.FileExist(f.Path + ".torrent") }
-func (f FileInfo) Seedable() bool          { return f.To-f.From == Erigon2SegmentSize }
-func (f FileInfo) NeedTorrentFile() bool   { return f.Seedable() && !f.TorrentFileExists() }
+func (f FileInfo) Seedable() bool {
+	return f.To-f.From == Erigon2MergeLimit || f.To-f.From == Erigon2RecentMergeLimit
+}
+func (f FileInfo) NeedTorrentFile() bool { return f.Seedable() && !f.TorrentFileExists() }
 
 func IdxFiles(dir string) (res []FileInfo, err error) { return FilesWithExt(dir, ".idx") }
 func Segments(dir string) (res []FileInfo, err error) { return FilesWithExt(dir, ".seg") }
@@ -209,20 +228,20 @@ func ParseDir(dir string) (res []FileInfo, err error) {
 		}
 		res = append(res, meta)
 	}
-	slices.SortFunc(res, func(i, j FileInfo) bool {
+	slices.SortFunc(res, func(i, j FileInfo) int {
 		if i.Version != j.Version {
-			return i.Version < j.Version
+			return cmp.Compare(i.Version, j.Version)
 		}
 		if i.From != j.From {
-			return i.From < j.From
+			return cmp.Compare(i.From, j.From)
 		}
 		if i.To != j.To {
-			return i.To < j.To
+			return cmp.Compare(i.To, j.To)
 		}
 		if i.T != j.T {
-			return i.T < j.T
+			return cmp.Compare(i.T, j.T)
 		}
-		return i.Ext < j.Ext
+		return cmp.Compare(i.Ext, j.Ext)
 	})
 
 	return res, nil

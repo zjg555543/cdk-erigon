@@ -17,7 +17,6 @@
 package core
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"embed"
@@ -27,31 +26,27 @@ import (
 	"math/big"
 	"sync"
 
-	state2 "github.com/ledgerwatch/erigon-lib/state"
-	"github.com/ledgerwatch/erigon/core/state/temporal"
-
 	"github.com/c2h5oh/datasize"
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/log/v3"
 	"golang.org/x/exp/slices"
 
 	"github.com/ledgerwatch/erigon-lib/chain"
+	"github.com/ledgerwatch/erigon-lib/chain/networkname"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/common/hexutil"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/kvcfg"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/ledgerwatch/erigon-lib/kv/rawdbv3"
 	"github.com/ledgerwatch/erigon/common"
-	"github.com/ledgerwatch/erigon/common/hexutil"
 	"github.com/ledgerwatch/erigon/consensus/ethash"
 	"github.com/ledgerwatch/erigon/consensus/merge"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/crypto"
-	"github.com/ledgerwatch/erigon/eth/ethconfig"
 	"github.com/ledgerwatch/erigon/params"
-	"github.com/ledgerwatch/erigon/params/networkname"
 	"github.com/ledgerwatch/erigon/turbo/trie"
 )
 
@@ -197,15 +192,8 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	}
 
 	var stateWriter state.StateWriter
-	var domains *state2.SharedDomains
-
-	if ethconfig.EnableHistoryV4InTest {
-		ac := tx.(*temporal.Tx).AggCtx()
-		domains = tx.(*temporal.Tx).Agg().SharedDomains(ac)
-		defer domains.Close()
-		domains.StartUnbufferedWrites()
-		defer domains.FinishWrites()
-		stateWriter = state.NewWriterV4(tx.(*temporal.Tx), domains)
+	if histV3 {
+		stateWriter = state.NewNoopWriter()
 	} else {
 		for addr, account := range g.Alloc {
 			if len(account.Code) > 0 || len(account.Storage) > 0 {
@@ -223,10 +211,10 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 	if block.Number().Sign() != 0 {
 		return nil, statedb, fmt.Errorf("can't commit genesis block with number > 0")
 	}
-
 	if err := statedb.CommitBlock(&chain.Rules{}, stateWriter); err != nil {
 		return nil, statedb, fmt.Errorf("cannot write state: %w", err)
 	}
+
 	if !histV3 {
 		if csw, ok := stateWriter.(state.WriterWithChangeSets); ok {
 			if err := csw.WriteChangeSets(); err != nil {
@@ -237,21 +225,9 @@ func WriteGenesisState(g *types.Genesis, tx kv.RwTx, tmpDir string) (*types.Bloc
 			}
 		}
 	}
-	if ethconfig.EnableHistoryV4InTest {
-		ww := stateWriter.(*state.WriterV4)
-		hasSnap := tx.(*temporal.Tx).Agg().EndTxNumMinimax() != 0
-		if !hasSnap {
-			rh, err := ww.Commitment(true, false)
-			if err != nil {
-				return nil, nil, err
-			}
-			if !bytes.Equal(rh, block.Root().Bytes()) {
-				fmt.Printf("invalid genesis root hash: %x, expected %x\n", rh, block.Root().Bytes())
-			}
-		}
-	}
 	return block, statedb, nil
 }
+
 func MustCommitGenesis(g *types.Genesis, db kv.RwDB, tmpDir string) *types.Block {
 	tx, err := db.BeginRw(context.Background())
 	if err != nil {
@@ -290,7 +266,7 @@ func write(tx kv.RwTx, g *types.Genesis, tmpDir string) (*types.Block, *state.In
 	if err := rawdb.WriteTd(tx, block.Hash(), block.NumberU64(), g.Difficulty); err != nil {
 		return nil, nil, err
 	}
-	if err := rawdbv3.TxNums.WriteForGenesis(tx, 1); err != nil {
+	if err := rawdbv3.TxNums.WriteForGenesis(tx, uint64(block.Transactions().Len()+1)); err != nil {
 		return nil, nil, err
 	}
 	if err := rawdb.WriteReceipts(tx, block.NumberU64(), nil); err != nil {
@@ -464,6 +440,9 @@ func ChiadoGenesisBlock() *types.Genesis {
 		Alloc:      readPrealloc("allocs/chiado.json"),
 	}
 }
+func TestGenesisBlock() *types.Genesis {
+	return &types.Genesis{Config: params.TestChainConfig}
+}
 
 // Pre-calculated version of:
 //
@@ -561,18 +540,20 @@ func GenesisToBlock(g *types.Genesis, tmpDir string) (*types.Block, *state.Intra
 
 	var err error
 	go func() { // we may run inside write tx, can't open 2nd write tx in same goroutine
-		// TODO(yperbasis): use memdb.MemoryMutation instead
 		defer wg.Done()
+		// some users creaing > 1Gb custome genesis by `erigon init`
 		genesisTmpDB := mdbx.NewMDBX(log.New()).InMem(tmpDir).MapSize(2 * datasize.GB).GrowthStep(1 * datasize.MB).MustOpen()
 		defer genesisTmpDB.Close()
-		var tx kv.RwTx
-		if tx, err = genesisTmpDB.BeginRw(context.Background()); err != nil {
+
+		tx, err := genesisTmpDB.BeginRw(context.Background())
+		if err != nil {
 			return
 		}
 		defer tx.Rollback()
 
 		r, w := state.NewDbStateReader(tx), state.NewDbStateWriter(tx, 0)
 		statedb = state.New(r)
+		statedb.SetTrace(false)
 
 		hasConstructorAllocation := false
 		for _, account := range g.Alloc {
@@ -677,6 +658,8 @@ func GenesisBlockByChainName(chain string) *types.Genesis {
 		return GnosisGenesisBlock()
 	case networkname.ChiadoChainName:
 		return ChiadoGenesisBlock()
+	case networkname.Test:
+		return TestGenesisBlock()
 	default:
 		return nil
 	}

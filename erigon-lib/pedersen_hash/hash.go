@@ -30,7 +30,9 @@ func Hash(input1, input2 string) (string, error) {
 	in1 := C.CBytes(input1Dec)
 	in2 := C.CBytes(input2Dec)
 	var o [1024]byte
-	out := C.CBytes(o[:])
+	// i dont know why it triggers here, but it's a false positive
+	// nolint:gocritic
+	out := C.CBytes(o[:]) //nolint
 	upIn1 := in1
 	upIn2 := in2
 	upOut := out

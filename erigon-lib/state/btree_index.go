@@ -734,16 +734,16 @@ type BtIndex struct {
 	decompressor *compress.Decompressor
 }
 
-func CreateBtreeIndex(indexPath, dataPath string, M uint64, compressed FileCompression, seed uint32, logger log.Logger) (*BtIndex, error) {
-	err := BuildBtreeIndex(dataPath, indexPath, compressed, seed, logger)
+func CreateBtreeIndex(indexPath, dataPath string, M uint64, compressed FileCompression, seed uint32, logger log.Logger, noFsync bool) (*BtIndex, error) {
+	err := BuildBtreeIndex(dataPath, indexPath, compressed, seed, logger, noFsync)
 	if err != nil {
 		return nil, err
 	}
 	return OpenBtreeIndex(indexPath, dataPath, M, compressed, false)
 }
 
-func CreateBtreeIndexWithDecompressor(indexPath string, M uint64, decompressor *compress.Decompressor, compressed FileCompression, seed uint32, ps *background.ProgressSet, tmpdir string, logger log.Logger) (*BtIndex, error) {
-	err := BuildBtreeIndexWithDecompressor(indexPath, decompressor, compressed, ps, tmpdir, seed, logger)
+func CreateBtreeIndexWithDecompressor(indexPath string, M uint64, decompressor *compress.Decompressor, compressed FileCompression, seed uint32, ps *background.ProgressSet, tmpdir string, logger log.Logger, noFsync bool) (*BtIndex, error) {
+	err := BuildBtreeIndexWithDecompressor(indexPath, decompressor, compressed, ps, tmpdir, seed, logger, noFsync)
 	if err != nil {
 		return nil, err
 	}
@@ -751,13 +751,13 @@ func CreateBtreeIndexWithDecompressor(indexPath string, M uint64, decompressor *
 }
 
 // Opens .kv at dataPath and generates index over it to file 'indexPath'
-func BuildBtreeIndex(dataPath, indexPath string, compressed FileCompression, seed uint32, logger log.Logger) error {
+func BuildBtreeIndex(dataPath, indexPath string, compressed FileCompression, seed uint32, logger log.Logger, noFsync bool) error {
 	decomp, err := compress.NewDecompressor(dataPath)
 	if err != nil {
 		return err
 	}
 	defer decomp.Close()
-	return BuildBtreeIndexWithDecompressor(indexPath, decomp, compressed, background.NewProgressSet(), filepath.Dir(indexPath), seed, logger)
+	return BuildBtreeIndexWithDecompressor(indexPath, decomp, compressed, background.NewProgressSet(), filepath.Dir(indexPath), seed, logger, noFsync)
 }
 
 func OpenBtreeIndex(indexPath, dataPath string, M uint64, compressed FileCompression, trace bool) (*BtIndex, error) {
@@ -768,20 +768,20 @@ func OpenBtreeIndex(indexPath, dataPath string, M uint64, compressed FileCompres
 	return OpenBtreeIndexWithDecompressor(indexPath, M, kv, compressed)
 }
 
-func BuildBtreeIndexWithDecompressor(indexPath string, kv *compress.Decompressor, compression FileCompression, ps *background.ProgressSet, tmpdir string, salt uint32, logger log.Logger) error {
+func BuildBtreeIndexWithDecompressor(indexPath string, kv *compress.Decompressor, compression FileCompression, ps *background.ProgressSet, tmpdir string, salt uint32, logger log.Logger, noFsync bool) error {
 	_, indexFileName := filepath.Split(indexPath)
 	p := ps.AddNew(indexFileName, uint64(kv.Count()/2))
 	defer ps.Delete(p)
 
 	defer kv.EnableReadAhead().DisableReadAhead()
 	bloomPath := strings.TrimSuffix(indexPath, ".bt") + ".kvei"
-	var bloom *ExistenceFilter
-	var err error
-	if kv.Count() >= 2 {
-		bloom, err = NewExistenceFilter(uint64(kv.Count()/2), bloomPath)
-		if err != nil {
-			return err
-		}
+
+	bloom, err := NewExistenceFilter(uint64(kv.Count()/2), bloomPath)
+	if err != nil {
+		return err
+	}
+	if noFsync {
+		bloom.DisableFsync()
 	}
 	hasher := murmur3.New128WithSeed(salt)
 
@@ -871,7 +871,7 @@ func OpenBtreeIndexWithDecompressor(indexPath string, M uint64, kv *compress.Dec
 	}
 	defer idx.decompressor.EnableReadAhead().DisableReadAhead()
 
-	idx.ef, pos = eliasfano32.ReadEliasFano(idx.data[pos:])
+	idx.ef, _ = eliasfano32.ReadEliasFano(idx.data[pos:])
 
 	getter := NewArchiveGetter(idx.decompressor.MakeGetter(), idx.compressed)
 
@@ -1002,18 +1002,6 @@ func (b *BtIndex) Get(lookup []byte, gr ArchiveGetter) (k, v []byte, found bool,
 		if b.bplus == nil {
 			panic(fmt.Errorf("Get: `b.bplus` is nil: %s", gr.FileName()))
 		}
-		//it, err := b.bplus.Seek(gr, lookup)
-		//if err != nil {
-		//	return k, v, false, err
-		//}
-		//k, v, err := it.KVFromGetter(gr)
-		//if err != nil {
-		//	return nil, nil, false, fmt.Errorf("kv from getter: %w", err)
-		//}
-		//if !bytes.Equal(k, lookup) {
-		//	return nil, nil, false, nil
-		//}
-		//index = it.i
 		// v is actual value, not offset.
 
 		// weak assumption that k will be ignored and used lookup instead.

@@ -3,13 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 
+	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	"github.com/ledgerwatch/erigon-lib/common/dbg"
-	"github.com/ledgerwatch/erigon/metrics"
+	"github.com/ledgerwatch/erigon-lib/metrics"
+	"github.com/ledgerwatch/erigon/diagnostics"
 	"github.com/ledgerwatch/log/v3"
 	"github.com/pelletier/go-toml"
 	"github.com/urfave/cli/v2"
@@ -55,24 +58,35 @@ func runErigon(cliCtx *cli.Context) error {
 
 	var logger log.Logger
 	var err error
-	if logger, err = debug.Setup(cliCtx, true /* root logger */); err != nil {
+	var metricsMux *http.ServeMux
+
+	if logger, metricsMux, err = debug.Setup(cliCtx, true /* root logger */); err != nil {
 		return err
 	}
 
 	// initializing the node and providing the current git commit there
 
 	logger.Info("Build info", "git_branch", params.GitBranch, "git_tag", params.GitTag, "git_commit", params.GitCommit)
-	erigonInfoGauge := metrics.GetOrCreateCounter(fmt.Sprintf(`erigon_info{version="%s",commit="%s"}`, params.Version, params.GitCommit))
+	erigonInfoGauge := metrics.GetOrCreateGauge(fmt.Sprintf(`erigon_info{version="%s",commit="%s"}`, params.Version, params.GitCommit))
 	erigonInfoGauge.Set(1)
 
 	nodeCfg := node.NewNodConfigUrfave(cliCtx, logger)
+	if err := datadir.ApplyMigrations(nodeCfg.Dirs); err != nil {
+		return err
+	}
+
 	ethCfg := node.NewEthConfigUrfave(cliCtx, nodeCfg, logger)
 
-	ethNode, err := node.New(nodeCfg, ethCfg, logger)
+	ethNode, err := node.New(cliCtx.Context, nodeCfg, ethCfg, logger)
 	if err != nil {
 		log.Error("Erigon startup", "err", err)
 		return err
 	}
+
+	if metricsMux != nil {
+		diagnostics.Setup(cliCtx, metricsMux, ethNode)
+	}
+
 	err = ethNode.Serve()
 	if err != nil {
 		log.Error("error while serving an Erigon node", "err", err)

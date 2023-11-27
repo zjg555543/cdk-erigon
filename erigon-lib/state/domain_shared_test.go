@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ledgerwatch/erigon-lib/common/length"
+	"github.com/ledgerwatch/erigon-lib/types"
 )
 
 func TestSharedDomain_Unwind(t *testing.T) {
@@ -20,14 +22,11 @@ func TestSharedDomain_Unwind(t *testing.T) {
 	require.NoError(t, err)
 	defer rwTx.Rollback()
 
-	agg.StartWrites()
-	defer agg.FinishWrites()
-
 	ac := agg.MakeContext()
 	defer ac.Close()
-	d := agg.SharedDomains(ac)
-	defer agg.CloseSharedDomains()
-	d.SetTx(rwTx)
+
+	domains := NewSharedDomains(WrapTxWithCtx(rwTx, ac))
+	defer domains.Close()
 
 	maxTx := stepSize
 	hashes := make([][]byte, maxTx)
@@ -44,28 +43,27 @@ Loop:
 
 	ac = agg.MakeContext()
 	defer ac.Close()
-	d = agg.SharedDomains(ac)
-	defer agg.CloseSharedDomains()
-	d.SetTx(rwTx)
+	domains = NewSharedDomains(WrapTxWithCtx(rwTx, ac))
+	defer domains.Close()
 
 	i := 0
 	k0 := make([]byte, length.Addr)
 	commitStep := 3
 
 	for ; i < int(maxTx); i++ {
-		d.SetTxNum(uint64(i))
+		domains.SetTxNum(ctx, uint64(i))
 		for accs := 0; accs < 256; accs++ {
-			v := EncodeAccountBytes(uint64(i), uint256.NewInt(uint64(i*10e6)+uint64(accs*10e2)), nil, 0)
+			v := types.EncodeAccountBytesV3(uint64(i), uint256.NewInt(uint64(i*10e6)+uint64(accs*10e2)), nil, 0)
 			k0[0] = byte(accs)
-			pv, err := d.LatestAccount(k0)
+			pv, err := domains.LatestAccount(k0)
 			require.NoError(t, err)
 
-			err = d.UpdateAccountData(k0, v, pv)
+			err = domains.DomainPut(kv.AccountsDomain, k0, nil, v, pv)
 			require.NoError(t, err)
 		}
 
 		if i%commitStep == 0 {
-			rh, err := d.Commit(true, false)
+			rh, err := domains.ComputeCommitment(ctx, true, false, domains.BlockNum())
 			require.NoError(t, err)
 			if hashes[uint64(i)] != nil {
 				require.Equal(t, hashes[uint64(i)], rh)
@@ -75,13 +73,13 @@ Loop:
 		}
 	}
 
-	err = agg.Flush(ctx, rwTx)
+	err = domains.Flush(ctx, rwTx)
 	require.NoError(t, err)
 
 	unwindTo := uint64(commitStep * rnd.Intn(int(maxTx)/commitStep))
 
 	acu := agg.MakeContext()
-	err = acu.Unwind(ctx, unwindTo, rwTx)
+	err = domains.Unwind(ctx, rwTx, unwindTo)
 	require.NoError(t, err)
 	acu.Close()
 
@@ -90,6 +88,9 @@ Loop:
 	if count > 0 {
 		count--
 	}
+	domains.FinishWrites()
+	domains.Close()
+	ac.Close()
 	if count == 0 {
 		return
 	}

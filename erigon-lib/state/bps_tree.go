@@ -9,6 +9,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/recsplit/eliasfano32"
 )
 
+// nolint
 type indexSeeker interface {
 	WarmUp(g ArchiveGetter) error
 	Get(g ArchiveGetter, key []byte) (k []byte, found bool, di uint64, err error)
@@ -16,6 +17,7 @@ type indexSeeker interface {
 	Seek(g ArchiveGetter, seek []byte) (k []byte, di uint64, found bool, err error)
 }
 
+// nolint
 type indexSeekerIterator interface {
 	Next() bool
 	Di() uint64
@@ -282,7 +284,6 @@ func (b *BpsTree) Get(g ArchiveGetter, key []byte) ([]byte, bool, uint64, error)
 		fmt.Printf("pivot %d n %x [%d %d]\n", n.di, n.prefix, dl, dr)
 	}
 	l, r = dl, dr
-
 	var m uint64
 	for l < r {
 		m = (l + r) >> 1

@@ -6,12 +6,15 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+	"github.com/ledgerwatch/erigon-lib/chain/networkname"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon/core"
 	"github.com/ledgerwatch/erigon/core/state/temporal"
+	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/turbo/rpchelper"
+	"github.com/ledgerwatch/erigon/turbo/stages/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -19,11 +22,11 @@ import (
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/params"
-	"github.com/ledgerwatch/erigon/params/networkname"
 	"github.com/ledgerwatch/log/v3"
 )
 
 func TestGenesisBlockHashes(t *testing.T) {
+	t.Parallel()
 	logger := log.New()
 	_, db, _ := temporal.NewTestDB(t, datadir.New(t.TempDir()), nil)
 	check := func(network string) {
@@ -37,7 +40,7 @@ func TestGenesisBlockHashes(t *testing.T) {
 		require.NoError(t, err)
 		expect := params.GenesisHashByChainName(network)
 		require.NotNil(t, expect, network)
-		require.Equal(t, block.Hash().Bytes(), expect.Bytes(), network)
+		require.EqualValues(t, block.Hash(), *expect, network)
 	}
 	for _, network := range networkname.All {
 		check(network)
@@ -45,6 +48,7 @@ func TestGenesisBlockHashes(t *testing.T) {
 }
 
 func TestGenesisBlockRoots(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 	var err error
 
@@ -70,9 +74,19 @@ func TestGenesisBlockRoots(t *testing.T) {
 	if block.Hash() != params.ChiadoGenesisHash {
 		t.Errorf("wrong Chiado genesis hash, got %v, want %v", block.Hash(), params.ChiadoGenesisHash)
 	}
+
+	block, _, err = core.GenesisToBlock(core.TestGenesisBlock(), "")
+	require.NoError(err)
+	if block.Root() != params.TestGenesisStateRoot {
+		t.Errorf("wrong Chiado genesis state root, got %v, want %v", block.Root(), params.TestGenesisStateRoot)
+	}
+	if block.Hash() != params.TestGenesisHash {
+		t.Errorf("wrong Chiado genesis hash, got %v, want %v", block.Hash(), params.TestGenesisHash)
+	}
 }
 
 func TestCommitGenesisIdempotency(t *testing.T) {
+	t.Parallel()
 	logger := log.New()
 	_, db, _ := temporal.NewTestDB(t, datadir.New(t.TempDir()), nil)
 	tx, err := db.BeginRw(context.Background())
@@ -94,10 +108,10 @@ func TestCommitGenesisIdempotency(t *testing.T) {
 }
 
 func TestAllocConstructor(t *testing.T) {
+	t.Parallel()
 	require := require.New(t)
 	assert := assert.New(t)
 
-	logger := log.New()
 	// This deployment code initially sets contract's 0th storage to 0x2a
 	// and its 1st storage to 0x01c9.
 	deploymentCode := common.FromHex("602a5f556101c960015560048060135f395ff35f355f55")
@@ -111,16 +125,15 @@ func TestAllocConstructor(t *testing.T) {
 		},
 	}
 
-	historyV3, db, _ := temporal.NewTestDB(t, datadir.New(t.TempDir()), nil)
-	_, _, err := core.CommitGenesisBlock(db, genSpec, "", logger)
-	require.NoError(err)
+	key, _ := crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	m := mock.MockWithGenesis(t, genSpec, key, false)
 
-	tx, err := db.BeginRo(context.Background())
+	tx, err := m.DB.BeginRo(context.Background())
 	require.NoError(err)
 	defer tx.Rollback()
 
 	//TODO: support historyV3
-	reader, err := rpchelper.CreateHistoryStateReader(tx, 1, 0, historyV3, genSpec.Config.ChainName)
+	reader, err := rpchelper.CreateHistoryStateReader(tx, 1, 0, m.HistoryV3, genSpec.Config.ChainName)
 	require.NoError(err)
 	state := state.New(reader)
 	balance := state.GetBalance(address)

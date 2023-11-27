@@ -66,8 +66,6 @@ func DefaultStages(ctx context.Context,
 				if badBlockUnwind {
 					return nil
 				}
-				//fmt.Println("BorHeimdallForward", "validate")
-				//defer fmt.Println("BorHeimdallForward", "validate", "DONE")
 				return BorHeimdallForward(s, u, ctx, tx, borHeimdallCfg, false, logger)
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx, logger log.Logger) error {
@@ -129,26 +127,6 @@ func DefaultStages(ctx context.Context,
 				return PruneExecutionStage(p, tx, exec, ctx, firstCycle)
 			},
 		},
-		//{
-		//	ID:          stages.PatriciaTrie,
-		//	Description: "evaluate patricia trie commitment on existing state files",
-		//	Disabled:    !bodies.historyV3 && !ethconfig.EnableHistoryV4InTest,
-		//	Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
-		//		_, err := SpawnPatriciaTrieStage(s, u, tx, trieCfg, ctx, logger)
-		//		if err != nil {
-		//			return err
-		//		}
-		//		return nil
-		//	},
-		//	Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx, logger log.Logger) error {
-		//		return nil
-		//		//return UnwindExecutionStage(u, s, tx, ctx, exec, firstCycle, logger)
-		//	},
-		//	Prune: func(firstCycle bool, p *PruneState, tx kv.RwTx, logger log.Logger) error {
-		//		return nil
-		//		//return PruneExecutionStage(p, tx, exec, ctx, firstCycle)
-		//	},
-		//},
 		{
 			ID:          stages.HashState,
 			Description: "Hash the key in the state",
@@ -467,7 +445,7 @@ func StateStages(ctx context.Context, headers HeadersCfg, bodies BodiesCfg, bloc
 			ID:          stages.Bodies,
 			Description: "Download block bodies",
 			Forward: func(firstCycle bool, badBlockUnwind bool, s *StageState, u Unwinder, tx kv.RwTx, logger log.Logger) error {
-				return BodiesForward(s, u, ctx, tx, bodies, false, false, logger)
+				return nil
 			},
 			Unwind: func(firstCycle bool, u *UnwindState, s *StageState, tx kv.RwTx, logger log.Logger) error {
 				return UnwindBodiesStage(u, tx, bodies, ctx)

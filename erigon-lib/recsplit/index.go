@@ -171,6 +171,10 @@ func OpenIndex(indexFilePath string) (*Index, error) {
 	return idx, nil
 }
 
+func (idx *Index) DataHandle() unsafe.Pointer {
+	return unsafe.Pointer(&idx.data[0])
+}
+
 func (idx *Index) Size() int64        { return idx.size }
 func (idx *Index) ModTime() time.Time { return idx.modTime }
 func (idx *Index) BaseDataID() uint64 { return idx.baseDataID }
@@ -356,11 +360,6 @@ func (idx *Index) DisableReadAhead() {
 func (idx *Index) EnableReadAhead() *Index {
 	idx.readAheadRefcnt.Add(1)
 	_ = mmap.MadviseSequential(idx.mmapHandle1)
-	return idx
-}
-func (idx *Index) EnableMadvNormal() *Index {
-	idx.readAheadRefcnt.Add(1)
-	_ = mmap.MadviseNormal(idx.mmapHandle1)
 	return idx
 }
 func (idx *Index) EnableWillNeed() *Index {

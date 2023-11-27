@@ -26,8 +26,6 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	_ "github.com/FastFilter/xorfilter"
-	"github.com/ledgerwatch/erigon-lib/common/assert"
 	"github.com/ledgerwatch/erigon-lib/common/background"
 	"github.com/ledgerwatch/erigon-lib/common/dir"
 	"github.com/ledgerwatch/erigon-lib/compress"
@@ -151,7 +149,7 @@ func (li *LocalityIndex) openFiles() (err error) {
 
 	fromStep, toStep := li.file.startTxNum/li.aggregationStep, li.file.endTxNum/li.aggregationStep
 	if li.file.bm == nil {
-		dataPath := filepath.Join(li.dir, fmt.Sprintf("%s.%d-%d.l", li.filenameBase, fromStep, toStep))
+		dataPath := filepath.Join(li.dir, fmt.Sprintf("v1-%s.%d-%d.l", li.filenameBase, fromStep, toStep))
 		if dir.FileExist(dataPath) {
 			li.file.bm, err = bitmapdb.OpenFixedSizeBitmaps(dataPath)
 			if err != nil {
@@ -160,7 +158,7 @@ func (li *LocalityIndex) openFiles() (err error) {
 		}
 	}
 	if li.file.index == nil {
-		idxPath := filepath.Join(li.dir, fmt.Sprintf("%s.%d-%d.li", li.filenameBase, fromStep, toStep))
+		idxPath := filepath.Join(li.dir, fmt.Sprintf("v1-%s.%d-%d.li", li.filenameBase, fromStep, toStep))
 		if dir.FileExist(idxPath) {
 			li.file.index, err = recsplit.OpenIndex(idxPath)
 			if err != nil {
@@ -169,7 +167,7 @@ func (li *LocalityIndex) openFiles() (err error) {
 		}
 	}
 	if li.file.existence == nil {
-		idxPath := filepath.Join(li.dir, fmt.Sprintf("%s.%d-%d.li.lb", li.filenameBase, fromStep, toStep))
+		idxPath := filepath.Join(li.dir, fmt.Sprintf("v1-%s.%d-%d.li.lb", li.filenameBase, fromStep, toStep))
 		if dir.FileExist(idxPath) {
 			li.file.existence, err = OpenExistenceFilter(idxPath)
 			if err != nil {
@@ -322,8 +320,8 @@ func (lc *ctxLocalityIdx) lookupLatest(key []byte) (latestShard uint64, ok bool,
 }
 
 func (li *LocalityIndex) exists(fromStep, toStep uint64) bool {
-	return dir.FileExist(filepath.Join(li.dir, fmt.Sprintf("%s.%d-%d.li", li.filenameBase, fromStep, toStep))) &&
-		dir.FileExist(filepath.Join(li.dir, fmt.Sprintf("%s.%d-%d.li.lb", li.filenameBase, fromStep, toStep)))
+	return dir.FileExist(filepath.Join(li.dir, fmt.Sprintf("v1-%s.%d-%d.li", li.filenameBase, fromStep, toStep))) &&
+		dir.FileExist(filepath.Join(li.dir, fmt.Sprintf("v1-%s.%d-%d.li.lb", li.filenameBase, fromStep, toStep)))
 }
 
 func (li *LocalityIndex) buildFiles(ctx context.Context, fromStep, toStep uint64, convertStepsToFileNums bool, ps *background.ProgressSet, makeIter func() *LocalityIterator) (files *LocalityIndexFiles, err error) {
@@ -334,9 +332,9 @@ func (li *LocalityIndex) buildFiles(ctx context.Context, fromStep, toStep uint64
 		return nil, fmt.Errorf("LocalityIndex.buildFiles: fromStep(%d) < toStep(%d)", fromStep, toStep)
 	}
 
-	fName := fmt.Sprintf("%s.%d-%d.li", li.filenameBase, fromStep, toStep)
+	fName := fmt.Sprintf("v1-%s.%d-%d.li", li.filenameBase, fromStep, toStep)
 	idxPath := filepath.Join(li.dir, fName)
-	filePath := filepath.Join(li.dir, fmt.Sprintf("%s.%d-%d.l", li.filenameBase, fromStep, toStep))
+	filePath := filepath.Join(li.dir, fmt.Sprintf("v1-%s.%d-%d.l", li.filenameBase, fromStep, toStep))
 
 	p := ps.AddNew(fName, uint64(1))
 	defer ps.Delete(p)
@@ -622,10 +620,8 @@ func (ic *InvertedIndexContext) iterateKeysLocality(ctx context.Context, fromSte
 		if item.endTxNum <= fromTxNum || item.startTxNum >= toTxNum {
 			continue
 		}
-		if assert.Enable {
-			if (item.endTxNum-item.startTxNum)/si.aggStep != StepsInColdFile {
-				panic(fmt.Errorf("frozen file of small size: %s", item.src.decompressor.FileName()))
-			}
+		if asserts && (item.endTxNum-item.startTxNum)/si.aggStep != StepsInColdFile {
+			panic(fmt.Errorf("frozen file of small size: %s", item.src.decompressor.FileName()))
 		}
 		item.src.decompressor.EnableReadAhead() // disable in destructor of iterator
 		si.involvedFiles = append(si.involvedFiles, item.src.decompressor)

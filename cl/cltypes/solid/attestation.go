@@ -9,14 +9,13 @@ import (
 	"github.com/ledgerwatch/erigon-lib/types/clonable"
 	"github.com/ledgerwatch/erigon-lib/types/ssz"
 	"github.com/ledgerwatch/erigon/cl/merkle_tree"
-	"github.com/ledgerwatch/erigon/common"
 )
 
 const (
 	// agg bits offset: 4 bytes
 	// attestationData: 128
 	// Signature: 96 bytes
-	attestationStaticBufferSize = 4 + attestationDataBufferSize + 96
+	attestationStaticBufferSize = 4 + AttestationDataBufferSize + 96
 
 	// offset is usually always the same
 	aggregationBitsOffset = 228
@@ -121,7 +120,7 @@ func (a *Attestation) DecodeSSZ(buf []byte, _ int) error {
 		return ssz.ErrLowBufferSize
 	}
 	copy(a.staticBuffer[:], buf)
-	a.aggregationBitsBuffer = common.CopyBytes(buf[aggregationBitsOffset:])
+	a.aggregationBitsBuffer = libcommon.CopyBytes(buf[aggregationBitsOffset:])
 	return nil
 }
 

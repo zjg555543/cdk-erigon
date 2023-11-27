@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ledgerwatch/erigon-lib/kv/dbutils"
+
 	"github.com/ledgerwatch/erigon-lib/chain"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
 	"github.com/ledgerwatch/erigon-lib/common/cmp"
@@ -21,7 +23,6 @@ import (
 	"github.com/ledgerwatch/log/v3"
 	"github.com/ledgerwatch/secp256k1"
 
-	"github.com/ledgerwatch/erigon/common/dbutils"
 	"github.com/ledgerwatch/erigon/common/debug"
 	"github.com/ledgerwatch/erigon/core/rawdb"
 	"github.com/ledgerwatch/erigon/core/types"
@@ -223,6 +224,17 @@ Loop:
 			continue
 		}
 
+		j := &senderRecoveryJob{
+			body:        body,
+			key:         k,
+			blockNumber: blockNumber,
+			blockTime:   header.Time,
+			blockHash:   blockHash,
+			index:       int(blockNumber) - int(s.BlockNumber) - 1,
+		}
+		if j.index < 0 {
+			panic(j.index) //uint-underflow
+		}
 		select {
 		case recoveryErr := <-errCh:
 			if recoveryErr.err != nil {
@@ -232,13 +244,7 @@ Loop:
 				}
 				break Loop
 			}
-		case jobs <- &senderRecoveryJob{
-			body:        body,
-			key:         k,
-			blockNumber: blockNumber,
-			blockTime:   header.Time,
-			blockHash:   blockHash,
-			index:       int(blockNumber - s.BlockNumber - 1)}:
+		case jobs <- j:
 		}
 	}
 
@@ -264,7 +270,7 @@ Loop:
 		}
 
 		if to > s.BlockNumber {
-			u.UnwindTo(minBlockNum-1, minBlockHash)
+			u.UnwindTo(minBlockNum-1, BadBlock(minBlockHash, minBlockErr))
 		}
 	} else {
 		if err := collectorSenders.Load(tx, kv.Senders, etl.IdentityLoadFunc, etl.TransformArgs{

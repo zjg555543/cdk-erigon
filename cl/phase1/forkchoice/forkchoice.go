@@ -1,26 +1,32 @@
 package forkchoice
 
 import (
+	"context"
 	"sync"
 
+	"github.com/ledgerwatch/erigon/cl/clparams"
 	"github.com/ledgerwatch/erigon/cl/cltypes/solid"
 	"github.com/ledgerwatch/erigon/cl/freezer"
 	state2 "github.com/ledgerwatch/erigon/cl/phase1/core/state"
 	"github.com/ledgerwatch/erigon/cl/phase1/execution_client"
 	"github.com/ledgerwatch/erigon/cl/phase1/forkchoice/fork_graph"
+	"github.com/ledgerwatch/erigon/cl/pool"
+	"golang.org/x/exp/slices"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	"github.com/ledgerwatch/erigon-lib/common/length"
 )
 
 type checkpointComparable string
 
 const (
 	checkpointsPerCache = 1024
-	allowedCachedStates = 4
+	allowedCachedStates = 8
 )
 
 type ForkChoiceStore struct {
+	ctx                           context.Context
 	time                          uint64
 	highestSeen                   uint64
 	justifiedCheckpoint           solid.Checkpoint
@@ -28,19 +34,29 @@ type ForkChoiceStore struct {
 	unrealizedJustifiedCheckpoint solid.Checkpoint
 	unrealizedFinalizedCheckpoint solid.Checkpoint
 	proposerBoostRoot             libcommon.Hash
+	headHash                      libcommon.Hash
+	headSlot                      uint64
+	genesisTime                   uint64
+	childrens                     map[libcommon.Hash]childrens
+
 	// Use go map because this is actually an unordered set
 	equivocatingIndicies map[uint64]struct{}
-	forkGraph            *fork_graph.ForkGraph
+	forkGraph            fork_graph.ForkGraph
 	// I use the cache due to the convenient auto-cleanup feauture.
-	checkpointStates *lru.Cache[checkpointComparable, *checkpointState] // We keep ssz snappy of it as the full beacon state is full of rendundant data.
+	checkpointStates map[checkpointComparable]*checkpointState // We keep ssz snappy of it as the full beacon state is full of rendundant data.
 	latestMessages   map[uint64]*LatestMessage
+	anchorPublicKeys []byte
 	// We keep track of them so that we can forkchoice with EL.
-	eth2Roots *lru.Cache[libcommon.Hash, libcommon.Hash] // ETH2 root -> ETH1 hash
-	mu        sync.Mutex
+	eth2Roots             *lru.Cache[libcommon.Hash, libcommon.Hash] // ETH2 root -> ETH1 hash
+	preverifiedValidators *lru.Cache[libcommon.Hash, uint64]
+	mu                    sync.Mutex
 	// EL
 	engine execution_client.ExecutionEngine
 	// freezer
 	recorder freezer.Freezer
+	// operations pool
+	operationsPool pool.OperationsPool
+	beaconCfg      *clparams.BeaconChainConfig
 }
 
 type LatestMessage struct {
@@ -48,8 +64,13 @@ type LatestMessage struct {
 	Root  libcommon.Hash
 }
 
+type childrens struct {
+	childrenHashes []libcommon.Hash
+	parentSlot     uint64 // we keep this one for pruning
+}
+
 // NewForkChoiceStore initialize a new store from the given anchor state, either genesis or checkpoint sync state.
-func NewForkChoiceStore(anchorState *state2.CachingBeaconState, engine execution_client.ExecutionEngine, recorder freezer.Freezer, enabledPruning bool) (*ForkChoiceStore, error) {
+func NewForkChoiceStore(ctx context.Context, anchorState *state2.CachingBeaconState, engine execution_client.ExecutionEngine, recorder freezer.Freezer, operationsPool pool.OperationsPool, forkGraph fork_graph.ForkGraph) (*ForkChoiceStore, error) {
 	anchorRoot, err := anchorState.BlockRoot()
 	if err != nil {
 		return nil, err
@@ -58,29 +79,46 @@ func NewForkChoiceStore(anchorState *state2.CachingBeaconState, engine execution
 		anchorRoot,
 		state2.Epoch(anchorState.BeaconState),
 	)
-	checkpointStates, err := lru.New[checkpointComparable, *checkpointState](allowedCachedStates)
-	if err != nil {
-		return nil, err
-	}
+
 	eth2Roots, err := lru.New[libcommon.Hash, libcommon.Hash](checkpointsPerCache)
 	if err != nil {
 		return nil, err
 	}
+	anchorPublicKeys := make([]byte, anchorState.ValidatorLength()*length.Bytes48)
+	for idx := 0; idx < anchorState.ValidatorLength(); idx++ {
+		pk, err := anchorState.ValidatorPublicKey(idx)
+		if err != nil {
+			return nil, err
+		}
+		copy(anchorPublicKeys[idx*length.Bytes48:], pk[:])
+	}
 
+	preverifiedValidators, err := lru.New[libcommon.Hash, uint64](checkpointsPerCache * 10)
+	if err != nil {
+		return nil, err
+	}
+	preverifiedValidators.Add(anchorRoot, uint64(anchorState.ValidatorLength()))
 	return &ForkChoiceStore{
+		ctx:                           ctx,
 		highestSeen:                   anchorState.Slot(),
 		time:                          anchorState.GenesisTime() + anchorState.BeaconConfig().SecondsPerSlot*anchorState.Slot(),
 		justifiedCheckpoint:           anchorCheckpoint.Copy(),
 		finalizedCheckpoint:           anchorCheckpoint.Copy(),
 		unrealizedJustifiedCheckpoint: anchorCheckpoint.Copy(),
 		unrealizedFinalizedCheckpoint: anchorCheckpoint.Copy(),
-		forkGraph:                     fork_graph.New(anchorState, enabledPruning),
+		forkGraph:                     forkGraph,
 		equivocatingIndicies:          map[uint64]struct{}{},
 		latestMessages:                map[uint64]*LatestMessage{},
-		checkpointStates:              checkpointStates,
+		checkpointStates:              make(map[checkpointComparable]*checkpointState),
 		eth2Roots:                     eth2Roots,
 		engine:                        engine,
 		recorder:                      recorder,
+		operationsPool:                operationsPool,
+		anchorPublicKeys:              anchorPublicKeys,
+		genesisTime:                   anchorState.GenesisTime(),
+		beaconCfg:                     anchorState.BeaconConfig(),
+		childrens:                     make(map[libcommon.Hash]childrens),
+		preverifiedValidators:         preverifiedValidators,
 	}, nil
 }
 
@@ -89,6 +127,28 @@ func (f *ForkChoiceStore) HighestSeen() uint64 {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.highestSeen
+}
+
+func (f *ForkChoiceStore) children(parent libcommon.Hash) []libcommon.Hash {
+	children, ok := f.childrens[parent]
+	if !ok {
+		return nil
+	}
+	return children.childrenHashes
+}
+
+// updateChildren adds a new child to the parent node hash.
+func (f *ForkChoiceStore) updateChildren(parentSlot uint64, parent, child libcommon.Hash) {
+	c, ok := f.childrens[parent]
+	if !ok {
+		c = childrens{}
+	}
+	c.parentSlot = parentSlot // can be innacurate.
+	if slices.Contains(c.childrenHashes, child) {
+		return
+	}
+	c.childrenHashes = append(c.childrenHashes, child)
+	f.childrens[parent] = c
 }
 
 // AdvanceHighestSeen advances the highest seen block by n and returns the new slot after the change
@@ -154,4 +214,18 @@ func (f *ForkChoiceStore) AnchorSlot() uint64 {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.forkGraph.AnchorSlot()
+}
+
+func (f *ForkChoiceStore) GetFullState(blockRoot libcommon.Hash, alwaysCopy bool) (*state2.CachingBeaconState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.forkGraph.GetState(blockRoot, alwaysCopy)
+}
+
+// Highest seen returns highest seen slot
+func (f *ForkChoiceStore) PreverifiedValidator(blockRoot libcommon.Hash) uint64 {
+	if ret, ok := f.preverifiedValidators.Get(blockRoot); ok {
+		return ret
+	}
+	return 0
 }

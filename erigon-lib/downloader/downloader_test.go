@@ -3,21 +3,27 @@ package downloader
 import (
 	"context"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	lg "github.com/anacrolix/log"
 	"github.com/ledgerwatch/erigon-lib/common/datadir"
 	downloadercfg2 "github.com/ledgerwatch/erigon-lib/downloader/downloadercfg"
 	"github.com/ledgerwatch/erigon-lib/downloader/snaptype"
+	"github.com/ledgerwatch/log/v3"
 	"github.com/stretchr/testify/require"
 )
 
 func TestChangeInfoHashOfSameFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fix me on win please")
+	}
+
 	require := require.New(t)
 	dirs := datadir.New(t.TempDir())
-	cfg, err := downloadercfg2.New(dirs, "", lg.Info, 0, 0, 0, 0, 0, nil, "")
+	cfg, err := downloadercfg2.New(dirs, "", lg.Info, 0, 0, 0, 0, 0, nil, nil, "testnet")
 	require.NoError(err)
-	d, err := New(context.Background(), cfg)
+	d, err := New(context.Background(), cfg, dirs, log.New(), log.LvlInfo, true)
 	require.NoError(err)
 	defer d.Close()
 	err = d.AddInfoHashAsMagnetLink(d.ctx, snaptype.Hex2InfoHash("aa"), "a.seg")

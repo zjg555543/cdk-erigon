@@ -100,7 +100,7 @@ type TxSlot struct {
 	Traced         bool     // Whether transaction needs to be traced throughout transaction pool code and generate debug printing
 	Creation       bool     // Set to true if "To" field of the transaction is not set
 	Type           byte     // Transaction type
-	Size           uint32   // Size of the payload
+	Size           uint32   // Size of the payload (without the RLP string envelope for typed transactions)
 
 	// EIP-4844: Shard Blob Transactions
 	BlobFeeCap  uint256.Int // max_fee_per_blob_gas
@@ -286,7 +286,8 @@ func (ctx *TxParseContext) ParseTransaction(payload []byte, pos int, slot *TxSlo
 		}
 	}
 
-	slot.Size = uint32(p - pos)
+	slot.Size = uint32(len(slot.Rlp))
+
 	return p, err
 }
 
@@ -982,4 +983,101 @@ func (al AccessList) StorageKeys() int {
 		sum += len(tuple.StorageKeys)
 	}
 	return sum
+}
+
+func DecodeAccountBytesV3(enc []byte) (nonce uint64, balance *uint256.Int, hash []byte) {
+	if len(enc) == 0 {
+		return
+	}
+	pos := 0
+	nonceBytes := int(enc[pos])
+	balance = uint256.NewInt(0)
+	pos++
+	if nonceBytes > 0 {
+		nonce = bytesToUint64(enc[pos : pos+nonceBytes])
+		pos += nonceBytes
+	}
+	balanceBytes := int(enc[pos])
+	pos++
+	if balanceBytes > 0 {
+		balance.SetBytes(enc[pos : pos+balanceBytes])
+		pos += balanceBytes
+	}
+	codeHashBytes := int(enc[pos])
+	pos++
+	if codeHashBytes == length.Hash {
+		hash = make([]byte, codeHashBytes)
+		copy(hash, enc[pos:pos+codeHashBytes])
+		pos += codeHashBytes
+	}
+	if pos >= len(enc) {
+		panic(fmt.Errorf("deserialse2: %d >= %d ", pos, len(enc)))
+	}
+	return
+}
+
+func EncodeAccountBytesV3(nonce uint64, balance *uint256.Int, hash []byte, incarnation uint64) []byte {
+	l := int(1)
+	if nonce > 0 {
+		l += common.BitLenToByteLen(bits.Len64(nonce))
+	}
+	l++
+	if !balance.IsZero() {
+		l += balance.ByteLen()
+	}
+	l++
+	if len(hash) == length.Hash {
+		l += 32
+	}
+	l++
+	if incarnation > 0 {
+		l += common.BitLenToByteLen(bits.Len64(incarnation))
+	}
+	value := make([]byte, l)
+	pos := 0
+
+	if nonce == 0 {
+		value[pos] = 0
+		pos++
+	} else {
+		nonceBytes := common.BitLenToByteLen(bits.Len64(nonce))
+		value[pos] = byte(nonceBytes)
+		var nonce = nonce
+		for i := nonceBytes; i > 0; i-- {
+			value[pos+i] = byte(nonce)
+			nonce >>= 8
+		}
+		pos += nonceBytes + 1
+	}
+	if balance.IsZero() {
+		value[pos] = 0
+		pos++
+	} else {
+		balanceBytes := balance.ByteLen()
+		value[pos] = byte(balanceBytes)
+		pos++
+		balance.WriteToSlice(value[pos : pos+balanceBytes])
+		pos += balanceBytes
+	}
+	if len(hash) == 0 {
+		value[pos] = 0
+		pos++
+	} else {
+		value[pos] = 32
+		pos++
+		copy(value[pos:pos+32], hash)
+		pos += 32
+	}
+	if incarnation == 0 {
+		value[pos] = 0
+	} else {
+		incBytes := common.BitLenToByteLen(bits.Len64(incarnation))
+		value[pos] = byte(incBytes)
+		var inc = incarnation
+		for i := incBytes; i > 0; i-- {
+			value[pos+i] = byte(inc)
+			inc >>= 8
+		}
+	}
+	return value
 }

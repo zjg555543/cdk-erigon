@@ -11,11 +11,12 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ledgerwatch/erigon-lib/metrics"
+
 	"github.com/ledgerwatch/erigon/consensus/bor/clerk"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall/checkpoint"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall/milestone"
 	"github.com/ledgerwatch/erigon/consensus/bor/heimdall/span"
-	"github.com/ledgerwatch/erigon/metrics"
 	"github.com/ledgerwatch/log/v3"
 )
 
@@ -26,11 +27,12 @@ var (
 	ErrNotSuccessfulResponse = errors.New("error while fetching data from Heimdall")
 	ErrNotInRejectedList     = errors.New("milestoneID doesn't exist in rejected list")
 	ErrNotInMilestoneList    = errors.New("milestoneID doesn't exist in Heimdall")
+	ErrServiceUnavailable    = errors.New("service unavailable")
 )
 
 const (
 	stateFetchLimit    = 50
-	apiHeimdallTimeout = 5 * time.Second
+	apiHeimdallTimeout = 10 * time.Second
 	retryCall          = 5 * time.Second
 )
 
@@ -94,7 +96,7 @@ func (h *HeimdallClient) StateSyncEvents(ctx context.Context, fromID uint64, to 
 			return nil, err
 		}
 
-		h.logger.Debug("Fetching state sync events", "queryParams", url.RawQuery)
+		h.logger.Debug("[bor.heimdall] Fetching state sync events", "queryParams", url.RawQuery)
 
 		ctx = withRequestType(ctx, stateSyncRequest)
 
@@ -274,15 +276,22 @@ func FetchWithRetry[T any](ctx context.Context, client http.Client, url *url.URL
 	// request data once
 	request := &Request{client: client, url: url, start: time.Now()}
 	result, err := Fetch[T](ctx, request)
-
 	if err == nil {
 		return result, nil
+	}
+
+	// 503 (Service Unavailable) is thrown when an endpoint isn't activated
+	// yet in heimdall. E.g. when the hardfork hasn't hit yet but heimdall
+	// is upgraded.
+	if errors.Is(err, ErrServiceUnavailable) {
+		logger.Debug("[bor.heimdall] service unavailable at the moment", "path", url.Path, "error", err)
+		return nil, err
 	}
 
 	// attempt counter
 	attempt := 1
 
-	logger.Warn("an error while trying fetching from Heimdall", "attempt", attempt, "error", err)
+	logger.Warn("[bor.heimdall] an error while fetching", "path", url.Path, "attempt", attempt, "error", err)
 
 	// create a new ticker for retrying the request
 	ticker := time.NewTicker(retryCall)
@@ -292,26 +301,28 @@ func FetchWithRetry[T any](ctx context.Context, client http.Client, url *url.URL
 
 retryLoop:
 	for {
-		logger.Info("Retrying again in 5 seconds to fetch data from Heimdall", "path", url.Path, "attempt", attempt)
-
 		attempt++
 
 		select {
 		case <-ctx.Done():
-			logger.Debug("Shutdown detected, terminating request by context.Done")
-
+			logger.Debug("[bor.heimdall] request canceled", "reason", ctx.Err(), "path", url.Path, "attempt", attempt)
 			return nil, ctx.Err()
 		case <-closeCh:
-			logger.Debug("Shutdown detected, terminating request by closing")
+			logger.Debug("[bor.heimdall] shutdown detected, terminating request", "path", url.Path)
 
 			return nil, ErrShutdownDetected
 		case <-ticker.C:
 			request = &Request{client: client, url: url, start: time.Now()}
 			result, err = Fetch[T](ctx, request)
 
+			if errors.Is(err, ErrServiceUnavailable) {
+				logger.Debug("[bor.heimdall] service unavailable at the moment", "path", url.Path, "attempt", attempt, "error", err)
+				return nil, err
+			}
+
 			if err != nil {
 				if attempt%logEach == 0 {
-					logger.Warn("an error while trying fetching from Heimdall", "attempt", attempt, "error", err)
+					logger.Warn("[bor.heimdall] an error while trying fetching", "path", url.Path, "attempt", attempt, "error", err)
 				}
 
 				continue retryLoop
@@ -423,6 +434,10 @@ func internalFetch(ctx context.Context, client http.Client, u *url.URL) ([]byte,
 	}
 
 	defer res.Body.Close()
+
+	if res.StatusCode == http.StatusServiceUnavailable {
+		return nil, fmt.Errorf("%w: response code %d", ErrServiceUnavailable, res.StatusCode)
+	}
 
 	// check status code
 	if res.StatusCode != 200 && res.StatusCode != 204 {

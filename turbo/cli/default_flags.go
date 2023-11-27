@@ -51,6 +51,7 @@ var DefaultFlags = []cli.Flag{
 	&BadBlockFlag,
 
 	&utils.HTTPEnabledFlag,
+	&utils.HTTPServerEnabledFlag,
 	&utils.GraphQLEnabledFlag,
 	&utils.HTTPListenAddrFlag,
 	&utils.HTTPPortFlag,
@@ -74,6 +75,8 @@ var DefaultFlags = []cli.Flag{
 	&utils.RpcGasCapFlag,
 	&utils.RpcBatchLimit,
 	&utils.RpcReturnDataLimit,
+	&utils.AllowUnprotectedTxs,
+	&utils.RpcMaxGetProofRewindBlockCount,
 	&utils.RPCGlobalTxFeeCapFlag,
 	&utils.TxpoolApiAddrFlag,
 	&utils.TraceMaxtracesFlag,
@@ -162,5 +165,20 @@ var DefaultFlags = []cli.Flag{
 
 	&utils.OtsSearchMaxCapFlag,
 
+	&utils.SilkwormLibraryPathFlag,
+	&utils.SilkwormExecutionFlag,
+	&utils.SilkwormRpcDaemonFlag,
+	&utils.SilkwormSentryFlag,
+
+	&utils.BeaconAPIFlag,
+	&utils.BeaconApiAddrFlag,
+	&utils.BeaconApiPortFlag,
+	&utils.BeaconApiReadTimeoutFlag,
+	&utils.BeaconApiWriteTimeoutFlag,
+	&utils.BeaconApiProtocolFlag,
+	&utils.BeaconApiIdleTimeoutFlag,
+
 	&utils.TrustedSetupFile,
+
+	&utils.TxPoolGossipDisableFlag,
 }

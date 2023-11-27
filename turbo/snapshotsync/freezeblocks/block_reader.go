@@ -235,6 +235,10 @@ func (r *RemoteBlockReader) EventsByBlock(ctx context.Context, tx kv.Tx, hash co
 	return result, nil
 }
 
+func (r *RemoteBlockReader) Span(ctx context.Context, tx kv.Getter, spanId uint64) ([]byte, error) {
+	return nil, nil
+}
+
 // BlockReader can read blocks from db and snapshots
 type BlockReader struct {
 	sn    *RoSnapshots
@@ -246,7 +250,7 @@ func NewBlockReader(snapshots services.BlockSnapshots, borSnapshots services.Blo
 }
 
 func (r *BlockReader) CanPruneTo(currentBlockInDB uint64) uint64 {
-	return CanDeleteTo(currentBlockInDB, r.sn.BlocksAvailable())
+	return CanDeleteTo(currentBlockInDB, r.sn.blocksAvailable())
 }
 func (r *BlockReader) Snapshots() services.BlockSnapshots { return r.sn }
 func (r *BlockReader) BorSnapshots() services.BlockSnapshots {
@@ -257,7 +261,7 @@ func (r *BlockReader) BorSnapshots() services.BlockSnapshots {
 	return nil
 }
 
-func (r *BlockReader) FrozenBlocks() uint64    { return r.sn.BlocksAvailable() }
+func (r *BlockReader) FrozenBlocks() uint64    { return r.sn.blocksAvailable() }
 func (r *BlockReader) FrozenBorBlocks() uint64 { return r.borSn.BlocksAvailable() }
 func (r *BlockReader) FrozenFiles() []string {
 	files := r.sn.Files()
@@ -274,16 +278,19 @@ func (r *BlockReader) HeadersRange(ctx context.Context, walker func(header *type
 }
 
 func (r *BlockReader) HeaderByNumber(ctx context.Context, tx kv.Getter, blockHeight uint64) (h *types.Header, err error) {
-	blockHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
-	if err != nil {
-		return nil, err
-	}
-	if blockHash == (common.Hash{}) {
+	if blockHeight >= r.FrozenBlocks() {
+		blockHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
+		if err != nil {
+			return nil, err
+		}
+		if blockHash == (common.Hash{}) {
+			return nil, nil
+		}
+		h = rawdb.ReadHeader(tx, blockHash, blockHeight)
+		if h != nil {
+			return h, nil
+		}
 		return nil, nil
-	}
-	h = rawdb.ReadHeader(tx, blockHash, blockHeight)
-	if h != nil {
-		return h, nil
 	}
 
 	view := r.sn.View()
@@ -380,6 +387,7 @@ func (r *BlockReader) Header(ctx context.Context, tx kv.Getter, hash common.Hash
 }
 
 func (r *BlockReader) BodyWithTransactions(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64) (body *types.Body, err error) {
+
 	body, err = rawdb.ReadBodyWithTransactions(tx, hash, blockHeight)
 	if err != nil {
 		return nil, err
@@ -434,7 +442,7 @@ func (r *BlockReader) BodyRlp(ctx context.Context, tx kv.Getter, hash common.Has
 }
 
 func (r *BlockReader) Body(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64) (body *types.Body, txAmount uint32, err error) {
-	blocksAvailable := r.sn.BlocksAvailable()
+	blocksAvailable := r.sn.blocksAvailable()
 	if blocksAvailable == 0 || blockHeight > blocksAvailable {
 		body, _, txAmount = rawdb.ReadBody(tx, hash, blockHeight)
 		return body, txAmount, nil
@@ -454,7 +462,7 @@ func (r *BlockReader) Body(ctx context.Context, tx kv.Getter, hash common.Hash, 
 }
 
 func (r *BlockReader) HasSenders(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64) (bool, error) {
-	blocksAvailable := r.sn.BlocksAvailable()
+	blocksAvailable := r.sn.blocksAvailable()
 	if blocksAvailable == 0 || blockHeight > blocksAvailable {
 		return rawdb.HasSenders(tx, hash, blockHeight)
 	}
@@ -465,7 +473,7 @@ func (r *BlockReader) BlockWithSenders(ctx context.Context, tx kv.Getter, hash c
 	return r.blockWithSenders(ctx, tx, hash, blockHeight, false)
 }
 func (r *BlockReader) blockWithSenders(ctx context.Context, tx kv.Getter, hash common.Hash, blockHeight uint64, forceCanonical bool) (block *types.Block, senders []common.Address, err error) {
-	blocksAvailable := r.sn.BlocksAvailable()
+	blocksAvailable := r.sn.blocksAvailable()
 	if blocksAvailable == 0 || blockHeight > blocksAvailable {
 		if forceCanonical {
 			canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockHeight)
@@ -605,6 +613,9 @@ func (r *BlockReader) bodyFromSnapshot(blockHeight uint64, sn *BodySegment, buf 
 	b, buf, err := r.bodyForStorageFromSnapshot(blockHeight, sn, buf)
 	if err != nil {
 		return nil, 0, 0, buf, err
+	}
+	if b == nil {
+		return nil, 0, 0, buf, nil
 	}
 
 	body := new(types.Body)
@@ -748,7 +759,7 @@ func (r *BlockReader) txnByHash(txnHash common.Hash, segments []*TxnSegment, buf
 // TxnByIdxInBlock - doesn't include system-transactions in the begin/end of block
 // return nil if 0 < i < body.TxAmount
 func (r *BlockReader) TxnByIdxInBlock(ctx context.Context, tx kv.Getter, blockNum uint64, txIdxInBlock int) (txn types.Transaction, err error) {
-	blocksAvailable := r.sn.BlocksAvailable()
+	blocksAvailable := r.sn.blocksAvailable()
 	if blocksAvailable == 0 || blockNum > blocksAvailable {
 		canonicalHash, err := rawdb.ReadCanonicalHash(tx, blockNum)
 		if err != nil {
@@ -815,7 +826,7 @@ func (r *BlockReader) FirstTxNumNotInSnapshots() uint64 {
 	view := r.sn.View()
 	defer view.Close()
 
-	sn, ok := view.TxsSegment(r.sn.BlocksAvailable())
+	sn, ok := view.TxsSegment(r.sn.blocksAvailable())
 	if !ok {
 		return 0
 	}
@@ -830,7 +841,6 @@ func (r *BlockReader) IterateFrozenBodies(f func(blockNum, baseTxNum, txAmount u
 
 	for _, sn := range view.Bodies() {
 		sn := sn
-		defer sn.seg.EnableMadvNormal().DisableReadAhead()
 
 		var buf []byte
 		g := sn.seg.MakeGetter()
@@ -1076,4 +1086,101 @@ func (r *BlockReader) LastFrozenEventID() uint64 {
 		lastEventID = binary.BigEndian.Uint64(buf[length.Hash+length.BlockNum : length.Hash+length.BlockNum+8])
 	}
 	return lastEventID
+}
+
+func (r *BlockReader) LastFrozenSpanID() uint64 {
+	view := r.borSn.View()
+	defer view.Close()
+	segments := view.Spans()
+	if len(segments) == 0 {
+		return 0
+	}
+	lastSegment := segments[len(segments)-1]
+	var lastSpanID uint64
+	if lastSegment.ranges.to > zerothSpanEnd {
+		lastSpanID = (lastSegment.ranges.to - zerothSpanEnd - 1) / spanLength
+	}
+	return lastSpanID
+}
+
+func (r *BlockReader) Span(ctx context.Context, tx kv.Getter, spanId uint64) ([]byte, error) {
+	// Compute starting block of the span
+	var endBlock uint64
+	if spanId > 0 {
+		endBlock = (spanId)*spanLength + zerothSpanEnd
+	}
+	var buf [8]byte
+	binary.BigEndian.PutUint64(buf[:], spanId)
+	if endBlock >= r.FrozenBorBlocks() {
+		v, err := tx.GetOne(kv.BorSpans, buf[:])
+		if err != nil {
+			return nil, err
+		}
+		if v == nil {
+			return nil, fmt.Errorf("span %d not found (db)", spanId)
+		}
+		return common.Copy(v), nil
+	}
+	view := r.borSn.View()
+	defer view.Close()
+	segments := view.Spans()
+	for i := len(segments) - 1; i >= 0; i-- {
+		sn := segments[i]
+		if sn.idx == nil {
+			continue
+		}
+		var spanFrom uint64
+		if sn.ranges.from > zerothSpanEnd {
+			spanFrom = 1 + (sn.ranges.from-zerothSpanEnd-1)/spanLength
+		}
+		if spanId < spanFrom {
+			continue
+		}
+		var spanTo uint64
+		if sn.ranges.to > zerothSpanEnd {
+			spanTo = 1 + (sn.ranges.to-zerothSpanEnd-1)/spanLength
+		}
+		if spanId >= spanTo {
+			continue
+		}
+		if sn.idx.KeyCount() == 0 {
+			continue
+		}
+		offset := sn.idx.OrdinalLookup(spanId - sn.idx.BaseDataID())
+		gg := sn.seg.MakeGetter()
+		gg.Reset(offset)
+		result, _ := gg.Next(nil)
+		return common.Copy(result), nil
+	}
+	return nil, fmt.Errorf("span %d not found (snapshots)", spanId)
+}
+
+// ---- Data Integrity part ----
+
+func (r *BlockReader) ensureHeaderNumber(n uint64, seg *HeaderSegment) error {
+	h, _, err := r.headerFromSnapshot(n, seg, nil)
+	if err != nil {
+		return err
+	}
+	if h == nil {
+		return fmt.Errorf("ensureHeaderNumber: not found header: %d", n)
+	}
+	if h.Number.Uint64() != n {
+		return fmt.Errorf("ensureHeaderNumber: requested header: %d, got: %d", n, h.Number.Uint64())
+	}
+	return nil
+}
+
+func (r *BlockReader) Integrity(ctx context.Context) error {
+	view := r.sn.View()
+	defer view.Close()
+	for _, seg := range view.Headers() {
+		if err := r.ensureHeaderNumber(seg.ranges.from, seg); err != nil {
+			return err
+		}
+		if err := r.ensureHeaderNumber(seg.ranges.to-1, seg); err != nil {
+			return err
+		}
+	}
+	return nil
 }
