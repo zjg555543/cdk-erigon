@@ -102,7 +102,7 @@ type IntraBlockState interface {
 	AddAddressToAccessList(addr common.Address) (addrMod bool)
 	// AddSlotToAccessList adds the given (address,slot) to the access list. This operation is safe to perform
 	// even if the feature/fork is not active yet
-	AddSlotToAccessList(addr common.Address, slot common.Hash) (addrMod, slotMod bool)
+	AddSlotToAccessList(addr common.Address, slot *common.Hash) (addrMod, slotMod bool)
 
 	RevertToSnapshot(int)
 	Snapshot() int

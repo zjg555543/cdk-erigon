@@ -46,7 +46,7 @@ func verifySlots(t *testing.T, s *IntraBlockState, addrString string, slotString
 	}
 	// Check that the expected items are in the access list
 	for i, slot := range slots {
-		if _, slotPresent := s.SlotInAccessList(address, slot); !slotPresent {
+		if _, slotPresent := s.SlotInAccessList(address, &slot); !slotPresent {
 			t.Fatalf("input %d: scope missing slot %v (address %v)", i, slot, addrString)
 		}
 	}
@@ -66,7 +66,10 @@ func TestAccessList(t *testing.T) {
 	t.Parallel()
 	// Some helpers
 	addr := common.HexToAddress
-	slot := common.HexToHash
+	slot := func(a string) *common.Hash {
+		r := common.HexToHash(a)
+		return &r
+	}
 
 	_, tx := memdb.NewTestTx(t)
 	state := New(NewPlainState(tx, 1, nil))

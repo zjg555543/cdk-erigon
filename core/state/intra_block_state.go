@@ -820,7 +820,7 @@ func (sdb *IntraBlockState) Prepare(rules *chain.Rules, sender, coinbase libcomm
 		for _, el := range list {
 			al.AddAddress(el.Address)
 			for _, key := range el.StorageKeys {
-				al.AddSlot(el.Address, key)
+				al.AddSlot(el.Address, &key)
 			}
 		}
 		if rules.IsShanghai { // EIP-3651: warm coinbase
@@ -841,7 +841,7 @@ func (sdb *IntraBlockState) AddAddressToAccessList(addr libcommon.Address) (addr
 }
 
 // AddSlotToAccessList adds the given (address, slot)-tuple to the access list
-func (sdb *IntraBlockState) AddSlotToAccessList(addr libcommon.Address, slot libcommon.Hash) (addrMod, slotMod bool) {
+func (sdb *IntraBlockState) AddSlotToAccessList(addr libcommon.Address, slot *libcommon.Hash) (addrMod, slotMod bool) {
 	addrMod, slotMod = sdb.accessList.AddSlot(addr, slot)
 	if addrMod {
 		// In practice, this should not happen, since there is no way to enter the
@@ -853,7 +853,7 @@ func (sdb *IntraBlockState) AddSlotToAccessList(addr libcommon.Address, slot lib
 	if slotMod {
 		sdb.journal.append(accessListAddSlotChange{
 			address: &addr,
-			slot:    &slot,
+			slot:    slot,
 		})
 	}
 	return addrMod, slotMod
@@ -864,6 +864,6 @@ func (sdb *IntraBlockState) AddressInAccessList(addr libcommon.Address) bool {
 	return sdb.accessList.ContainsAddress(addr)
 }
 
-func (sdb *IntraBlockState) SlotInAccessList(addr libcommon.Address, slot libcommon.Hash) (addressPresent bool, slotPresent bool) {
+func (sdb *IntraBlockState) SlotInAccessList(addr libcommon.Address, slot *libcommon.Hash) (addressPresent bool, slotPresent bool) {
 	return sdb.accessList.Contains(addr, slot)
 }
