@@ -155,6 +155,8 @@ var DefaultFlags = []cli.Flag{
 	&utils.EthStatsURLFlag,
 	&utils.OverrideCancunFlag,
 
+	&utils.ConfigFlag,
+
 	&utils.LightClientDiscoveryAddrFlag,
 	&utils.LightClientDiscoveryPortFlag,
 	&utils.LightClientDiscoveryTCPPortFlag,
