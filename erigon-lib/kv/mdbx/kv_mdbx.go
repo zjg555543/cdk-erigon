@@ -345,6 +345,9 @@ func (opts MdbxOpts) Open(ctx context.Context) (kv.RwDB, error) {
 		if err = env.SetOption(mdbx.OptMergeThreshold16dot16Percent, opts.mergeThreshold); err != nil {
 			return nil, err
 		}
+		if err = env.SetOption(mdbx.OptGCTimeLimit, uint64(mdbx.NewDuration16dot16(10*time.Millisecond))); err != nil {
+			return nil, err
+		}
 	}
 
 	dirtyPagesLimit, err := env.GetOption(mdbx.OptTxnDpLimit)
