@@ -32,6 +32,7 @@ import (
 	"github.com/ledgerwatch/erigon/core/vm/evmtypes"
 	"github.com/ledgerwatch/erigon/crypto"
 	"github.com/ledgerwatch/erigon/params"
+	zktypes "github.com/ledgerwatch/erigon/zk/types"
 )
 
 var emptyCodeHash = crypto.Keccak256Hash(nil)
@@ -73,7 +74,7 @@ type StateTransition struct {
 	sharedBuyGas        *uint256.Int
 	sharedBuyGasBalance *uint256.Int
 
-	effectiveGasPercentage *uint8
+	effectiveGasPricePercentage *uint8
 
 	isBor bool
 }
@@ -95,7 +96,7 @@ type Message interface {
 	AccessList() types2.AccessList
 
 	IsFree() bool
-	EffectiveGasPrice() uint8
+	EffectiveGasPricePercentage() uint8
 }
 
 // ExecutionResult includes all output after executing given evm
@@ -158,8 +159,8 @@ func NewStateTransition(evm vm.VMInterface, msg Message, gp *GasPool) *StateTran
 	gas := msg.GasPrice()
 
 	// check if we have an effective gas price percentage in the message and apply it
-	ep := msg.EffectiveGasPrice()
-	if ep > 0 && ep < 255 {
+	ep := msg.EffectiveGasPricePercentage()
+	if ep > zktypes.EFFECTIVE_GAS_PRICE_PERCENTAGE_DISABLED {
 		val := gas.Clone()
 		epi := new(uint256.Int).SetUint64(uint64(ep))
 		epi = epi.Add(epi, u256.Num1)
