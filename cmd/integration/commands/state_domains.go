@@ -41,6 +41,7 @@ import (
 	"github.com/ledgerwatch/erigon/node/nodecfg"
 	erigoncli "github.com/ledgerwatch/erigon/turbo/cli"
 	"github.com/ledgerwatch/erigon/turbo/services"
+	zktypes "github.com/ledgerwatch/erigon/zk/types"
 )
 
 func init() {
@@ -523,7 +524,7 @@ func (b *blockProcessor) applyBlock(
 			ibs.Prepare(tx.Hash(), block.Hash(), i)
 			ct := exec3.NewCallTracer()
 			b.vmConfig.Tracer = ct
-			receipt, _, err := core.ApplyTransaction(b.chainConfig, getHashFn, b.engine, nil, gp, ibs, b.writer, header, tx, usedGas, b.vmConfig, parentHeader.ExcessDataGas, 100) // TODO [zkevm] - fix for build, but may need to pass correct value
+			receipt, _, err := core.ApplyTransaction(b.chainConfig, getHashFn, b.engine, nil, gp, ibs, b.writer, header, tx, usedGas, b.vmConfig, parentHeader.ExcessDataGas, zktypes.EFFECTIVE_GAS_PRICE_PERCENTAGE_DISABLED)
 			if err != nil {
 				return nil, fmt.Errorf("could not apply tx %d [%x] failed: %w", i, tx.Hash(), err)
 			}
