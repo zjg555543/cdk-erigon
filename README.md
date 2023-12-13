@@ -15,13 +15,12 @@ In order to enable the zkevm_ namespace, please add 'zkevm' to the http.api flag
 - `zkevm_getBatchByNumber`
 - `zkevm_isBlockConsolidated`
 - `zkevm_verifiedBatchNumber`
-
-
-### Not yet supported
 - `zkevm_isBlockVirtualized`
 - `zkevm_virtualBatchNumber`
 - `zkevm_getFullBlockByHash`
 - `zkevm_getFullBlockByNumber`
+
+### Not yet supported
 - `zkevm_getNativeBlockHashesInRange`
 
 ***
