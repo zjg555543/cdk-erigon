@@ -1,6 +1,6 @@
-# zkEVM-Erigon
+# cdk-erigon
 
-zkEVM-Erigon is a fork of Erigon, currently in Alpha, optimized for syncing with the Polygon Hermez zkEVM network.
+cdk-erigon is a fork of Erigon, currently in Alpha, optimized for syncing with the Polygon Hermez zkEVM network.
 
 ***
 
@@ -10,6 +10,8 @@ In order to use the optimal vectorized poseidon hashing for the Sparse Merkle Tr
 Please install: 
 - Linux: `libgtest-dev` `libomp-dev` `libgmp-dev`
 - MacOS: `brew install libomp` `brew install gmp`
+
+Using the Makefile command: `make build-libs` will install these for the relevant architecture.
 
 ## zkevm-specific API Support
 
@@ -48,7 +50,7 @@ In order to enable the zkevm_ namespace, please add 'zkevm' to the http.api flag
 ***
 
 ## Configuration Files
-Config files are the easiest way to configure zKEVM-Erigon, there are examples in the repository for each network e.g. `hermezconfig-testnet.yaml.example`.
+Config files are the easiest way to configure cdk-erigon, there are examples in the repository for each network e.g. `hermezconfig-testnet.yaml.example`.
 
 Depending on the RPC provider you are using, you may wish to alter `zkevm.rpc-ratelimit`.
 
@@ -77,9 +79,9 @@ http.api : ["eth","debug","net","trace","web3","erigon", "zkevm"]
 ***
 
 ## Running zKEVM Erigon
-- Build using  `make zkevm-erigon`
+- Build using  `make cdk-erigon`
 - Set up your config file (copy an example and edit as required)
-- run `./build/bin/zkevm-erigon --config="./hermezconfig-{network}.yaml"` (complete the name of your config file as required)
+- run `./build/bin/cdk-erigon --config="./hermezconfig-{network}.yaml"` (complete the name of your config file as required)
 
 NB: `--externalcl` flag is removed in upstream erigon so beware of re-using commands/config
 
