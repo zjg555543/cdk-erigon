@@ -474,7 +474,7 @@ func HermezDevnetGenesisBlock() *types.Genesis {
 func X1DevnetGenesisBlock() *types.Genesis {
 	return &types.Genesis{
 		Config:     params.X1DevnetChainConfig,
-		Timestamp:  1676996964,
+		Timestamp:  1697626902,
 		GasLimit:   0x0,
 		Difficulty: big.NewInt(0x0),
 		Alloc:      readPrealloc("allocs/x1-devnet.json"),
