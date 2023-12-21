@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/ledgerwatch/erigon-lib/common"
-	"github.com/ledgerwatch/erigon/zk/datastream"
 	"github.com/ledgerwatch/erigon/zk/datastream/client"
 	"github.com/ledgerwatch/erigon/zk/datastream/test/utils"
 	"github.com/ledgerwatch/erigon/zk/datastream/types"
@@ -15,7 +14,8 @@ import (
 // This code downloads headers and blocks from a datastream server.
 func main() {
 	// Create client
-	c := client.NewClient(datastream.TestDatastreamUrl)
+	testDatastreamUrl := "127.0.0.1:6900"
+	c := client.NewClient(testDatastreamUrl)
 
 	// Start client (connect to the server)
 	defer c.Stop()
