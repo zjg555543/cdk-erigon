@@ -1,0 +1,19 @@
+datadir : '/data/zhujianguo/cdk-erigon/data'
+chain : "x1-devnet"
+http : true
+private.api.addr : "localhost:9091"
+zkevm.l2-chain-id: 1001
+zkevm.l2-sequencer-rpc-url: "http://127.0.0.1:8123"
+zkevm.l2-datastreamer-url: "127.0.0.1:6900"
+zkevm.l1-chain-id: 1337
+zkevm.l1-rpc-url: "http://127.0.0.1:8545"
+zkevm.l1-contract-address: "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
+zkevm.l1-block-range: 20000
+zkevm.l1-query-delay: 6000
+zkevm.l1-matic-contract-address: "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+zkevm.l1-ger-manager-contract-address: "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+zkevm.l1-first-block: 134
+zkevm.rpc-ratelimit: 250
+
+externalcl: true
+http.api : ["eth","debug","net","trace","web3","erigon","zkevm"]
